@@ -1,115 +1,114 @@
-/* General Styles */
-body {
-    font-family: Arial, sans-serif;
+/* Global Styles */
+* {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-}
-
-/* Container for all pages */
-.container {
-    width: 90%;
-    max-width: 500px;
-    background: white;
+    font-family: Arial, sans-serif;
+  }
+  
+  /* Container Styling */
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-    text-align: center;
-}
-
-/* Property Selection Grid */
-.property-grid {
-    display: flex;
-    flex-direction: column; /* Stack items vertically */
-    gap: 15px;
-    align-items: center;
-    margin-top: 20px;
-}
-
-/* Property Buttons */
-.property-box {
+    background: #ffffff;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  
+  /* Ensures full viewport coverage and prevents cutting-off */
+  html, body {
+    height: 100%;
     width: 100%;
-    padding: 15px;
-    font-size: 18px;
-    font-weight: bold;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    cursor: pointer;
-    border-radius: 5px;
-    transition: background 0.3s;
-}
-
-.property-box:hover {
-    background-color: #0056b3;
-}
-
-/* Form Fields */
-form {
+    overflow-x: hidden;
+    background-color: #f5f5f5;
+  }
+  
+  /* Form Styling */
+  form {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    margin-top: 20px;
-}
-
-label {
-    width: 100%;
+    gap: 12px; /* Adds space between form elements */
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    overflow-y: auto;
+    max-height: 80vh; /* Prevents overflow on large screens */
+  }
+  
+  label {
+    font-size: 16px;
     font-weight: bold;
-    text-align: left;
-}
-
-input, textarea {
+    margin-bottom: 4px;
+  }
+  
+  input, textarea {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
+    padding: 12px;
+    border: 1px solid #ddd;
     border-radius: 5px;
     font-size: 16px;
-}
-
-textarea {
-    resize: none;
-    height: 80px;
-}
-
-/* Submit and Download Buttons */
-button {
-    width: 100%;
+  }
+  
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+    max-height: 250px;
+  }
+  
+  /* Header Styling */
+  h1 {
+    font-size: 22px;
+    text-align: center;
+    margin-bottom: 20px;
     padding: 10px;
+    background: #333;
+    color: white;
+    border-radius: 5px;
+  }
+  
+  /* Button Styling */
+  button {
+    padding: 14px;
     font-size: 18px;
-    font-weight: bold;
-    background-color: #28a745;
+    background: #007BFF;
     color: white;
     border: none;
+    border-radius: 6px;
     cursor: pointer;
-    border-radius: 5px;
-    transition: background 0.3s;
-}
-
-button:hover {
-    background-color: #218838;
-}
-
-.download-btn {
-    margin-top: 10px;
-    background-color: #17a2b8;
-}
-
-.download-btn:hover {
-    background-color: #138496;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
+    transition: 0.3s;
+  }
+  
+  button:hover {
+    background: #0056b3;
+  }
+  
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
     .container {
-        width: 95%;
+      width: 90%;
+      padding: 15px;
     }
-
-    .property-box {
-        font-size: 16px;
+  
+    form {
+      padding: 15px;
+      max-height: 85vh;
     }
-}
+  
+    h1 {
+      font-size: 18px;
+      padding: 8px;
+    }
+  
+    button {
+      font-size: 16px;
+      padding: 12px;
+    }
+  
+    input, textarea {
+      font-size: 14px;
+      padding: 10px;
+    }
+  }
+  
