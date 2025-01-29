@@ -24,12 +24,13 @@ app.post('/submit-form', async (req, res) => {
         const data = req.body;
         console.log('Form Data Received:', data);
         lastSubmission = data;
-        return res.status(200).json({ message: 'Checklist submitted successfully! Please click "Download PDF".' });
+        res.status(200).json({ message: 'Checklist submitted successfully! Please click "Download PDF".', success: true });
     } catch (error) {
         console.error('Error processing form submission:', error);
-        return res.status(500).json({ message: 'An error occurred while processing your submission.' });
+        res.status(500).json({ message: 'An error occurred while processing your submission.', success: false });
     }
 });
+
 
 app.get('/download-pdf', async (req, res) => {
     try {

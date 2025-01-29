@@ -21,13 +21,15 @@ function FormPage() {
         potholes: ''
     });
     const [isSubmitted, setIsSubmitted] = useState(false);
-    const [showDownload, setShowDownload] = useState(false); // New state to track button visibility
+    const [showDownload, setShowDownload] = useState(false); // ✅ Tracks if download button should be shown
 
+    // ✅ Ensure button appears after form submission
     useEffect(() => {
+        console.log("Checking isSubmitted state:", isSubmitted);
         if (isSubmitted) {
             setShowDownload(true);
         }
-    }, [isSubmitted]);
+    }, [isSubmitted]);  // React now re-renders when isSubmitted changes
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -45,8 +47,11 @@ function FormPage() {
             });
 
             const data = await response.json();
+            console.log("Submission Response:", data); // ✅ Log response from server
+
             if (response.ok) {
                 setIsSubmitted(true);
+                console.log("isSubmitted state updated to:", isSubmitted); // ✅ Debug if state updates
                 alert(data.message);
             } else {
                 alert('Error: ' + data.message);
@@ -58,10 +63,14 @@ function FormPage() {
     };
 
     const handleDownloadPDF = async () => {
+        console.log("Download button clicked!"); // ✅ Debug log for button click
+
         try {
             const response = await fetch('https://cp-check-submissions.onrender.com/download-pdf', {
                 method: 'GET',
             });
+
+            console.log("Download Response:", response); // ✅ Log server response
 
             if (response.ok) {
                 const blob = await response.blob();
@@ -86,7 +95,7 @@ function FormPage() {
         <div className="container">
             <h1>{property} – Commercial Property Inspection Checklist</h1>
 
-            {/* Ensure the button actually appears */}
+            {/* ✅ Ensure the button actually appears */}
             {showDownload && (
                 <button className="download-btn" onClick={handleDownloadPDF}>Download PDF</button>
             )}
