@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
 function FormPage() {
@@ -21,6 +21,13 @@ function FormPage() {
         potholes: ''
     });
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [showDownload, setShowDownload] = useState(false); // New state to track button visibility
+
+    useEffect(() => {
+        if (isSubmitted) {
+            setShowDownload(true);
+        }
+    }, [isSubmitted]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -79,7 +86,8 @@ function FormPage() {
         <div className="container">
             <h1>{property} – Commercial Property Inspection Checklist</h1>
 
-            {isSubmitted && (
+            {/* Ensure the button actually appears */}
+            {showDownload && (
                 <button className="download-btn" onClick={handleDownloadPDF}>Download PDF</button>
             )}
 
