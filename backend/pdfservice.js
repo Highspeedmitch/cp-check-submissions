@@ -22,11 +22,16 @@ function generateChecklistPDF(formData) {
         doc.moveDown(1);
         doc.fontSize(14).text(`Business Name: ${formData.businessName || 'N/A'}`);
         doc.text(`Property Address: ${formData.propertyAddress || 'N/A'}`);
+        doc.text(`Fire Safety Measures: ${formData.fireSafetyMeasures || 'N/A'}`);
+        doc.text(`Security Systems: ${formData.securitySystems || 'N/A'}`);
+        doc.text(`Maintenance Schedule: ${formData.maintenanceSchedule || 'N/A'}`);
         doc.moveDown(1);
+        doc.fontSize(14).text('Additional Notes:', { underline: true });
+        doc.text(`${formData.additionalNotes || 'None'}`);
 
         doc.end();
 
-        pdfStream.on('finish', () => resolve({ pdfStream, filePath, fileName }));
+        pdfStream.on('finish', () => resolve(fs.createReadStream(filePath))); // ✅ Return readable stream
         pdfStream.on('error', reject);
     });
 }

@@ -6,7 +6,7 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5000;
 
 const propertyEmailMap = {
     'San Clemente': 'Nfurrier@picor.com',
@@ -24,13 +24,12 @@ app.post('/submit-form', async (req, res) => {
         const data = req.body;
         console.log('Form Data Received:', data);
         lastSubmission = data;
-        res.status(200).json({ message: 'Checklist submitted successfully! Please click "Download PDF".', success: true });
+        return res.status(200).json({ message: 'Checklist submitted successfully! Please click "Download PDF".' });
     } catch (error) {
         console.error('Error processing form submission:', error);
-        res.status(500).json({ message: 'An error occurred while processing your submission.', success: false });
+        return res.status(500).json({ message: 'An error occurred while processing your submission.' });
     }
 });
-
 
 app.get('/download-pdf', async (req, res) => {
     try {
@@ -39,46 +38,33 @@ app.get('/download-pdf', async (req, res) => {
         }
 
         const pdfStream = await generateChecklistPDF(lastSubmission);
-        const pdfStorageDir = 'pdfstore';
 
-        if (!fs.existsSync(pdfStorageDir)) {
-            fs.mkdirSync(pdfStorageDir, { recursive: true });
+        if (!pdfStream || typeof pdfStream.pipe !== 'function') {
+            throw new Error('PDF generation failed - no valid stream received');
         }
 
-        const dateString = new Date().toISOString().replace(/[:.]/g, '-');
-        const fileName = `checklist-${dateString}.pdf`;
-        const filePath = path.join(pdfStorageDir, fileName);
-        const fileWriteStream = fs.createWriteStream(filePath);
-
-        pdfStream.pipe(fileWriteStream);
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-        pdfStream.pipe(res);
+        res.setHeader('Content-Disposition', `attachment; filename=checklist.pdf`);
+        pdfStream.pipe(res); // ✅ Pipe the valid stream
 
-        fileWriteStream.on('finish', async () => {
-            console.log(`PDF saved at: ${filePath}`);
-            const recipientEmail = propertyEmailMap[lastSubmission.selectedProperty] || 'highspeedmitch@gmail.com';
-
-            const transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: { user: 'highspeedmitch@gmail.com', pass: 'tevt ennm rldu azeh' },
-            });
-
-            const mailOptions = {
-                from: 'highspeedmitch@gmail.com',
-                to: recipientEmail,
-                subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${new Date().toLocaleString()}`,
-                text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}.`,
-                attachments: [{ filename: fileName, path: filePath }],
-            };
-
-            try {
-                await transporter.sendMail(mailOptions);
-                console.log(`Email sent to ${recipientEmail}`);
-            } catch (err) {
-                console.error('Error sending email:', err);
-            }
+        // Email logic after file is created
+        const recipientEmail = propertyEmailMap[lastSubmission.selectedProperty] || 'highspeedmitch@gmail.com';
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user: 'highspeedmitch@gmail.com', pass: 'tevt ennm rldu azeh' },
         });
+
+        const mailOptions = {
+            from: 'highspeedmitch@gmail.com',
+            to: recipientEmail,
+            subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${new Date().toLocaleString()}`,
+            text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}.`,
+            attachments: [{ filename: 'checklist.pdf', path: path.join(__dirname, 'pdfstore', 'checklist.pdf') }],
+        };
+
+        transporter.sendMail(mailOptions)
+            .then(() => console.log(`Email sent to ${recipientEmail}`))
+            .catch((err) => console.error('Error sending email:', err));
 
     } catch (error) {
         console.error('PDF generation error:', error);
