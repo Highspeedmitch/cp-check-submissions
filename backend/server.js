@@ -6,7 +6,7 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 const propertyEmailMap = {
     'San Clemente': 'Nfurrier@picor.com',
