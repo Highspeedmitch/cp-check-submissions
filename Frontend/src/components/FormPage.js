@@ -31,7 +31,7 @@ function FormPage() {
         e.preventDefault();
         try {
             const payload = { ...formData, selectedProperty: property };
-            const response = await fetch('https://your-backend-url.onrender.com/submit-form', {
+            const response = await fetch('https://cp-check-submissions.onrender.com/submit-form', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -52,7 +52,7 @@ function FormPage() {
 
     const handleDownloadPDF = async () => {
         try {
-            const response = await fetch('https://your-backend-url.onrender.com/download-pdf', {
+            const response = await fetch('https://cp-check-submissions.onrender.com/download-pdf', {
                 method: 'GET',
             });
 
