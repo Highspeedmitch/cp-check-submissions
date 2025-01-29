@@ -84,6 +84,13 @@
     background: #0056b3;
   }
   
+  .property-grid {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+
   /* Responsive Adjustments */
   @media (max-width: 768px) {
     .container {
