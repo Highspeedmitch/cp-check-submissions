@@ -4,6 +4,7 @@ const { generateChecklistPDF } = require('./pdfservice');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const moment = require('moment-timezone'); // ✅ Import moment-timezone
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -37,7 +38,11 @@ app.get('/download-pdf', async (req, res) => {
             return res.status(400).json({ message: 'No form submission found. Please submit the form first.' });
         }
 
-        const { pdfStream, filePath, fileName } = await generateChecklistPDF(lastSubmission);
+        // ✅ Generate a timestamp in MST
+        const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
+
+        // ✅ Generate PDF with MST date in the filename
+        const { pdfStream, filePath, fileName } = await generateChecklistPDF(lastSubmission, dateMST);
 
         if (!pdfStream || typeof pdfStream.pipe !== 'function') {
             throw new Error('PDF generation failed - no valid stream received');
@@ -47,8 +52,7 @@ app.get('/download-pdf', async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
         pdfStream.pipe(res);
 
-        // ✅ Add Date to email subject
-        const submissionDate = new Date().toLocaleString();
+        // ✅ Use MST timestamp in email subject
         const recipientEmail = propertyEmailMap[lastSubmission.selectedProperty] || 'highspeedmitch@gmail.com';
 
         // ✅ Email the correct file
@@ -60,9 +64,9 @@ app.get('/download-pdf', async (req, res) => {
         const mailOptions = {
             from: 'highspeedmitch@gmail.com',
             to: recipientEmail,
-            subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${submissionDate}`,
-            text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}.`,
-            attachments: [{ filename: fileName, path: filePath }], // ✅ Use correct path
+            subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${dateMST} MST`,
+            text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}, submitted on ${dateMST} MST.`,
+            attachments: [{ filename: fileName, path: filePath }],
         };
 
         transporter.sendMail(mailOptions)
