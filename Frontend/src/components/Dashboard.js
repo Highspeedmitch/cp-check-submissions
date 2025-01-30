@@ -14,7 +14,7 @@ function Dashboard() {
             return;
         }
 
-        fetch('http://localhost:5000/properties', {
+        fetch('https://cp-check-submissions-dev.onrender.com/properties', {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` },
         })
