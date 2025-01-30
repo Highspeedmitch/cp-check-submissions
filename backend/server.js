@@ -23,7 +23,7 @@ const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
 // ✅ CORS configuration
 app.use(cors({
-    origin: ['https://cp-check-submissions-dev.onrender.com'],
+    origin: '*', // Allows all domains (or use an array of approved domains)
     credentials: true
   }));  
 

@@ -35,7 +35,7 @@ function Register() {
     }
 
     try {
-      const response = await fetch('https://cp-check-submissions-dev.onrender.com/register', { // your backend
+        const response = await fetch('https://cp-check-submissions-dev.onrender.com/api/register', {            // your backend
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

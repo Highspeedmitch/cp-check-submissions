@@ -40,7 +40,7 @@ function FormPage() {
         e.preventDefault();
         try {
             const payload = { ...formData, selectedProperty: property };
-            const response = await fetch('https://cp-check-submissions.onrender.com/submit-form', {
+            const response = await fetch('https://cp-check-submissions-dev.onrender.com/api/submit-form', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
