@@ -23,9 +23,9 @@ const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
 // ✅ CORS configuration
 app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
-}));
+    origin: ['https://cp-check-submissions-dev.onrender.com'],
+    credentials: true
+  }));  
 
 app.use(express.json());
 
