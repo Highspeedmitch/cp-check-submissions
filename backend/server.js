@@ -23,7 +23,7 @@ const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
 // ✅ CORS configuration
 app.use(cors({
-    origin: ['https://cp-check-submissions-dev.onrender.com/'],
+    origin: ['https://cp-check-submissions-dev.onrender.com'],
     credentials: true
   }));  
 
@@ -92,25 +92,39 @@ app.post('/register', async (req, res) => {
  * 🔹 User Login (Returns JWT)
  */
 app.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body; // Using email for login
-    const user = await User.findOne({ email }).populate('organizationId');
-    if (!user || !bcrypt.compareSync(password, user.password)) {
-      return res.status(401).json({ message: "Invalid credentials" });
+    try {
+      const { email, password } = req.body;
+  
+      // ✅ Check if user exists
+      const user = await User.findOne({ email }).populate('organizationId');
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials (user not found)" });
+      }
+  
+      // ✅ Ensure password matches
+      if (!bcrypt.compareSync(password, user.password)) {
+        return res.status(401).json({ message: "Invalid credentials (incorrect password)" });
+      }
+  
+      // ✅ Ensure organization exists
+      if (!user.organizationId) {
+        return res.status(500).json({ message: "Organization not found for user" });
+      }
+  
+      // ✅ Generate JWT
+      const token = jwt.sign(
+        { email, organizationId: user.organizationId._id },
+        SECRET_KEY,
+        { expiresIn: '2h' }
+      );
+  
+      res.json({ message: "Login successful", token, organizationId: user.organizationId._id });
+  
+    } catch (error) {
+      console.error("❌ Login error:", error);
+      res.status(500).json({ message: "Server error during login." });
     }
-
-    const token = jwt.sign(
-      { email, organizationId: user.organizationId._id },
-      SECRET_KEY,
-      { expiresIn: '2h' }
-    );
-
-    res.json({ message: "Login successful", token, organizationId: user.organizationId._id });
-  } catch (error) {
-    console.error("❌ Login error:", error);
-    res.status(500).json({ message: "Server error during login." });
-  }
-});
+  });  
 
 /**
  * 🔹 Single /properties Route
