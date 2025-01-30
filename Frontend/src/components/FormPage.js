@@ -63,15 +63,23 @@ function FormPage() {
     };
 
     const handleDownloadPDF = async () => {
-        console.log("Download button clicked!"); // ✅ Debug log for button click
-
+        console.log("Download button clicked!");
+    
         try {
-            const response = await fetch('https://cp-check-submissions.onrender.com/download-pdf', {
+            let response = await fetch('https://cp-check-submissions.onrender.com/download-pdf', {
                 method: 'GET',
             });
-
-            console.log("Download Response:", response); // ✅ Log server response
-
+    
+            let retries = 0;
+            while (!response.ok && retries < 5) {
+                console.log("Retrying PDF download...");
+                await new Promise(res => setTimeout(res, 1000)); // Wait 1 sec
+                response = await fetch('https://cp-check-submissions.onrender.com/download-pdf', { method: 'GET' });
+                retries++;
+            }
+    
+            console.log("Download Response:", response);
+    
             if (response.ok) {
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -90,6 +98,7 @@ function FormPage() {
             alert('Error downloading PDF. Please try again.');
         }
     };
+    
 
     return (
         <div className="container">

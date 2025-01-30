@@ -1,26 +1,52 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import PropertySelector from './components/PropertySelector';
-import FormPage from './components/FormPage';
-import './styles.css';
+import React, { useState, useEffect } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import Login from "./components/Login";
+import Dashboard from "./components/Dashboard";
+import FormPage from "./components/FormPage";
+import Register from "./components/Register";
+import PropertySelector from "./components/PropertySelector";
 
 function App() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Check for stored token in localStorage
+    const token = localStorage.getItem("token");
+    if (token) {
+      setUser(true);
+    }
+  }, []);
+
   return (
-    <Router>
+    <>
       <Routes>
-        {/* Default route redirects to PropertySelector */}
-        <Route path="/" element={<Navigate to="/select-property" />} />
-        
-        {/* Property selection page */}
-        <Route path="/select-property" element={<PropertySelector />} />
+        {/* Public Routes */}
+        <Route
+          path="/"
+          element={
+            !user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" />
+          }
+        />
+        <Route path="/register" element={<Register />} />
 
-        {/* Dynamic route for forms */}
-        <Route path="/form/:property" element={<FormPage />} />
+        {/* Protected Routes (Require Login) */}
+        <Route
+          path="/dashboard"
+          element={user ? <Dashboard /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/property-selector"
+          element={user ? <PropertySelector /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/form/:property"
+          element={user ? <FormPage /> : <Navigate to="/" />}
+        />
 
-        {/* Catch-all for 404 pages */}
-        <Route path="*" element={<Navigate to="/select-property" />} />
+        {/* Catch-All (Redirect to Login) */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </Router>
+    </>
   );
 }
 
