@@ -18,7 +18,7 @@ const User = require('./models/user');
 const orgPropertyMap = require('./models/orgPropertyMap');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
 // ✅ CORS configuration
