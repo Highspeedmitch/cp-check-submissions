@@ -23,9 +23,11 @@ const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
 // ✅ CORS configuration
 app.use(cors({
-    origin: '*', // Allows all domains (or use an array of approved domains)
+    origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
+    methods: "GET,POST,PUT,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
     credentials: true
-  }));  
+  }));   
 
 app.use(express.json());
 
@@ -91,7 +93,7 @@ app.post('/register', async (req, res) => {
 /**
  * 🔹 User Login (Returns JWT)
  */
-app.post('api/login', async (req, res) => {
+app.post('/api/login', async (req, res) => {
     try {
       const { email, password } = req.body;
   
@@ -129,7 +131,7 @@ app.post('api/login', async (req, res) => {
 /**
  * 🔹 Single /properties Route
  */
-app.get('/properties', authenticateToken, async (req, res) => {
+app.get('/api/properties', authenticateToken, async (req, res) => {
   try {
     const org = await Organization.findById(req.user.organizationId);
     if (!org) {
@@ -146,7 +148,7 @@ app.get('/properties', authenticateToken, async (req, res) => {
  * 🔹 Submit Form (Requires Authentication)
  */
 let lastSubmission = null;
-app.post('/submit-form', authenticateToken, async (req, res) => {
+app.post('/api/submit-form', authenticateToken, async (req, res) => {
   try {
     const data = req.body;
     console.log('Form Data Received:', data);
@@ -161,7 +163,7 @@ app.post('/submit-form', authenticateToken, async (req, res) => {
 /**
  * 🔹 Generate PDF & Email (Requires Authentication)
  */
-app.get('/download-pdf', authenticateToken, async (req, res) => {
+app.get('/api/download-pdf', authenticateToken, async (req, res) => {
   try {
     if (!lastSubmission) {
       return res.status(400).json({ message: 'No form submission found. Please submit the form first.' });
@@ -223,7 +225,7 @@ app.get('/download-pdf', authenticateToken, async (req, res) => {
 /**
  * 🔹 List Recent Submissions (Last 30 Days)
  */
-app.get('/recent-submissions', authenticateToken, async (req, res) => {
+app.get('/api/recent-submissions', authenticateToken, async (req, res) => {
   try {
     const files = fs
       .readdirSync(path.join(__dirname, 'pdfstore'))
