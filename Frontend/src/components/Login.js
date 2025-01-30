@@ -19,22 +19,29 @@ function Login({ setUser }) {
       const response = await fetch("https://cp-check-submissions-dev.onrender.com/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }), // 💡 pass email
+        body: JSON.stringify({ email, password }),
       });
-
-      const data = await response.json();
-      if (response.ok) {
-        localStorage.setItem("token", data.token);
-        setUser(true);
-        navigate("/dashboard");
-      } else {
-        alert(data.message);
+  
+      // ✅ Check if response is JSON
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text); // Try parsing JSON
+        if (response.ok) {
+          localStorage.setItem("token", data.token);
+          setUser(true);
+          navigate("/dashboard");
+        } else {
+          alert(data.message);
+        }
+      } catch (jsonError) {
+        console.error("❌ Unexpected response:", text);
+        alert("Unexpected server response. Please try again.");
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("❌ Login error:", error);
       alert("Server error. Please try again.");
     }
-  };
+  };  
 
   return (
     <div>
