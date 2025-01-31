@@ -232,8 +232,8 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       throw new Error('PDF generation failed - no valid stream received');
     }
 
-    // Wait 3 seconds to ensure the PDF file is completely written and closed
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait .5 seconds to ensure the PDF file is completely written and closed
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Read the generated PDF file from disk (temporarily stored locally)
     const pdfBuffer = fs.readFileSync(filePath);
