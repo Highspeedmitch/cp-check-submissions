@@ -52,42 +52,40 @@ const authenticateToken = (req, res, next) => {
 /**
  * 🔹 Register a New Organization & Admin User
  */
-app.post('/api/register', async (req, res) => {
-  try {
-    const { organizationName, username, email, password, properties, emails } = req.body;
-
-    // 1) Hash password
-    const hashedPassword = bcrypt.hashSync(password, 10);
-
-    // 2) Decide which property array to use
-    let orgProperties = properties || [];
-
-    // 3) If orgProperties is empty AND orgPropertyMap has an entry, auto-assign
-    if ((!orgProperties || orgProperties.length === 0) && orgPropertyMap[organizationName]) {
-        orgProperties = orgPropertyMap[organizationName].properties; // ✅ Now assigning correctly
-      }      
-
-    // 4) Create new organization
-    const newOrg = await Organization.create({
-      name: organizationName,
-      properties: orgProperties,
-      emails
-    });
-
-    // 5) Create new user
-    const newUser = await User.create({
-      username,
-      email,
-      password: hashedPassword,
-      organizationId: newOrg._id
-    });
-
-    res.status(201).json({ message: "Organization and admin user created!" });
-  } catch (error) {
-    console.error("❌ Error registering organization:", error);
-    res.status(500).json({ message: "Error registering organization." });
-  }
-});
+aapp.post('/api/register', async (req, res) => {
+    try {
+      const { organizationName, username, email, password, properties } = req.body;
+  
+      // 1) Hash password
+      const hashedPassword = bcrypt.hashSync(password, 10);
+  
+      // 2) Assign properties with emails from orgPropertyMap if not provided
+      let orgProperties = properties || [];
+  
+      if ((!orgProperties || orgProperties.length === 0) && orgPropertyMap[organizationName]) {
+          orgProperties = orgPropertyMap[organizationName].properties; // Assign properties with emails
+      }
+  
+      // 3) Create new organization with properties (including emails)
+      const newOrg = await Organization.create({
+        name: organizationName,
+        properties: orgProperties, // Now includes emails per property
+      });
+  
+      // 4) Create new user
+      const newUser = await User.create({
+        username,
+        email,
+        password: hashedPassword,
+        organizationId: newOrg._id
+      });
+  
+      res.status(201).json({ message: "Organization and admin user created!" });
+    } catch (error) {
+      console.error("❌ Error registering organization:", error);
+      res.status(500).json({ message: "Error registering organization." });
+    }
+  });
 
 /**
  * 🔹 User Login (Returns JWT)
@@ -162,64 +160,72 @@ app.post('/api/submit-form', authenticateToken, async (req, res) => {
 /**
  * 🔹 Generate PDF & Email (Requires Authentication)
  */
+// server.js (Download PDF Route)
 app.get('/api/download-pdf', authenticateToken, async (req, res) => {
-  try {
-    if (!lastSubmission) {
-      return res.status(400).json({ message: 'No form submission found. Please submit the form first.' });
+    try {
+      if (!lastSubmission) {
+        return res.status(400).json({ message: 'No form submission found. Please submit the form first.' });
+      }
+  
+      // MST Timestamp
+      const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
+  
+      // Ensure PDF storage directory
+      const pdfStorageDir = path.join(__dirname, 'pdfstore');
+      if (!fs.existsSync(pdfStorageDir)) {
+        fs.mkdirSync(pdfStorageDir, { recursive: true });
+      }
+  
+      // Generate PDF
+      const { pdfStream, filePath, fileName } = await generateChecklistPDF(lastSubmission);
+      if (!pdfStream || typeof pdfStream.pipe !== 'function') {
+        throw new Error('PDF generation failed - no valid stream received');
+      }
+  
+      // Pipe PDF to response
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+      pdfStream.pipe(res);
+  
+      // Fetch email recipients for the selected property
+      const org = await Organization.findById(req.user.organizationId);
+      const property = org.properties.find(p => p.name === lastSubmission.selectedProperty);
+  
+      if (!property) {
+        return res.status(404).json({ message: 'Property not found.' });
+      }
+  
+      const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
+  
+      // Nodemailer config
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'highspeedmitch@gmail.com',
+          pass: 'tevt ennm rldu azeh' // Use environment variable for security
+        },
+      });
+  
+      // Compose mail
+      const mailOptions = {
+        from: 'highspeedmitch@gmail.com',
+        to: recipientEmails,
+        subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${dateMST} MST`,
+        text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}, submitted on ${dateMST} MST.`,
+        attachments: [{ filename: fileName, path: filePath }]
+      };
+  
+      // Send email
+      transporter.sendMail(mailOptions)
+        .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
+        .catch((err) => console.error('❌ Error sending email:', err));
+  
+    } catch (error) {
+      console.error('❌ PDF generation error:', error);
+      res.status(500).json({ message: 'Error generating PDF' });
     }
-
-    // MST Timestamp
-    const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
-
-    // Ensure PDF storage directory
-    const pdfStorageDir = path.join(__dirname, 'pdfstore');
-    if (!fs.existsSync(pdfStorageDir)) {
-      fs.mkdirSync(pdfStorageDir, { recursive: true });
-    }
-
-    // Generate PDF
-    const { pdfStream, filePath, fileName } = await generateChecklistPDF(lastSubmission, dateMST);
-    if (!pdfStream || typeof pdfStream.pipe !== 'function') {
-      throw new Error('PDF generation failed - no valid stream received');
-    }
-
-    // Pipe PDF to response
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-    pdfStream.pipe(res);
-
-    // Fetch email recipients from org
-    const org = await Organization.findById(req.user.organizationId);
-    const recipientEmail = org ? org.emails.join(",") : 'highspeedmitch@gmail.com';
-
-    // Nodemailer config
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: 'highspeedmitch@gmail.com',
-        pass: 'tevt ennm rldu azeh'
-      },
-    });
-
-    // Compose mail
-    const mailOptions = {
-      from: 'highspeedmitch@gmail.com',
-      to: recipientEmail,
-      subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${dateMST} MST`,
-      text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}, submitted on ${dateMST} MST.`,
-      attachments: [{ filename: fileName, path: filePath }]
-    };
-
-    // Send email
-    transporter.sendMail(mailOptions)
-      .then(() => console.log(`✅ Email sent to ${recipientEmail}`))
-      .catch((err) => console.error('❌ Error sending email:', err));
-
-  } catch (error) {
-    console.error('❌ PDF generation error:', error);
-    res.status(500).json({ message: 'Error generating PDF' });
-  }
-});
+  });
+  
 
 /**
  * 🔹 List Recent Submissions (Last 30 Days)
