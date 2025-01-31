@@ -21,13 +21,6 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
-const propertyEmailMap = {
-    'San Clemente': ['Nfurrier@picor.com', 'Gfurrier@picor.com'],
-    'Broadway Center': 'Gfurrier@picor.com',
-    '22 & Harrison': 'Highspeedmitch@gmail.com',
-};
-const recipientEmail = propertyEmailMap[lastSubmission.selectedProperty] || 'highspeedmitch@gmail.com';
-
 // ✅ CORS configuration
 app.use(cors({
     origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
