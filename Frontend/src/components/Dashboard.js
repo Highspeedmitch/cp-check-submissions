@@ -8,31 +8,34 @@ function Dashboard() {
     const [loading, setLoading] = useState(true);
     const token = localStorage.getItem('token'); // Retrieve token for authentication
 
-    useEffect(() => {
-        if (!token) {
-            navigate('/login'); // Redirect to login if no token
-            return;
-        }
+    // Dashboard.js
+useEffect(() => {
+    if (!token) {
+        navigate('/login'); // Redirect to login if no token
+        return;
+    }
 
-        fetch('https://cp-check-submissions-dev-backend.onrender.com/api/properties', {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                setError(data.error);
-            } else {
-                setProperties(data);
-            }
-            setLoading(false);
-        })
-        .catch(err => {
-            console.error("Error fetching properties:", err);
-            setError("Failed to load properties");
-            setLoading(false);
-        });
-    }, [navigate, token]);
+    fetch('https://cp-check-submissions-dev-backend.onrender.com/api/properties', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log('Fetched properties:', data); // Debugging line
+        if (data.error) {
+            setError(data.error);
+        } else {
+            setProperties(data);
+        }
+        setLoading(false);
+    })
+    .catch(err => {
+        console.error("Error fetching properties:", err);
+        setError("Failed to load properties");
+        setLoading(false);
+    });
+}, [navigate, token]);
+
 
     const handleLogout = () => {
         localStorage.removeItem('token');
