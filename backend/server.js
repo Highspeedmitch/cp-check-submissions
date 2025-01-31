@@ -52,7 +52,7 @@ const authenticateToken = (req, res, next) => {
 /**
  * 🔹 Register a New Organization & Admin User
  */
-aapp.post('/api/register', async (req, res) => {
+app.post('/api/register', async (req, res) => {
     try {
       const { organizationName, username, email, password, properties } = req.body;
   
