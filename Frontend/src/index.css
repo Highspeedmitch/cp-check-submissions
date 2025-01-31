@@ -80,7 +80,7 @@ button:hover {
   background-color: var(--admin-hover);
 }
 
-/* Logout Button with max-width constraint */
+/* Logout Button: Constrained to 500px max width */
 .logout-btn {
   background-color: #dc3545;
   color: white;
@@ -92,7 +92,7 @@ button:hover {
   font-size: 16px;
   font-weight: bold;
   width: 100%;
-  max-width: 500px;  /* Constrain to 500px maximum */
+  max-width: 500px;
   box-shadow: var(--button-shadow);
   transition: background 0.3s ease, box-shadow 0.3s ease;
 }
@@ -173,7 +173,7 @@ button:hover {
   padding: 30px;
 }
 
-/* Dashboard Header with Subtext */
+/* Dashboard Header */
 .dashboard-header {
   text-align: center;
   margin-bottom: 20px;
@@ -306,14 +306,15 @@ button:hover {
   }
 }
 
+/* For Mobile: Keep the dashboard-container in row layout so the sidebar remains on the left */
 @media screen and (max-width: 480px) {
   .dashboard-container {
-    flex-direction: column;
+    flex-direction: row;
   }
   .sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid #ddd;
+    width: 200px;
+    border-right: 1px solid #ddd;
+    border-bottom: none;
   }
   .main-content {
     padding: 20px;
