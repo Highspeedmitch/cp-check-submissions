@@ -197,7 +197,7 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       service: 'gmail',
       auth: {
         user: 'highspeedmitch@gmail.com',
-        pass: process.env.EMAIL_PASS
+        pass: 'tevt ennm rldu azeh'
       },
     });
 
