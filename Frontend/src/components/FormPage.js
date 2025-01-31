@@ -39,10 +39,15 @@ function FormPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const token = localStorage.getItem('token'); // or however you store it
             const payload = { ...formData, selectedProperty: property };
+    
             const response = await fetch('https://cp-check-submissions-dev.onrender.com/api/submit-form', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
                 body: JSON.stringify(payload),
             });
 
@@ -64,17 +69,19 @@ function FormPage() {
 
     const handleDownloadPDF = async () => {
         console.log("Download button clicked!");
-    
+    const token = localStorage.getItem('token');
         try {
-            let response = await fetch('https://cp-check-submissions.onrender.com/download-pdf', {
+            let response = await fetch('https://cp-check-submissions-dev.onrender.com/api/download-pdf', {
                 method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${token}`,}
             });
     
             let retries = 0;
             while (!response.ok && retries < 5) {
                 console.log("Retrying PDF download...");
                 await new Promise(res => setTimeout(res, 1000)); // Wait 1 sec
-                response = await fetch('https://cp-check-submissions.onrender.com/download-pdf', { method: 'GET' });
+                response = await fetch('https://cp-check-submissions.onrender.com/api/download-pdf', { method: 'GET' });
                 retries++;
             }
     
