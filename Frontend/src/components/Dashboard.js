@@ -1,15 +1,17 @@
-// Dashboard.js
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 function Dashboard() {
   const navigate = useNavigate();
-  const [properties, setProperties] = useState([]); // Array of property names (strings)
-  const [completedProperties, setCompletedProperties] = useState([]); // Properties that are submitted
+  const [properties, setProperties] = useState([]);
+  const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const token = localStorage.getItem("token");
+
+  // Assume the organization name is stored in localStorage or set a default
+  const orgName = localStorage.getItem("orgName") || "Your Organization";
 
   useEffect(() => {
     if (!token) {
@@ -17,7 +19,6 @@ function Dashboard() {
       return;
     }
 
-    // Fetch the properties for the organization
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
@@ -27,7 +28,7 @@ function Dashboard() {
         if (data.error) {
           setError(data.error);
         } else {
-          setProperties(data); // expecting an array of strings
+          setProperties(data);
         }
         setLoading(false);
       })
@@ -37,21 +38,18 @@ function Dashboard() {
         setLoading(false);
       });
 
-    // Fetch completed submissions (simulate: each submission contains a property field)
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
-        // Assume data is an array of submission objects containing a "property" field.
         const completed = Array.from(new Set(data.map((sub) => sub.property)));
         setCompletedProperties(completed);
       })
       .catch((err) => console.error("Error fetching submissions:", err));
   }, [navigate, token]);
 
-  // Collapse/Expand sidebar toggle
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);
   };
@@ -61,19 +59,16 @@ function Dashboard() {
     navigate("/login");
   };
 
-  // If all properties are completed, redirect the user to a "completed" page after a delay.
   useEffect(() => {
     if (properties.length > 0 && properties.length === completedProperties.length) {
-      // Redirect after a 2-second delay
       setTimeout(() => {
-        navigate("/completed"); // You'll need to create a Completed component/page
+        navigate("/completed");
       }, 2000);
     }
   }, [properties, completedProperties, navigate]);
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar / Left Pane */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <button className="sidebar-toggle" onClick={toggleSidebar}>
           {sidebarCollapsed ? "☰" : "×"}
@@ -87,10 +82,9 @@ function Dashboard() {
           ))}
         </ul>
       </div>
-
-      {/* Main Content Area */}
       <div className="main-content">
-        <header>
+        <header className="dashboard-header">
+          <div className="subtext">Working on behalf of {orgName}</div>
           <h1>Dashboard</h1>
           <button className="logout-btn" onClick={handleLogout}>
             Logout
@@ -103,17 +97,9 @@ function Dashboard() {
         ) : (
           <div className="property-cards">
             {properties.map((prop) => (
-              <div
-                key={prop}
-                className="property-card"
-                onClick={() => navigate(`/form/${encodeURIComponent(prop)}`)}
-              >
+              <div key={prop} className="property-card" onClick={() => navigate(`/form/${encodeURIComponent(prop)}`)}>
                 <h3>{prop}</h3>
-                <p>
-                  {completedProperties.includes(prop)
-                    ? "Completed"
-                    : "Click to complete checklist"}
-                </p>
+                <p>{completedProperties.includes(prop) ? "Completed" : "Click to complete checklist"}</p>
               </div>
             ))}
           </div>
