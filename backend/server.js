@@ -214,6 +214,9 @@ app.post('/api/submit-form', authenticateToken, async (req, res) => {
 /**
  * 🔹 Generate PDF & Upload to S3 (Requires Authentication)
  */
+/**
+ * 🔹 Generate PDF & Upload to S3 (Requires Authentication)
+ */
 app.get('/api/download-pdf', authenticateToken, async (req, res) => {
   try {
     if (!lastSubmission) {
@@ -228,6 +231,9 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
       throw new Error('PDF generation failed - no valid stream received');
     }
+
+    // Wait 3 seconds to ensure the PDF file is completely written and closed
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Read the generated PDF file from disk (temporarily stored locally)
     const pdfBuffer = fs.readFileSync(filePath);
@@ -245,8 +251,6 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       pdfUrl: uploadResult.Location,
       submittedAt: new Date(),
     });
-
-    // Do not delete the local file yet; we use the pdfBuffer for the email attachment.
 
     // Fetch email recipients for the selected property
     const org = await Organization.findById(req.user.organizationId);
