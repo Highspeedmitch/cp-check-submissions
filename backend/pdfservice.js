@@ -37,6 +37,7 @@ function generateChecklistPDF(formData) {
         // ✅ Include all condition checks
         doc.text(`Parking Lot Lights: ${formData.parkingLotLights || 'N/A'}`);
         doc.text(`Under Canopy Lights / Tenant Signs: ${formData.underCanopyLights || 'N/A'}`);
+        doc.text(`Graffiti: ${formData.graffiti || 'N/A'}`);
         doc.text(`Parking Bumpers: ${formData.parkingBumpers || 'N/A'}`);
         doc.text(`Dumpsters: ${formData.dumpsters || 'N/A'}`);
         doc.text(`Water Leaks: ${formData.waterLeaks || 'N/A'}`);

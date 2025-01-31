@@ -171,6 +171,9 @@ function FormPage() {
                 <label>Major Potholes:</label>
                 <textarea name="potholes" onChange={handleChange}></textarea>
 
+                <label>Additional Notes:</label>
+                <textarea name="additionalNotes" onChange={handleChange}></textarea>
+
                 <button type="submit">Submit Checklist</button>
             </form>
         </div>
