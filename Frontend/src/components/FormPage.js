@@ -13,6 +13,7 @@ function FormPage() {
         additionalNotes: '',
         parkingLotLights: '',
         underCanopyLights: '',
+        graffiti: '',
         parkingBumpers: '',
         dumpsters: '',
         waterLeaks: '',
@@ -145,6 +146,9 @@ function FormPage() {
 
                 <label>Under Canopy Lights / Tenant Signs:</label>
                 <textarea name="underCanopyLights" onChange={handleChange}></textarea>
+
+                <label>Graffiti:</label>
+                <textarea name="graffiti" onChange={handleChange}></textarea>
 
                 <label>Parking Bumpers:</label>
                 <textarea name="parkingBumpers" onChange={handleChange}></textarea>
