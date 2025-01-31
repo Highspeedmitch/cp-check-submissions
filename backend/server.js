@@ -21,6 +21,13 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
+const propertyEmailMap = {
+    'San Clemente': ['Nfurrier@picor.com', 'Gfurrier@picor.com'],
+    'Broadway Center': 'Gfurrier@picor.com',
+    '22 & Harrison': 'Highspeedmitch@gmail.com',
+};
+const recipientEmail = propertyEmailMap[lastSubmission.selectedProperty] || 'highspeedmitch@gmail.com';
+
 // ✅ CORS configuration
 app.use(cors({
     origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
@@ -190,7 +197,7 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
 
     // Fetch email recipients from org
     const org = await Organization.findById(req.user.organizationId);
-    const recipientEmails = org ? org.emails.join(",") : 'highspeedmitch@gmail.com';
+    const recipientEmail = org ? org.emails.join(",") : 'highspeedmitch@gmail.com';
 
     // Nodemailer config
     const transporter = nodemailer.createTransport({
@@ -204,7 +211,7 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
     // Compose mail
     const mailOptions = {
       from: 'highspeedmitch@gmail.com',
-      to: recipientEmails,
+      to: recipientEmail,
       subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${dateMST} MST`,
       text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}, submitted on ${dateMST} MST.`,
       attachments: [{ filename: fileName, path: filePath }]
@@ -212,7 +219,7 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
 
     // Send email
     transporter.sendMail(mailOptions)
-      .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
+      .then(() => console.log(`✅ Email sent to ${recipientEmail}`))
       .catch((err) => console.error('❌ Error sending email:', err));
 
   } catch (error) {
