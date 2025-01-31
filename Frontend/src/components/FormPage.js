@@ -1,3 +1,4 @@
+// FormPage.js
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -41,7 +42,7 @@ function FormPage() {
         try {
             const token = localStorage.getItem('token'); // or however you store it
             const payload = { ...formData, selectedProperty: property };
-    
+
             const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/submit-form', {
                 method: 'POST',
                 headers: {
@@ -69,24 +70,30 @@ function FormPage() {
 
     const handleDownloadPDF = async () => {
         console.log("Download button clicked!");
-    const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token');
         try {
             let response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/download-pdf', {
                 method: 'GET',
                 headers: {
-                  'Authorization': `Bearer ${token}`,}
+                  'Authorization': `Bearer ${token}`,
+                }
             });
-    
+
             let retries = 0;
             while (!response.ok && retries < 5) {
                 console.log("Retrying PDF download...");
                 await new Promise(res => setTimeout(res, 1000)); // Wait 1 sec
-                response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/download-pdf', { method: 'GET' });
+                response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/download-pdf', { 
+                    method: 'GET',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                    }
+                });
                 retries++;
             }
-    
+
             console.log("Download Response:", response);
-    
+
             if (response.ok) {
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -105,7 +112,6 @@ function FormPage() {
             alert('Error downloading PDF. Please try again.');
         }
     };
-    
 
     return (
         <div className="container">

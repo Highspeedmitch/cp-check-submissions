@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// Dashboard.js
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 function Dashboard() {
     const navigate = useNavigate();
@@ -55,7 +56,7 @@ function Dashboard() {
                         <div
                             key={property} // Use property name as key if unique
                             className="property-card"
-                            onClick={() => navigate(`/form/${property}`)}
+                            onClick={() => navigate(`/form/${encodeURIComponent(property)}`)}
                         >
                             <h3>{property}</h3>
                             <p>Click to complete checklist</p>

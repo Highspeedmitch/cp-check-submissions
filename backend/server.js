@@ -134,8 +134,8 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
       if (!org) {
         return res.status(404).json({ error: "Organization not found" });
       }
-      // If properties are strings, return them directly
-      const propertyNames = org.properties; // Removed .map(p => p.name)
+      // Extract property names as strings
+      const propertyNames = org.properties.map(p => p.name);
       
       console.log('Property Names:', propertyNames); // Debugging line
   
