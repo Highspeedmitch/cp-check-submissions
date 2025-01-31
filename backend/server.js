@@ -220,13 +220,13 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
     // MST Timestamp
     const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
 
-    // Generate PDF
+    // Generate PDF (this should create a PDF file at filePath)
     const { pdfStream, filePath, fileName } = await generateChecklistPDF(lastSubmission);
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
       throw new Error('PDF generation failed - no valid stream received');
     }
 
-    // Read the generated PDF file
+    // Read the generated PDF file from disk (temporarily stored locally)
     const pdfBuffer = fs.readFileSync(filePath);
 
     // Upload PDF to S3
@@ -243,23 +243,17 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       submittedAt: new Date(),
     });
 
-    // Optionally, delete the local PDF file after upload
-    fs.unlinkSync(filePath);
-
-    // Send response to frontend
-    res.json({ message: 'Checklist submitted and PDF uploaded successfully!', pdfUrl: uploadResult.Location });
+    // Do NOT delete the local file yet; we need it for the email attachment.
 
     // Fetch email recipients for the selected property
     const org = await Organization.findById(req.user.organizationId);
     const property = org.properties.find(p => p.name === lastSubmission.selectedProperty);
-
     if (!property) {
       return res.status(404).json({ message: 'Property not found.' });
     }
-
     const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
 
-    // Nodemailer config
+    // Nodemailer configuration
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -268,7 +262,7 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       },
     });
 
-    // Compose mail
+    // Compose email options using the local file as attachment
     const mailOptions = {
       from: 'highspeedmitch@gmail.com',
       to: recipientEmails,
@@ -277,11 +271,16 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       attachments: [{ filename: fileName, path: filePath }],
     };
 
-    // Since the PDF is now uploaded to S3, you might want to attach it via a pre-signed URL or keep emailing from the local file
-    // Here, we attach from the local file before it's deleted
-    transporter.sendMail(mailOptions)
+    // Send email with the local file attached
+    await transporter.sendMail(mailOptions)
       .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
       .catch((err) => console.error('❌ Error sending email:', err));
+
+    // Now that the email has been sent, delete the local PDF file
+    fs.unlinkSync(filePath);
+
+    // Send response to frontend
+    res.json({ message: 'Checklist submitted and PDF uploaded successfully!', pdfUrl: uploadResult.Location });
 
   } catch (error) {
     console.error('❌ PDF generation or upload error:', error);
