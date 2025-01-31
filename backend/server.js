@@ -26,7 +26,6 @@ app.use(cors({
     origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
     methods: "GET,POST,PUT,DELETE",
     allowedHeaders: "Content-Type,Authorization",
-    credentials: true
   }));   
 
 app.use(express.json());
