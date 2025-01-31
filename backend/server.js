@@ -229,58 +229,56 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
     // Read the generated PDF file from disk (temporarily stored locally)
     const pdfBuffer = fs.readFileSync(filePath);
 
-    // Upload PDF to S3
-    const organizationId = req.user.organizationId;
-    const propertyName = lastSubmission.selectedProperty;
-    const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
-    console.log('✅ PDF uploaded to S3:', uploadResult.Location);
+    // ... After generating PDF and reading it into pdfBuffer
 
-    // Create a Submission record in the database
-    const newSubmission = await Submission.create({
-      organizationId: organizationId,
-      property: propertyName,
-      pdfUrl: uploadResult.Location,
-      submittedAt: new Date(),
-    });
+// Upload PDF to S3
+const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
+console.log('✅ PDF uploaded to S3:', uploadResult.Location);
 
-    // Do NOT delete the local file yet; we need it for the email attachment.
+// Create a Submission record in the database
+const newSubmission = await Submission.create({
+  organizationId: organizationId,
+  property: propertyName,
+  pdfUrl: uploadResult.Location,
+  submittedAt: new Date(),
+});
 
-    // Fetch email recipients for the selected property
-    const org = await Organization.findById(req.user.organizationId);
-    const property = org.properties.find(p => p.name === lastSubmission.selectedProperty);
-    if (!property) {
-      return res.status(404).json({ message: 'Property not found.' });
-    }
-    const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
+// Fetch email recipients for the selected property
+const org = await Organization.findById(req.user.organizationId);
+const property = org.properties.find(p => p.name === lastSubmission.selectedProperty);
+if (!property) {
+  return res.status(404).json({ message: 'Property not found.' });
+}
+const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
 
-    // Nodemailer configuration
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: 'highspeedmitch@gmail.com',
-        pass: process.env.EMAIL_PASS, // Use environment variable for security
-      },
-    });
+// Nodemailer config
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'highspeedmitch@gmail.com',
+    pass: process.env.EMAIL_PASS, // Use environment variable for security
+  },
+});
 
-    // Compose email options using the local file as attachment
-    const mailOptions = {
-      from: 'highspeedmitch@gmail.com',
-      to: recipientEmails,
-      subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${dateMST} MST`,
-      text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}, submitted on ${dateMST} MST.`,
-      attachments: [{ filename: fileName, path: filePath }],
-    };
+// Compose email using the buffer for the attachment
+const mailOptions = {
+  from: 'highspeedmitch@gmail.com',
+  to: recipientEmails,
+  subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${dateMST} MST`,
+  text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}, submitted on ${dateMST} MST.`,
+  attachments: [{ filename: fileName, content: pdfBuffer }],
+};
 
-    // Send email with the local file attached
-    await transporter.sendMail(mailOptions)
-      .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
-      .catch((err) => console.error('❌ Error sending email:', err));
+// Send email
+await transporter.sendMail(mailOptions)
+  .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
+  .catch((err) => console.error('❌ Error sending email:', err));
 
-    // Now that the email has been sent, delete the local PDF file
-    fs.unlinkSync(filePath);
+// Now delete the local PDF file
+fs.unlinkSync(filePath);
 
-    // Send response to frontend
-    res.json({ message: 'Checklist submitted and PDF uploaded successfully!', pdfUrl: uploadResult.Location });
+// Send response to frontend
+res.json({ message: 'Checklist submitted and PDF uploaded successfully!', pdfUrl: uploadResult.Location });
 
   } catch (error) {
     console.error('❌ PDF generation or upload error:', error);
