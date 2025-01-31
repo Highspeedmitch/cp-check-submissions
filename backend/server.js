@@ -196,55 +196,39 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
  * 🔹 Submit Form (Requires Authentication)
  */
 let lastSubmission = null;
+/**
+ * 🔹 Submit Form, Generate PDF, Upload to S3, Send Email, and Return Success Message
+ */
 app.post('/api/submit-form', authenticateToken, async (req, res) => {
   try {
+    // Get the form data from the request body
     const data = req.body;
     console.log('Form Data Received:', data);
-    lastSubmission = data;
-    res.status(200).json({ message: 'Checklist submitted successfully! Please click "Download PDF".' });
-  } catch (error) {
-    console.error('❌ Error processing form submission:', error);
-    res.status(500).json({ message: 'An error occurred while processing your submission.' });
-  }
-});
 
-/**
- * 🔹 Generate PDF & Upload to S3 (Requires Authentication)
- */
-/**
- * 🔹 Generate PDF & Upload to S3 (Requires Authentication)
- */
-/**
- * 🔹 Generate PDF & Upload to S3 (Requires Authentication)
- */
-app.get('/api/download-pdf', authenticateToken, async (req, res) => {
-  try {
-    if (!lastSubmission) {
-      return res.status(400).json({ message: 'No form submission found. Please submit the form first.' });
-    }
-
-    // MST Timestamp
+    // MST Timestamp (for logging and email)
     const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
 
-    // Generate PDF (this should create a PDF file at filePath)
-    const { pdfStream, filePath, fileName } = await generateChecklistPDF(lastSubmission);
+    // Generate PDF from the submitted form data
+    // This function should write the PDF to a local file (e.g., in a pdfstore directory) and return:
+    //   pdfStream, filePath, and fileName.
+    const { pdfStream, filePath, fileName } = await generateChecklistPDF(data);
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
       throw new Error('PDF generation failed - no valid stream received');
     }
 
-    // Wait .5 seconds to ensure the PDF file is completely written and closed
+    // (Optional) Wait a few seconds to ensure the PDF file is fully written and closed
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Read the generated PDF file from disk (temporarily stored locally)
+    // Read the generated PDF file from disk into a buffer
     const pdfBuffer = fs.readFileSync(filePath);
 
-    // Upload PDF to S3 using the buffer
+    // Upload the PDF to AWS S3 using the buffer
     const organizationId = req.user.organizationId;
-    const propertyName = lastSubmission.selectedProperty;
+    const propertyName = data.selectedProperty; // Make sure your form includes this field
     const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
     console.log('✅ PDF uploaded to S3:', uploadResult.Location);
 
-    // Create a Submission record in the database
+    // Create a new Submission record in your database
     const newSubmission = await Submission.create({
       organizationId: organizationId,
       property: propertyName,
@@ -252,33 +236,33 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       submittedAt: new Date(),
     });
 
-    // Fetch email recipients for the selected property
-    const org = await Organization.findById(req.user.organizationId);
-    const property = org.properties.find(p => p.name === lastSubmission.selectedProperty);
+    // Fetch the email recipients for the selected property from the Organization record
+    const org = await Organization.findById(organizationId);
+    const property = org.properties.find(p => p.name === propertyName);
     if (!property) {
       return res.status(404).json({ message: 'Property not found.' });
     }
     const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
 
-    // Nodemailer configuration
+    // Set up Nodemailer to send the email with the PDF attached
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: 'highspeedmitch@gmail.com',
-        pass: process.env.EMAIL_PASS, // Use environment variable for security
+        pass: process.env.EMAIL_PASS,
       },
     });
 
-    // Compose email options using the PDF buffer as the attachment content
+    // Compose the email; attach the PDF using the pdfBuffer
     const mailOptions = {
       from: 'highspeedmitch@gmail.com',
       to: recipientEmails,
-      subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${dateMST} MST`,
-      text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}, submitted on ${dateMST} MST.`,
+      subject: `Checklist PDF for ${propertyName} - Submitted on ${dateMST} MST`,
+      text: `Hello!\n\nAttached is the checklist PDF for ${propertyName}, submitted on ${dateMST} MST.`,
       attachments: [{ filename: fileName, content: pdfBuffer }],
     };
 
-    // Send email with the attachment
+    // Send the email
     await transporter.sendMail(mailOptions)
       .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
       .catch((err) => console.error('❌ Error sending email:', err));
@@ -286,14 +270,14 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
     // Now that the email has been sent, delete the local PDF file
     fs.unlinkSync(filePath);
 
-    // Send response to frontend
-    res.json({ message: 'Checklist submitted and PDF uploaded successfully!', pdfUrl: uploadResult.Location });
-
+    // Respond to the client with a success message (and optionally the S3 URL)
+    res.json({ message: 'Form successfully submitted!', pdfUrl: uploadResult.Location });
   } catch (error) {
-    console.error('❌ PDF generation or upload error:', error);
-    res.status(500).json({ message: 'Error generating or uploading PDF' });
+    console.error('❌ Error processing form submission:', error);
+    res.status(500).json({ message: 'Error processing form submission' });
   }
 });
+
 
 
 /**
