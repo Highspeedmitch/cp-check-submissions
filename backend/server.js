@@ -129,19 +129,22 @@ app.post('/api/login', async (req, res) => {
  * 🔹 Single /properties Route
  */
 app.get('/api/properties', authenticateToken, async (req, res) => {
-  try {
-    const org = await Organization.findById(req.user.organizationId);
-    if (!org) {
-      return res.status(404).json({ error: "Organization not found" });
+    try {
+      const org = await Organization.findById(req.user.organizationId);
+      if (!org) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+      // If properties are strings, return them directly
+      const propertyNames = org.properties; // Removed .map(p => p.name)
+      
+      console.log('Property Names:', propertyNames); // Debugging line
+  
+      res.json(propertyNames);
+    } catch (error) {
+      console.error("❌ Error fetching properties:", error);
+      res.status(500).json({ error: "Server error retrieving properties" });
     }
-    // Return property names
-    const propertyNames = org.properties.map(p => p.name);
-    res.json(propertyNames);
-  } catch (error) {
-    console.error("❌ Error fetching properties:", error);
-    res.status(500).json({ error: "Server error retrieving properties" });
-  }
-});
+  });
 
 /**
  * 🔹 Submit Form (Requires Authentication)
