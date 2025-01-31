@@ -1,55 +1,40 @@
 /* General App Styles */
-.App {
-  text-align: center;
-  font-family: Arial, sans-serif;
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f5f7fa; /* Light background for modern feel */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-/* ✅ Improve Layout for Smaller Screens */
 .container {
   max-width: 90%;
   width: 400px;
   margin: 50px auto;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  background: #ffffff;
+  border-radius: 12px; /* Increased border-radius for smoother corners */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Softer shadow */
+  transition: transform 0.3s ease;
 }
 
-/* ✅ Form Fields: More Spacing for Mobile */
+.container:hover {
+  transform: translateY(-5px); /* Slight lift on hover */
+}
+
 input, button, textarea {
   width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+  padding: 14px; /* Increased padding for better touch targets */
+  margin-top: 12px; /* Increased margin for better spacing */
+  border-radius: 8px; /* Increased border-radius for smoother inputs */
+  border: 1px solid #ddd; /* Lighter border color */
   font-size: 16px;
+  box-sizing: border-box; /* Ensure padding doesn't affect width */
 }
 
 textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 100px; /* Increased min-height */
+  background-color: #f9f9f9; /* Light background for text areas */
 }
 
 button {
@@ -59,25 +44,36 @@ button {
   cursor: pointer;
   font-size: 18px;
   font-weight: bold;
-  transition: 0.3s ease;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 button:hover {
   background-color: #0056b3;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* ✅ Success & Error Messages */
+.admin-btn {
+  background-color: #28a745; /* Green color for admin */
+  margin-top: 10px;
+}
+
+.admin-btn:hover {
+  background-color: #1e7e34;
+}
+
 .success {
-  color: green;
+  color: #28a745; /* Brighter green */
   font-weight: bold;
+  margin-top: 10px;
 }
 
 .error {
-  color: red;
+  color: #dc3545; /* Brighter red */
   font-weight: bold;
+  margin-top: 10px;
 }
 
-/* ✅ Dashboard & Properties List */
 .dashboard-container {
   max-width: 90%;
   margin: 30px auto;
@@ -88,45 +84,85 @@ button:hover {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 15px;
-  margin-top: 20px;
+  gap: 20px; /* Increased gap for better spacing */
+  margin-top: 30px;
 }
 
 .property-card {
   background: #007BFF;
   color: white;
-  padding: 15px;
-  border-radius: 8px;
+  padding: 20px; /* Increased padding */
+  border-radius: 12px; /* Increased border-radius */
   cursor: pointer;
   width: 100%;
   max-width: 250px;
   text-align: center;
-  transition: 0.3s;
+  transition: background 0.3s, transform 0.3s;
+  animation: fadeIn 0.5s ease forwards;
+  opacity: 0;
 }
 
 .property-card:hover {
   background: #0056b3;
+  transform: translateY(-5px);
 }
 
-/* ✅ Logout Button: More Spacing */
 .logout-btn {
-  background: red;
+  background: #dc3545; /* Changed to bootstrap's danger color */
   color: white;
   border: none;
-  padding: 12px 15px;
+  padding: 14px 20px;
   margin-top: 20px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 16px;
   font-weight: bold;
   width: 100%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* ✅ Mobile Optimizations */
+.logout-btn:hover {
+  background: #c82333;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Submissions Table Styles */
+.submissions-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.submissions-table th, .submissions-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+.submissions-table th {
+  background-color: #f2f2f2;
+}
+
+.submissions-table tr:hover {
+  background-color: #f1f1f1;
+}
+
+.submissions-table button {
+  background-color: #17a2b8; /* Info color */
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.submissions-table button:hover {
+  background-color: #117a8b;
+}
+
+/* Media Queries for Responsiveness */
 @media screen and (max-width: 768px) {
   .container {
     max-width: 95%;
-    padding: 15px;
+    padding: 20px;
   }
 
   input, button, textarea {
@@ -142,8 +178,77 @@ button:hover {
     margin: 20px auto;
   }
 
-  .logout-btn {
+  .logout-btn, .admin-btn {
     font-size: 14px;
     padding: 10px;
   }
+
+  .submissions-table th, .submissions-table td {
+    padding: 8px;
+  }
+
+  .submissions-table button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+/* Add transition to container */
+.container, .dashboard-container {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+/* Initial state */
+.container-enter, .dashboard-container-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Entered state */
+.container-enter-active, .dashboard-container-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Define CSS Variables */
+:root {
+  --primary-color: #007BFF;
+  --primary-hover: #0056b3;
+  --success-color: #28a745;
+  --error-color: #dc3545;
+  --admin-color: #28a745;
+  --admin-hover: #1e7e34;
+  --button-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --button-hover-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Apply variables */
+body {
+  background-color: #f5f7fa;
+  font-family: var(--font-family);
+}
+
+button {
+  background-color: var(--primary-color);
+  box-shadow: var(--button-shadow);
+}
+
+button:hover {
+  background-color: var(--primary-hover);
+  box-shadow: var(--button-hover-shadow);
+}
+
+.success {
+  color: var(--success-color);
+}
+
+.error {
+  color: var(--error-color);
+}
+
+.admin-btn {
+  background-color: var(--admin-color);
+}
+
+.admin-btn:hover {
+  background-color: var(--admin-hover);
 }
