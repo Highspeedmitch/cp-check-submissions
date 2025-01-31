@@ -8,34 +8,32 @@ function Dashboard() {
     const [loading, setLoading] = useState(true);
     const token = localStorage.getItem('token'); // Retrieve token for authentication
 
-    // Dashboard.js
-useEffect(() => {
-    if (!token) {
-        navigate('/login'); // Redirect to login if no token
-        return;
-    }
-
-    fetch('https://cp-check-submissions-dev-backend.onrender.com/api/properties', {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
-    })
-    .then(res => res.json())
-    .then(data => {
-        console.log('Fetched properties:', data); // Debugging line
-        if (data.error) {
-            setError(data.error);
-        } else {
-            setProperties(data);
+    useEffect(() => {
+        if (!token) {
+            navigate('/login'); // Redirect to login if no token
+            return;
         }
-        setLoading(false);
-    })
-    .catch(err => {
-        console.error("Error fetching properties:", err);
-        setError("Failed to load properties");
-        setLoading(false);
-    });
-}, [navigate, token]);
 
+        fetch('https://cp-check-submissions-dev-backend.onrender.com/api/properties', {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log('Fetched properties:', data); // Debugging line
+            if (data.error) {
+                setError(data.error);
+            } else {
+                setProperties(data); // Expecting array of strings
+            }
+            setLoading(false);
+        })
+        .catch(err => {
+            console.error("Error fetching properties:", err);
+            setError("Failed to load properties");
+            setLoading(false);
+        });
+    }, [navigate, token]);
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -53,14 +51,18 @@ useEffect(() => {
 
             <div className="property-list">
                 {properties.length > 0 ? (
-                    properties.map((property, index) => (
-                        <div key={index} className="property-card" onClick={() => navigate(`/form/${property}`)}>
+                    properties.map((property) => (
+                        <div
+                            key={property} // Use property name as key if unique
+                            className="property-card"
+                            onClick={() => navigate(`/form/${property}`)}
+                        >
                             <h3>{property}</h3>
                             <p>Click to complete checklist</p>
                         </div>
                     ))
                 ) : (
-                    <p>No properties found for your organization.</p>
+                    !loading && <p>No properties found for your organization.</p>
                 )}
             </div>
         </div>
