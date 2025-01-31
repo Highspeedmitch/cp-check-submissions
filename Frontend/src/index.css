@@ -1,98 +1,191 @@
-/* General App Styles */
+/* Define CSS Variables */
+:root {
+  --primary-color: #007BFF;
+  --primary-hover: #0056b3;
+  --success-color: #28a745;
+  --error-color: #dc3545;
+  --admin-color: #28a745;
+  --admin-hover: #1e7e34;
+  --button-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --button-hover-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Global Styles */
 body {
   margin: 0;
   padding: 0;
-  background-color: #f5f7fa; /* Light background for modern feel */
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f5f7fa;
+  font-family: var(--font-family);
 }
 
-.container {
+/* Containers */
+.container,
+.dashboard-container {
   max-width: 90%;
-  width: 400px;
-  margin: 50px auto;
+  margin: 30px auto;
   padding: 30px;
   background: #ffffff;
-  border-radius: 12px; /* Increased border-radius for smoother corners */
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Softer shadow */
-  transition: transform 0.3s ease;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .container:hover {
-  transform: translateY(-5px); /* Slight lift on hover */
+  transform: translateY(-5px);
 }
 
-input, button, textarea {
+/* Inputs, Buttons, and Textareas */
+input,
+button,
+textarea {
   width: 100%;
-  padding: 14px; /* Increased padding for better touch targets */
-  margin-top: 12px; /* Increased margin for better spacing */
-  border-radius: 8px; /* Increased border-radius for smoother inputs */
-  border: 1px solid #ddd; /* Lighter border color */
+  padding: 14px;
+  margin-top: 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
   font-size: 16px;
-  box-sizing: border-box; /* Ensure padding doesn't affect width */
+  box-sizing: border-box;
 }
 
 textarea {
   resize: vertical;
-  min-height: 100px; /* Increased min-height */
-  background-color: #f9f9f9; /* Light background for text areas */
+  min-height: 100px;
+  background-color: #f9f9f9;
 }
 
+/* Buttons */
 button {
-  background-color: #007BFF;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   cursor: pointer;
   font-size: 18px;
   font-weight: bold;
   transition: background 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--button-shadow);
 }
 
 button:hover {
-  background-color: #0056b3;
-  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+  background-color: var(--primary-hover);
+  box-shadow: var(--button-hover-shadow);
 }
 
 .admin-btn {
-  background-color: #28a745; /* Green color for admin */
+  background-color: var(--admin-color);
   margin-top: 10px;
 }
 
 .admin-btn:hover {
-  background-color: #1e7e34;
+  background-color: var(--admin-hover);
 }
 
+.logout-btn {
+  background-color: #dc3545;
+  padding: 14px 20px;
+  margin-top: 20px;
+  border-radius: 8px;
+  width: 100%;
+  box-shadow: var(--button-shadow);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.logout-btn:hover {
+  background-color: #c82333;
+  box-shadow: var(--button-hover-shadow);
+}
+
+/* Success and Error Messages */
 .success {
-  color: #28a745; /* Brighter green */
+  color: var(--success-color);
   font-weight: bold;
   margin-top: 10px;
 }
 
 .error {
-  color: #dc3545; /* Brighter red */
+  color: var(--error-color);
   font-weight: bold;
   margin-top: 10px;
 }
 
+/* Dashboard Layout */
 .dashboard-container {
-  max-width: 90%;
-  margin: 30px auto;
+  display: flex;
+  min-height: 100vh;
   text-align: center;
 }
 
-.property-list {
+/* Sidebar (Left Pane / Checklist) */
+.sidebar {
+  background-color: #ffffff;
+  width: 250px;
+  padding: 20px;
+  border-right: 1px solid #ddd;
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 60px;
+}
+
+.sidebar h2 {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+
+.sidebar-toggle {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar li {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.sidebar li.completed {
+  text-decoration: line-through;
+  color: #888;
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  padding: 30px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+/* Property Cards (Dashboard) */
+.property-cards {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px; /* Increased gap for better spacing */
-  margin-top: 30px;
+  gap: 20px;
 }
 
 .property-card {
-  background: #007BFF;
+  background-color: var(--primary-color);
   color: white;
-  padding: 20px; /* Increased padding */
-  border-radius: 12px; /* Increased border-radius */
+  padding: 20px;
+  border-radius: 12px;
   cursor: pointer;
   width: 100%;
   max-width: 250px;
@@ -103,38 +196,24 @@ button:hover {
 }
 
 .property-card:hover {
-  background: #0056b3;
+  background-color: var(--primary-hover);
   transform: translateY(-5px);
 }
 
-.logout-btn {
-  background: #dc3545; /* Changed to bootstrap's danger color */
-  color: white;
-  border: none;
-  padding: 14px 20px;
-  margin-top: 20px;
-  cursor: pointer;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  width: 100%;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: background 0.3s ease, box-shadow 0.3s ease;
+.property-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
 }
 
-.logout-btn:hover {
-  background: #c82333;
-  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
-}
-
-/* Submissions Table Styles */
+/* Submissions Table */
 .submissions-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
 }
 
-.submissions-table th, .submissions-table td {
+.submissions-table th,
+.submissions-table td {
   padding: 12px;
   border-bottom: 1px solid #ddd;
   text-align: left;
@@ -149,7 +228,7 @@ button:hover {
 }
 
 .submissions-table button {
-  background-color: #17a2b8; /* Info color */
+  background-color: #17a2b8;
   padding: 8px 12px;
   font-size: 14px;
 }
@@ -158,101 +237,18 @@ button:hover {
   background-color: #117a8b;
 }
 
-/* Media Queries for Responsiveness */
-@media screen and (max-width: 768px) {
-  .container {
-    max-width: 95%;
-    padding: 20px;
-  }
-
-  input, button, textarea {
-    font-size: 14px;
-    padding: 10px;
-  }
-
-  .property-card {
-    max-width: 90%;
-  }
-
-  .dashboard-container {
-    margin: 20px auto;
-  }
-
-  .logout-btn, .admin-btn {
-    font-size: 14px;
-    padding: 10px;
-  }
-
-  .submissions-table th, .submissions-table td {
-    padding: 8px;
-  }
-
-  .submissions-table button {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-}
-/* Add transition to container */
-.container, .dashboard-container {
-  transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-/* Initial state */
+/* Transitions for Entering Containers (Animations) */
 .container-enter, .dashboard-container-enter {
   opacity: 0;
   transform: translateY(20px);
 }
 
-/* Entered state */
 .container-enter-active, .dashboard-container-enter-active {
   opacity: 1;
   transform: translateY(0);
 }
-/* Define CSS Variables */
-:root {
-  --primary-color: #007BFF;
-  --primary-hover: #0056b3;
-  --success-color: #28a745;
-  --error-color: #dc3545;
-  --admin-color: #28a745;
-  --admin-hover: #1e7e34;
-  --button-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --button-hover-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
-  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
 
-/* Apply variables */
-body {
-  background-color: #f5f7fa;
-  font-family: var(--font-family);
-}
-
-button {
-  background-color: var(--primary-color);
-  box-shadow: var(--button-shadow);
-}
-
-button:hover {
-  background-color: var(--primary-hover);
-  box-shadow: var(--button-hover-shadow);
-}
-
-.success {
-  color: var(--success-color);
-}
-
-.error {
-  color: var(--error-color);
-}
-
-.admin-btn {
-  background-color: var(--admin-color);
-}
-
-.admin-btn:hover {
-  background-color: var(--admin-hover);
-}
-/* Keyframes for fade-in animation */
+/* Keyframes for Fade-In Animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -261,5 +257,51 @@ button:hover {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 768px) {
+  .container {
+    max-width: 95%;
+    padding: 20px;
+  }
+  input, button, textarea {
+    font-size: 14px;
+    padding: 10px;
+  }
+  .property-card {
+    max-width: 90%;
+  }
+  .dashboard-container {
+    margin: 20px auto;
+  }
+  .logout-btn, .admin-btn {
+    font-size: 14px;
+    padding: 10px;
+  }
+  .submissions-table th, .submissions-table td {
+    padding: 8px;
+  }
+  .submissions-table button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .dashboard-container {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+  }
+  .main-content {
+    padding: 20px;
+  }
+  .property-card {
+    width: 100%;
   }
 }
