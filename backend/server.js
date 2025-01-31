@@ -1,3 +1,4 @@
+// server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -9,14 +10,48 @@ const moment = require('moment-timezone');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const crypto = require('crypto'); // For password reset if needed
+const rateLimit = require('express-rate-limit'); // For security
 
 // ✅ Import your models
 const Organization = require('./models/organization');
 const User = require('./models/user');
+const Submission = require('./models/submission'); // New Model for Submissions
 
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
 
+// AWS S3 and UUID Integration
+const AWS = require('aws-sdk');
+const { v4: uuidv4 } = require('uuid');
+
+// Configure AWS SDK
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,           // From .env
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,   // From .env
+  region: process.env.AWS_REGION,                       // From .env
+});
+
+// Create S3 Instance
+const s3 = new AWS.S3();
+
+// Example: Upload a File to S3
+const uploadToS3 = (fileContent, fileName, organizationId, propertyName) => {
+  const uniqueFileName = `${uuidv4()}-${fileName}`;
+  const key = `${organizationId}/${propertyName}/${uniqueFileName}`; // Organized by Organization and Property
+
+  const params = {
+    Bucket: process.env.S3_BUCKET_NAME, // From .env
+    Key: key,                            // Organized key
+    Body: fileContent,
+    ContentType: 'application/pdf',      // Adjust based on file type
+    ACL: 'private',                     // Ensure the file is not publicly accessible
+  };
+
+  return s3.upload(params).promise();
+};
+
+// Initialize Express App
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
@@ -48,6 +83,17 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+/**
+ * 🔹 Rate Limiting Middleware (Optional but Recommended)
+ */
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again after 15 minutes."
+});
+
+app.use(limiter);
 
 /**
  * 🔹 Register a New Organization & Admin User
@@ -163,7 +209,7 @@ app.post('/api/submit-form', authenticateToken, async (req, res) => {
 });
 
 /**
- * 🔹 Generate PDF & Email (Requires Authentication)
+ * 🔹 Generate PDF & Upload to S3 (Requires Authentication)
  */
 app.get('/api/download-pdf', authenticateToken, async (req, res) => {
   try {
@@ -174,22 +220,34 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
     // MST Timestamp
     const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
 
-    // Ensure PDF storage directory
-    const pdfStorageDir = path.join(__dirname, 'pdfstore');
-    if (!fs.existsSync(pdfStorageDir)) {
-      fs.mkdirSync(pdfStorageDir, { recursive: true });
-    }
-
     // Generate PDF
     const { pdfStream, filePath, fileName } = await generateChecklistPDF(lastSubmission);
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
       throw new Error('PDF generation failed - no valid stream received');
     }
 
-    // Pipe PDF to response
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-    pdfStream.pipe(res);
+    // Read the generated PDF file
+    const pdfBuffer = fs.readFileSync(filePath);
+
+    // Upload PDF to S3
+    const organizationId = req.user.organizationId;
+    const propertyName = lastSubmission.selectedProperty;
+    const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
+    console.log('✅ PDF uploaded to S3:', uploadResult.Location);
+
+    // Create a Submission record in the database
+    const newSubmission = await Submission.create({
+      organizationId: organizationId,
+      property: propertyName,
+      pdfUrl: uploadResult.Location,
+      submittedAt: new Date(),
+    });
+
+    // Optionally, delete the local PDF file after upload
+    fs.unlinkSync(filePath);
+
+    // Send response to frontend
+    res.json({ message: 'Checklist submitted and PDF uploaded successfully!', pdfUrl: uploadResult.Location });
 
     // Fetch email recipients for the selected property
     const org = await Organization.findById(req.user.organizationId);
@@ -206,7 +264,7 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       service: 'gmail',
       auth: {
         user: 'highspeedmitch@gmail.com',
-        pass: 'tevt ennm rldu azeh' // Use environment variable for security
+        pass: process.env.EMAIL_PASS, // Use environment variable for security
       },
     });
 
@@ -216,17 +274,18 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
       to: recipientEmails,
       subject: `Checklist PDF for ${lastSubmission.selectedProperty} - Submitted on ${dateMST} MST`,
       text: `Hello! Attached is the checklist PDF for ${lastSubmission.selectedProperty}, submitted on ${dateMST} MST.`,
-      attachments: [{ filename: fileName, path: filePath }]
+      attachments: [{ filename: fileName, path: filePath }],
     };
 
-    // Send email
+    // Since the PDF is now uploaded to S3, you might want to attach it via a pre-signed URL or keep emailing from the local file
+    // Here, we attach from the local file before it's deleted
     transporter.sendMail(mailOptions)
       .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
       .catch((err) => console.error('❌ Error sending email:', err));
 
   } catch (error) {
-    console.error('❌ PDF generation error:', error);
-    res.status(500).json({ message: 'Error generating PDF' });
+    console.error('❌ PDF generation or upload error:', error);
+    res.status(500).json({ message: 'Error generating or uploading PDF' });
   }
 });
 
@@ -235,18 +294,41 @@ app.get('/api/download-pdf', authenticateToken, async (req, res) => {
  */
 app.get('/api/recent-submissions', authenticateToken, async (req, res) => {
   try {
-    const files = fs
-      .readdirSync(path.join(__dirname, 'pdfstore'))
-      .filter((file) => {
-        const filePath = path.join(__dirname, 'pdfstore', file);
-        const stats = fs.statSync(filePath);
-        const fileDate = moment(stats.mtime);
-        return fileDate.isAfter(moment().subtract(30, 'days'));
-      });
+    const submissions = await Submission.find({ organizationId: req.user.organizationId })
+      .sort({ submittedAt: -1 });
 
-    res.json(files);
+    res.json(submissions);
   } catch (error) {
     console.error("❌ Error fetching recent submissions:", error);
+    res.status(500).json({ message: "Failed to retrieve submissions." });
+  }
+});
+
+/**
+ * 🔹 Admin: View All Submissions (With Pre-Signed URLs)
+ */
+app.get('/api/submissions', authenticateToken, async (req, res) => {
+  try {
+    const submissions = await Submission.find({ organizationId: req.user.organizationId })
+      .sort({ submittedAt: -1 });
+
+    // Generate pre-signed URLs for secure access
+    const signedSubmissions = submissions.map(sub => {
+      const params = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: sub.pdfUrl.split('/').slice(-2).join('/'), // Assuming the key is stored as 'organizationId/propertyName/filename.pdf'
+        Expires: 60 * 60, // 1 hour
+      };
+      const signedUrl = s3.getSignedUrl('getObject', params);
+      return {
+        ...sub.toObject(),
+        signedPdfUrl: signedUrl,
+      };
+    });
+
+    res.json(signedSubmissions);
+  } catch (error) {
+    console.error("❌ Error fetching submissions:", error);
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
