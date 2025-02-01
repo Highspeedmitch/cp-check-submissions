@@ -324,10 +324,10 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
       const urlObj = new URL(sub.pdfUrl);
       
       // Option 1: Use the URL-encoded key as-is:
-      // const key = urlObj.pathname.substring(1);
+      const key = urlObj.pathname.substring(1);
 
       // Option 2: Decode the key (raw key):
-      const key = decodeURIComponent(urlObj.pathname.substring(1));
+      //const key = decodeURIComponent(urlObj.pathname.substring(1));
 
       const params = {
         Bucket: process.env.S3_BUCKET_NAME,
