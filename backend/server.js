@@ -321,17 +321,18 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
 
     // Generate pre-signed URLs for secure access
     const signedSubmissions = submissions.map(sub => {
+      // Create a URL object from the stored pdfUrl.
       const urlObj = new URL(sub.pdfUrl);
-      // Extract the pathname without the leading '/'
+      // Get the pathname without the leading '/' (this is URL-encoded)
       const encodedKey = urlObj.pathname.substring(1);
-      // Replace '+' with ' ' and then decode to get the raw key
-      const key = decodeURIComponent(encodedKey.replace(/\+/g, ' '));
+      // Decode the entire pathname to get the raw key (with literal spaces)
+      const rawKey = decodeURIComponent(encodedKey);
       
-      console.log("Extracted key:", key);  // Log for debugging
+      console.log("Raw key:", rawKey); // For debugging – should match the key in S3 exactly
 
       const params = {
         Bucket: process.env.S3_BUCKET_NAME,
-        Key: key,
+        Key: rawKey,
         Expires: 60 * 60, // URL valid for 1 hour
       };
 
@@ -348,6 +349,7 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
+
 
 /**
  * 🔹 Admin: Get Submissions for a Property (Last 3 Months)
