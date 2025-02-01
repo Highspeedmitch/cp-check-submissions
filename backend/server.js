@@ -370,19 +370,23 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
     }).sort({ submittedAt: -1 });
 
     // For each submission, generate a pre-signed URL
-    // Assuming your S3 key is structured as: organizationId/propertyName/uniqueFileName
     const signedSubmissions = submissions.map((sub) => {
-      // Extract key from the stored pdfUrl.
-      // For example, if pdfUrl is "https://s3.amazonaws.com/your-bucket/ORGID/PROPERTY/uniqueFileName.pdf",
-      // we can extract the key by taking the last 3 segments:
-      const segments = sub.pdfUrl.split('/');
-      const key = segments.slice(-3).join('/');
-      
+      const urlObj = new URL(sub.pdfUrl);
+      // Get the pathname (removing the leading '/')
+      let encodedKey = urlObj.pathname.substring(1);
+      // Replace plus signs with spaces (because sometimes S3 URL encodes spaces as '+')
+      encodedKey = encodedKey.replace(/\+/g, ' ');
+      // Decode the entire key to get the raw key (with literal spaces)
+      const rawKey = decodeURIComponent(encodedKey);
+
+      console.log("Extracted key:", rawKey); // Debug: should match what you see in S3
+
       const params = {
         Bucket: process.env.S3_BUCKET_NAME,
-        Key: key,
+        Key: rawKey,
         Expires: 60 * 60, // URL valid for 1 hour
       };
+
       const signedUrl = s3.getSignedUrl('getObject', params);
       return {
         ...sub.toObject(),
@@ -392,7 +396,7 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
 
     res.json(signedSubmissions);
   } catch (error) {
-    console.error("Error fetching admin submissions:", error);
+    console.error("❌ Error fetching admin submissions:", error);
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
