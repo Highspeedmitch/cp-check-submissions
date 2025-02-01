@@ -321,9 +321,13 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
 
     // Generate pre-signed URLs for secure access
     const signedSubmissions = submissions.map(sub => {
+      // Parse the pdfUrl using the URL constructor to extract the key
+      const urlObj = new URL(sub.pdfUrl);
+      const key = urlObj.pathname.substring(1); // Remove the leading '/'
+
       const params = {
         Bucket: process.env.S3_BUCKET_NAME,
-        Key: sub.pdfUrl.split('/').slice(-2).join('/'), // Assuming the key is stored as 'organizationId/propertyName/filename.pdf'
+        Key: key,
         Expires: 60 * 60, // 1 hour
       };
       const signedUrl = s3.getSignedUrl('getObject', params);
@@ -339,7 +343,6 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
-
 /**
  * 🔹 Admin: Get Submissions for a Property (Last 3 Months)
  */
