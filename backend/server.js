@@ -163,7 +163,12 @@ app.post('/api/login', async (req, res) => {
         { expiresIn: '2h' }
       );
   
-      res.json({ message: "Login successful", token, organizationId: user.organizationId._id });
+      res.json({ 
+        message: "Login successful", 
+        token, 
+        organizationId: user.organizationId._id,
+        orgName: user.organizationId.name  // Ensure your Organization model has a 'name' field.
+      });
   
     } catch (error) {
       console.error("❌ Login error:", error);
