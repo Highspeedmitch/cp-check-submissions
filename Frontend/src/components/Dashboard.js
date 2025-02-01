@@ -3,26 +3,23 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 function Dashboard() {
-  // We include useParams() even though it’s not used directly here.
-  const { property } = useParams(); 
+  const { property } = useParams(); // Not used directly here, but available if needed
   const navigate = useNavigate();
-  
+
   // List of properties assigned to the organization (strings)
   const [properties, setProperties] = useState([]);
-  // List of properties that have been completed in the current session
+  // List of normalized property names that have been completed in the current session
   const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
-  const token = localStorage.getItem("token");
 
-  // Use stored organization name; if not set, fallback to "Your Organization"
+  const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
-  
-  // Initialize loginTime once using the function form to keep it stable
+  const role = localStorage.getItem("role") || "user";
+
+  // Initialize loginTime only once so it remains stable during the session.
   const [loginTime] = useState(() => {
-    // Retrieve from localStorage if present; otherwise, use current time
     return localStorage.getItem("loginTime") || new Date().toISOString();
   });
 
@@ -33,7 +30,7 @@ function Dashboard() {
     }
 
     // Fetch properties for the organization
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
+    fetch("https://cp-check-submissions-dev.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -53,55 +50,67 @@ function Dashboard() {
       });
 
     // Fetch recent submissions and filter by the current session's login time
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
+    fetch("https://cp-check-submissions-dev.onrender.com/api/recent-submissions", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
-        // Filter submissions that occurred after the stored loginTime
+        // Normalize each submission's property name (trim and toLowerCase)
         const completed = Array.from(
           new Set(
             data
               .filter((sub) => new Date(sub.submittedAt) >= new Date(loginTime))
-              .map((sub) => sub.property)
+              .map((sub) => sub.property.trim().toLowerCase())
           )
         );
         setCompletedProperties(completed);
       })
       .catch((err) => console.error("Error fetching submissions:", err));
-  }, [navigate, token, loginTime]); // loginTime is stable now
+  }, [navigate, token, loginTime]);
 
-  // Toggle the sidebar collapse/expand
+  // Toggle sidebar collapse/expand
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);
   };
 
-  // Logout: clear stored session data and redirect to login
+  // Logout: clear session data and navigate to login
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("orgName");
     localStorage.removeItem("loginTime");
+    localStorage.removeItem("role");
     navigate("/login");
   };
 
   // Determine if all properties have been completed
-  const allCompleted = properties.length > 0 && properties.length === completedProperties.length;
+  const allCompleted =
+    properties.length > 0 &&
+    properties.every((prop) =>
+      completedProperties.includes(prop.trim().toLowerCase())
+    );
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar / Checklist */}
+      {/* Sidebar / Left Pane */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <button className="sidebar-toggle" onClick={toggleSidebar}>
           {sidebarCollapsed ? "☰" : "×"}
         </button>
-        <h2>Checklist</h2>
+        <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
         <ul>
-          {properties.map((prop) => (
-            <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
-              {prop}
-            </li>
-          ))}
+          {properties.map((prop) => {
+            // Normalize the property name for comparison
+            const normalizedProp = prop.trim().toLowerCase();
+            return (
+              <li
+                key={prop}
+                className={completedProperties.includes(normalizedProp) ? "completed" : ""}
+              >
+                {prop}
+              </li>
+            );
+          })}
         </ul>
       </div>
 
@@ -115,7 +124,6 @@ function Dashboard() {
           </button>
         </header>
 
-        {/* If all properties are completed, display a banner */}
         {allCompleted && (
           <div className="all-completed-banner">
             <h2>All inspections completed!</h2>
@@ -130,26 +138,37 @@ function Dashboard() {
         ) : error ? (
           <p className="error">{error}</p>
         ) : (
-          // In your Dashboard.js, inside the map over properties:
-<div
-  key={prop}
-  className="property-card"
-  onClick={() => {
-    const role = localStorage.getItem("role");
-    if (role === "admin") {
-      navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
-    } else {
-      navigate(`/form/${encodeURIComponent(prop)}`);
-    }
-  }}
->
-  <h3>{prop}</h3>
-  <p>
-    {localStorage.getItem("role") === "admin" 
-      ? "Click to view recent submissions" 
-      : (completedProperties.includes(prop) ? "Completed" : "Click to complete checklist")}
-  </p>
-</div>
+          <div className="property-cards">
+            {properties.map((prop) => {
+              const normalizedProp = prop.trim().toLowerCase();
+              return (
+                <div
+                  key={prop}
+                  className={`property-card ${
+                    completedProperties.includes(normalizedProp)
+                      ? "completed-tile"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    if (role === "admin") {
+                      navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
+                    } else {
+                      navigate(`/form/${encodeURIComponent(prop)}`);
+                    }
+                  }}
+                >
+                  <h3>{prop}</h3>
+                  <p>
+                    {role === "admin"
+                      ? "Click to view recent submissions"
+                      : completedProperties.includes(normalizedProp)
+                      ? "Completed"
+                      : "Click to complete checklist"}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
