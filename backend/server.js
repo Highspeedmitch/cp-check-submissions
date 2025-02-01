@@ -233,7 +233,7 @@ app.post('/api/submit-form', authenticateToken, async (req, res) => {
     }
 
     // (Optional) Wait a few seconds to ensure the PDF file is fully written and closed
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     // Read the generated PDF file from disk into a buffer
     const pdfBuffer = fs.readFileSync(filePath);
