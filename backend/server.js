@@ -321,14 +321,14 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
 
     // Generate pre-signed URLs for secure access
     const signedSubmissions = submissions.map(sub => {
-      // Parse the pdfUrl and extract the pathname, then decode it.
       const urlObj = new URL(sub.pdfUrl);
-      const key = decodeURIComponent(urlObj.pathname.substring(1)); // Remove leading '/' and decode
-
+      // Use the raw, URL-encoded key from the pathname (omit the leading slash)
+      const key = urlObj.pathname.substring(1);
+      
       const params = {
         Bucket: process.env.S3_BUCKET_NAME,
         Key: key,
-        Expires: 60 * 60, // 1 hour
+        Expires: 60 * 60, // URL valid for 1 hour
       };
       const signedUrl = s3.getSignedUrl('getObject', params);
       return {
