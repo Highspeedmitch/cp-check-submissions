@@ -4,9 +4,9 @@ import { useNavigate, useParams } from "react-router-dom";
 
 function Dashboard() {
   // We include useParams() even though it’s not used directly here.
-  const { property } = useParams();
+  const { property } = useParams(); 
   const navigate = useNavigate();
-
+  
   // List of properties assigned to the organization (strings)
   const [properties, setProperties] = useState([]);
   // List of properties that have been completed in the current session
@@ -14,16 +14,15 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
+  
   const token = localStorage.getItem("token");
 
   // Use stored organization name; if not set, fallback to "Your Organization"
   const orgName = localStorage.getItem("orgName") || "Your Organization";
-  // Get the user role (default to "user" if not defined)
-  const role = localStorage.getItem("role") || "user";
-
+  
   // Initialize loginTime once using the function form to keep it stable
   const [loginTime] = useState(() => {
+    // Retrieve from localStorage if present; otherwise, use current time
     return localStorage.getItem("loginTime") || new Date().toISOString();
   });
 
@@ -54,7 +53,7 @@ function Dashboard() {
       });
 
     // Fetch recent submissions and filter by the current session's login time
-    fetch("https://cp-check-submissions-dev.onrender.com/api/recent-submissions", {
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -71,7 +70,7 @@ function Dashboard() {
         setCompletedProperties(completed);
       })
       .catch((err) => console.error("Error fetching submissions:", err));
-  }, [navigate, token, loginTime]);
+  }, [navigate, token, loginTime]); // loginTime is stable now
 
   // Toggle the sidebar collapse/expand
   const toggleSidebar = () => {
@@ -83,7 +82,6 @@ function Dashboard() {
     localStorage.removeItem("token");
     localStorage.removeItem("orgName");
     localStorage.removeItem("loginTime");
-    localStorage.removeItem("role");
     navigate("/login");
   };
 
@@ -92,12 +90,12 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar / Left Pane */}
+      {/* Sidebar / Checklist */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <button className="sidebar-toggle" onClick={toggleSidebar}>
           {sidebarCollapsed ? "☰" : "×"}
         </button>
-        <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+        <h2>Checklist</h2>
         <ul>
           {properties.map((prop) => (
             <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
@@ -117,10 +115,13 @@ function Dashboard() {
           </button>
         </header>
 
+        {/* If all properties are completed, display a banner */}
         {allCompleted && (
           <div className="all-completed-banner">
             <h2>All inspections completed!</h2>
-            <button className="logout-btn" onClick={handleLogout}>Sign Out</button>
+            <button className="logout-btn" onClick={handleLogout}>
+              Sign Out
+            </button>
           </div>
         )}
 
@@ -129,30 +130,26 @@ function Dashboard() {
         ) : error ? (
           <p className="error">{error}</p>
         ) : (
-          <div className="property-cards">
-            {properties.map((prop) => (
-              <div
-                key={prop}
-                className={`property-card ${completedProperties.includes(prop) ? "completed-tile" : ""}`}
-                onClick={() => {
-                  if (role === "admin") {
-                    navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
-                  } else {
-                    navigate(`/form/${encodeURIComponent(prop)}`);
-                  }
-                }}
-              >
-                <h3>{prop}</h3>
-                <p>
-                  {role === "admin"
-                    ? "Click to view recent submissions"
-                    : (completedProperties.includes(prop)
-                        ? "Completed"
-                        : "Click to complete checklist")}
-                </p>
-              </div>
-            ))}
-          </div>
+          // In your Dashboard.js, inside the map over properties:
+<div
+  key={prop}
+  className="property-card"
+  onClick={() => {
+    const role = localStorage.getItem("role");
+    if (role === "admin") {
+      navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
+    } else {
+      navigate(`/form/${encodeURIComponent(prop)}`);
+    }
+  }}
+>
+  <h3>{prop}</h3>
+  <p>
+    {localStorage.getItem("role") === "admin" 
+      ? "Click to view recent submissions" 
+      : (completedProperties.includes(prop) ? "Completed" : "Click to complete checklist")}
+  </p>
+</div>
         )}
       </div>
     </div>
