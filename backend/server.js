@@ -102,34 +102,31 @@ app.post('/api/register', async (req, res) => {
   try {
     const { organizationName, username, email, password, properties } = req.body;
 
-    // 1) Hash password
+    // Hash the password
     const hashedPassword = bcrypt.hashSync(password, 10);
 
-    // 2) Assign properties with emails from orgPropertyMap if not provided
-    let orgProperties = properties || [];
+    // Look for an existing organization by its name (ticker)
+    const org = await Organization.findOne({ name: organizationName });
 
-    if ((!orgProperties || orgProperties.length === 0) && orgPropertyMap[organizationName]) {
-        orgProperties = orgPropertyMap[organizationName].properties; // Assign properties with emails
+    // If no matching organization is found, return an error message.
+    if (!org) {
+      return res.status(400).json({
+        message: "Organization name not recognized. Please check the spelling of your Organization and register again."
+      });
     }
 
-    // 3) Create new organization with properties (including emails)
-    const newOrg = await Organization.create({
-      name: organizationName,
-      properties: orgProperties, // Now includes emails per property
-    });
-
-    // 4) Create new user
+    // Create a new user associated with the existing organization.
     const newUser = await User.create({
       username,
       email,
       password: hashedPassword,
-      organizationId: newOrg._id
+      organizationId: org._id
     });
 
-    res.status(201).json({ message: "Organization and admin user created!" });
+    res.status(201).json({ message: "User registered under organization successfully!" });
   } catch (error) {
-    console.error("❌ Error registering organization:", error);
-    res.status(500).json({ message: "Error registering organization." });
+    console.error("❌ Error registering organization/user:", error);
+    res.status(500).json({ message: "Error registering organization/user." });
   }
 });
 
