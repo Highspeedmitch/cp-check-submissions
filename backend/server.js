@@ -322,19 +322,16 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
     // Generate pre-signed URLs for secure access
     const signedSubmissions = submissions.map(sub => {
       const urlObj = new URL(sub.pdfUrl);
-      // Extract the key portion (removing the leading '/')
+      // Extract the pathname without the leading '/'
       const encodedKey = urlObj.pathname.substring(1);
-
-      // Option A: Use the decoded key (raw)
-      //const decodedKey = decodeURIComponent(encodedKey);
-      // Option B: Use the encoded key directly
-      const decodedKey = encodedKey;
-
-      console.log("Extracted key to use for presigned URL:", decodedKey);
+      // Replace '+' with ' ' and then decode to get the raw key
+      const key = decodeURIComponent(encodedKey.replace(/\+/g, ' '));
+      
+      console.log("Extracted key:", key);  // Log for debugging
 
       const params = {
         Bucket: process.env.S3_BUCKET_NAME,
-        Key: decodedKey,
+        Key: key,
         Expires: 60 * 60, // URL valid for 1 hour
       };
 
