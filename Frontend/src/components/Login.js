@@ -21,23 +21,18 @@ function Login({ setUser }) {
       const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        // Convert the email to lowercase here
+        body: JSON.stringify({ email: email.toLowerCase(), password }),
       });
 
-      // Read the response as text and attempt to parse it as JSON
       const text = await response.text();
       try {
         const data = JSON.parse(text);
         if (response.ok) {
-          // Save the token
+          // Save token and other info to localStorage
           localStorage.setItem("token", data.token);
-          // Save the organization name if provided, otherwise default
-          if (data.orgName) {
-            localStorage.setItem("orgName", data.orgName);
-          } else {
-            localStorage.setItem("orgName", "Your Organization");
-          }
-          // Save the current login time to help reset the checklist per session
+          localStorage.setItem("orgName", data.orgName || "Your Organization");
+          localStorage.setItem("role", data.role || "user");
           localStorage.setItem("loginTime", new Date().toISOString());
           setUser(true);
           navigate("/dashboard");
@@ -75,9 +70,9 @@ function Login({ setUser }) {
       </form>
       <div style={{ marginTop: "1rem" }}>
         <span style={{ marginRight: "8px" }}>Don't have an account?</span>
-        <button type="button" onClick={() => navigate('/register')}>
-          Register
-        </button>
+        <Link to="/register">
+          <button type="button">Register</button>
+        </Link>
       </div>
     </div>
   );

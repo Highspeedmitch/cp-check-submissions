@@ -135,7 +135,14 @@ function Dashboard() {
               <div
                 key={prop}
                 className="property-card"
-                onClick={() => navigate(`/form/${encodeURIComponent(prop)}`)}
+                onClick={() => {
+                    const role = localStorage.getItem("role");
+                    if (role === "admin") {
+                      navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
+                    } else {
+                      navigate(`/form/${encodeURIComponent(prop)}`);
+                    }
+                  }}                  
               >
                 <h3>{prop}</h3>
                 <p>{completedProperties.includes(prop) ? "Completed" : "Click to complete checklist"}</p>

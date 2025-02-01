@@ -5,6 +5,7 @@ import Dashboard from "./components/Dashboard";
 import FormPage from "./components/FormPage";
 import Register from "./components/Register";
 import PropertySelector from "./components/PropertySelector";
+import AdminSubmissions from "./components/AdminSubmissions"
 
 function App() {
   const [user, setUser] = useState(null);
@@ -45,6 +46,9 @@ function App() {
 
         {/* Catch-All (Redirect to Login) */}
         <Route path="*" element={<Navigate to="/" />} />
+
+        <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
+        
       </Routes>
     </>
   );

@@ -137,44 +137,46 @@ app.post('/api/register', async (req, res) => {
  * 🔹 User Login (Returns JWT)
  */
 app.post('/api/login', async (req, res) => {
-    try {
-      const { email, password } = req.body;
-  
-      // ✅ Check if user exists
-      const user = await User.findOne({ email }).populate('organizationId');
-      if (!user) {
-        return res.status(401).json({ message: "Invalid credentials (user not found)" });
-      }
-  
-      // ✅ Ensure password matches
-      if (!bcrypt.compareSync(password, user.password)) {
-        return res.status(401).json({ message: "Invalid credentials (incorrect password)" });
-      }
-  
-      // ✅ Ensure organization exists
-      if (!user.organizationId) {
-        return res.status(500).json({ message: "Organization not found for user" });
-      }
-  
-      // ✅ Generate JWT
-      const token = jwt.sign(
-        { email, organizationId: user.organizationId._id },
-        SECRET_KEY,
-        { expiresIn: '2h' }
-      );
-  
-      res.json({ 
-        message: "Login successful", 
-        token, 
-        organizationId: user.organizationId._id,
-        orgName: user.organizationId.name  // Ensure your Organization model has a 'name' field.
-      });
-  
-    } catch (error) {
-      console.error("❌ Login error:", error);
-      res.status(500).json({ message: "Server error during login." });
+  try {
+    const { email, password } = req.body;
+
+    // Check if user exists and populate the organization
+    const user = await User.findOne({ email }).populate('organizationId');
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials (user not found)" });
     }
+
+    // Ensure password matches
+    if (!bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ message: "Invalid credentials (incorrect password)" });
+    }
+
+    // Ensure organization exists
+    if (!user.organizationId) {
+      return res.status(500).json({ message: "Organization not found for user" });
+    }
+
+    // Generate JWT, including the role in the payload
+    const token = jwt.sign(
+      { email: user.email, organizationId: user.organizationId._id, role: user.role },
+      SECRET_KEY,
+      { expiresIn: '2h' }
+    );
+
+    // Return the token along with organization ID, name, and role
+    res.json({ 
+      message: "Login successful", 
+      token, 
+      organizationId: user.organizationId._id,
+      orgName: user.organizationId.name,
+      role: user.role
+    });
+  } catch (error) {
+    console.error("❌ Login error:", error);
+    res.status(500).json({ message: "Server error during login." });
+  }
 });
+
 
 /**
  * 🔹 Single /properties Route
@@ -325,6 +327,52 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
     res.json(signedSubmissions);
   } catch (error) {
     console.error("❌ Error fetching submissions:", error);
+    res.status(500).json({ message: "Failed to retrieve submissions." });
+  }
+});
+
+/**
+ * 🔹 Admin: Get Submissions for a Property (Last 3 Months)
+ */
+app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) => {
+  try {
+    const { property } = req.params;
+
+    // Calculate the date 3 months ago
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+    // Find submissions for the current organization, for the given property, within the last 3 months
+    const submissions = await Submission.find({
+      organizationId: req.user.organizationId,
+      property: property,
+      submittedAt: { $gte: threeMonthsAgo }
+    }).sort({ submittedAt: -1 });
+
+    // For each submission, generate a pre-signed URL
+    // Assuming your S3 key is structured as: organizationId/propertyName/uniqueFileName
+    const signedSubmissions = submissions.map((sub) => {
+      // Extract key from the stored pdfUrl.
+      // For example, if pdfUrl is "https://s3.amazonaws.com/your-bucket/ORGID/PROPERTY/uniqueFileName.pdf",
+      // we can extract the key by taking the last 3 segments:
+      const segments = sub.pdfUrl.split('/');
+      const key = segments.slice(-3).join('/');
+      
+      const params = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: key,
+        Expires: 60 * 60, // URL valid for 1 hour
+      };
+      const signedUrl = s3.getSignedUrl('getObject', params);
+      return {
+        ...sub.toObject(),
+        signedPdfUrl: signedUrl,
+      };
+    });
+
+    res.json(signedSubmissions);
+  } catch (error) {
+    console.error("Error fetching admin submissions:", error);
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
