@@ -38,29 +38,37 @@ function Dashboard() {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setProperties(data);
+      .then((res) => {
+        if (!res.ok) {
+          return res.text().then(text => {
+            throw new Error(`Error fetching properties: ${text}`);
+          });
         }
-        setLoading(false);
+        return res.json();
+      })
+      .then((data) => {
+        setProperties(data);
       })
       .catch((err) => {
         console.error("Error fetching properties:", err);
-        setError("Failed to load properties");
+        setError(err.message);
         setLoading(false);
       });
 
     // Fetch recent submissions and filter by the current session's login time
-    fetch("https://cp-check-submissions-dev.onrender.com/api/recent-submissions", {
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          return res.text().then(text => {
+            throw new Error(`Error fetching submissions: ${text}`);
+          });
+        }
+        return res.json();
+      })
       .then((data) => {
-        // Filter submissions that occurred after the stored loginTime
         const completed = Array.from(
           new Set(
             data
@@ -71,7 +79,7 @@ function Dashboard() {
         setCompletedProperties(completed);
       })
       .catch((err) => console.error("Error fetching submissions:", err));
-  }, [navigate, token, loginTime]);
+}, [navigate, token, loginTime]);
 
   // Toggle the sidebar collapse/expand
   const toggleSidebar = () => {
