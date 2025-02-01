@@ -19,9 +19,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Viewport Meta (Make sure this is in your index.html head) */
-/* <meta name="viewport" content="width=device-width, initial-scale=1.0"> */
-
 /* Containers */
 .container,
 .dashboard-container {
@@ -74,7 +71,7 @@ button:hover {
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Logout Button: Constrain max-width */
+/* Logout Button (max-width 500px) */
 .logout-btn {
   background-color: var(--error-color);
   padding: 12px 20px;
@@ -112,7 +109,7 @@ button:hover {
   min-height: 100vh;
 }
 
-/* Sidebar (Checklist) */
+/* Sidebar (Checklist / Managed Properties) */
 .sidebar {
   background-color: #ffffff;
   width: 250px;
@@ -129,11 +126,11 @@ button:hover {
   border-right: none;
 }
 
-/* Sidebar Toggle: Always visible, positioned relative to sidebar */
+/* Sidebar Toggle */
 .sidebar .sidebar-toggle {
   position: absolute;
   top: 10px;
-  right: -40px; /* Adjust so that the toggle remains accessible */
+  right: -40px;
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 50%;
@@ -230,14 +227,19 @@ button:hover {
 
 /* Completed Tile Visual Indicator */
 .property-card.completed-tile {
-  background-color: #28a745; /* Green background */
-  /* Optionally, adjust the hover state if needed */
+  background-color: #28a745;
 }
 
 .property-card.completed-tile:hover {
   background-color: #218838;
 }
 
+/* Strike-through for Completed Tiles */
+.property-card.completed-tile h3,
+.property-card.completed-tile p {
+  text-decoration: line-through;
+  color: #fff;
+}
 
 /* Submissions Table */
 .submissions-table {
@@ -289,7 +291,9 @@ button:hover {
     max-width: 95%;
     padding: 20px;
   }
-  input, button, textarea {
+  input,
+  button,
+  textarea {
     font-size: 14px;
     padding: 10px;
   }
@@ -299,11 +303,13 @@ button:hover {
   .dashboard-container {
     margin: 20px auto;
   }
-  .logout-btn, .admin-btn {
+  .logout-btn,
+  .admin-btn {
     font-size: 14px;
     padding: 10px;
   }
-  .submissions-table th, .submissions-table td {
+  .submissions-table th,
+  .submissions-table td {
     padding: 8px;
   }
   .submissions-table button {
