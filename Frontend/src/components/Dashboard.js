@@ -1,31 +1,21 @@
-// Dashboard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 function Dashboard() {
-  // We include useParams() even though it’s not used directly here.
   const { property } = useParams();
   const navigate = useNavigate();
 
-  // List of properties assigned to the organization (strings)
-  const [properties, setProperties] = useState([]);
-  // List of properties that have been completed in the current session
-  const [completedProperties, setCompletedProperties] = useState([]);
+  const [properties, setProperties] = useState([]); // List of properties
+  const [completedProperties, setCompletedProperties] = useState([]); // Track completed properties
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const token = localStorage.getItem("token");
 
-  // Use stored organization name; if not set, fallback to "Your Organization"
   const orgName = localStorage.getItem("orgName") || "Your Organization";
-  // Get the user role (default to "user" if not defined)
   const role = localStorage.getItem("role") || "user";
-
-  // Initialize loginTime once using the function form to keep it stable
-  const [loginTime] = useState(() => {
-    return localStorage.getItem("loginTime") || new Date().toISOString();
-  });
+  const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
 
   useEffect(() => {
     if (!token) {
@@ -53,25 +43,27 @@ function Dashboard() {
         setLoading(false);
       });
 
-    // Fetch recent submissions and filter by the current session's login time
-    fetch("https://cp-check-submissions-dev.onrender.com/api/recent-submissions", {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        // Filter submissions that occurred after the stored loginTime
-        const completed = Array.from(
-          new Set(
-            data
-              .filter((sub) => new Date(sub.submittedAt) >= new Date(loginTime))
-              .map((sub) => sub.property)
-          )
-        );
-        setCompletedProperties(completed);
+    // Fetch recent submissions to mark properties as completed for the session
+    if (role === "user") {
+      fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch((err) => console.error("Error fetching submissions:", err));
-  }, [navigate, token, loginTime]);
+        .then((res) => res.json())
+        .then((data) => {
+          // Filter and update completed properties based on the session's login time
+          const completed = Array.from(
+            new Set(
+              data
+                .filter((sub) => new Date(sub.submittedAt) >= new Date(loginTime))
+                .map((sub) => sub.property)
+            )
+          );
+          setCompletedProperties(completed); // Update completed properties
+        })
+        .catch((err) => console.error("Error fetching submissions:", err));
+    }
+  }, [navigate, token, loginTime, role]);
 
   // Toggle the sidebar collapse/expand
   const toggleSidebar = () => {
