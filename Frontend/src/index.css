@@ -130,7 +130,7 @@ button:hover {
 }
 
 /* Sidebar Toggle: Always visible, positioned relative to sidebar */
-.sidebar .sidebar-toggle {
+.sidebar, .sidebar-toggle {
   position: absolute;
   top: 10px;
   right: -40px; /* Adjust so that the toggle remains accessible */
@@ -148,7 +148,7 @@ button:hover {
 
 /* Sidebar Content */
 .sidebar h2 {
-  font-size: 20px;
+  font-size: 17px;
   margin-bottom: 15px;
 }
 
@@ -203,6 +203,7 @@ button:hover {
   margin-top: 30px;
 }
 
+/* Property Card Base Style */
 .property-card {
   background-color: var(--primary-color);
   color: #fff;
@@ -226,6 +227,17 @@ button:hover {
   margin: 0 0 10px;
   font-size: 18px;
 }
+
+/* Completed Tile Visual Indicator */
+.property-card.completed-tile {
+  background-color: #28a745; /* Green background */
+  /* Optionally, adjust the hover state if needed */
+}
+
+.property-card.completed-tile:hover {
+  background-color: #218838;
+}
+
 
 /* Submissions Table */
 .submissions-table {

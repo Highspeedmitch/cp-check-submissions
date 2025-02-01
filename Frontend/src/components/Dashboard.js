@@ -19,6 +19,8 @@ function Dashboard() {
 
   // Use stored organization name; if not set, fallback to "Your Organization"
   const orgName = localStorage.getItem("orgName") || "Your Organization";
+  // Get the user role (default to "user" if not defined)
+  const role = localStorage.getItem("role") || "user";
 
   // Initialize loginTime once using the function form to keep it stable
   const [loginTime] = useState(() => {
@@ -52,12 +54,13 @@ function Dashboard() {
       });
 
     // Fetch recent submissions and filter by the current session's login time
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
+    fetch("https://cp-check-submissions-dev.onrender.com/api/recent-submissions", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
+        // Filter submissions that occurred after the stored loginTime
         const completed = Array.from(
           new Set(
             data
@@ -80,6 +83,7 @@ function Dashboard() {
     localStorage.removeItem("token");
     localStorage.removeItem("orgName");
     localStorage.removeItem("loginTime");
+    localStorage.removeItem("role");
     navigate("/login");
   };
 
@@ -88,11 +92,12 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
+      {/* Sidebar / Left Pane */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <button className="sidebar-toggle" onClick={toggleSidebar}>
           {sidebarCollapsed ? "☰" : "×"}
         </button>
-        <h2>Checklist</h2>
+        <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
         <ul>
           {properties.map((prop) => (
             <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
@@ -101,6 +106,8 @@ function Dashboard() {
           ))}
         </ul>
       </div>
+
+      {/* Main Content Area */}
       <div className="main-content">
         <header className="dashboard-header">
           <div className="subtext">Working on behalf of {orgName}</div>
@@ -113,9 +120,7 @@ function Dashboard() {
         {allCompleted && (
           <div className="all-completed-banner">
             <h2>All inspections completed!</h2>
-            <button className="logout-btn" onClick={handleLogout}>
-              Sign Out
-            </button>
+            <button className="logout-btn" onClick={handleLogout}>Sign Out</button>
           </div>
         )}
 
@@ -128,9 +133,8 @@ function Dashboard() {
             {properties.map((prop) => (
               <div
                 key={prop}
-                className="property-card"
+                className={`property-card ${completedProperties.includes(prop) ? "completed-tile" : ""}`}
                 onClick={() => {
-                  const role = localStorage.getItem("role");
                   if (role === "admin") {
                     navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
                   } else {
@@ -140,7 +144,7 @@ function Dashboard() {
               >
                 <h3>{prop}</h3>
                 <p>
-                  {localStorage.getItem("role") === "admin"
+                  {role === "admin"
                     ? "Click to view recent submissions"
                     : (completedProperties.includes(prop)
                         ? "Completed"
