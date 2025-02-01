@@ -130,25 +130,26 @@ function Dashboard() {
         ) : error ? (
           <p className="error">{error}</p>
         ) : (
-          <div className="property-cards">
-            {properties.map((prop) => (
-              <div
-                key={prop}
-                className="property-card"
-                onClick={() => {
-                    const role = localStorage.getItem("role");
-                    if (role === "admin") {
-                      navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
-                    } else {
-                      navigate(`/form/${encodeURIComponent(prop)}`);
-                    }
-                  }}                  
-              >
-                <h3>{prop}</h3>
-                <p>{completedProperties.includes(prop) ? "Completed" : "Click to complete checklist"}</p>
-              </div>
-            ))}
-          </div>
+          // In your Dashboard.js, inside the map over properties:
+            <div
+            key={prop}
+            className="property-card"
+            onClick={() => {
+                const role = localStorage.getItem("role");
+                if (role === "admin") {
+                navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
+                } else {
+                navigate(`/form/${encodeURIComponent(prop)}`);
+                }
+            }}
+            >
+            <h3>{prop}</h3>
+            <p>
+                {localStorage.getItem("role") === "admin" 
+                ? "Click to view recent submissions" 
+                : (completedProperties.includes(prop) ? "Completed" : "Click to complete checklist")}
+            </p>
+            </div>
         )}
       </div>
     </div>

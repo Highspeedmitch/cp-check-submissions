@@ -96,31 +96,42 @@ const limiter = rateLimit({
 app.use(limiter);
 
 /**
- * 🔹 Register a New Organization & Admin User
+ * 🔹 Register a New Organization & Admin User & Check admin passkey
  */
 app.post('/api/register', async (req, res) => {
   try {
-    const { organizationName, username, email, password, properties } = req.body;
+    const { organizationName, username, email, password, properties, adminPasskey } = req.body;
 
     // Hash the password
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     // Look for an existing organization by its name (ticker)
     const org = await Organization.findOne({ name: organizationName });
-
-    // If no matching organization is found, return an error message.
     if (!org) {
       return res.status(400).json({
         message: "Organization name not recognized. Please check the spelling of your Organization and register again."
       });
     }
 
-    // Create a new user associated with the existing organization.
+    // If the adminPasskey field is present, verify it
+    let role = "user";
+    if (adminPasskey) {
+      if (adminPasskey === process.env.ADMIN_PASSKEY) {
+        role = "admin";
+      } else {
+        return res.status(400).json({
+          message: "Invalid admin passkey."
+        });
+      }
+    }
+
+    // Create the new user associated with the found organization
     const newUser = await User.create({
       username,
       email,
       password: hashedPassword,
-      organizationId: org._id
+      organizationId: org._id,
+      role: role
     });
 
     res.status(201).json({ message: "User registered under organization successfully!" });
@@ -129,6 +140,7 @@ app.post('/api/register', async (req, res) => {
     res.status(500).json({ message: "Error registering organization/user." });
   }
 });
+
 
 /**
  * 🔹 User Login (Returns JWT)

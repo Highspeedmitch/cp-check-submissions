@@ -28,7 +28,7 @@ body {
   max-width: var(--container-max-width);
   margin: 40px auto;
   padding: var(--base-padding);
-  background: #ffffff;
+  background: #525252;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease, opacity 0.3s ease;
@@ -89,7 +89,7 @@ button:hover {
 }
 
 .logout-btn:hover {
-  background-color: #c82333;
+  background-color: #ec8b03;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -242,7 +242,7 @@ button:hover {
 }
 
 .submissions-table th {
-  background-color: #f8f8f8;
+  background-color: #636363;
 }
 
 .submissions-table tr:hover {
@@ -266,7 +266,7 @@ button:hover {
     transform: translateY(20px);
   }
   to {
-    opacity: 1;
+    opacity: .9;
     transform: translateY(0);
   }
 }
