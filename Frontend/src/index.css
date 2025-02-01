@@ -28,7 +28,7 @@ body {
   max-width: var(--container-max-width);
   margin: 40px auto;
   padding: var(--base-padding);
-  background: #525252;
+  background: #ffffff;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease, opacity 0.3s ease;
@@ -89,7 +89,7 @@ button:hover {
 }
 
 .logout-btn:hover {
-  background-color: #ec8b03;
+  background-color: #c82333;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -133,7 +133,7 @@ button:hover {
 .sidebar .sidebar-toggle {
   position: absolute;
   top: 10px;
-  right: 400px; /* Adjust so that the toggle remains accessible */
+  right: -40px; /* Adjust so that the toggle remains accessible */
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 50%;
@@ -242,7 +242,7 @@ button:hover {
 }
 
 .submissions-table th {
-  background-color: #636363;
+  background-color: #f8f8f8;
 }
 
 .submissions-table tr:hover {
@@ -266,7 +266,7 @@ button:hover {
     transform: translateY(20px);
   }
   to {
-    opacity: .9;
+    opacity: 1;
     transform: translateY(0);
   }
 }
