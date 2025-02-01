@@ -3,13 +3,12 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 function Dashboard() {
-  // We include useParams() even though it’s not used directly here.
-  const { property } = useParams();
+  const { property } = useParams(); // Not used directly here, but available if needed
   const navigate = useNavigate();
 
   // List of properties assigned to the organization (strings)
   const [properties, setProperties] = useState([]);
-  // List of properties that have been completed in the current session
+  // List of normalized property names that have been completed in the current session
   const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,7 +33,7 @@ function Dashboard() {
     }
 
     // Fetch properties for the organization
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
+    fetch("https://cp-check-submissions-dev.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -60,15 +59,16 @@ function Dashboard() {
     })
       .then((res) => res.json())
       .then((data) => {
-        // Filter submissions that occurred after the stored loginTime
+        // Normalize each submission's property (trim and toLowerCase)
         const completed = Array.from(
           new Set(
             data
               .filter((sub) => new Date(sub.submittedAt) >= new Date(loginTime))
-              .map((sub) => sub.property)
+              .map((sub) => sub.property.trim().toLowerCase())
           )
         );
         setCompletedProperties(completed);
+        console.log("Completed properties:", completed);
       })
       .catch((err) => console.error("Error fetching submissions:", err));
   }, [navigate, token, loginTime]);
@@ -88,7 +88,11 @@ function Dashboard() {
   };
 
   // Determine if all properties have been completed
-  const allCompleted = properties.length > 0 && properties.length === completedProperties.length;
+  const allCompleted =
+    properties.length > 0 &&
+    properties.every((prop) =>
+      completedProperties.includes(prop.trim().toLowerCase())
+    );
 
   return (
     <div className="dashboard-container">
@@ -100,7 +104,14 @@ function Dashboard() {
         <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
         <ul>
           {properties.map((prop) => (
-            <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
+            <li
+              key={prop}
+              className={
+                completedProperties.includes(prop.trim().toLowerCase())
+                  ? "completed"
+                  : ""
+              }
+            >
               {prop}
             </li>
           ))}
@@ -120,7 +131,9 @@ function Dashboard() {
         {allCompleted && (
           <div className="all-completed-banner">
             <h2>All inspections completed!</h2>
-            <button className="logout-btn" onClick={handleLogout}>Sign Out</button>
+            <button className="logout-btn" onClick={handleLogout}>
+              Sign Out
+            </button>
           </div>
         )}
 
@@ -130,28 +143,36 @@ function Dashboard() {
           <p className="error">{error}</p>
         ) : (
           <div className="property-cards">
-            {properties.map((prop) => (
-              <div
-                key={prop}
-                className={`property-card ${completedProperties.includes(prop) ? "completed-tile" : ""}`}
-                onClick={() => {
-                  if (role === "admin") {
-                    navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
-                  } else {
-                    navigate(`/form/${encodeURIComponent(prop)}`);
-                  }
-                }}
-              >
-                <h3>{prop}</h3>
-                <p>
-                  {role === "admin"
-                    ? "Click to view recent submissions"
-                    : (completedProperties.includes(prop)
-                        ? "Completed"
-                        : "Click to complete checklist")}
-                </p>
-              </div>
-            ))}
+            {properties.map((prop) => {
+              // Normalize the property name for comparison
+              const normalizedProp = prop.trim().toLowerCase();
+              return (
+                <div
+                  key={prop}
+                  className={`property-card ${
+                    completedProperties.includes(normalizedProp)
+                      ? "completed-tile"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    if (role === "admin") {
+                      navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
+                    } else {
+                      navigate(`/form/${encodeURIComponent(prop)}`);
+                    }
+                  }}
+                >
+                  <h3>{prop}</h3>
+                  <p>
+                    {role === "admin"
+                      ? "Click to view recent submissions"
+                      : completedProperties.includes(normalizedProp)
+                      ? "Completed"
+                      : "Click to complete checklist"}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
