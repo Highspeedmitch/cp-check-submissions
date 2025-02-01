@@ -326,9 +326,9 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
       const encodedKey = urlObj.pathname.substring(1);
 
       // Option A: Use the decoded key (raw)
-      const decodedKey = decodeURIComponent(encodedKey);
+      //const decodedKey = decodeURIComponent(encodedKey);
       // Option B: Use the encoded key directly
-      // const decodedKey = encodedKey;
+      const decodedKey = encodedKey;
 
       console.log("Extracted key to use for presigned URL:", decodedKey);
 
