@@ -9,20 +9,17 @@ function Dashboard() {
 
   // List of properties assigned to the organization (strings)
   const [properties, setProperties] = useState([]);
-  // List of properties that have been completed in the current session
+  // List of normalized property names that have been completed in the current session
   const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const token = localStorage.getItem("token");
-
-  // Use stored organization name; if not set, fallback to "Your Organization"
   const orgName = localStorage.getItem("orgName") || "Your Organization";
-  // Get the user role (default to "user" if not defined)
   const role = localStorage.getItem("role") || "user";
 
-  // Initialize loginTime once using the function form to keep it stable
+  // Initialize loginTime only once so it remains stable during the session.
   const [loginTime] = useState(() => {
     return localStorage.getItem("loginTime") || new Date().toISOString();
   });
@@ -34,7 +31,7 @@ function Dashboard() {
     }
 
     // Fetch properties for the organization
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
+    fetch("https://cp-check-submissions-dev.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -60,15 +57,16 @@ function Dashboard() {
     })
       .then((res) => res.json())
       .then((data) => {
-        // Filter submissions that occurred after the stored loginTime
+        // Normalize each submission's property name (trim and toLowerCase)
         const completed = Array.from(
           new Set(
             data
               .filter((sub) => new Date(sub.submittedAt) >= new Date(loginTime))
-              .map((sub) => sub.property)
+              .map((sub) => sub.property.trim().toLowerCase())
           )
         );
         setCompletedProperties(completed);
+        console.log("Completed properties (normalized):", completed);
       })
       .catch((err) => console.error("Error fetching submissions:", err));
   }, [navigate, token, loginTime]);
@@ -88,7 +86,11 @@ function Dashboard() {
   };
 
   // Determine if all properties have been completed
-  const allCompleted = properties.length > 0 && properties.length === completedProperties.length;
+  const allCompleted =
+    properties.length > 0 &&
+    properties.every(
+      (prop) => completedProperties.includes(prop.trim().toLowerCase())
+    );
 
   return (
     <div className="dashboard-container">
@@ -99,11 +101,17 @@ function Dashboard() {
         </button>
         <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
         <ul>
-          {properties.map((prop) => (
-            <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
-              {prop}
-            </li>
-          ))}
+          {properties.map((prop) => {
+            const normalizedProp = prop.trim().toLowerCase();
+            return (
+              <li
+                key={prop}
+                className={completedProperties.includes(normalizedProp) ? "completed" : ""}
+              >
+                {prop}
+              </li>
+            );
+          })}
         </ul>
       </div>
 
@@ -120,7 +128,9 @@ function Dashboard() {
         {allCompleted && (
           <div className="all-completed-banner">
             <h2>All inspections completed!</h2>
-            <button className="logout-btn" onClick={handleLogout}>Sign Out</button>
+            <button className="logout-btn" onClick={handleLogout}>
+              Sign Out
+            </button>
           </div>
         )}
 
@@ -130,28 +140,32 @@ function Dashboard() {
           <p className="error">{error}</p>
         ) : (
           <div className="property-cards">
-            {properties.map((prop) => (
-              <div
-                key={prop}
-                className={`property-card ${completedProperties.includes(prop) ? "completed-tile" : ""}`}
-                onClick={() => {
-                  if (role === "admin") {
-                    navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
-                  } else {
-                    navigate(`/form/${encodeURIComponent(prop)}`);
-                  }
-                }}
-              >
-                <h3>{prop}</h3>
-                <p>
-                  {role === "admin"
-                    ? "Click to view recent submissions"
-                    : (completedProperties.includes(prop)
-                        ? "Completed"
-                        : "Click to complete checklist")}
-                </p>
-              </div>
-            ))}
+            {properties.map((prop) => {
+              const normalizedProp = prop.trim().toLowerCase();
+              const isCompleted = completedProperties.includes(normalizedProp);
+              return (
+                <div
+                  key={prop}
+                  className={`property-card ${isCompleted ? "completed-tile" : ""}`}
+                  onClick={() => {
+                    if (role === "admin") {
+                      navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
+                    } else {
+                      navigate(`/form/${encodeURIComponent(prop)}`);
+                    }
+                  }}
+                >
+                  <h3>{prop}</h3>
+                  <p>
+                    {role === "admin"
+                      ? "Click to view recent submissions"
+                      : isCompleted
+                      ? "Completed"
+                      : "Click to complete checklist"}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
