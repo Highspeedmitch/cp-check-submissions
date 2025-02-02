@@ -130,7 +130,7 @@ button:hover {
 .sidebar .sidebar-toggle {
   position: absolute;
   top: 10px;
-  right: 0; /* Align with the edge */
+  right: -30px;  /* Adjust this value as needed */
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 50%;
@@ -141,7 +141,7 @@ button:hover {
   text-align: center;
   cursor: pointer;
   transition: right 0.3s ease;
-  z-index: 2; /* Ensure it's on top of other elements */
+  z-index: 10; /* Make sure the button stays above other elements */
 }
 
 /* Adjust the position of the toggle button when collapsed */
