@@ -126,12 +126,11 @@ button:hover {
   border-right: none;
 }
 
-/* Sidebar Toggle Button */
+/* Sidebar Toggle: Always visible, positioned relative to sidebar */
 .sidebar .sidebar-toggle {
   position: absolute;
   top: 10px;
-  left: 100%;  /* Places the button immediately to the right of the sidebar */
-  margin-left: 5px;
+  right: 0; /* Align with the edge */
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 50%;
@@ -141,12 +140,15 @@ button:hover {
   line-height: 30px;
   text-align: center;
   cursor: pointer;
-  transition: left 0.3s ease;
+  transition: right 0.3s ease;
+  z-index: 2; /* Ensure it's on top of other elements */
 }
 
+/* Adjust the position of the toggle button when collapsed */
 .sidebar.collapsed .sidebar-toggle {
-  left: 0; /* Keep the toggle visible when sidebar is collapsed */
+  right: -40px; /* Move the button to the right when collapsed */
 }
+
 
 /* Sidebar Content */
 .sidebar h2 {
