@@ -62,28 +62,32 @@ if (photoBuffers && photoBuffers.length > 0) {
   doc.moveDown(1);
 
   photoBuffers.forEach(({ fieldName, imageBuffer }, index) => {
-      if (!imageBuffer || imageBuffer.length === 0) {
-          console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
-          return;
-      }
+    if (!imageBuffer || imageBuffer.length === 0) {
+        console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
+        return;
+    }
 
-      try {
-          // ✅ Ensure correct field name is displayed ABOVE each photo
-          doc.fontSize(14).text(`Photo for: ${fieldName}`, { bold: true, align: 'left' });
-          doc.moveDown(2.5);
+    try {
+        // Check if there's enough space left, otherwise, add a new page
+        if (doc.y + 320 > doc.page.height - 50) {
+            doc.addPage();
+            doc.moveDown(1);
+        }
 
-          // ✅ Embed image with proper scaling and spacing
-          doc.image(imageBuffer, {
-              fit: [400, 300], // Adjust image size for better spacing
-              align: 'center'
-          });
+        doc.fontSize(14).text(`Photo for: ${fieldName}`, { bold: true, align: 'left' });
+        doc.moveDown(0.5);
 
-          doc.moveDown(2); // ✅ More spacing between images
+        doc.image(imageBuffer, {
+            fit: [400, 300],
+            align: 'center'
+        });
 
-      } catch (error) {
-          console.error(`❌ Error embedding image for ${fieldName}:`, error);
-      }
-  });
+        doc.moveDown(2); // ✅ Space before the next image
+
+    } catch (error) {
+        console.error(`❌ Error embedding image for ${fieldName}:`, error);
+    }
+});
 }
 else {
             doc.fontSize(14).text("No photos uploaded.", { italic: true });
