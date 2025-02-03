@@ -25,6 +25,13 @@ const orgPropertyMap = require('./models/orgPropertyMap');
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 
+const bodyParser = require('body-parser');
+
+// Increase the limit for JSON requests (for image uploads)
+app.use(bodyParser.json({ limit: '10mb' })); // Adjust the size as needed
+
+  module.exports = authorizeRoles;
+
 // Configure AWS SDK
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,           // From .env
