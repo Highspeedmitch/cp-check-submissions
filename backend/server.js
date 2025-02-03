@@ -220,50 +220,51 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
  */
 let lastSubmission = null;
 
-// Multer Configuration for Storing Images
-const storage = multer.memoryStorage();
-const upload = multer.array('photos', 10); // Accept multiple photos (limit to 10)
+// Multer Configuration for Storing Images in Memory
+const multer = require('multer');
+const storage = multer.memoryStorage(); // Store files in memory before processing
+const upload = multer({ storage: storage }); // Initialize Multer
 
-// Modify the API route to handle file uploads
-app.post('/api/submit-form', authenticateToken, upload.single('photo'), async (req, res) => {
+// Update the /submit-form route to accept multiple files
+app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), async (req, res) => {
   try {
-    const data = req.body; // Text fields
+    const data = req.body; // Extract text fields
     console.log('Form Data Received:', data);
 
     let photoBuffers = [];
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
-        const photoBase64 = file.buffer.toString('base64');
+        const photoBase64 = file.buffer.toString('base64'); // Convert Buffer to Base64
         photoBuffers.push(photoBase64);
       });
     }
 
-    // MST Timestamp (for logging and email)
-    const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
-
-    // Generate the PDF with the photo included
+    // Generate PDF with embedded images
     const { pdfStream, filePath, fileName } = await generateChecklistPDF(data, photoBuffers);
+
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
       throw new Error('PDF generation failed - no valid stream received');
     }
 
-    await new Promise(resolve => setTimeout(resolve, 200));
-
+    // Read the generated PDF file from disk into a buffer
     const pdfBuffer = fs.readFileSync(filePath);
+
+    // Upload to S3
     const organizationId = req.user.organizationId;
     const propertyName = data.selectedProperty;
-
-    // Upload the PDF to S3
     const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
     console.log('✅ PDF uploaded to S3:', uploadResult.Location);
 
-    // Create a new Submission record
+    // Save submission record
     await Submission.create({
       organizationId: organizationId,
       property: propertyName,
       pdfUrl: uploadResult.Location,
       submittedAt: new Date(),
     });
+
+    // Respond to the client
+    res.json({ message: 'Form successfully submitted!', pdfUrl: uploadResult.Location });
 
     // Fetch recipient emails for the property
     const org = await Organization.findById(organizationId);
