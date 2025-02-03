@@ -342,4 +342,36 @@ button:hover {
   .property-card {
     width: 100%;
   }
+  /* Ensure labels and inputs stack vertically */
+.additional-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Adds space between each field */
+  margin-top: 10px;
+}
+
+/* Ensure selects and inputs take full width */
+.additional-checks label {
+  display: flex;
+  flex-direction: column;
+  font-weight: bold;
+}
+
+.additional-checks select,
+.additional-checks input,
+.additional-checks textarea {
+  width: 100%;
+  margin-top: 5px;
+  padding: 8px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+/* Improve file input appearance */
+.additional-checks input[type="file"] {
+  padding: 5px;
+  border: none;
+}
+
 }
