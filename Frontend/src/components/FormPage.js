@@ -22,7 +22,7 @@ function FormPage() {
     trashCans: '',
     brokenCurbs: '',
     potholes: '',
-    photos: {}  // Store photos for each field
+    photos: {} // Store photos for each field
   });
 
   const [submitted, setSubmitted] = useState(false);
@@ -38,40 +38,41 @@ function FormPage() {
     if (file) {
       setFormData(prev => ({
         ...prev,
-        photos: { ...prev.photos, [fieldName]: file }  // Store file object instead of base64
+        photos: { ...prev.photos, [fieldName]: file }
       }));
     }
-  };  
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      
-      // Create FormData to handle file uploads
       const formDataToSend = new FormData();
-      
+
       // Append all text fields
       Object.keys(formData).forEach((key) => {
-        if (key !== "photos") { // Exclude photos for now
+        if (key !== "photos") {
           formDataToSend.append(key, formData[key]);
         }
       });
+      
+      // Append selected property explicitly
+      formDataToSend.append('selectedProperty', property);
   
       // Append photos to FormData
       Object.keys(formData.photos).forEach((field) => {
         const file = formData.photos[field];
         if (file) {
-          formDataToSend.append('photos', file); // Append each photo
+          formDataToSend.append('photos', file);
         }
       });
   
       const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/submit-form', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,  // Don't set 'Content-Type', let the browser handle it
+          'Authorization': `Bearer ${token}`,
         },
-        body: formDataToSend, // Send as multipart/form-data
+        body: formDataToSend,
       });
   
       const data = await response.json();
@@ -97,6 +98,7 @@ function FormPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
+          <input type="hidden" name="selectedProperty" value={property} /> {/* Ensure property is sent */}
           <label>Business Name:</label>
           <input type="text" name="businessName" onChange={handleChange} required />
 
