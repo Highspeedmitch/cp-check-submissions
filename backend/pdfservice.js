@@ -78,7 +78,7 @@ if (photoBuffers && photoBuffers.length > 0) {
         doc.moveDown(0.5);
 
         doc.image(imageBuffer, {
-            fit: [600, 400],
+            fit: [640, 480],
             align: 'center',
         });
 
