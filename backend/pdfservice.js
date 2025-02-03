@@ -23,33 +23,37 @@ function generateChecklistPDF(formData, photoBuffers) {
         // ✅ Add all fields to the PDF
         doc.fontSize(20).text('Commercial Property Inspection Checklist', { align: 'center' });
         doc.moveDown(1);
-        doc.fontSize(14).text(`Business Name: ${formData.businessName || 'N/A'}`);
-        doc.text(`Property Address: ${formData.propertyAddress || 'N/A'}`);
-        doc.text(`Fire Safety Measures: ${formData.fireSafetyMeasures || 'N/A'}`);
-        doc.text(`Security Systems: ${formData.securitySystems || 'N/A'}`);
-        doc.text(`Maintenance Schedule: ${formData.maintenanceSchedule || 'N/A'}`);
-        doc.moveDown(1);
+        
+        const fieldMappings = {
+            businessName: "Business Name",
+            propertyAddress: "Property Address",
+            fireSafetyMeasures: "Fire Safety Measures",
+            securitySystems: "Security Systems",
+            maintenanceSchedule: "Maintenance Schedule",
+            additionalNotes: "Additional Notes",
+            parkingLotLights: "Parking Lot Lights",
+            underCanopyLights: "Under Canopy Lights",
+            graffiti: "Graffiti",
+            parkingBumpers: "Parking Bumpers",
+            dumpsters: "Dumpsters",
+            waterLeaks: "Water Leaks",
+            dangerousTrees: "Dangerous Trees",
+            trashCans: "Trash Cans",
+            brokenCurbs: "Broken Parking Lot Curbing",
+            potholes: "Major Potholes"
+        };
 
-        doc.fontSize(14).text('Additional Notes:', { underline: true });
-        doc.text(`${formData.additionalNotes || 'None'}`);
-        doc.moveDown(1);
-
-        // ✅ Include all condition checks
-        const fields = [
-            "Parking Lot Lights", "Under Canopy Lights", "Graffiti", "Parking Bumpers",
-            "Dumpsters", "Water Leaks", "Dangerous Trees", "Trash Cans",
-            "Broken Parking Lot Curbing", "Major Potholes"
-        ];
-
-        fields.forEach(field => {
-            const fieldName = field.replace(/ /g, ""); // Remove spaces for formData key matching
-            if (formData[fieldName]) {
-                doc.text(`${field}: ${formData[fieldName] || 'N/A'}`);
-                if (formData[`${fieldName}Description`]) {
-                    doc.text(`Description: ${formData[`${fieldName}Description`]}`);
-                }
-                doc.moveDown(0.5);
+        Object.keys(fieldMappings).forEach(field => {
+            const displayName = fieldMappings[field];
+            const value = formData[field] || "N/A";
+            doc.fontSize(14).text(`${displayName}: ${value}`);
+            
+            // Check if there's a description field for this input
+            if (formData[`${field}Description`]) {
+                doc.fontSize(12).text(`  Description: ${formData[`${field}Description`]}`);
             }
+
+            doc.moveDown(0.5);
         });
 
         // ✅ Add photos with labels
@@ -58,14 +62,14 @@ function generateChecklistPDF(formData, photoBuffers) {
             doc.fontSize(18).text('Inspection Photos', { underline: true });
             doc.moveDown(1);
 
-            photoBuffers.forEach(({ fieldName, imageBuffer }, index) => {
+            photoBuffers.forEach(({ fieldName, imageBuffer }) => {
                 if (!imageBuffer || imageBuffer.length === 0) {
                     console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
                     return;
                 }
 
                 try {
-                    doc.fontSize(14).text(`${fieldName}`, { bold: true }); // Label for the image
+                    doc.fontSize(14).text(`${fieldMappings[fieldName] || fieldName}`, { bold: true }); // Label for the image
                     doc.moveDown(0.3);
                     doc.image(imageBuffer, {
                         fit: [400, 300], // Reduce size for better layout
