@@ -28,23 +28,7 @@ const { v4: uuidv4 } = require('uuid');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 
-// Initialize Express App
-const app = express();
-const PORT = process.env.PORT || 10000;
-const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
-
-// ✅ Increase size limits for JSON and URL-encoded data
-app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
-
-// ✅ CORS configuration
-app.use(cors({
-    origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
-    methods: "GET,POST,PUT,DELETE",
-    allowedHeaders: "Content-Type,Authorization",
-}));
-
-// ✅ Configure AWS SDK
+// Configure AWS SDK
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,           // From .env
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,   // From .env
@@ -53,9 +37,6 @@ AWS.config.update({
 
 // Create S3 Instance
 const s3 = new AWS.S3();
-
-// Use multer for handling multipart/form-data file uploads
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 // Example: Upload a File to S3
 const uploadToS3 = (fileContent, fileName, organizationId, propertyName) => {
@@ -73,15 +54,175 @@ const uploadToS3 = (fileContent, fileName, organizationId, propertyName) => {
   return s3.upload(params).promise();
 };
 
+// Initialize Express App
+const app = express();
+const PORT = process.env.PORT || 10000;
+const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
+
+// Increase size limits for JSON and URL-encoded data
+app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
+
+// ✅ CORS configuration
+app.use(cors({
+    origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
+    methods: "GET,POST,PUT,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
+}));
+
+app.use(express.json());
+
 // ✅ Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Error:", err));
 
 /**
+ * 🔹 JWT Auth Middleware
+ */
+const authenticateToken = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
+
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) return res.status(403).json({ message: "Invalid token" });
+    req.user = user;
+    next();
+  });
+};
+
+/**
+ * 🔹 Rate Limiting Middleware (Optional but Recommended)
+ */
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again after 15 minutes."
+});
+
+app.use(limiter);
+
+/**
+ * 🔹 Register a New Organization & Admin User & Check admin passkey
+ */
+app.post('/api/register', async (req, res) => {
+  try {
+    const { organizationName, username, email, password, properties, adminPasskey } = req.body;
+
+    // Hash the password
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    // Look for an existing organization by its name (ticker)
+    const org = await Organization.findOne({ name: organizationName });
+    if (!org) {
+      return res.status(400).json({
+        message: "Organization name not recognized. Please check the spelling of your Organization and register again."
+      });
+    }
+
+    // If the adminPasskey field is present, verify it
+    let role = "user";
+    if (adminPasskey) {
+      if (adminPasskey === process.env.ADMIN_PASSKEY) {
+        role = "admin";
+      } else {
+        return res.status(400).json({
+          message: "Invalid admin passkey."
+        });
+      }
+    }
+
+    // Create the new user associated with the found organization
+    const newUser = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+      organizationId: org._id,
+      role: role
+    });
+
+    res.status(201).json({ message: "User registered under organization successfully!" });
+  } catch (error) {
+    console.error("❌ Error registering organization/user:", error);
+    res.status(500).json({ message: "Error registering organization/user." });
+  }
+});
+
+
+/**
+ * 🔹 User Login (Returns JWT)
+ */
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Check if user exists and populate the organization
+    const user = await User.findOne({ email }).populate('organizationId');
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials (user not found)" });
+    }
+
+    // Ensure password matches
+    if (!bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ message: "Invalid credentials (incorrect password)" });
+    }
+
+    // Ensure organization exists
+    if (!user.organizationId) {
+      return res.status(500).json({ message: "Organization not found for user" });
+    }
+
+    // Generate JWT, including the role in the payload
+    const token = jwt.sign(
+      { email: user.email, organizationId: user.organizationId._id, role: user.role },
+      SECRET_KEY,
+      { expiresIn: '2h' }
+    );
+
+    // Return the token along with organization ID, name, and role
+    res.json({ 
+      message: "Login successful", 
+      token, 
+      organizationId: user.organizationId._id,
+      orgName: user.organizationId.name,
+      role: user.role
+    });
+  } catch (error) {
+    console.error("❌ Login error:", error);
+    res.status(500).json({ message: "Server error during login." });
+  }
+});
+
+
+/**
+ * 🔹 Single /properties Route
+ */
+app.get('/api/properties', authenticateToken, async (req, res) => {
+    try {
+      const org = await Organization.findById(req.user.organizationId);
+      if (!org) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+      // Extract property names as strings
+      const propertyNames = org.properties.map(p => p.name);
+      
+      console.log('Property Names:', propertyNames); // Debugging line
+  
+      res.json(propertyNames);
+    } catch (error) {
+      console.error("❌ Error fetching properties:", error);
+      res.status(500).json({ error: "Server error retrieving properties" });
+    }
+  });
+
+/**
+ * 🔹 Submit Form (Requires Authentication)
+ */
+let lastSubmission = null;
+/**
  * 🔹 Submit Form, Generate PDF, Upload to S3, Send Email, and Return Success Message
  */
-app.post('/api/submit-form', authenticateToken, upload.single('photo'), async (req, res) => {
+app.post('/api/submit-form', authenticateToken, async (req, res) => {
   try {
     // Get the form data from the request body
     const data = req.body;
@@ -90,16 +231,9 @@ app.post('/api/submit-form', authenticateToken, upload.single('photo'), async (r
     // MST Timestamp (for logging and email)
     const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
 
-    // Handle photo if available
-    let photoUrl = '';
-    if (req.file) {
-      const photoContent = req.file.buffer;
-      const photoFileName = req.file.originalname;
-      const uploadResult = await uploadToS3(photoContent, photoFileName, data.selectedProperty);
-      photoUrl = uploadResult.Location;
-    }
-
     // Generate PDF from the submitted form data
+    // This function should write the PDF to a local file (e.g., in a pdfstore directory) and return:
+    //   pdfStream, filePath, and fileName.
     const { pdfStream, filePath, fileName } = await generateChecklistPDF(data);
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
       throw new Error('PDF generation failed - no valid stream received');
@@ -113,15 +247,15 @@ app.post('/api/submit-form', authenticateToken, upload.single('photo'), async (r
 
     // Upload the PDF to AWS S3 using the buffer
     const organizationId = req.user.organizationId;
-    const propertyName = data.selectedProperty;
+    const propertyName = data.selectedProperty; // Make sure your form includes this field
     const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
+    console.log('✅ PDF uploaded to S3:', uploadResult.Location);
 
     // Create a new Submission record in your database
     const newSubmission = await Submission.create({
       organizationId: organizationId,
       property: propertyName,
       pdfUrl: uploadResult.Location,
-      photoUrl: photoUrl, // Add the photo URL if available
       submittedAt: new Date(),
     });
 
@@ -166,6 +300,8 @@ app.post('/api/submit-form', authenticateToken, upload.single('photo'), async (r
     res.status(500).json({ message: 'Error processing form submission' });
   }
 });
+
+
 
 /**
  * 🔹 List Recent Submissions (Last 30 Days)
@@ -220,6 +356,7 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
+
 
 /**
  * 🔹 Admin: Get Submissions for a Property (Last 3 Months)
