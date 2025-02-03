@@ -35,78 +35,52 @@ body {
   transform: translateY(-3px);
 }
 
-/* Inputs, Buttons, and Textareas */
-input,
-button,
-textarea {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 6px;
-  border: 1px solid #e0e0e0;
-  font-size: 16px;
-  box-sizing: border-box;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 80px;
-  background-color: #fafafa;
-}
-
-/* Buttons */
-button {
-  background-color: var(--primary-color);
-  color: #fff;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-}
-
-button:hover {
-  background-color: var(--primary-hover);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Logout Button: Constrain max-width */
-.logout-btn {
-  background-color: var(--error-color);
-  padding: 12px 20px;
-  margin-top: 20px;
-  border-radius: 6px;
-  font-size: 16px;
-  font-weight: 600;
-  width: 100%;
-  max-width: 500px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.logout-btn:hover {
-  background-color: #c82333;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Success and Error Messages */
-.success {
-  color: var(--success-color);
-  font-weight: 600;
-  margin-top: 10px;
-}
-
-.error {
-  color: var(--error-color);
-  font-weight: 600;
-  margin-top: 10px;
-}
-
-/* Dashboard Layout */
-.dashboard-container {
+/* Form Layout */
+.container form {
   display: flex;
-  min-height: 100vh;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+label {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+button[type="submit"] {
+  background-color: #007BFF;
+  color: white;
+  padding: 12px;
+  border-radius: 6px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button[type="submit"]:hover {
+  background-color: #0056b3;
+}
+
+/* Photo upload input styling */
+input[type="file"] {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #f9f9f9;
 }
 
 /* Sidebar (Checklist / Managed Properties) */
@@ -126,7 +100,7 @@ button:hover {
   border-right: none;
 }
 
-/* Sidebar Toggle: Always visible, positioned relative to sidebar */
+/* Sidebar Toggle */
 .sidebar .sidebar-toggle {
   position: absolute;
   top: 10px;
@@ -143,12 +117,6 @@ button:hover {
   transition: right 0.3s ease;
   z-index: 10; /* Make sure the button stays above other elements */
 }
-
-/* Adjust the position of the toggle button when collapsed */
-.sidebar.collapsed .sidebar-toggle {
-  right: -40px; /* Move the button to the right when collapsed */
-}
-
 
 /* Sidebar Content */
 .sidebar h2 {
@@ -180,24 +148,6 @@ button:hover {
 .main-content {
   flex: 1;
   padding: 20px 30px;
-}
-
-/* Dashboard Header */
-.dashboard-header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.dashboard-header .subtext {
-  font-size: 16px;
-  color: #555;
-  margin-bottom: 10px;
-}
-
-.dashboard-header h1 {
-  font-size: 32px;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
-  margin: 0;
 }
 
 /* Property Cards */
@@ -233,51 +183,13 @@ button:hover {
   font-size: 18px;
 }
 
-/* Completed Tile Visual Indicator for Property Cards (background color only) */
+/* Completed Tile Visual Indicator for Property Cards */
 .property-card.completed-tile {
   background-color: #28a745;
 }
 
 .property-card.completed-tile:hover {
   background-color: #218838;
-}
-
-/* Ensure text inside property cards is not struck through */
-.property-card.completed-tile h3,
-.property-card.completed-tile p {
-  text-decoration: none;
-}
-
-/* Submissions Table */
-.submissions-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-.submissions-table th,
-.submissions-table td {
-  padding: 12px;
-  border-bottom: 1px solid #e0e0e0;
-  text-align: left;
-}
-
-.submissions-table th {
-  background-color: #f8f8f8;
-}
-
-.submissions-table tr:hover {
-  background-color: #f1f1f1;
-}
-
-.submissions-table button {
-  background-color: #17a2b8;
-  padding: 8px 12px;
-  font-size: 14px;
-}
-
-.submissions-table button:hover {
-  background-color: #117a8b;
 }
 
 /* Animations */
@@ -326,7 +238,6 @@ button:hover {
 }
 
 @media screen and (max-width: 480px) {
-  /* Keep dashboard-container in row layout on mobile so sidebar remains on the left */
   .dashboard-container {
     flex-direction: row;
   }

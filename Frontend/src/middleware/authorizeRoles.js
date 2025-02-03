@@ -7,5 +7,10 @@ const authorizeRoles = (...roles) => {
     };
   };
   
+  const bodyParser = require('body-parser');
+
+// Increase the limit for JSON requests (for image uploads)
+app.use(bodyParser.json({ limit: '10mb' })); // Adjust the size as needed
+
   module.exports = authorizeRoles;
   
