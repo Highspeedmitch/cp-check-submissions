@@ -51,16 +51,33 @@ function FormPage() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const payload = { ...formData, selectedProperty: property };
-
+      
+      // Create FormData to handle file uploads
+      const formDataToSend = new FormData();
+      
+      // Append all text fields
+      Object.keys(formData).forEach((key) => {
+        if (key !== "photos") { // Exclude photos for now
+          formDataToSend.append(key, formData[key]);
+        }
+      });
+  
+      // Append photos to FormData
+      Object.keys(formData.photos).forEach((field) => {
+        const file = formData.photos[field];
+        if (file) {
+          formDataToSend.append('photos', file); // Append each photo
+        }
+      });
+  
       const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/submit-form', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,  // Don't set 'Content-Type', let the browser handle it
         },
-        body: JSON.stringify(payload),
+        body: formDataToSend, // Send as multipart/form-data
       });
+  
       const data = await response.json();
       if (response.ok) {
         setMessage(data.message);
