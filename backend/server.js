@@ -241,15 +241,16 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
 
     // **Ensure photos are correctly linked to fields**
     let photoBuffers = [];
-    if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        const originalFieldName = file.originalname.split('-')[0]; // Extracts the field name from filename
+if (req.files && req.files.length > 0) {
+    req.files.forEach((file, index) => {
+        console.log(`✅ Processing image ${index + 1}: ${file.fieldname}`);
+        
         photoBuffers.push({
-          fieldName: originalFieldName, // Ensures correct field association
-          imageBuffer: file.buffer
+            fieldName: file.fieldname, // Retain the correct form field name
+            imageBuffer: file.buffer
         });
-      });
-    }
+    });
+}
 
     console.log("Processed Photo Buffers:", photoBuffers);
 
