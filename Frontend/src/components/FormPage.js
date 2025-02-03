@@ -21,8 +21,7 @@ function FormPage() {
     dangerousTrees: '',
     trashCans: '',
     brokenCurbs: '',
-    potholes: '',
-    photos: {}  // Store photos for each field
+    potholes: ''
   });
 
   const [submitted, setSubmitted] = useState(false);
@@ -31,20 +30,6 @@ function FormPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFileChange = (e, fieldName) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = () => {
-        setFormData(prev => ({
-          ...prev,
-          photos: { ...prev.photos, [fieldName]: reader.result }  // Store base64 photo for that field
-        }));
-      };
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -102,95 +87,34 @@ function FormPage() {
           <h2>Additional Property Condition Checks</h2>
 
           <label>Parking Lot Lights:</label>
-          <select name="parkingLotLights" onChange={handleChange}>
-            <option value="">Select...</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          {formData.parkingLotLights === 'yes' && (
-            <>
-              <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'parkingLotLights')} />
-              <textarea name="parkingLotLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-            </>
-          )}
+          <textarea name="parkingLotLights" onChange={handleChange}></textarea>
 
           <label>Under Canopy Lights / Tenant Signs:</label>
-          <select name="underCanopyLights" onChange={handleChange}>
-            <option value="">Select...</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          {formData.underCanopyLights === 'yes' && (
-            <>
-              <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'underCanopyLights')} />
-              <textarea name="underCanopyLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-            </>
-          )}
+          <textarea name="underCanopyLights" onChange={handleChange}></textarea>
 
           <label>Graffiti:</label>
-          <select name="graffiti" onChange={handleChange}>
-            <option value="">Select...</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          {formData.graffiti === 'yes' && (
-            <>
-              <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'graffiti')} />
-              <textarea name="graffitiDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-            </>
-          )}
+          <textarea name="graffiti" onChange={handleChange}></textarea>
+
+          <label>Parking Bumpers:</label>
+          <textarea name="parkingBumpers" onChange={handleChange}></textarea>
+
+          <label>Dumpsters:</label>
+          <textarea name="dumpsters" onChange={handleChange}></textarea>
 
           <label>Water Leaks:</label>
-          <select name="waterLeaks" onChange={handleChange}>
-            <option value="">Select...</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          {formData.waterLeaks === 'yes' && (
-            <>
-              <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'waterLeaks')} />
-              <textarea name="waterLeaksDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-            </>
-          )}
+          <textarea name="waterLeaks" onChange={handleChange}></textarea>
 
           <label>Dangerous Trees:</label>
-          <select name="dangerousTrees" onChange={handleChange}>
-            <option value="">Select...</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          {formData.dangerousTrees === 'yes' && (
-            <>
-              <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'dangerousTrees')} />
-              <textarea name="dangerousTreesDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-            </>
-          )}
+          <textarea name="dangerousTrees" onChange={handleChange}></textarea>
+
+          <label>Trash Cans:</label>
+          <textarea name="trashCans" onChange={handleChange}></textarea>
 
           <label>Broken Parking Lot Curbing:</label>
-          <select name="brokenCurbs" onChange={handleChange}>
-            <option value="">Select...</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          {formData.brokenCurbs === 'yes' && (
-            <>
-              <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'brokenCurbs')} />
-              <textarea name="brokenCurbsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-            </>
-          )}
+          <textarea name="brokenCurbs" onChange={handleChange}></textarea>
 
           <label>Major Potholes:</label>
-          <select name="potholes" onChange={handleChange}>
-            <option value="">Select...</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          {formData.potholes === 'yes' && (
-            <>
-              <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'potholes')} />
-              <textarea name="potholesDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-            </>
-          )}
+          <textarea name="potholes" onChange={handleChange}></textarea>
 
           <label>Additional Notes:</label>
           <textarea name="additionalNotes" onChange={handleChange}></textarea>

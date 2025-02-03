@@ -36,11 +36,6 @@ function generateChecklistPDF(formData) {
 
         // ✅ Include all condition checks
         doc.text(`Parking Lot Lights: ${formData.parkingLotLights || 'N/A'}`);
-        if (formData.photos.parkingLotLights) {
-            // Embed image if it's available
-            const imgData = formData.photos.parkingLotLights.split(',')[1]; // Get base64 string
-            doc.image(Buffer.from(imgData, 'base64'), { width: 300 });  // Embed image at 300px width
-        }
         doc.text(`Under Canopy Lights / Tenant Signs: ${formData.underCanopyLights || 'N/A'}`);
         doc.text(`Graffiti: ${formData.graffiti || 'N/A'}`);
         doc.text(`Parking Bumpers: ${formData.parkingBumpers || 'N/A'}`);
