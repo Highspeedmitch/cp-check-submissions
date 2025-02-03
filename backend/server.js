@@ -242,7 +242,7 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     let photoBuffers = [];
     if (req.files && req.files.length > 0) {
         req.files.forEach((file, index) => {
-            const fieldName = Object.keys(data.photos || {})[index]; // Match field name
+            const fieldName = req.files[index]?.fieldname || `Unknown Field ${index}`; // Match field name
             if (!fieldName) {
                 console.warn(`❌ Skipping photo at index ${index}: No matching field name.`);
                 return;
@@ -314,7 +314,6 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     res.status(500).json({ message: 'Error processing form submission' });
   }
 });
-
 
 /**
  * 🔹 List Recent Submissions (Last 30 Days)
