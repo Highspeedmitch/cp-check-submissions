@@ -240,22 +240,18 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
 
     // ✅ Process uploaded photos
     let photoBuffers = [];
-    if (req.files && req.files.length > 0) {
-        req.files.forEach((file, index) => {
-            const fieldName = req.files[index]?.fieldname || `Unknown Field ${index}`; // Match field name
-            if (!fieldName) {
-                console.warn(`❌ Skipping photo at index ${index}: No matching field name.`);
-                return;
-            }
+if (req.files && req.files.length > 0) {
+  req.files.forEach((file, index) => {
+    // Attempt to match each image to a field in formData
+    const fieldKeys = Object.keys(formData);
+    const matchingField = fieldKeys.find((key) => key.includes('Description') && formData[key] !== '');
 
-            console.log(`✅ Processing image for field: ${fieldName}`);
-
-            photoBuffers.push({
-                fieldName,
-                imageBuffer: file.buffer
-            });
-        });
-    }
+    photoBuffers.push({
+      fieldName: matchingField ? matchingField.replace('Description', '') : `Unknown Field ${index + 1}`,
+      imageBuffer: file.buffer
+    });
+  });
+}
 
     console.log("Processed Photo Buffers:", photoBuffers); // ✅ Debugging Log
 

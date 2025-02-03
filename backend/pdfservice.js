@@ -58,6 +58,7 @@ function generateChecklistPDF(formData, photoBuffers) {
 
         // ✅ Ensure photos exist before adding a new page
         // ✅ Ensure a new page for images
+// ✅ Ensure a new page for images
 if (photoBuffers && photoBuffers.length > 0) {
   doc.addPage(); 
   doc.fontSize(18).text('Inspection Photos', { underline: true });
@@ -70,8 +71,8 @@ if (photoBuffers && photoBuffers.length > 0) {
       }
 
       try {
-          // ✅ Label each image BEFORE embedding it
-          doc.fontSize(14).text(`Photo: ${fieldName}`, { bold: true }); 
+          // ✅ Ensure correct field name is displayed ABOVE each photo
+          doc.fontSize(14).text(`Photo for: ${fieldName}`, { bold: true });
           doc.moveDown(0.3);
 
           // ✅ Embed image with proper scaling
@@ -80,7 +81,7 @@ if (photoBuffers && photoBuffers.length > 0) {
               align: 'center'
           });
 
-          // ✅ Ensure space between images
+          // ✅ Space images properly
           doc.moveDown(2); 
 
       } catch (error) {
@@ -88,6 +89,7 @@ if (photoBuffers && photoBuffers.length > 0) {
       }
   });
 }
+
 else {
             doc.fontSize(14).text("No photos uploaded.", { italic: true });
         }
