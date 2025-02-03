@@ -220,26 +220,29 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
  */
 let lastSubmission = null;
 
-// Configure Multer to store images in memory
+// Multer Configuration for Storing Images
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer.array('photos', 10); // Accept multiple photos (limit to 10)
 
 // Modify the API route to handle file uploads
 app.post('/api/submit-form', authenticateToken, upload.single('photo'), async (req, res) => {
   try {
-    const data = req.body;
+    const data = req.body; // Text fields
     console.log('Form Data Received:', data);
 
-    let photoBase64 = null;
-    if (req.file) {
-      photoBase64 = req.file.buffer.toString('base64'); // Convert to base64 for embedding
+    let photoBuffers = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const photoBase64 = file.buffer.toString('base64');
+        photoBuffers.push(photoBase64);
+      });
     }
 
     // MST Timestamp (for logging and email)
     const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
 
     // Generate the PDF with the photo included
-    const { pdfStream, filePath, fileName } = await generateChecklistPDF(data, photoBase64);
+    const { pdfStream, filePath, fileName } = await generateChecklistPDF(data, photoBuffers);
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
       throw new Error('PDF generation failed - no valid stream received');
     }

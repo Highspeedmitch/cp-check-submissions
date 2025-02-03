@@ -36,16 +36,12 @@ function FormPage() {
   const handleFileChange = (e, fieldName) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = () => {
-        setFormData(prev => ({
-          ...prev,
-          photos: { ...prev.photos, [fieldName]: reader.result }  // Store base64 photo for that field
-        }));
-      };
+      setFormData(prev => ({
+        ...prev,
+        photos: { ...prev.photos, [fieldName]: file }  // Store file object instead of base64
+      }));
     }
-  };
+  };  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
