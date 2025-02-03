@@ -279,6 +279,9 @@ if (!property) {
 }
 const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
 
+// ✅ Define dateMST before using it
+const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
+
 // Email the PDF
 const transporter = nodemailer.createTransport({
   service: 'gmail',
