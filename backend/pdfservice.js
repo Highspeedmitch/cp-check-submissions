@@ -82,7 +82,7 @@ if (photoBuffers && photoBuffers.length > 0) {
             align: 'center',
         });
 
-        doc.moveDown(20); // ✅ Space before the next image
+        doc.moveDown(100); // ✅ Space before the next image
 
     } catch (error) {
         console.error(`❌ Error embedding image for ${fieldName}:`, error);
