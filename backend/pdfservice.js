@@ -2,7 +2,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
-const pdfStorageDir = path.join(__dirname, 'pdfstore'); // Ensure PDFs save in backend/pdfstore
+const pdfStorageDir = path.join(__dirname, 'pdfstore');
 
 function generateChecklistPDF(formData, photoBuffers) {
     return new Promise((resolve, reject) => {
@@ -12,7 +12,6 @@ function generateChecklistPDF(formData, photoBuffers) {
             fs.mkdirSync(pdfStorageDir, { recursive: true });
         }
 
-        // ✅ Generate timestamp-based filename
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const fileName = `checklist-${timestamp}.pdf`;
         const filePath = path.join(pdfStorageDir, fileName);
@@ -48,7 +47,6 @@ function generateChecklistPDF(formData, photoBuffers) {
             const value = formData[field] || "N/A";
             doc.fontSize(14).text(`${displayName}: ${value}`);
             
-            // Check if there's a description field for this input
             if (formData[`${field}Description`]) {
                 doc.fontSize(12).text(`  Description: ${formData[`${field}Description`]}`);
             }
@@ -56,41 +54,33 @@ function generateChecklistPDF(formData, photoBuffers) {
             doc.moveDown(0.5);
         });
 
-        // ✅ Ensure photos exist before adding a new page
-        // ✅ Ensure a new page for images
-// ✅ Ensure a new page for images
-if (photoBuffers && photoBuffers.length > 0) {
-  doc.addPage(); 
-  doc.fontSize(18).text('Inspection Photos', { underline: true });
-  doc.moveDown(1);
+        // ✅ Add images with correct labels
+        if (photoBuffers && photoBuffers.length > 0) {
+            doc.addPage(); 
+            doc.fontSize(18).text('Inspection Photos', { underline: true });
+            doc.moveDown(1);
 
-  photoBuffers.forEach(({ fieldName, imageBuffer }, index) => {
-      if (!imageBuffer || imageBuffer.length === 0) {
-          console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
-          return;
-      }
+            photoBuffers.forEach(({ fieldName, imageBuffer }, index) => {
+                if (!imageBuffer || imageBuffer.length === 0) {
+                    console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
+                    return;
+                }
 
-      try {
-          // ✅ Ensure correct field name is displayed ABOVE each photo
-          doc.fontSize(14).text(`Photo for: ${fieldName}`, { bold: true });
-          doc.moveDown(0.3);
+                try {
+                    doc.fontSize(14).text(`Photo for: ${fieldName}`, { bold: true });
+                    doc.moveDown(0.3);
 
-          // ✅ Embed image with proper scaling
-          doc.image(imageBuffer, {
-              fit: [400, 300], // Adjust image size for better spacing
-              align: 'center'
-          });
+                    doc.image(imageBuffer, {
+                        fit: [400, 300],
+                        align: 'center'
+                    });
 
-          // ✅ Space images properly
-          doc.moveDown(2); 
-
-      } catch (error) {
-          console.error(`❌ Error embedding image for ${fieldName}:`, error);
-      }
-  });
-}
-
-else {
+                    doc.moveDown(1.5); // Proper spacing between photos
+                } catch (error) {
+                    console.error(`❌ Error embedding image for ${fieldName}:`, error);
+                }
+            });
+        } else {
             doc.fontSize(14).text("No photos uploaded.", { italic: true });
         }
 
