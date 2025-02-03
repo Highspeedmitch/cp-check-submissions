@@ -271,7 +271,38 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
       submittedAt: new Date(),
     });
 
-    res.json({ message: 'Form successfully submitted!', pdfUrl: uploadResult.Location });
+// Fetch recipient emails for the property
+const org = await Organization.findById(organizationId);
+const property = org.properties.find(p => p.name === propertyName);
+if (!property) {
+  return res.status(404).json({ message: 'Property not found.' });
+}
+const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
+
+// Email the PDF
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'highspeedmitch@gmail.com',
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const mailOptions = {
+  from: 'highspeedmitch@gmail.com',
+  to: recipientEmails,
+  subject: `Checklist PDF for ${propertyName} - Submitted on ${dateMST} MST`,
+  text: `Hello!\n\nAttached is the checklist PDF for ${propertyName}, submitted on ${dateMST} MST.`,
+  attachments: [{ filename: fileName, content: pdfBuffer }],
+};
+
+await transporter.sendMail(mailOptions)
+  .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
+  .catch(err => console.error('❌ Error sending email:', err));
+
+fs.unlinkSync(filePath);
+
+res.json({ message: 'Form successfully submitted!', pdfUrl: uploadResult.Location });
 
   } catch (error) {
     console.error('❌ Error processing form submission:', error);
