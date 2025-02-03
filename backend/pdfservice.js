@@ -23,7 +23,7 @@ function generateChecklistPDF(formData, photoBuffers) {
         // ✅ Add all fields to the PDF
         doc.fontSize(20).text('Commercial Property Inspection Checklist', { align: 'center' });
         doc.moveDown(1);
-        
+
         const fieldMappings = {
             businessName: "Business Name",
             propertyAddress: "Property Address",
@@ -56,7 +56,7 @@ function generateChecklistPDF(formData, photoBuffers) {
             doc.moveDown(0.5);
         });
 
-        // ✅ Add photos with labels
+        // ✅ Ensure photos exist before adding a new page
         if (photoBuffers && photoBuffers.length > 0) {
             doc.addPage(); // Move photos to a new page
             doc.fontSize(18).text('Inspection Photos', { underline: true });
@@ -69,17 +69,22 @@ function generateChecklistPDF(formData, photoBuffers) {
                 }
 
                 try {
-                    doc.fontSize(14).text(`${fieldMappings[fieldName] || fieldName}`, { bold: true }); // Label for the image
+                    doc.fontSize(14).text(`Photo: ${fieldMappings[fieldName] || fieldName}`, { bold: true }); // Label for the image
                     doc.moveDown(0.3);
+                    
+                    // Embed the image
                     doc.image(imageBuffer, {
-                        fit: [400, 300], // Reduce size for better layout
-                        align: 'center'
+                        fit: [400, 300], // Resize images to fit
+                        align: 'center',
+                        valign: 'center'
                     });
                     doc.moveDown(1.5); // Space after each image
                 } catch (error) {
                     console.error(`❌ Error embedding image for ${fieldName}:`, error);
                 }
             });
+        } else {
+            doc.fontSize(14).text("No photos uploaded.", { italic: true });
         }
 
         doc.end();
