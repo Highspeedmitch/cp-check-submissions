@@ -79,7 +79,8 @@ if (photoBuffers && photoBuffers.length > 0) {
 
         doc.image(imageBuffer, {
             fit: [400, 300],
-            align: 'center'
+            align: 'center',
+            padding:'300',
         });
 
         doc.moveDown(2); // ✅ Space before the next image
