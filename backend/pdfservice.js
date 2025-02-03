@@ -59,13 +59,22 @@ function generateChecklistPDF(formData, photoBuffers) {
             doc.moveDown(1);
 
             photoBuffers.forEach(({ fieldName, imageBuffer }, index) => {
-                doc.fontSize(14).text(`${fieldName}`, { bold: true }); // Label for the image
-                doc.moveDown(0.3);
-                doc.image(imageBuffer, {
-                    fit: [400, 300], // Reduce size for better layout
-                    align: 'center'
-                });
-                doc.moveDown(1.5); // Space after each image
+                if (!imageBuffer || imageBuffer.length === 0) {
+                    console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
+                    return;
+                }
+
+                try {
+                    doc.fontSize(14).text(`${fieldName}`, { bold: true }); // Label for the image
+                    doc.moveDown(0.3);
+                    doc.image(imageBuffer, {
+                        fit: [400, 300], // Reduce size for better layout
+                        align: 'center'
+                    });
+                    doc.moveDown(1.5); // Space after each image
+                } catch (error) {
+                    console.error(`❌ Error embedding image for ${fieldName}:`, error);
+                }
             });
         }
 
