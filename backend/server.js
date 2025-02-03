@@ -26,11 +26,11 @@ const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 
 const bodyParser = require('body-parser');
+const multer = require('multer');
 
-// Increase the limit for JSON requests (for image uploads)
-app.use(bodyParser.json({ limit: '10mb' })); // Adjust the size as needed
-
-  module.exports = authorizeRoles;
+// Increase size limits for JSON and URL-encoded data
+app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
 
 // Configure AWS SDK
 AWS.config.update({
