@@ -26,7 +26,6 @@ const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 
 const bodyParser = require('body-parser');
-const multer = require('multer');
 
 // Configure AWS SDK
 AWS.config.update({
