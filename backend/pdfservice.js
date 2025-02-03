@@ -55,32 +55,37 @@ function generateChecklistPDF(formData, photoBuffers) {
         });
 
         // ✅ Add images with correct labels
-        if (photoBuffers && photoBuffers.length > 0) {
-            doc.addPage(); 
-            doc.fontSize(18).text('Inspection Photos', { underline: true });
-            doc.moveDown(1);
+        // ✅ Add images with correct labels
+if (photoBuffers && photoBuffers.length > 0) {
+  doc.addPage(); 
+  doc.fontSize(18).text('Inspection Photos', { underline: true });
+  doc.moveDown(1);
 
-            photoBuffers.forEach(({ fieldName, imageBuffer }, index) => {
-                if (!imageBuffer || imageBuffer.length === 0) {
-                    console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
-                    return;
-                }
+  photoBuffers.forEach(({ fieldName, imageBuffer }, index) => {
+      if (!imageBuffer || imageBuffer.length === 0) {
+          console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
+          return;
+      }
 
-                try {
-                    doc.fontSize(14).text(`Photo for: ${fieldName}`, { bold: true });
-                    doc.moveDown(0.3);
+      try {
+          // ✅ Ensure correct field name is displayed ABOVE each photo
+          doc.fontSize(14).text(`Photo for: ${fieldName}`, { bold: true, align: 'left' });
+          doc.moveDown(2.5);
 
-                    doc.image(imageBuffer, {
-                        fit: [400, 300],
-                        align: 'center'
-                    });
+          // ✅ Embed image with proper scaling and spacing
+          doc.image(imageBuffer, {
+              fit: [400, 300], // Adjust image size for better spacing
+              align: 'center'
+          });
 
-                    doc.moveDown(1.5); // Proper spacing between photos
-                } catch (error) {
-                    console.error(`❌ Error embedding image for ${fieldName}:`, error);
-                }
-            });
-        } else {
+          doc.moveDown(2); // ✅ More spacing between images
+
+      } catch (error) {
+          console.error(`❌ Error embedding image for ${fieldName}:`, error);
+      }
+  });
+}
+else {
             doc.fontSize(14).text("No photos uploaded.", { italic: true });
         }
 
