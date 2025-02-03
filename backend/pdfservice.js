@@ -57,33 +57,38 @@ function generateChecklistPDF(formData, photoBuffers) {
         });
 
         // ✅ Ensure photos exist before adding a new page
-        if (photoBuffers && photoBuffers.length > 0) {
-            doc.addPage(); // Move photos to a new page
-            doc.fontSize(18).text('Inspection Photos', { underline: true });
-            doc.moveDown(1);
+        // ✅ Ensure a new page for images
+if (photoBuffers && photoBuffers.length > 0) {
+  doc.addPage(); 
+  doc.fontSize(18).text('Inspection Photos', { underline: true });
+  doc.moveDown(1);
 
-            photoBuffers.forEach(({ fieldName, imageBuffer }) => {
-                if (!imageBuffer || imageBuffer.length === 0) {
-                    console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
-                    return;
-                }
+  photoBuffers.forEach(({ fieldName, imageBuffer }, index) => {
+      if (!imageBuffer || imageBuffer.length === 0) {
+          console.error(`❌ Skipping image ${fieldName}: Empty buffer detected`);
+          return;
+      }
 
-                try {
-                    doc.fontSize(14).text(`Photo: ${fieldMappings[fieldName] || fieldName}`, { bold: true }); // Label for the image
-                    doc.moveDown(0.3);
-                    
-                    // Embed the image
-                    doc.image(imageBuffer, {
-                        fit: [400, 300], // Resize images to fit
-                        align: 'center',
-                        valign: 'center'
-                    });
-                    doc.moveDown(1.5); // Space after each image
-                } catch (error) {
-                    console.error(`❌ Error embedding image for ${fieldName}:`, error);
-                }
-            });
-        } else {
+      try {
+          // ✅ Label each image BEFORE embedding it
+          doc.fontSize(14).text(`Photo: ${fieldName}`, { bold: true }); 
+          doc.moveDown(0.3);
+
+          // ✅ Embed image with proper scaling
+          doc.image(imageBuffer, {
+              fit: [400, 300], // Adjust image size for better spacing
+              align: 'center'
+          });
+
+          // ✅ Ensure space between images
+          doc.moveDown(2); 
+
+      } catch (error) {
+          console.error(`❌ Error embedding image for ${fieldName}:`, error);
+      }
+  });
+}
+else {
             doc.fontSize(14).text("No photos uploaded.", { italic: true });
         }
 
