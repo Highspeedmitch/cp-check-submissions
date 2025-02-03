@@ -32,6 +32,20 @@ function generateChecklistPDF(formData, photoBuffers) {
       doc.text(`${formData.additionalNotes || 'None'}`);
       doc.moveDown(1);
   
+      const fields = [
+        'parkingLotLights', 'underCanopyLights', 'graffiti',
+        'waterLeaks', 'dangerousTrees', 'brokenCurbs', 'potholes'
+    ];
+
+    fields.forEach(field => {
+        const response = formData[field] === 'yes' ? 'Yes' : 'No';
+        doc.text(`${field.replace(/([A-Z])/g, ' $1')}: ${response}`);
+
+        if (formData[field] === 'yes' && formData[`${field}Description`]) {
+            doc.text(`Description: ${formData[`${field}Description`]}`);
+        }
+    });
+
       // ✅ Embed all photos
       if (photoBuffers.length > 0) {
         photoBuffers.forEach((photo, index) => {
