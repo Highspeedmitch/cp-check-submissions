@@ -228,84 +228,86 @@ const upload = multer({ storage: storage }); // Initialize Multer
 app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), async (req, res) => {
   try {
     const data = req.body;
-    
-    console.log('Form Data Received:', data); // Debugging Line
-    console.log('Selected Property:', data.selectedProperty); // Debugging Line
+    console.log('Form Data Received:', data); // ✅ Debugging Log
+    console.log('Selected Property:', data.selectedProperty); // ✅ Debugging Log
 
-    // Ensure property name is correctly extracted
+    const organizationId = req.user.organizationId;
     const propertyName = data.selectedProperty || data.property;
+    
     if (!propertyName) {
       return res.status(400).json({ message: "Property name is missing in submission." });
     }
 
-    const organizationId = req.user.organizationId;
-    
-    // Process photos if available
+    // ✅ Process uploaded photos
     let photoBuffers = [];
     if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        const photoBase64 = file.buffer.toString('base64'); // Convert Buffer to Base64
-        photoBuffers.push(photoBase64);
-      });
+        req.files.forEach((file, index) => {
+            const fieldName = Object.keys(data.photos || {})[index]; // Match field name
+            if (!fieldName) {
+                console.warn(`❌ Skipping photo at index ${index}: No matching field name.`);
+                return;
+            }
+
+            console.log(`✅ Processing image for field: ${fieldName}`);
+
+            photoBuffers.push({
+                fieldName,
+                imageBuffer: file.buffer
+            });
+        });
     }
 
-    // Generate PDF with embedded images
+    console.log("Processed Photo Buffers:", photoBuffers); // ✅ Debugging Log
+
+    // Generate the PDF with the correctly mapped images
     const { pdfStream, filePath, fileName } = await generateChecklistPDF(data, photoBuffers);
-
+    
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
-      throw new Error('PDF generation failed - no valid stream received');
+        throw new Error('PDF generation failed - no valid stream received');
     }
 
-    // Read the generated PDF file from disk into a buffer
-    const pdfBuffer = fs.readFileSync(filePath);
-
-    // **Ensure the correct property name is used for the S3 path**
-    const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
+    // Upload the PDF to AWS S3
+    const uploadResult = await uploadToS3(fs.readFileSync(filePath), fileName, organizationId, propertyName);
     console.log('✅ PDF uploaded to S3:', uploadResult.Location);
 
     // Save submission record in DB
     await Submission.create({
-      organizationId: organizationId,
-      property: propertyName, // ✅ Ensure this is correct
-      pdfUrl: uploadResult.Location,
-      submittedAt: new Date(),
+        organizationId: organizationId,
+        property: propertyName,
+        pdfUrl: uploadResult.Location,
+        submittedAt: new Date(),
     });
 
-// Fetch recipient emails for the property
-const org = await Organization.findById(organizationId);
-const property = org.properties.find(p => p.name === propertyName);
-if (!property) {
-  return res.status(404).json({ message: 'Property not found.' });
-}
-const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
+    // Send confirmation email
+    const org = await Organization.findById(organizationId);
+    const property = org.properties.find(p => p.name === propertyName);
+    if (!property) {
+        return res.status(404).json({ message: 'Property not found.' });
+    }
+    const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
 
-// ✅ Define dateMST before using it
-const dateMST = moment().tz('America/Denver').format('YYYY-MM-DD hh:mm A');
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'highspeedmitch@gmail.com',
+            pass: process.env.EMAIL_PASS,
+        },
+    });
 
-// Email the PDF
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'highspeedmitch@gmail.com',
-    pass: process.env.EMAIL_PASS,
-  },
-});
+    const mailOptions = {
+        from: 'highspeedmitch@gmail.com',
+        to: recipientEmails,
+        subject: `Checklist PDF for ${propertyName}`,
+        text: `Attached is the checklist PDF for ${propertyName}.`,
+        attachments: [{ filename: fileName, content: fs.readFileSync(filePath) }],
+    };
 
-const mailOptions = {
-  from: 'highspeedmitch@gmail.com',
-  to: recipientEmails,
-  subject: `Checklist PDF for ${propertyName} - Submitted on ${dateMST} MST`,
-  text: `Hello!\n\nAttached is the checklist PDF for ${propertyName}, submitted on ${dateMST} MST.`,
-  attachments: [{ filename: fileName, content: pdfBuffer }],
-};
+    await transporter.sendMail(mailOptions)
+        .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
+        .catch(err => console.error('❌ Error sending email:', err));
 
-await transporter.sendMail(mailOptions)
-  .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
-  .catch(err => console.error('❌ Error sending email:', err));
-
-fs.unlinkSync(filePath);
-
-res.json({ message: 'Form successfully submitted!', pdfUrl: uploadResult.Location });
+    fs.unlinkSync(filePath);
+    res.json({ message: 'Form successfully submitted!', pdfUrl: uploadResult.Location });
 
   } catch (error) {
     console.error('❌ Error processing form submission:', error);
