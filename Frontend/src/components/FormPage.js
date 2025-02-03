@@ -36,12 +36,16 @@ function FormPage() {
   const handleFileChange = (e, fieldName) => {
     const file = e.target.files[0];
     if (file) {
+      // Rename file with field name to help backend identify it
+      const newFile = new File([file], `${fieldName}-${file.name}`, { type: file.type });
+  
       setFormData(prev => ({
         ...prev,
-        photos: { ...prev.photos, [fieldName]: file }
+        photos: { ...prev.photos, [fieldName]: newFile }  // Store file object with labeled name
       }));
     }
   };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
