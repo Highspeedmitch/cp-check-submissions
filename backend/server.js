@@ -227,12 +227,12 @@ const upload = multer({ storage: storage }); // Initialize Multer
 // Update the /submit-form route to accept multiple files
 app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), async (req, res) => {
   try {
-    const data = req.body;
-    console.log('Form Data Received:', data); // ✅ Debugging Log
-    console.log('Selected Property:', data.selectedProperty); // ✅ Debugging Log
+    const formData = req.body;
+    console.log('Form Data Received:', formData); // ✅ Debugging Log
+    console.log('Selected Property:', formData.selectedProperty); // ✅ Debugging Log
 
     const organizationId = req.user.organizationId;
-    const propertyName = data.selectedProperty || data.property;
+    const propertyName = formData.selectedProperty || formData.property;
     
     if (!propertyName) {
       return res.status(400).json({ message: "Property name is missing in submission." });
@@ -256,14 +256,17 @@ if (req.files && req.files.length > 0) {
     console.log("Processed Photo Buffers:", photoBuffers); // ✅ Debugging Log
 
     // Generate the PDF with the correctly mapped images
-    const { pdfStream, filePath, fileName } = await generateChecklistPDF(data, photoBuffers);
+    const { pdfStream, filePath, fileName } = await generateChecklistPDF(formData, photoBuffers);
     
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
         throw new Error('PDF generation failed - no valid stream received');
     }
 
+    // Read the generated PDF file from disk into a buffer
+    const pdfBuffer = fs.readFileSync(filePath);
+
     // Upload the PDF to AWS S3
-    const uploadResult = await uploadToS3(fs.readFileSync(filePath), fileName, organizationId, propertyName);
+    const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
     console.log('✅ PDF uploaded to S3:', uploadResult.Location);
 
     // Save submission record in DB
