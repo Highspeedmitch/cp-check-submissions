@@ -227,42 +227,40 @@ const upload = multer({ storage: storage }); // Initialize Multer
 // Update the /submit-form route to accept multiple files
 app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), async (req, res) => {
   try {
-    const formData = req.body;
-    console.log('Form Data Received:', formData); // ✅ Debugging Log
-    console.log('Selected Property:', formData.selectedProperty); // ✅ Debugging Log
+    const data = req.body;
 
-    const organizationId = req.user.organizationId;
-    const propertyName = formData.selectedProperty || formData.property;
-    
+    console.log('Form Data Received:', data);
+    console.log('Selected Property:', data.selectedProperty);
+
+    const propertyName = data.selectedProperty || data.property;
     if (!propertyName) {
       return res.status(400).json({ message: "Property name is missing in submission." });
     }
 
-    // ✅ Process uploaded photos
+    const organizationId = req.user.organizationId;
+
+    // **Ensure photos are correctly linked to fields**
     let photoBuffers = [];
-if (req.files && req.files.length > 0) {
-  req.files.forEach((file, index) => {
-    // Attempt to match each image to a field in formData
-    const fieldKeys = Object.keys(formData);
-    const matchingField = fieldKeys.find((key) => key.includes('Description') && formData[key] !== '');
-
-    photoBuffers.push({
-      fieldName: matchingField ? matchingField.replace('Description', '') : `Unknown Field ${index + 1}`,
-      imageBuffer: file.buffer
-    });
-  });
-}
-
-    console.log("Processed Photo Buffers:", photoBuffers); // ✅ Debugging Log
-
-    // Generate the PDF with the correctly mapped images
-    const { pdfStream, filePath, fileName } = await generateChecklistPDF(formData, photoBuffers);
-    
-    if (!pdfStream || typeof pdfStream.pipe !== 'function') {
-        throw new Error('PDF generation failed - no valid stream received');
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const originalFieldName = file.originalname.split('-')[0]; // Extracts the field name from filename
+        photoBuffers.push({
+          fieldName: originalFieldName, // Ensures correct field association
+          imageBuffer: file.buffer
+        });
+      });
     }
 
-    // Read the generated PDF file from disk into a buffer
+    console.log("Processed Photo Buffers:", photoBuffers);
+
+    // Generate PDF
+    const { pdfStream, filePath, fileName } = await generateChecklistPDF(data, photoBuffers);
+
+    if (!pdfStream || typeof pdfStream.pipe !== 'function') {
+      throw new Error('PDF generation failed - no valid stream received');
+    }
+
+    // Read the generated PDF file from disk
     const pdfBuffer = fs.readFileSync(filePath);
 
     // Upload the PDF to AWS S3
@@ -271,41 +269,39 @@ if (req.files && req.files.length > 0) {
 
     // Save submission record in DB
     await Submission.create({
-        organizationId: organizationId,
-        property: propertyName,
-        pdfUrl: uploadResult.Location,
-        submittedAt: new Date(),
+      organizationId: organizationId,
+      property: propertyName,
+      pdfUrl: uploadResult.Location,
+      submittedAt: new Date(),
     });
 
-    // Send confirmation email
+    // Email the PDF
     const org = await Organization.findById(organizationId);
     const property = org.properties.find(p => p.name === propertyName);
-    if (!property) {
-        return res.status(404).json({ message: 'Property not found.' });
-    }
     const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: 'highspeedmitch@gmail.com',
-            pass: process.env.EMAIL_PASS,
-        },
+      service: 'gmail',
+      auth: {
+        user: 'highspeedmitch@gmail.com',
+        pass: process.env.EMAIL_PASS,
+      },
     });
 
     const mailOptions = {
-        from: 'highspeedmitch@gmail.com',
-        to: recipientEmails,
-        subject: `Checklist PDF for ${propertyName}`,
-        text: `Attached is the checklist PDF for ${propertyName}.`,
-        attachments: [{ filename: fileName, content: fs.readFileSync(filePath) }],
+      from: 'highspeedmitch@gmail.com',
+      to: recipientEmails,
+      subject: `Checklist PDF for ${propertyName}`,
+      text: `Attached is the checklist PDF for ${propertyName}.`,
+      attachments: [{ filename: fileName, content: pdfBuffer }],
     };
 
     await transporter.sendMail(mailOptions)
-        .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
-        .catch(err => console.error('❌ Error sending email:', err));
+      .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
+      .catch(err => console.error('❌ Error sending email:', err));
 
     fs.unlinkSync(filePath);
+
     res.json({ message: 'Form successfully submitted!', pdfUrl: uploadResult.Location });
 
   } catch (error) {
@@ -313,6 +309,7 @@ if (req.files && req.files.length > 0) {
     res.status(500).json({ message: 'Error processing form submission' });
   }
 });
+
 
 /**
  * 🔹 List Recent Submissions (Last 30 Days)
