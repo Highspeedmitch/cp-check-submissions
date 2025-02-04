@@ -50,8 +50,8 @@ function App() {
         <Route path="*" element={<Navigate to="/" />} />
 
         <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
-        <Route path="forgot-password" element={<ForgotPassword />} />
-        <Route path="password-reset" element={<ResetPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/password-reset" element={<ResetPassword />} />
       </Routes>
     </>
   );
