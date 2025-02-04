@@ -31,7 +31,7 @@ function App() {
           }
         />
         <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<login />} />
+        <Route path="/login" element={<Login />} />
 
         {/* Protected Routes (Require Login) */}
         <Route
