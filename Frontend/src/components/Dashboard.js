@@ -72,10 +72,13 @@ function Dashboard() {
 
   // Logout: clear stored session data and redirect to login
   const handleLogout = () => {
+    console.log("🔹 Logging out... Clearing session data.");
     localStorage.removeItem("token");
     localStorage.removeItem("orgName");
     localStorage.removeItem("loginTime");
     localStorage.removeItem("role");
+  
+    setUser(false); // Force re-render with logout state
     navigate("/login");
   };
 
