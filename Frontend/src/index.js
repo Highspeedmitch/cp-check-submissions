@@ -8,8 +8,5 @@ import './theme/variables.css'; // ✅ Add this line
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App />);
 
-// Load Ionic's PWA Elements for native features (Camera, File Picker, etc.)
-defineCustomElements(window);
-
 // Report performance metrics
 reportWebVitals();
