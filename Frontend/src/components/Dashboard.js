@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-function Dashboard() {
+function Dashboard({ setUser }) {
   const { property } = useParams();
   const navigate = useNavigate();
 
@@ -78,9 +78,9 @@ function Dashboard() {
     localStorage.removeItem("loginTime");
     localStorage.removeItem("role");
   
-    setUser(false); // Force re-render with logout state
+    if (setUser) setUser(false); // Ensure it's only called if it exists
     navigate("/login");
-  };
+  };  
 
   // Determine if all properties have been completed
   const allCompleted = properties.length > 0 && properties.length === completedProperties.length;

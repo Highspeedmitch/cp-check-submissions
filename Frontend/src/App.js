@@ -31,12 +31,12 @@ function App() {
         />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-
+        
         {/* Protected Routes (Require Login) */}
         <Route
-          path="/dashboard"
-          element={user ? <Dashboard /> : <Navigate to="/" />}
-        />
+  path="/dashboard"
+  element={user ? <Dashboard setUser={setUser} /> : <Navigate to="/" />}
+/>
         <Route
           path="/property-selector"
           element={user ? <PropertySelector /> : <Navigate to="/" />}
