@@ -8,10 +8,7 @@ function FormPage() {
   const [formData, setFormData] = useState({
     businessName: '',
     propertyAddress: '',
-    fireSafetyMeasures: '',
-    securitySystems: '',
-    maintenanceSchedule: '',
-    additionalNotes: '',
+    homelessActivity: '',
     parkingLotLights: '',
     underCanopyLights: '',
     graffiti: '',
@@ -109,18 +106,10 @@ function FormPage() {
           <label>Property Address:</label>
           <input type="text" name="propertyAddress" onChange={handleChange} required />
 
-          <label>Fire Safety Measures:</label>
-          <textarea name="fireSafetyMeasures" onChange={handleChange} required></textarea>
-
-          <label>Security Systems:</label>
-          <textarea name="securitySystems" onChange={handleChange} required></textarea>
-
-          <label>Maintenance Schedule:</label>
-          <textarea name="maintenanceSchedule" onChange={handleChange} required></textarea>
           <h2>Additional Property Condition Checks</h2>
 
 <div className="additional-checks">
-  <label>Parking Lot Lights:
+  <label>Are parking lot lights out?:
     <select name="parkingLotLights" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -134,7 +123,7 @@ function FormPage() {
     </>
   )}
 
-  <label>Under Canopy Lights / Tenant Signs:
+  <label>Are under canopy lights / Tenant signs out?:
     <select name="underCanopyLights" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -148,7 +137,7 @@ function FormPage() {
     </>
   )}
 
-  <label>Graffiti:
+  <label>Is there graffiti on or around the property?:
     <select name="graffiti" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -162,7 +151,21 @@ function FormPage() {
     </>
   )}
 
-  <label>Water Leaks:
+<label>Is there trash overflowing from cans / dumpsters?:
+    <select name="dunpsters" onChange={handleChange}>
+      <option value="">Select...</option>
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select>
+  </label>
+  {formData.dumpsters === 'yes' && (
+    <>
+      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'dumpsters')} />
+      <textarea name="dumpstersDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
+    </>
+  )}
+
+  <label>Are there any visible water leaks?:
     <select name="waterLeaks" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -176,7 +179,7 @@ function FormPage() {
     </>
   )}
 
-  <label>Dangerous Trees:
+  <label>Are there any obviously dangerous trees / branches?:
     <select name="dangerousTrees" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -190,7 +193,7 @@ function FormPage() {
     </>
   )}
 
-  <label>Broken Parking Lot Curbing:
+  <label>Is there any broken parking lot curbing?:
     <select name="brokenCurbs" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -204,7 +207,7 @@ function FormPage() {
     </>
   )}
 
-  <label>Major Potholes:
+  <label>Are there any major potholes?:
     <select name="potholes" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -218,7 +221,7 @@ function FormPage() {
     </>
   )}
 </div>
-          <label>Additional Notes:</label>
+          <label>Is there any homeless activity of note?:</label>
           <textarea name="additionalNotes" onChange={handleChange}></textarea>
 
           <button type="submit">Submit Checklist</button>
