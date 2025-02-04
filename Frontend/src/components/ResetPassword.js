@@ -30,7 +30,7 @@ function ResetPassword() {
       const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resetPasswordToken: token, newPassword: password }),
+        body: JSON.stringify({ token, newPassword: password }),
       });
 
       const data = await response.json();
