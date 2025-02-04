@@ -5,7 +5,9 @@ import Dashboard from "./components/Dashboard";
 import FormPage from "./components/FormPage";
 import Register from "./components/Register";
 import PropertySelector from "./components/PropertySelector";
-import AdminSubmissions from "./components/AdminSubmissions"
+import AdminSubmissions from "./components/AdminSubmissions";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -48,7 +50,8 @@ function App() {
         <Route path="*" element={<Navigate to="/" />} />
 
         <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
-        
+        <Route path="forgot-password" element={<ForgotPassword />} />
+        <Route path="password-reset" element={<ResetPassword />} />
       </Routes>
     </>
   );

@@ -21,7 +21,6 @@ function Login({ setUser }) {
       const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Convert the email to lowercase here
         body: JSON.stringify({ email: email.toLowerCase(), password }),
       });
 
@@ -29,7 +28,6 @@ function Login({ setUser }) {
       try {
         const data = JSON.parse(text);
         if (response.ok) {
-          // Save token and other info to localStorage
           localStorage.setItem("token", data.token);
           localStorage.setItem("orgName", data.orgName || "Your Organization");
           localStorage.setItem("role", data.role || "user");
@@ -68,6 +66,14 @@ function Login({ setUser }) {
         />
         <button type="submit">Login</button>
       </form>
+
+      {/* Forgot Password Link */}
+      <div style={{ marginTop: "1rem" }}>
+        <Link to="/forgot-password" style={{ textDecoration: "none", color: "blue" }}>
+          Forgot Password?
+        </Link>
+      </div>
+
       <div style={{ marginTop: "1rem" }}>
         <span style={{ marginRight: "8px" }}>Don't have an account?</span>
         <Link to="/register">
