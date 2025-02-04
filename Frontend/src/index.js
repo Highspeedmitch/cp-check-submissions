@@ -9,7 +9,7 @@ import "@ionic/react/css/core.css";
 import "@ionic/react/css/normalize.css";
 import "@ionic/react/css/structure.css";
 import "@ionic/react/css/typography.css";
-import "@ionic/react/css/palette.css";
+import './theme/variables.css'; // ✅ Add this line
 
 // Render the App inside Ionic
 const root = ReactDOM.createRoot(document.getElementById("root"));
