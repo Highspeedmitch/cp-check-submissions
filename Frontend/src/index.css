@@ -116,7 +116,7 @@ button:hover {
 /* Sidebar (Checklist / Managed Properties) */
 .sidebar {
   background-color: #ffffff;
-  width: 250px;
+  width: auto;
   padding: var(--base-padding);
   border-right: 1px solid #e0e0e0;
   transition: width 0.3s ease, padding 0.3s ease;
@@ -134,7 +134,7 @@ button:hover {
 .sidebar .sidebar-toggle {
   position: absolute;
   top: 10px;
-  right: -400px;  /* Adjust this value as needed */
+  right: -30px;  /* Adjust this value as needed */
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 50%;
@@ -298,7 +298,7 @@ button:hover {
 }
 
 /* Responsive Adjustments */
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 480px) {
   .container {
     max-width: 95%;
     padding: 20px;
