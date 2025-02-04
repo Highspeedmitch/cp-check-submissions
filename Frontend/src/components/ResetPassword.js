@@ -7,13 +7,6 @@ function ResetPassword() {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    console.log("Extracted token:", token);
-    if (!token) {
-      setMessage("Invalid or expired reset link.");
-    }
-  }, [token]);
-
   // ✅ Extract token from URL
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
