@@ -22,6 +22,10 @@ function Dashboard({ setUser }) {
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+const toggleSidebar = () => {
+  setSidebarCollapsed((prev) => !prev);
+};
+
   const token = localStorage.getItem("token");
 
   const orgName = localStorage.getItem("orgName") || "Your Organization";
@@ -99,9 +103,9 @@ function Dashboard({ setUser }) {
     <div className="dashboard-container">
       {/* Sidebar */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <button className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
-          {sidebarCollapsed ? "☰" : "×"}
-        </button>
+  <button className="sidebar-toggle" onClick={toggleSidebar}>
+    {sidebarCollapsed ? "☰" : "×"}
+  </button>
         <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
         <ul>
           {properties.map((prop) => (
