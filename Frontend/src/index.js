@@ -1,18 +1,22 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
-import { BrowserRouter } from 'react-router-dom';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import reportWebVitals from "./reportWebVitals";
+import { defineCustomElements } from "@ionic/pwa-elements/loader";
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
-);;
+// ✅ Import Ionic styles
+import "@ionic/react/css/core.css";
+import "@ionic/react/css/normalize.css";
+import "@ionic/react/css/structure.css";
+import "@ionic/react/css/typography.css";
+import './theme/variables.css'; // ✅ Add this line
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+// Render the App inside Ionic
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+
+// Load Ionic's PWA Elements for native features (Camera, File Picker, etc.)
+defineCustomElements(window);
+
+// Report performance metrics
 reportWebVitals();
