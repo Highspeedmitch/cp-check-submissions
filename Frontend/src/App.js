@@ -31,6 +31,7 @@ function App() {
           }
         />
         <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<login />} />
 
         {/* Protected Routes (Require Login) */}
         <Route
@@ -45,7 +46,7 @@ function App() {
           path="/form/:property"
           element={user ? <FormPage /> : <Navigate to="/" />}
         />
-
+        
         {/* Catch-All (Redirect to Login) */}
         <Route path="*" element={<Navigate to="/" />} />
 
