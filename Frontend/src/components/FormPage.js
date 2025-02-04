@@ -152,7 +152,7 @@ function FormPage() {
   )}
 
 <label>Is there trash overflowing from cans / dumpsters?:
-    <select name="dunpsters" onChange={handleChange}>
+    <select name="dumpsters" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
       <option value="no">No</option>
