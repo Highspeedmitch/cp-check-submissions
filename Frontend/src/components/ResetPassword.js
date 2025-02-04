@@ -7,6 +7,13 @@ function ResetPassword() {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
+  useEffect(() => {
+    console.log("Extracted token:", token);
+    if (!token) {
+      setMessage("Invalid or expired reset link.");
+    }
+  }, [token]);
+
   // ✅ Extract token from URL
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
@@ -29,7 +36,7 @@ function ResetPassword() {
       const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, newPassword: password }),
+        body: JSON.stringify({ resetPasswordToken: token, newPassword: password }),
       });
 
       const data = await response.json();
