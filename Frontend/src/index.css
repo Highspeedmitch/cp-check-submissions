@@ -4,9 +4,13 @@
   --primary-hover: #0056b3;
   --success-color: #28a745;
   --error-color: #dc3545;
-  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-family: 'Inter', sans-serif;
   --base-padding: 16px;
   --container-max-width: 600px;
+  --light-gray: #f8f9fa;
+  --border-color: #e0e0e0;
+  --shadow-light: 0px 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0px 5px 15px rgba(0, 0, 0, 0.15);
 }
 
 /* Global Styles */
