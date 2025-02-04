@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { NativeBaseProvider } from "native-base"; // ✅ Import NativeBaseProvider
+
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import FormPage from "./components/FormPage";
@@ -21,7 +23,7 @@ function App() {
   }, []);
 
   return (
-    <>
+    <NativeBaseProvider> {/* ✅ Wrap everything inside NativeBaseProvider */}
       <Routes>
         {/* Public Routes */}
         <Route
@@ -46,7 +48,7 @@ function App() {
           path="/form/:property"
           element={user ? <FormPage /> : <Navigate to="/" />}
         />
-        
+
         {/* Catch-All (Redirect to Login) */}
         <Route path="*" element={<Navigate to="/" />} />
 
@@ -54,7 +56,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
-    </>
+    </NativeBaseProvider>
   );
 }
 
