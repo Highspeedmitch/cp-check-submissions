@@ -250,8 +250,6 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     });
   });
 }
-
-
     console.log("Processed Photo Buffers:", photoBuffers);
 
     // Generate PDF
@@ -311,6 +309,72 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
   }
 });
 
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+// Step 1: Forgot Password Route
+app.post('/api/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: 'No account found with that email.' });
+        }
+
+        // Generate a reset token (valid for 1 hour)
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour expiration
+        await user.save();
+
+        // Email the reset link
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user: 'highspeedmitch@gmail.com', pass: process.env.EMAIL_PASS }
+        });
+
+        const mailOptions = {
+            from: 'highspeedmitch@gmail.com',
+            to: user.email,
+            subject: 'Password Reset Request',
+            text: `Click the link to reset your password: https://https://cp-check-submissions-dev.onrender.com//reset-password?token=${resetToken}`
+        };
+
+        await transporter.sendMail(mailOptions);
+        res.json({ message: 'Password reset link sent to your email.' });
+
+    } catch (error) {
+        console.error('Error in forgot password:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
+// Step 2: Reset Password Route
+app.post('/api/reset-password', async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        const user = await User.findOne({ 
+            resetPasswordToken: token,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid or expired token.' });
+        }
+
+        user.password = bcrypt.hashSync(newPassword, 10);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        res.json({ message: 'Password successfully updated!' });
+
+    } catch (error) {
+        console.error('Error in reset password:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
 
 /**
  * 🔹 List Recent Submissions (Last 30 Days)
