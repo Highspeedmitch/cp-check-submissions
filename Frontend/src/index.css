@@ -230,7 +230,7 @@ button:hover {
 
 .property-card:hover {
   box-shadow: var(--shadow-hover);
-  transform: translateY(-3px);
+  transform: translateY(-15px);
 }
 
 .property-card h3 {
