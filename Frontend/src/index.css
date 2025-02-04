@@ -10,7 +10,7 @@
   --light-gray: #f8f9fa;
   --border-color: #e0e0e0;
   --shadow-light: 0px 4px 10px rgba(0, 0, 0, 0.08);
-  --shadow-hover: 0px 5px 15px rgba(0, 0, 0, 0.15);
+  --shadow-hover: 0px 15px 25px rgba(0, 0, 0, 0.15);
 }
 
 /* Global Styles */
