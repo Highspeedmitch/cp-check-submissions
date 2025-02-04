@@ -1,6 +1,6 @@
-// Login.js
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { Box, VStack, Input, Button, Text, Link } from "native-base"; // ✅ Import NativeBase components
 
 function Login({ setUser }) {
   const [email, setEmail] = useState("");  
@@ -15,8 +15,7 @@ function Login({ setUser }) {
     }
   }, [navigate]);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async () => {
     try {
       const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/login", {
         method: "POST",
@@ -48,39 +47,48 @@ function Login({ setUser }) {
   };
 
   return (
-    <div className="container">
-      <h2>Login</h2>
-      {error && <p className="error">{error}</p>}
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Login</button>
-      </form>
+    <Box flex={1} justifyContent="center" alignItems="center" bg="coolGray.100" p={5}>
+      <VStack space={4} w="90%" maxW="400px" bg="white" p={5} borderRadius={10} shadow={2}>
+        <Text fontSize="xl" fontWeight="bold" textAlign="center">
+          Login
+        </Text>
+        {error && <Text color="red.500">{error}</Text>}
 
-      {/* Forgot Password Link */}
-      <div style={{ marginTop: "1rem" }}>
-        <Link to="/forgot-password" style={{ textDecoration: "none", color: "blue" }}>
+        {/* Email Input */}
+        <Input
+          variant="outline"
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          size="md"
+        />
+
+        {/* Password Input */}
+        <Input
+          variant="outline"
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          size="md"
+          type="password"
+        />
+
+        {/* Login Button */}
+        <Button onPress={handleLogin} colorScheme="primary" size="lg">
+          Login
+        </Button>
+
+        {/* Forgot Password Link */}
+        <Link alignSelf="center" onPress={() => navigate("/forgot-password")} _text={{ color: "blue.500" }}>
           Forgot Password?
         </Link>
-      </div>
 
-      <div style={{ marginTop: "1rem" }}>
-        <span style={{ marginRight: "8px" }}>Don't have an account?</span>
-        <Link to="/register">
-          <button type="button">Register</button>
-        </Link>
-      </div>
-    </div>
+        {/* Register Button */}
+        <Button variant="outline" onPress={() => navigate("/register")} size="md">
+          Register
+        </Button>
+      </VStack>
+    </Box>
   );
 }
 
