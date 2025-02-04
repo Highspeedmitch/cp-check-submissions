@@ -51,7 +51,7 @@ function App() {
 
         <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/password-reset" element={<ResetPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </>
   );
