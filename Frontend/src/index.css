@@ -214,8 +214,8 @@ button:hover {
 
 /* Property Card Base Style */
 .property-card {
-  background-color: #fcfbfb;
-  color: #fff;
+  background-color: #d2c7c7;
+  color: #2d2d2d;
   padding: 20px;
   border-radius: 10px;
   cursor: pointer;
