@@ -109,6 +109,7 @@ function FormPage() {
           <h2>Additional Property Condition Checks</h2>
 
 <div className="additional-checks">
+  <div>
   <label>Are parking lot lights out?:
     <select name="parkingLotLights" onChange={handleChange}>
       <option value="">Select...</option>
@@ -122,7 +123,8 @@ function FormPage() {
       <textarea name="parkingLotLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
-
+  </div>
+  <div>
   <label>Are under canopy lights / Tenant signs out?:
     <select name="underCanopyLights" onChange={handleChange}>
       <option value="">Select...</option>
@@ -136,7 +138,8 @@ function FormPage() {
       <textarea name="underCanopyLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
-
+  </div>
+  <div>
   <label>Is there graffiti on or around the property?:
     <select name="graffiti" onChange={handleChange}>
       <option value="">Select...</option>
@@ -150,7 +153,8 @@ function FormPage() {
       <textarea name="graffitiDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
-
+  </div>
+  <div>
 <label>Is there trash overflowing from cans / dumpsters?:
     <select name="dumpsters" onChange={handleChange}>
       <option value="">Select...</option>
@@ -164,7 +168,8 @@ function FormPage() {
       <textarea name="dumpstersDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
-
+  </div>
+  <div>
   <label>Are there any visible water leaks?:
     <select name="waterLeaks" onChange={handleChange}>
       <option value="">Select...</option>
@@ -178,7 +183,8 @@ function FormPage() {
       <textarea name="waterLeaksDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
-
+</div>
+<div>
   <label>Are there any obviously dangerous trees / branches?:
     <select name="dangerousTrees" onChange={handleChange}>
       <option value="">Select...</option>
@@ -192,7 +198,8 @@ function FormPage() {
       <textarea name="dangerousTreesDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
-
+</div>
+<div>
   <label>Is there any broken parking lot curbing?:
     <select name="brokenCurbs" onChange={handleChange}>
       <option value="">Select...</option>
@@ -206,7 +213,8 @@ function FormPage() {
       <textarea name="brokenCurbsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
-
+</div>
+<div>
   <label>Are there any major potholes?:
     <select name="potholes" onChange={handleChange}>
       <option value="">Select...</option>
@@ -220,6 +228,7 @@ function FormPage() {
       <textarea name="potholesDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
+  </div>
 </div>
           <label>Is there any homeless activity of note?:</label>
           <textarea name="homelessActivity" onChange={handleChange}></textarea>

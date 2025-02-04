@@ -374,4 +374,14 @@ button:hover {
   border: none;
 }
 
+.container form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+button {
+  width: 100%;
+}
+
 }
