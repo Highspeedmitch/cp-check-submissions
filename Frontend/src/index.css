@@ -31,7 +31,7 @@ body {
   padding: var(--base-padding);
   background: #ffffff;
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-light);
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
@@ -47,7 +47,7 @@ textarea {
   padding: 12px;
   margin-top: 10px;
   border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   font-size: 16px;
   box-sizing: border-box;
 }
@@ -68,14 +68,15 @@ button {
   font-weight: 600;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  width: 100%;
 }
 
 button:hover {
   background-color: var(--primary-hover);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-hover);
 }
 
-/* Logout Button: Constrain max-width */
+/* Logout Button */
 .logout-btn {
   background-color: var(--error-color);
   padding: 12px 20px;
@@ -83,15 +84,11 @@ button:hover {
   border-radius: 6px;
   font-size: 16px;
   font-weight: 600;
-  width: 100%;
   max-width: 500px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .logout-btn:hover {
   background-color: #ffae00;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* Success and Error Messages */
@@ -113,12 +110,12 @@ button:hover {
   min-height: 100vh;
 }
 
-/* Sidebar (Checklist / Managed Properties) */
+/* Sidebar */
 .sidebar {
   background-color: #ffffff;
-  width: auto;
+  width: 250px;
   padding: var(--base-padding);
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid var(--border-color);
   transition: width 0.3s ease, padding 0.3s ease;
   overflow: hidden;
   position: relative;
@@ -130,13 +127,13 @@ button:hover {
   border-right: none;
 }
 
-/* Sidebar Toggle: Always visible, positioned relative to sidebar */
+/* Sidebar Toggle Button */
 .sidebar .sidebar-toggle {
   position: absolute;
   top: 10px;
-  right: -30px;  /* Adjust this value as needed */
+  right: -30px;
   background: #ffffff;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 50%;
   width: 30px;
   height: 30px;
@@ -145,14 +142,12 @@ button:hover {
   text-align: center;
   cursor: pointer;
   transition: right 0.3s ease;
-  z-index: 10; /* Make sure the button stays above other elements */
+  z-index: 10;
 }
 
-/* Adjust the position of the toggle button when collapsed */
 .sidebar.collapsed .sidebar-toggle {
-  right: -40px; /* Move the button to the right when collapsed */
+  right: -40px;
 }
-
 
 /* Sidebar Content */
 .sidebar h2 {
@@ -174,7 +169,6 @@ button:hover {
   transition: color 0.2s ease;
 }
 
-/* Strike-through on Sidebar for completed properties */
 .sidebar li.completed {
   text-decoration: line-through;
   color: #888;
@@ -212,7 +206,6 @@ button:hover {
   margin-top: 30px;
 }
 
-/* Property Card Base Style */
 .property-card {
   background-color: #d2c7c7;
   color: #2d2d2d;
@@ -238,16 +231,15 @@ button:hover {
   font-size: 18px;
 }
 
-/* Completed Tile Visual Indicator for Property Cards (background color only) */
+/* Completed Tile */
 .property-card.completed-tile {
-  background-color: #28a745;
+  background-color: var(--success-color);
 }
 
 .property-card.completed-tile:hover {
   background-color: #218838;
 }
 
-/* Ensure text inside property cards is not struck through */
 .property-card.completed-tile h3,
 .property-card.completed-tile p {
   text-decoration: none;
@@ -263,12 +255,12 @@ button:hover {
 .submissions-table th,
 .submissions-table td {
   padding: 12px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
   text-align: left;
 }
 
 .submissions-table th {
-  background-color: #f8f8f8;
+  background-color: var(--light-gray);
 }
 
 .submissions-table tr:hover {
@@ -303,90 +295,51 @@ button:hover {
     max-width: 95%;
     padding: 20px;
   }
-  input,
-  button,
-  textarea {
-    font-size: 14px;
-    padding: 10px;
-  }
-  .property-card {
-    max-width: 90%;
-  }
-  .dashboard-container {
-    margin: 20px auto;
-  }
-  .logout-btn,
-  .admin-btn {
-    font-size: 14px;
-    padding: 10px;
-  }
-  .submissions-table th,
-  .submissions-table td {
-    padding: 8px;
-  }
-  .submissions-table button {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-}
 
-@media screen and (max-width: 480px) {
-  /* Keep dashboard-container in row layout on mobile so sidebar remains on the left */
   .dashboard-container {
     flex-direction: row;
   }
+
   .sidebar {
     width: 200px;
     padding: 16px;
-    border-right: 1px solid #e0e0e0;
-    border-bottom: none;
+    border-right: 1px solid var(--border-color);
   }
+
   .main-content {
     padding: 20px;
   }
+
   .property-card {
     width: 100%;
   }
-  /* Ensure labels and inputs stack vertically */
-.additional-checks {
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* Adds space between each field */
-  margin-top: 10px;
-}
 
-/* Ensure selects and inputs take full width */
-.additional-checks label {
-  display: flex;
-  flex-direction: column;
-  font-weight: bold;
-}
+  .additional-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 10px;
+  }
 
-.additional-checks select,
-.additional-checks input,
-.additional-checks textarea {
-  width: 100%;
-  margin-top: 5px;
-  padding: 8px;
-  font-size: 16px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
+  .additional-checks label {
+    display: flex;
+    flex-direction: column;
+    font-weight: bold;
+  }
 
-/* Improve file input appearance */
-.additional-checks input[type="file"] {
-  padding: 5px;
-  border: none;
-}
+  .additional-checks select,
+  .additional-checks input,
+  .additional-checks textarea {
+    width: 100%;
+    margin-top: 5px;
+    padding: 8px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+  }
 
-.container form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-button {
-  width: 100%;
-}
-
+  .additional-checks input[type="file"] {
+    padding: 5px;
+    border: none;
+  }
 }
