@@ -349,29 +349,29 @@ app.post('/api/forgot-password', async (req, res) => {
 
 // Step 2: Reset Password Route
 app.post('/api/reset-password', async (req, res) => {
-    try {
-        const { token, newPassword } = req.body;
-        const user = await User.findOne({ 
-            resetPasswordToken: token,
-            resetPasswordExpires: { $gt: Date.now() }
-        });
+  const { token, newPassword } = req.body;
 
-        if (!user) {
-            return res.status(400).json({ message: 'Invalid or expired token.' });
-        }
+  try {
+      // Find user with this token
+      const user = await User.findOne({ resetToken: token, resetTokenExpiration: { $gt: Date.now() } });
 
-        user.password = bcrypt.hashSync(newPassword, 10);
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpires = undefined;
-        await user.save();
+      if (!user) {
+          return res.status(400).json({ message: "Invalid or expired reset link." });
+      }
 
-        res.json({ message: 'Password successfully updated!' });
+      // Hash the new password
+      user.password = bcrypt.hashSync(newPassword, 10);
+      user.resetToken = null; // Clear the token
+      user.resetTokenExpiration = null;
+      await user.save();
 
-    } catch (error) {
-        console.error('Error in reset password:', error);
-        res.status(500).json({ message: 'Internal server error.' });
-    }
+      res.json({ message: "Password reset successful. You can now log in." });
+  } catch (error) {
+      console.error("❌ Reset Password Error:", error);
+      res.status(500).json({ message: "Error processing password reset." });
+  }
 });
+
 
 /**
  * 🔹 List Recent Submissions (Last 30 Days)
