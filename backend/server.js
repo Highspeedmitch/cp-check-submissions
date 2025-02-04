@@ -309,9 +309,6 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
   }
 });
 
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
-
 // Step 1: Forgot Password Route
 app.post('/api/forgot-password', async (req, res) => {
     try {
