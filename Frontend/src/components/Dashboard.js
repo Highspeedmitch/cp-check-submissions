@@ -71,14 +71,45 @@ function Dashboard() {
   };
 
   // Logout: clear stored session data and redirect to login
-  const handleLogout = () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
+  
+    // Clear previous session data
     localStorage.removeItem("token");
     localStorage.removeItem("orgName");
-    localStorage.removeItem("loginTime");
     localStorage.removeItem("role");
-    navigate("/login");
+    localStorage.removeItem("loginTime");
+  
+    try {
+      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.toLowerCase(), password }),
+      });
+  
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text);
+        if (response.ok) {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("orgName", data.orgName || "Your Organization");
+          localStorage.setItem("role", data.role || "user");
+          localStorage.setItem("loginTime", new Date().toISOString());
+          setUser(true);
+          navigate("/dashboard");
+        } else {
+          alert(data.message);
+        }
+      } catch (jsonError) {
+        console.error("❌ Unexpected response:", text);
+        alert("Unexpected server response. Please try again.");
+      }
+    } catch (error) {
+      console.error("❌ Login error:", error);
+      alert("Server error. Please try again.");
+    }
   };
-
+  
   // Determine if all properties have been completed
   const allCompleted = properties.length > 0 && properties.length === completedProperties.length;
 
