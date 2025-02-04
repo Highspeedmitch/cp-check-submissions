@@ -335,7 +335,7 @@ app.post('/api/forgot-password', async (req, res) => {
             from: 'highspeedmitch@gmail.com',
             to: user.email,
             subject: 'Password Reset Request',
-            text: `Click the link to reset your password: https://https://cp-check-submissions-dev.onrender.com//reset-password?token=${resetToken}`
+            text: `Click the link to reset your password: https://cp-check-submissions-dev.onrender.com//reset-password?token=${resetToken}`
         };
 
         await transporter.sendMail(mailOptions);
