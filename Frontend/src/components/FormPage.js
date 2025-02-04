@@ -222,7 +222,7 @@ function FormPage() {
   )}
 </div>
           <label>Is there any homeless activity of note?:</label>
-          <textarea name="additionalNotes" onChange={handleChange}></textarea>
+          <textarea name="homelessActivity" onChange={handleChange}></textarea>
 
           <button type="submit">Submit Checklist</button>
         </form>
