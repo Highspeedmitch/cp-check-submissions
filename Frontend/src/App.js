@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { IonApp, IonRouterOutlet, setupIonicReact } from "@ionic/react";
-import { IonReactRouter } from "@ionic/react-router";
 import { Route, Navigate } from "react-router-dom";
 
 import Login from "./components/Login";
