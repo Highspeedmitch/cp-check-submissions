@@ -26,18 +26,13 @@ function generateChecklistPDF(formData, photoBuffers) {
         const fieldMappings = {
             businessName: "Business Name",
             propertyAddress: "Property Address",
-            fireSafetyMeasures: "Fire Safety Measures",
-            securitySystems: "Security Systems",
-            maintenanceSchedule: "Maintenance Schedule",
-            additionalNotes: "Additional Notes",
+            homelessActivity: "Homeless Activity",
             parkingLotLights: "Parking Lot Lights",
             underCanopyLights: "Under Canopy Lights",
             graffiti: "Graffiti",
-            parkingBumpers: "Parking Bumpers",
             dumpsters: "Dumpsters",
             waterLeaks: "Water Leaks",
             dangerousTrees: "Dangerous Trees",
-            trashCans: "Trash Cans",
             brokenCurbs: "Broken Parking Lot Curbing",
             potholes: "Major Potholes"
         };
