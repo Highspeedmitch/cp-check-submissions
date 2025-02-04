@@ -225,7 +225,6 @@ button:hover {
 }
 
 .property-card:hover {
-  background-color: var(--primary-hover);
   box-shadow: var(--shadow-hover);
   transform: translateY(-3px);
 }
