@@ -1,12 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";  // ✅ Ensure this import exists
+import "./index.css";
 import App from "./App";
-import reportWebVitals from "./reportWebVitals";
-import './theme/variables.css'; // ✅ Add this line
 
-// Render the App inside Ionic
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
-
-// Report performance metrics
-reportWebVitals();
+root.render(
+  <BrowserRouter>  {/* ✅ Wrap App with BrowserRouter */}
+    <App />
+  </BrowserRouter>
+);
