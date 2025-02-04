@@ -353,7 +353,9 @@ app.post('/api/reset-password', async (req, res) => {
 
   try {
       // Find user with this token
-      const user = await User.findOne({ resetToken: token, resetTokenExpiration: { $gt: Date.now() } });
+      const user = await User.findOne({ 
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: Date.now() } });
 
       if (!user) {
           return res.status(400).json({ message: "Invalid or expired reset link." });
@@ -361,8 +363,8 @@ app.post('/api/reset-password', async (req, res) => {
 
       // Hash the new password
       user.password = bcrypt.hashSync(newPassword, 10);
-      user.resetToken = null; // Clear the token
-      user.resetTokenExpiration = null;
+      user.resetPasswordToken = null; // Clear the token
+      user.resetPasswordExpires = null;
       await user.save();
 
       res.json({ message: "Password reset successful. You can now log in." });
