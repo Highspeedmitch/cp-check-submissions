@@ -1,4 +1,3 @@
-// pdfservice.js
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
@@ -20,28 +19,57 @@ function generateChecklistPDF(formData, photoBuffers) {
 
     doc.pipe(pdfStream);
 
-    // 1) Checklist Title
+    // 1) Title
     doc.fontSize(20).text('Commercial Property Inspection Checklist', { align: 'center' });
     doc.moveDown(1);
 
-    // 2) Render text fields as before (omitted here for brevity)
-    // e.g., your fieldMappings loop
-    // ...
+    // 2) Print the text fields
+    const fieldMappings = {
+      businessName:        "Business Name",
+      propertyAddress:     "Property Address",
+      homelessActivity:    "Any Homeless Activity?",
+      additionalComments:  "Any Additional Comments?",
+      parkingLotLights:    "Parking Lot Lights out?",
+      securityLights:      "Security Lights out?",
+      underCanopyLights:   "Under Canopy Lights out?",
+      tenantSigns:         "Tenant signs out?",
+      graffiti:            "Graffiti around the property?",
+      dumpsters:           "Trash overflowing from Dumpsters?",
+      trashCans:           "Trash overflowing from Trashcans?",
+      waterLeaks:          "General Water Leaks?",
+      waterLeaksTenant:    "Tenant Water Leaks?",
+      dangerousTrees:      "Dangerous Trees?",
+      brokenCurbs:         "Broken Parking Lot Curbing?",
+      potholes:            "Major Potholes?"
+    };
+
+    // Loop over all fields in `fieldMappings` and print the values from `formData`
+    Object.keys(fieldMappings).forEach(field => {
+      const displayName = fieldMappings[field];
+      const value = formData[field] || "N/A";
+
+      doc.fontSize(14).text(`${displayName}: ${value}`);
+      // If there's a description (e.g., waterLeaksDescription), print that
+      if (formData[`${field}Description`]) {
+        doc.fontSize(12).text(`  Description: ${formData[`${field}Description`]}`);
+      }
+
+      doc.moveDown(0.5);
+    });
 
     // 3) Group and render photos by fieldName
     if (photoBuffers && photoBuffers.length > 0) {
-      // Start a new page for images (optional)
-      doc.addPage();
+      // Optional: add some vertical space or a new page
+      // doc.addPage(); // Use doc.addPage() only if you want photos always on a separate page
+      doc.moveDown(2);
       doc.fontSize(18).text('Inspection Photos', { underline: true });
       doc.moveDown(1);
 
-      // Group images by fieldName
+      // Group images
       const grouped = {};
       photoBuffers.forEach(({ fieldName, imageBuffer }) => {
-        // If the buffer is empty, skip
         if (!imageBuffer || imageBuffer.length === 0) {
-          console.error(`❌ Skipping empty buffer for field "${fieldName}"`);
-          return;
+          return; // skip empty buffers
         }
         if (!grouped[fieldName]) {
           grouped[fieldName] = [];
@@ -49,37 +77,36 @@ function generateChecklistPDF(formData, photoBuffers) {
         grouped[fieldName].push(imageBuffer);
       });
 
-      // Iterate each field in grouped
-      Object.keys(grouped).forEach((field) => {
-        // Field header
+      // Print each field’s photos
+      Object.keys(grouped).forEach(field => {
         doc.fontSize(16).text(`Photos for: ${field}`, { bold: true, underline: true });
         doc.moveDown(1);
 
         const buffers = grouped[field];
         buffers.forEach((buffer, idx) => {
-          // If near the bottom of the page, add a new page
+          // If near bottom, add a new page
           if (doc.y + 320 > doc.page.height - 50) {
             doc.addPage();
             doc.moveDown(1);
           }
 
-          // Label each image
           doc.fontSize(12).text(`Image #${idx + 1}`);
           doc.moveDown(0.5);
 
-          // Draw the image
           doc.image(buffer, {
             fit: [640, 480],
             align: 'center',
           });
 
-          doc.moveDown(50); // space before the next image
+          // Add space
+          doc.moveDown(50);
         });
 
-        // Add some vertical space before the next field's images
-        doc.moveDown(1);
+        doc.moveDown(2); // space before the next field’s photos
       });
+
     } else {
+      doc.moveDown(1);
       doc.fontSize(14).text("No photos uploaded.", { italic: true });
     }
 
