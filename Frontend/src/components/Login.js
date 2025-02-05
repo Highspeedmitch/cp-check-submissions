@@ -65,7 +65,6 @@ function Login({ setUser }) {
 
   return (
     <div className="container">
-      <h1>Inspectors' Gadget <img src="Frontend\public\favicon.ico" /></h1>
       <h2>Login</h2>
       {error && <p className="error">{error}</p>}
       <form onSubmit={handleLogin}>
