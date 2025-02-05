@@ -1,5 +1,8 @@
 /* Define CSS Variables */
 :root {
+  --background-color: #f5f7fa;
+  --container-background: #ffffff;
+  --text-color: #000000;
   --primary-color: #007BFF;
   --primary-hover: #28a745;
   --success-color: #28a745;
@@ -13,14 +16,60 @@
   --shadow-hover: 0px 15px 25px rgba(0, 0, 0, 0.15);
 }
 
+/* Dark Mode */
+.dark-mode {
+  --background-color: #1e1e1e;
+  --container-background: #2a2a2a;
+  --text-color: #ffffff;
+  --primary-color: #1e90ff;
+  --primary-hover: #007acc;
+  --border-color: #444;
+  --shadow-light: 0px 4px 10px rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode-toggle {
+  width: 100%;
+  padding: 12px;
+  margin-top: 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  background: var(--primary-color);
+  color: white;
+  transition: background 0.3s ease;
+}
+.dark-mode-toggle:hover {
+  background: var(--primary-hover);
+}
+.dark-mode body {
+  background-color: var(--background-color);
+}
+.dark-mode .container,
+.dark-mode .dashboard-container {
+  background-color: var(--container-background);
+  color: var(--text-color);
+}
+.dark-mode .property-card {
+  background-color: #333;
+  color: white;
+  border: 1px solid #555;
+}
+.dark-mode .property-card h3 {
+  color: #fff;
+}
 /* Global Styles */
 body {
   margin: 0;
   padding: 0;
-  background-color: #f5f7fa;
+  background-color: var(--background-color);
+  color: var(--text-color);
   font-family: var(--font-family);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Containers */
@@ -29,10 +78,10 @@ body {
   max-width: var(--container-max-width);
   margin: 40px auto;
   padding: var(--base-padding);
-  background: #ffffff;
+  background: var(--container-background);
   border-radius: 10px;
   box-shadow: var(--shadow-light);
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease, background-color 0.3s ease;
 }
 
 .container:hover {
@@ -50,12 +99,13 @@ textarea {
   border: 1px solid var(--border-color);
   font-size: 16px;
   box-sizing: border-box;
+  background-color: var(--container-background);
+  color: var(--text-color);
 }
 
 textarea {
   resize: vertical;
   min-height: 80px;
-  background-color: #fafafa;
 }
 
 /* Buttons */
@@ -117,7 +167,7 @@ button:hover {
 
 /* Sidebar */
 .sidebar {
-  background-color: #ffffff;
+  background-color: var(--container-background);
   width: 250px;
   padding: var(--base-padding);
   border-right: 1px solid var(--border-color);
@@ -127,7 +177,7 @@ button:hover {
 }
 
 .sidebar.collapsed {
-  width: 50px; /* Keep it visible */
+  width: 50px;
   padding: 10px;
   border-right: 1px solid var(--border-color);
   overflow: hidden;
@@ -135,20 +185,16 @@ button:hover {
 
 /* Sidebar Toggle Button */
 .sidebar .sidebar-toggle {
-  /*top: 10px;*/
- /* right: -20px; Keep visible */
-  background: #ffffff;
+  background: var(--container-background);
   border: 1px solid var(--border-color);
   border-radius: 15%;
   width: 50px;
-  /*height: 30px;*/
   font-size: 25px;
-  /*line-height: 30px;*/
   text-align: center;
   cursor: pointer;
   transition: right 0.3s ease;
-  color: #2d2d2d;
-  z-index: 100; /* Ensure it stays on top */
+  color: var(--text-color);
+  z-index: 100;
 }
 
 .sidebar.collapsed .sidebar-toggle {
@@ -169,7 +215,7 @@ button:hover {
 
 .sidebar li {
   padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-color);
   font-size: 16px;
   cursor: pointer;
   transition: color 0.2s ease;
@@ -179,14 +225,18 @@ button:hover {
   text-decoration: line-through;
   color: #888;
 }
+
+/* Login Page */
 .login-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa, #dce1e6);
+  background: linear-gradient(135deg, var(--background-color), var(--container-background));
 }
+
+/* Login Banner */
 .login-banner {
   display: flex;
   flex-direction: column;
@@ -196,142 +246,34 @@ button:hover {
   width: 100%;
   max-width: 400px;
   text-align: center;
-  background: #ffffff;
+  background: var(--container-background);
   border-radius: 10px;
-  box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-light);
   margin-bottom: 20px;
 }
-.login-logo {
-  width: 80px; /* Adjust for your logo */
-  height: auto;
-  margin-bottom: 10px;
-}
-.brand-title {
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
-}
+
+/* Login Box */
 .login-box {
-  background: #fff;
+  background: var(--container-background);
   padding: 25px;
   width: 100%;
   max-width: 400px;
   border-radius: 10px;
-  box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.1);
-}
-.login-box h2 {
-  margin-bottom: 15px;
-  text-align: center;
-  color: #222;
-}
-.login-box input {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 16px;
-  background: #fafafa;
-}
-.login-box button {
-  width: 100%;
-  background: var(--primary-color);
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
-  padding: 12px;
-  margin-top: 15px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.login-box button:hover {
-  background: var(--primary-hover);
-}
-.link-container {
-  text-align: center;
-  margin-top: 10px;
-}
-
-.link {
-  text-decoration: none;
-  color: var(--primary-color);
-  font-weight: bold;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
-/* Register Button */
-.register-container {
-  text-align: center;
-  margin-top: 15px;
-}
-
-.register-btn {
-  background: var(--success-color);
-  color: white;
-  padding: 10px 16px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.register-btn:hover {
-  background: #218838;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-  .login-container {
-    padding: 20px;
-  }
-
-  .login-banner,
-  .login-box {
-    width: 100%;
-  }
-}
-/* Main Content Area */
-.main-content {
-  flex: 1;
-  padding: 20px 30px;
-}
-
-/* Dashboard Header */
-.dashboard-header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.dashboard-header .subtext {
-  font-size: 16px;
-  color: #555;
-  margin-bottom: 10px;
-}
-
-.dashboard-header h1 {
-  font-size: 32px;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
-  margin: 0;
+  box-shadow: var(--shadow-light);
 }
 
 /* Property Cards */
 .property-cards {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center; /* Center the cards */
   gap: 20px;
-  margin-top: 30px;
+  margin-top: 20px;
 }
 
 .property-card {
-  background-color: #d2c7c7;
-  color: #2d2d2d;
+  background-color: var(--container-background);
+  color: var(--text-color);
   padding: 20px;
   border-radius: 10px;
   cursor: pointer;
@@ -349,78 +291,7 @@ button:hover {
   transform: translateY(-15px);
 }
 
-.property-card h3 {
-  margin: 0 0 10px;
-  font-size: 18px;
-}
-
-/* Completed Tile */
-.property-card.completed-tile {
-  background-color: var(--success-color);
-}
-
-.property-card.completed-tile:hover {
-  background-color: #218838;
-}
-
-.property-card.completed-tile h3,
-.property-card.completed-tile p {
-  text-decoration: none;
-}
-
-/* Submissions Table */
-.submissions-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-.submissions-table th,
-.submissions-table td {
-  padding: 12px;
-  border-bottom: 1px solid var(--border-color);
-  text-align: left;
-}
-
-.submissions-table th {
-  background-color: var(--light-gray);
-}
-
-.submissions-table tr:hover {
-  background-color: #f1f1f1;
-}
-
-.submissions-table button {
-  background-color: #17a2b8;
-  padding: 8px 12px;
-  font-size: 14px;
-}
-
-.submissions-table button:hover {
-  background-color: #28a745;
-}
-
-.submit button {
-  background-color: #007BFF;
-}
-
-.submit-button:hover {
-  background-color: #28a745
-
-}
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Responsive Adjustments */
+/* Responsive */
 @media screen and (max-width: 480px) {
   .container {
     max-width: 95%;
@@ -429,6 +300,11 @@ button:hover {
 
   .dashboard-container {
     flex-direction: row;
+  }
+
+  .dashboard-header {
+    text-align: center;
+    width: 100%;
   }
 
   .sidebar {
@@ -440,7 +316,6 @@ button:hover {
   .main-content {
     flex: 1;
     padding: 20px 30px;
-    transition: margin-left 0.3s ease;
   }
 
   .property-card {
@@ -452,27 +327,5 @@ button:hover {
     flex-direction: column;
     gap: 15px;
     margin-top: 10px;
-  }
-
-  .additional-checks label {
-    display: flex;
-    flex-direction: column;
-    font-weight: bold;
-  }
-
-  .additional-checks select,
-  .additional-checks input,
-  .additional-checks textarea {
-    width: 100%;
-    margin-top: 5px;
-    padding: 8px;
-    font-size: 16px;
-    border-radius: 5px;
-    border: 1px solid var(--border-color);
-  }
-
-  .additional-checks input[type="file"] {
-    padding: 5px;
-    border: none;
   }
 }
