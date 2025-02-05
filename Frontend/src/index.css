@@ -280,9 +280,17 @@ button:hover {
 }
 
 .submissions-table button:hover {
-  background-color: #117a8b;
+  background-color: #28a745;
 }
 
+.submit button {
+  background-color: #007BFF;
+}
+
+.submit-button:hover {
+  background-color: #28a745
+
+}
 /* Animations */
 @keyframes fadeIn {
   from {

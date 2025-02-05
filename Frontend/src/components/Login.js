@@ -93,7 +93,7 @@ function Login({ setUser }) {
       <div style={{ marginTop: "1rem" }}>
         <span style={{ marginRight: "8px" }}>Don't have an account?</span>
         <Link to="/register">
-          <button type="button">Register</button>
+          <button type="button" className="submit button">Register</button>
         </Link>
       </div>
     </div>

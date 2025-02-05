@@ -284,7 +284,7 @@ function FormPage() {
           <label>Additional Comments:</label>
           <textarea name="additionalComments" onChange={handleChange}></textarea>
 
-          <button type="submit">Submit Checklist</button>
+          <button type="submit" className='submit button'>Submit Checklist</button>
         </form>
       )}
     </div>
