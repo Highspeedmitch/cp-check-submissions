@@ -143,7 +143,7 @@ function FormPage() {
   )}
   </div>
   <div>
-  <label>Are under canopy lights / Tenant signs out?:
+  <label>Are any under canopy lights out?:
     <select name="underCanopyLights" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -154,6 +154,21 @@ function FormPage() {
     <>
       <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'underCanopyLights')} />
       <textarea name="underCanopyLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
+    </>
+  )}
+  </div>
+  <div>
+  <label>Are any tenant signs out?:
+    <select name="tenantSigns" onChange={handleChange}>
+      <option value="">Select...</option>
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select>
+  </label>
+  {formData.tenantSigns === 'yes' && (
+    <>
+      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'tenantSigns')} />
+      <textarea name="tenantSignsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
   </div>

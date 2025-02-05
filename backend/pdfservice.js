@@ -31,6 +31,7 @@ function generateChecklistPDF(formData, photoBuffers) {
             parkingLotLights: "Parking Lot Lights out?",
             securityLights: "Security Lights out?",
             underCanopyLights: "Under Canopy Lights out?",
+            tenantSigns: "Tenant signs out?",
             graffiti: "Is there Graffiti around the property",
             dumpsters: "Trash overflowing from Dumpsters?",
             trashCans: "Trash overflowing from Trashcans?",
