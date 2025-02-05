@@ -179,7 +179,124 @@ button:hover {
   text-decoration: line-through;
   color: #888;
 }
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa, #dce1e6);
+}
+.login-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+.login-logo {
+  width: 80px; /* Adjust for your logo */
+  height: auto;
+  margin-bottom: 10px;
+}
+.brand-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+.login-box {
+  background: #fff;
+  padding: 25px;
+  width: 100%;
+  max-width: 400px;
+  border-radius: 10px;
+  box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.1);
+}
+.login-box h2 {
+  margin-bottom: 15px;
+  text-align: center;
+  color: #222;
+}
+.login-box input {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  background: #fafafa;
+}
+.login-box button {
+  width: 100%;
+  background: var(--primary-color);
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 12px;
+  margin-top: 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
 
+.login-box button:hover {
+  background: var(--primary-hover);
+}
+.link-container {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.link {
+  text-decoration: none;
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* Register Button */
+.register-container {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.register-btn {
+  background: var(--success-color);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.register-btn:hover {
+  background: #218838;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 20px;
+  }
+
+  .login-banner,
+  .login-box {
+    width: 100%;
+  }
+}
 /* Main Content Area */
 .main-content {
   flex: 1;

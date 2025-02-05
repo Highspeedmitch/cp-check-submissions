@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
 function Login({ setUser }) {
-  const [email, setEmail] = useState("");  
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -12,10 +12,9 @@ function Login({ setUser }) {
     const token = localStorage.getItem("token");
     if (token) {
       try {
-        // Decode token to check expiration
-        const decoded = JSON.parse(atob(token.split(".")[1])); 
+        const decoded = JSON.parse(atob(token.split(".")[1])); // Decode token
         const currentTime = Date.now() / 1000;
-  
+
         if (decoded.exp && decoded.exp > currentTime) {
           navigate("/dashboard");
         } else {
@@ -34,11 +33,14 @@ function Login({ setUser }) {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.toLowerCase(), password }),
-      });
+      const response = await fetch(
+        "https://cp-check-submissions-dev-backend.onrender.com/api/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.toLowerCase(), password }),
+        }
+      );
 
       const text = await response.text();
       try {
@@ -64,37 +66,46 @@ function Login({ setUser }) {
   };
 
   return (
-    <div className="container">
-      <h2>Login</h2>
-      {error && <p className="error">{error}</p>}
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Login</button>
-      </form>
-
-      {/* Forgot Password Link */}
-      <div style={{ marginTop: "1rem" }}>
-        <Link to="/forgot-password" style={{ textDecoration: "none", color: "blue" }}>
-          Forgot Password?
-        </Link>
+    <div className="login-container">
+      {/* Branding Banner */}
+      <div className="login-banner">
+        <img src="/Frontend\build\logo512.png" alt="Inspectors Gadget Logo" className="login-logo" />
+        <h1 className="brand-title">Inspectors Gadget</h1>
       </div>
 
-      <div style={{ marginTop: "1rem" }}>
-        <span style={{ marginRight: "8px" }}>Don't have an account?</span>
-        <Link to="/register">
-          <button type="button" className="submit button">Register</button>
-        </Link>
+      {/* Login Form */}
+      <div className="login-box">
+        <h2>Login</h2>
+        {error && <p className="error">{error}</p>}
+        <form onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Email"
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button type="submit">Login</button>
+        </form>
+
+        {/* Forgot Password Link */}
+        <div className="link-container">
+          <Link to="/forgot-password" className="link">
+            Forgot Password?
+          </Link>
+        </div>
+
+        <div className="register-container">
+          <span>Don't have an account?</span>
+          <Link to="/register">
+            <button type="button" className="register-btn">Register</button>
+          </Link>
+        </div>
       </div>
     </div>
   );
