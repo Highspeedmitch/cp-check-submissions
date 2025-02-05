@@ -22,9 +22,9 @@ function Dashboard({ setUser }) {
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-const toggleSidebar = () => {
-  setSidebarCollapsed((prev) => !prev);
-};
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
 
   const token = localStorage.getItem("token");
 
@@ -41,7 +41,7 @@ const toggleSidebar = () => {
       localStorage.removeItem("loginTime");
       localStorage.removeItem("role");
 
-      if (setUser) setUser(false); // Update UI state
+      if (setUser) setUser(false);
       navigate("/login");
       return;
     }
@@ -100,20 +100,24 @@ const toggleSidebar = () => {
   };
 
   return (
-    <div className="dashboard-container">
+    <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-  <button className="sidebar-toggle" onClick={toggleSidebar}>
-    {sidebarCollapsed ? "☰" : "×"}
-  </button>
-        <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
-        <ul>
-          {properties.map((prop) => (
-            <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
-              {prop}
-            </li>
-          ))}
-        </ul>
+        <button className="sidebar-toggle" onClick={toggleSidebar}>
+          {sidebarCollapsed ? "☰" : "×"}
+        </button>
+        {!sidebarCollapsed && (
+          <>
+            <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+            <ul>
+              {properties.map((prop) => (
+                <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
+                  {prop}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       {/* Main Content */}

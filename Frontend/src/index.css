@@ -107,7 +107,12 @@ button:hover {
 /* Dashboard Layout */
 .dashboard-container {
   display: flex;
-  min-height: 100vh;
+  transition: margin-left 0.3s ease;
+}
+
+/* Reduce left margin when sidebar is collapsed */
+.dashboard-container.collapsed .main-content {
+  margin-left: 50px;
 }
 
 /* Sidebar */
@@ -122,16 +127,17 @@ button:hover {
 }
 
 .sidebar.collapsed {
-  width: 0;
-  padding: 0;
-  border-right: none;
+  width: 50px; /* Keep it visible */
+  padding: 10px;
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
 }
 
 /* Sidebar Toggle Button */
 .sidebar .sidebar-toggle {
   position: absolute;
   top: 10px;
-  right: -30px;
+  right: -20px; /* Keep visible */
   background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 50%;
@@ -142,7 +148,7 @@ button:hover {
   text-align: center;
   cursor: pointer;
   transition: right 0.3s ease;
-  z-index: 10;
+  z-index: 100; /* Ensure it stays on top */
 }
 
 .sidebar.collapsed .sidebar-toggle {
@@ -307,7 +313,9 @@ button:hover {
   }
 
   .main-content {
-    padding: 20px;
+    flex: 1;
+    padding: 20px 30px;
+    transition: margin-left 0.3s ease;
   }
 
   .property-card {
