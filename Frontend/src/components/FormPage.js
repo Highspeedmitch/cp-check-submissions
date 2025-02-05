@@ -20,7 +20,6 @@ function FormPage() {
     waterLeaks: '',
     waterLeaksTenant:'',
     dangerousTrees: '',
-    trashCans: '',
     brokenCurbs: '',
     potholes: '',
     photos: {} // Store photos for each field
