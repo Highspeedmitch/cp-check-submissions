@@ -1,3 +1,4 @@
+// FormPage.js
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -18,11 +19,11 @@ function FormPage() {
     dumpsters: '',
     trashCans: '',
     waterLeaks: '',
-    waterLeaksTenant:'',
+    waterLeaksTenant: '',
     dangerousTrees: '',
     brokenCurbs: '',
     potholes: '',
-    photos: {} // Store photos for each field
+    photos: {} // Now each fieldName will store an array of Files
   });
 
   const [submitted, setSubmitted] = useState(false);
@@ -33,20 +34,40 @@ function FormPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * Handle multiple file uploads for a given field.
+   * We'll store an array of files in formData.photos[fieldName].
+   */
   const handleFileChange = (e, fieldName) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Rename file with field name to help backend identify it
-      const newFile = new File([file], `${fieldName}-${file.name}`, { type: file.type });
-  
-      setFormData(prev => ({
-        ...prev,
-        photos: { ...prev.photos, [fieldName]: newFile }  // Store file object with labeled name
-      }));
-    }
-  };
-  
+    const files = e.target.files; // This is a FileList
+    if (!files || files.length === 0) return;
 
+    setFormData(prev => {
+      const updatedPhotos = { ...prev.photos };
+      // If this field doesn't exist yet, initialize an empty array
+      if (!updatedPhotos[fieldName]) {
+        updatedPhotos[fieldName] = [];
+      }
+
+      // Convert each File into a new File that includes fieldName in the name
+      for (let i = 0; i < files.length; i++) {
+        const originalFile = files[i];
+        const newFile = new File([originalFile], `${fieldName}-${originalFile.name}`, {
+          type: originalFile.type,
+        });
+        updatedPhotos[fieldName].push(newFile);
+      }
+
+      return {
+        ...prev,
+        photos: updatedPhotos
+      };
+    });
+  };
+
+  /**
+   * Submit the form with all text fields + photos in FormData
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -59,18 +80,20 @@ function FormPage() {
           formDataToSend.append(key, formData[key]);
         }
       });
-      
+
       // Append selected property explicitly
       formDataToSend.append('selectedProperty', property);
-  
-      // Append photos to FormData
+
+      // Append photos
       Object.keys(formData.photos).forEach((field) => {
-        const file = formData.photos[field];
-        if (file) {
-          formDataToSend.append('photos', file);
+        const files = formData.photos[field];
+        if (Array.isArray(files)) {
+          files.forEach((file) => {
+            formDataToSend.append('photos', file);
+          });
         }
       });
-  
+
       const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/submit-form', {
         method: 'POST',
         headers: {
@@ -78,7 +101,7 @@ function FormPage() {
         },
         body: formDataToSend,
       });
-  
+
       const data = await response.json();
       if (response.ok) {
         setMessage(data.message);
@@ -128,7 +151,11 @@ function FormPage() {
   </label>
   {formData.parkingLotLights === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'parkingLotLights')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'parkingLotLights')} />
       <textarea name="parkingLotLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -143,7 +170,11 @@ function FormPage() {
   </label>
   {formData.securityLights === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'securityLights')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'securityLights')} />
       <textarea name="securityLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -158,7 +189,11 @@ function FormPage() {
   </label>
   {formData.underCanopyLights === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'underCanopyLights')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'underCanopyLights')} />
       <textarea name="underCanopyLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -173,7 +208,11 @@ function FormPage() {
   </label>
   {formData.tenantSigns === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'tenantSigns')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'tenantSigns')} />
       <textarea name="tenantSignsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -188,7 +227,11 @@ function FormPage() {
   </label>
   {formData.graffiti === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'graffiti')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'graffiti')} />
       <textarea name="graffitiDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -203,7 +246,11 @@ function FormPage() {
   </label>
   {formData.dumpsters === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'dumpsters')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'dumpsters')} />
       <textarea name="dumpstersDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -218,7 +265,11 @@ function FormPage() {
   </label>
   {formData.trashCans === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'trashCans')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'trashCans')} />
       <textarea name="trashCansDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -233,7 +284,11 @@ function FormPage() {
   </label>
   {formData.waterLeaks === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'waterLeaks')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'waterLeaks')} />
       <textarea name="waterLeaksDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -248,7 +303,11 @@ function FormPage() {
   </label>
   {formData.waterLeaksTenant === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'waterLeaksTenant')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'waterLeaksTenant')} />
       <textarea name="waterLeaksTenantDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -263,7 +322,11 @@ function FormPage() {
   </label>
   {formData.dangerousTrees === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'dangerousTrees')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'dangerousTrees')} />
       <textarea name="dangerousTreesDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -278,7 +341,11 @@ function FormPage() {
   </label>
   {formData.brokenCurbs === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'brokenCurbs')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'brokenCurbs')} />
       <textarea name="brokenCurbsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
@@ -293,7 +360,11 @@ function FormPage() {
   </label>
   {formData.potholes === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'potholes')} />
+      <input type="file"
+      accept="image/*"
+      capture="camera"
+      multiple
+      onChange={(e) => handleFileChange(e, 'potholes')} />
       <textarea name="potholesDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
