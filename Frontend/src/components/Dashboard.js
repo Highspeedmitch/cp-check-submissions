@@ -1,14 +1,15 @@
+// Dashboard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-// ✅ Function to check if the token is expired
+// Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1])); // Decode JWT payload
-    return payload.exp * 1000 < Date.now(); // Convert to milliseconds and compare with current time
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp * 1000 < Date.now();
   } catch (error) {
     console.error("❌ Invalid token format:", error);
-    return true; // Treat as expired if parsing fails
+    return true;
   }
 }
 
@@ -16,37 +17,51 @@ function Dashboard({ setUser }) {
   const { property } = useParams();
   const navigate = useNavigate();
 
+  // States for properties, sidebar, etc.
   const [properties, setProperties] = useState([]);
   const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // ---- DARK MODE STATE ----
+  // Initialize darkMode state from localStorage (default to false if not set)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
+
+  // Update the <html> element class and localStorage when darkMode changes
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add("dark-mode");
+    } else {
+      root.classList.remove("dark-mode");
+    }
+    localStorage.setItem("darkMode", darkMode);
+  }, [darkMode]);
+  // -------------------------
+
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);
   };
 
   const token = localStorage.getItem("token");
-
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
   const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
 
-  // ✅ Check for expired token and redirect to login
+  // Check token validity and fetch properties/submissions
   useEffect(() => {
     if (!token || isTokenExpired(token)) {
-      console.warn("🔹 Token missing or expired. Redirecting to login.");
       localStorage.removeItem("token");
       localStorage.removeItem("orgName");
       localStorage.removeItem("loginTime");
       localStorage.removeItem("role");
-
       if (setUser) setUser(false);
       navigate("/login");
       return;
     }
 
-    // ✅ Fetch properties if the token is valid
+    // Fetch properties for the organization
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
@@ -66,7 +81,7 @@ function Dashboard({ setUser }) {
         setLoading(false);
       });
 
-    // ✅ Fetch recent submissions for users
+    // For users, fetch recent submissions to mark completed properties
     if (role === "user") {
       fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
         method: "GET",
@@ -85,16 +100,14 @@ function Dashboard({ setUser }) {
         })
         .catch((err) => console.error("Error fetching submissions:", err));
     }
-  }, [navigate, token, loginTime, role]);
+  }, [navigate, token, loginTime, role, setUser]);
 
-  // Logout function
   const handleLogout = () => {
     console.log("🔹 Logging out... Clearing session data.");
     localStorage.removeItem("token");
     localStorage.removeItem("orgName");
     localStorage.removeItem("loginTime");
     localStorage.removeItem("role");
-
     if (setUser) setUser(false);
     navigate("/login");
   };
@@ -106,6 +119,21 @@ function Dashboard({ setUser }) {
         <button className="sidebar-toggle" onClick={toggleSidebar}>
           {sidebarCollapsed ? "☰" : "×"}
         </button>
+
+        {/* ---- Dark Mode Toggle in Sidebar ---- */}
+        <div className="dark-mode-toggle" style={{ margin: "10px 0", padding: "0 10px" }}>
+          <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={darkMode}
+              onChange={() => setDarkMode((prev) => !prev)}
+              style={{ marginRight: "8px" }}
+            />
+            Dark Mode
+          </label>
+        </div>
+        {/* -------------------------------------- */}
+
         {!sidebarCollapsed && (
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
@@ -149,7 +177,13 @@ function Dashboard({ setUser }) {
                 }}
               >
                 <h3>{prop}</h3>
-                <p>{role === "admin" ? "Click to view recent submissions" : completedProperties.includes(prop) ? "Completed" : "Click to complete checklist"}</p>
+                <p>
+                  {role === "admin"
+                    ? "Click to view recent submissions"
+                    : completedProperties.includes(prop)
+                    ? "Completed"
+                    : "Click to complete checklist"}
+                </p>
               </div>
             ))}
           </div>

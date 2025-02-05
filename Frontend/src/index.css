@@ -475,4 +475,52 @@ button:hover {
     padding: 5px;
     border: none;
   }
+
+  /* ===== Dark Mode Overrides ===== */
+
+/* Override CSS variables when dark mode is active */
+.dark-mode {
+  --primary-color: #007BFF;
+  --primary-hover: #28a745;
+  --success-color: #28a745;
+  --error-color: #dc3545;
+  --light-gray: #343a40;
+  --border-color: #444444;
+  --shadow-light: 0px 4px 10px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0px 15px 25px rgba(0, 0, 0, 0.6);
+}
+
+/* Global background and text color overrides */
+.dark-mode body {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+/* Container backgrounds and box shadows */
+.dark-mode .container,
+.dark-mode .dashboard-container {
+  background: #1e1e1e;
+  box-shadow: var(--shadow-light);
+}
+
+/* Inputs, buttons, and textareas */
+.dark-mode input,
+.dark-mode button,
+.dark-mode textarea {
+  background: #2a2a2a;
+  border-color: var(--border-color);
+  color: #e0e0e0;
+}
+
+/* Sidebar background */
+.dark-mode .sidebar {
+  background-color: #1e1e1e;
+}
+
+/* Example: Override property cards */
+.dark-mode .property-card {
+  background-color: #2a2a2a;
+  color: #e0e0e0;
+}
+
 }
