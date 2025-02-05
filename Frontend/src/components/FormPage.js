@@ -96,7 +96,7 @@ function FormPage() {
     <div className="container">
       <h1>{property} – Commercial Property Inspection Checklist</h1>
       {/* Always-visible "Return To Dashboard" button */}
-        <div>
+        <div className="return-to-dash">
         <button onClick={() => navigate('/dashboard')}>
           Return To Dashboard
       </button>

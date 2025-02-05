@@ -51,7 +51,9 @@ textarea {
   font-size: 16px;
   box-sizing: border-box;
 }
-
+.return-to-dash {
+  padding-bottom: 20px;
+}
 textarea {
   resize: vertical;
   min-height: 80px;
