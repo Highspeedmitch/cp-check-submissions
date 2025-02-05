@@ -25,7 +25,6 @@ function Dashboard({ setUser }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // ---- DARK MODE STATE ----
-  // Initialize darkMode state from localStorage (default to false if not set)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
 
   // Update the <html> element class and localStorage when darkMode changes
@@ -120,20 +119,7 @@ function Dashboard({ setUser }) {
           {sidebarCollapsed ? "☰" : "×"}
         </button>
 
-        {/* ---- Dark Mode Toggle in Sidebar ---- */}
-        <div className="dark-mode-toggle" style={{ margin: "10px 0", padding: "0 10px" }}>
-          <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={darkMode}
-              onChange={() => setDarkMode((prev) => !prev)}
-              style={{ marginRight: "8px" }}
-            />
-            Dark Mode
-          </label>
-        </div>
-        {/* -------------------------------------- */}
-
+        {/* Only render the checklist and dark mode toggle when not collapsed */}
         {!sidebarCollapsed && (
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
@@ -144,6 +130,19 @@ function Dashboard({ setUser }) {
                 </li>
               ))}
             </ul>
+
+            {/* Dark Mode Toggle: sliding switch with emoji */}
+            <div className="dark-mode-toggle">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={darkMode}
+                  onChange={() => setDarkMode((prev) => !prev)}
+                />
+                <span className="slider"></span>
+              </label>
+              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
+            </div>
           </>
         )}
       </div>
