@@ -8,13 +8,17 @@ function FormPage() {
   const [formData, setFormData] = useState({
     businessName: '',
     propertyAddress: '',
+    securityLights: '',
     homelessActivity: '',
+    additionalComments: '',
     parkingLotLights: '',
     underCanopyLights: '',
     graffiti: '',
     parkingBumpers: '',
     dumpsters: '',
+    trashcans: '',
     waterLeaks: '',
+    waterLeaksTenant:'',
     dangerousTrees: '',
     trashCans: '',
     brokenCurbs: '',
@@ -100,7 +104,7 @@ function FormPage() {
       ) : (
         <form onSubmit={handleSubmit}>
           <input type="hidden" name="selectedProperty" value={property} /> {/* Ensure property is sent */}
-          <label>Business Name:</label>
+          <label>Shopping Center Name:</label>
           <input type="text" name="businessName" onChange={handleChange} required />
 
           <label>Property Address:</label>
@@ -121,6 +125,21 @@ function FormPage() {
     <>
       <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'parkingLotLights')} />
       <textarea name="parkingLotLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
+    </>
+  )}
+  </div>
+  <div>
+  <label>Are Rear security lights out?:
+    <select name="securityLights" onChange={handleChange}>
+      <option value="">Select...</option>
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select>
+  </label>
+  {formData.securityLights === 'yes' && (
+    <>
+      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'securityLights')} />
+      <textarea name="securityLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
   </div>
@@ -155,7 +174,7 @@ function FormPage() {
   )}
   </div>
   <div>
-<label>Is there trash overflowing from cans / dumpsters?:
+<label>Is there trash overflowing from the dumpsters?:
     <select name="dumpsters" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -170,7 +189,22 @@ function FormPage() {
   )}
   </div>
   <div>
-  <label>Are there any visible water leaks?:
+<label>Is there trash overflowing from the trashcans on sidewalks?:
+    <select name="trashcans" onChange={handleChange}>
+      <option value="">Select...</option>
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select>
+  </label>
+  {formData.dumpsters === 'yes' && (
+    <>
+      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'trashcans')} />
+      <textarea name="trashcansDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
+    </>
+  )}
+  </div>
+  <div>
+  <label>Are there any visible water leaks in parking lot? ie. irrigation leak:
     <select name="waterLeaks" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
@@ -181,6 +215,21 @@ function FormPage() {
     <>
       <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'waterLeaks')} />
       <textarea name="waterLeaksDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
+    </>
+  )}
+</div>
+<div>
+  <label>Are there any visible water leaks from specific tenant? ie. swamp cooler leak:
+    <select name="waterLeaksTenant" onChange={handleChange}>
+      <option value="">Select...</option>
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select>
+  </label>
+  {formData.waterLeaks === 'yes' && (
+    <>
+      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'waterLeaksTenant')} />
+      <textarea name="waterLeaksTenantDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
 </div>
@@ -232,6 +281,9 @@ function FormPage() {
 </div>
           <label>Is there any homeless activity of note?:</label>
           <textarea name="homelessActivity" onChange={handleChange}></textarea>
+
+          <label>Additional Comments:</label>
+          <textarea name="additionalComments" onChange={handleChange}></textarea>
 
           <button type="submit">Submit Checklist</button>
         </form>
