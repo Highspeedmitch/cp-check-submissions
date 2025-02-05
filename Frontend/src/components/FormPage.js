@@ -118,12 +118,12 @@ function FormPage() {
   return (
     <div className="container">
       <h1>{property} – Commercial Property Inspection Checklist</h1>
-      {/* Always-visible "Return To Dashboard" button */}
+        {/* Only show this if we're NOT submitted yet */}
+        {!submitted && (
         <div className="return-to-dash">
-        <button onClick={() => navigate('/dashboard')}>
-          Return To Dashboard
-      </button>
+          <button onClick={() => navigate('/dashboard')}>Return To Dashboard</button>
         </div>
+)}
       {submitted ? (
         <div>
           <h2>{message}</h2>
