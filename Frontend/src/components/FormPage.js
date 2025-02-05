@@ -196,7 +196,7 @@ function FormPage() {
       <option value="no">No</option>
     </select>
   </label>
-  {formData.dumpsters === 'yes' && (
+  {formData.trashcans === 'yes' && (
     <>
       <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'trashcans')} />
       <textarea name="trashcansDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
@@ -226,7 +226,7 @@ function FormPage() {
       <option value="no">No</option>
     </select>
   </label>
-  {formData.waterLeaks === 'yes' && (
+  {formData.waterLeaksTenant === 'yes' && (
     <>
       <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'waterLeaksTenant')} />
       <textarea name="waterLeaksTenantDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
