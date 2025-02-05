@@ -26,19 +26,19 @@ function generateChecklistPDF(formData, photoBuffers) {
         const fieldMappings = {
             businessName: "Business Name",
             propertyAddress: "Property Address",
-            homelessActivity: "Homeless Activity",
-            additionalComments: "Additional Comments",
-            parkingLotLights: "Parking Lot Lights",
-            securityLights: "Security Lights",
-            underCanopyLights: "Under Canopy Lights",
-            graffiti: "Graffiti",
-            dumpsters: "Dumpsters",
-            traschcans: "Trashcans",
-            waterLeaks: "Water Leaks",
-            waterLeaksTenant: "Tenant Water Leaks",
-            dangerousTrees: "Dangerous Trees",
-            brokenCurbs: "Broken Parking Lot Curbing",
-            potholes: "Major Potholes"
+            homelessActivity: "Any Homeless Activity?",
+            additionalComments: "Any Additional Comments",
+            parkingLotLights: "Parking Lot Lights out?",
+            securityLights: "Security Lights out?",
+            underCanopyLights: "Under Canopy Lights out?",
+            graffiti: "Is there Graffiti around the property",
+            dumpsters: "Trash overflowing from Dumpsters?",
+            traschcans: "Trash overflowing from Trashcans?",
+            waterLeaks: "General Water Leaks?",
+            waterLeaksTenant: "Tenant Water Leaks?",
+            dangerousTrees: "Dangerous Trees?",
+            brokenCurbs: "Broken Parking Lot Curbing?",
+            potholes: "Major Potholes?"
         };
 
         Object.keys(fieldMappings).forEach(field => {
