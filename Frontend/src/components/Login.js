@@ -69,7 +69,7 @@ function Login({ setUser }) {
     <div className="login-container">
       {/* Branding Banner */}
       <div className="login-banner">
-        <img src="/logo512.png" alt="Inspectors Gadget Logo" className="login-logo" />
+        <img src="/android-chrome-512x512.png" alt="Inspectors Gadget Logo" className="login-logo" />
         <h1 className="brand-title">Inspectors Gadget</h1>
       </div>
 
