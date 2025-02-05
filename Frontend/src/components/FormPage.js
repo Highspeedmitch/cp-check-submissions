@@ -16,7 +16,7 @@ function FormPage() {
     graffiti: '',
     parkingBumpers: '',
     dumpsters: '',
-    trashcans: '',
+    trashCans: '',
     waterLeaks: '',
     waterLeaksTenant:'',
     dangerousTrees: '',
@@ -189,16 +189,16 @@ function FormPage() {
   </div>
   <div>
 <label>Is there trash overflowing from the trashcans on sidewalks?:
-    <select name="trashcans" onChange={handleChange}>
+    <select name="trashCans" onChange={handleChange}>
       <option value="">Select...</option>
       <option value="yes">Yes</option>
       <option value="no">No</option>
     </select>
   </label>
-  {formData.trashcans === 'yes' && (
+  {formData.trashCans === 'yes' && (
     <>
-      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'trashcans')} />
-      <textarea name="trashcansDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
+      <input type="file" accept="image/*" capture="camera" onChange={(e) => handleFileChange(e, 'trashCans')} />
+      <textarea name="trashCansDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
     </>
   )}
   </div>
