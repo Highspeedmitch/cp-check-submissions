@@ -526,9 +526,9 @@ button:hover {
 .dark-mode-toggle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: left;
   margin-top: 20px;
-  padding: 0 10px;
+  padding: 0px;
 }
 
 /* The switch - the box around the slider */
