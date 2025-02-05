@@ -21,10 +21,30 @@ function Dashboard({ setUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("darkMode") === "enabled";
+  });
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);
   };
+
+  // ✅ Toggle Dark Mode
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    localStorage.setItem("darkMode", newDarkMode ? "enabled" : "disabled");
+    document.body.classList.toggle("dark-mode", newDarkMode);
+  };
+
+  // ✅ Apply Dark Mode on Load
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+    }
+  }, [darkMode]);
 
   const token = localStorage.getItem("token");
 
@@ -46,7 +66,7 @@ function Dashboard({ setUser }) {
       return;
     }
 
-    // ✅ Fetch properties if the token is valid
+    // ✅ Fetch properties if token is valid
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
@@ -100,24 +120,26 @@ function Dashboard({ setUser }) {
   };
 
   return (
-    <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className="dashboard-container">
       {/* Sidebar */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <button className="sidebar-toggle" onClick={toggleSidebar}>
           {sidebarCollapsed ? "☰" : "×"}
         </button>
-        {!sidebarCollapsed && (
-          <>
-            <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
-            <ul>
-              {properties.map((prop) => (
-                <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
-                  {prop}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
+
+        <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+        <ul>
+          {properties.map((prop) => (
+            <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
+              {prop}
+            </li>
+          ))}
+        </ul>
+
+        {/* ✅ Dark Mode Toggle inside Sidebar */}
+        <button className="dark-mode-toggle" onClick={toggleDarkMode}>
+          {darkMode ? "🌙 Dark Mode" : "☀️ Light Mode"}
+        </button>
       </div>
 
       {/* Main Content */}
