@@ -30,19 +30,19 @@ function Dashboard({ setUser }) {
   const { property } = useParams();
   const navigate = useNavigate();
 
-  // -- State for properties, etc.
+  // ----------- States for properties, loading, etc. ----------
   const [properties, setProperties] = useState([]);
   const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // -- Dark Mode
+  // ----------- Dark Mode -----------
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("darkMode") === "true"
   );
 
-  // -- Other session data
+  // ----------- Auth / Org Info -----------
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
@@ -50,7 +50,7 @@ function Dashboard({ setUser }) {
     () => localStorage.getItem("loginTime") || new Date().toISOString()
   );
 
-  // -- For the "Add Property" admin flow
+  // ----------- States for "Add Property" Admin Flow -----------
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
   const [passkey, setPasskey] = useState("");
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
@@ -61,10 +61,17 @@ function Dashboard({ setUser }) {
   const [newPropLat, setNewPropLat] = useState("");
   const [newPropLng, setNewPropLng] = useState("");
 
-  // We'll give them an "Address" field
+  // We'll give them an "Address" field to geocode
   const [newPropAddress, setNewPropAddress] = useState("");
 
-  // -- Apply dark mode to the root document element
+  // ----------- New States for "Remove Property" Passkey -----------
+  const [removePasskeyPromptVisible, setRemovePasskeyPromptVisible] = useState(false);
+  const [removePasskey, setRemovePasskey] = useState("");
+  const [propertyToRemove, setPropertyToRemove] = useState(null);
+
+  // ======================
+  // 1) Apply dark mode on load
+  // ======================
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) {
@@ -75,9 +82,12 @@ function Dashboard({ setUser }) {
     localStorage.setItem("darkMode", darkMode);
   }, [darkMode]);
 
-  // -- Validate token, fetch properties, track completed
+  // ======================
+  // 2) Fetch properties & submissions
+  // ======================
   useEffect(() => {
     if (!token || isTokenExpired(token)) {
+      // If token missing or expired, force user to re-login
       localStorage.removeItem("token");
       localStorage.removeItem("orgName");
       localStorage.removeItem("loginTime");
@@ -87,27 +97,10 @@ function Dashboard({ setUser }) {
       return;
     }
 
-    // Fetch properties (objects like { name, lat, lng, ... })
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setProperties(data);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching properties:", err);
-        setError("Failed to load properties");
-        setLoading(false);
-      });
+    // Fetch org properties
+    fetchProperties();
 
-    // For "user" role, fetch recent submissions to mark completed props
+    // For user role, fetch submissions to see which props are completed
     if (role === "user") {
       fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
         method: "GET",
@@ -128,27 +121,95 @@ function Dashboard({ setUser }) {
     }
   }, [navigate, token, loginTime, role, setUser]);
 
-  // -- Collapse/Expand Sidebar
-  const toggleSidebar = () => {
-    setSidebarCollapsed((prev) => !prev);
-  };
-
-  // -- Logout
-  const handleLogout = () => {
-    console.log("🔹 Logging out... Clearing session data.");
-    localStorage.removeItem("token");
-    localStorage.removeItem("orgName");
-    localStorage.removeItem("loginTime");
-    localStorage.removeItem("role");
-    if (setUser) setUser(false);
-    navigate("/login");
-  };
+  // ======================
+  // 2a) Helper: fetchProperties (so we can re-fetch if we remove or add props)
+  // ======================
+  function fetchProperties() {
+    setLoading(true);
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setProperties(data);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching properties:", err);
+        setError("Failed to load properties");
+        setLoading(false);
+      });
+  }
 
   // ======================
-  //   ADD PROPERTY LOGIC
+  // 3) Remove Property Logic (admin only)
+  // ======================
+  // Instead of directly removing a property, we now first prompt the admin for a removal passkey.
+  function openRemovePasskeyPrompt(propertyName) {
+    setPropertyToRemove(propertyName);
+    setRemovePasskey("");
+    setRemovePasskeyPromptVisible(true);
+  }
+
+  // Called when the admin submits the removal passkey
+  const handleRemovePasskeySubmit = () => {
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/verify-remove-passkey", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passkey: removePasskey }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.valid) {
+          // Proceed with removal
+          doRemoveProperty(propertyToRemove);
+        } else {
+          alert("Invalid removal passkey. Property not removed.");
+        }
+        setRemovePasskeyPromptVisible(false);
+        setRemovePasskey("");
+        setPropertyToRemove(null);
+      })
+      .catch((err) => console.error("Error verifying removal passkey:", err));
+  };
+
+  // Actually call the API to remove the property
+  async function doRemoveProperty(propertyName) {
+    try {
+      const response = await fetch(
+        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(propertyName)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(`Property "${propertyName}" removed successfully!`);
+        // Re-fetch to update UI
+        fetchProperties();
+      } else {
+        alert(data.error || "Error removing property.");
+      }
+    } catch (error) {
+      console.error("Error removing property:", error);
+      alert("Server error removing property.");
+    }
+  }
+
+  // ======================
+  // 4) Add Property Logic
   // ======================
   const handlePasskeySubmit = () => {
-    // We'll verify passkey on the server
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/verify-passkey", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -166,25 +227,26 @@ function Dashboard({ setUser }) {
       .catch((err) => console.error("Error verifying passkey:", err));
   };
 
-  // 1) We'll geocode the admin's typed address to lat/lng using Mapbox
+  // Geocode address -> lat/lng using Mapbox
   async function handleGeocodeAddress(e) {
     e.preventDefault();
-
     if (!newPropAddress) {
       return alert("Please enter an address to geocode.");
     }
 
-    // Replace with your own Mapbox token or store it in .env
-    const mapboxToken = "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
+    // Replace with your actual Mapbox token
+    const mapboxToken =
+      "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
     const baseUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
-    const url = `${baseUrl}${encodeURIComponent(newPropAddress)}.json?access_token=${mapboxToken}`;
+    const url = `${baseUrl}${encodeURIComponent(
+      newPropAddress
+    )}.json?access_token=${mapboxToken}`;
 
     try {
       const res = await fetch(url);
       const data = await res.json();
 
       if (data.features && data.features.length > 0) {
-        // Take the first match
         const [lng, lat] = data.features[0].center;
         setNewPropLat(lat.toString());
         setNewPropLng(lng.toString());
@@ -198,7 +260,7 @@ function Dashboard({ setUser }) {
     }
   }
 
-  // 2) Once lat/lng are set, the user can click "Create" to post to the server
+  // Submit to the server after lat/lng are set
   const handleCreateProperty = async () => {
     try {
       const emailsArray = newPropEmails
@@ -206,40 +268,63 @@ function Dashboard({ setUser }) {
         .map((email) => email.trim())
         .filter(Boolean);
 
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/admin/add-property", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          passkey,
-          name: newPropName,
-          emails: emailsArray,
-          lat: parseFloat(newPropLat) || 0,
-          lng: parseFloat(newPropLng) || 0,
-        }),
-      });
+      const response = await fetch(
+        "https://cp-check-submissions-dev-backend.onrender.com/api/admin/add-property",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            passkey,
+            name: newPropName,
+            emails: emailsArray,
+            lat: parseFloat(newPropLat) || 0,
+            lng: parseFloat(newPropLng) || 0,
+          }),
+        }
+      );
 
       const data = await response.json();
       if (data.error) {
         alert(data.error);
       } else {
         alert("Property added successfully!");
-        // Optionally re-fetch property list
+        // Re-fetch to update UI
         setAddPropertyFormVisible(false);
         setNewPropName("");
         setNewPropEmails("");
         setNewPropLat("");
         setNewPropLng("");
         setNewPropAddress("");
-        // ...
+        fetchProperties();
       }
     } catch (error) {
       console.error("Error creating property:", error);
     }
   };
 
+  // ======================
+  // 5) Sidebar toggling, logout, etc.
+  // ======================
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
+
+  const handleLogout = () => {
+    console.log("🔹 Logging out... Clearing session data.");
+    localStorage.removeItem("token");
+    localStorage.removeItem("orgName");
+    localStorage.removeItem("loginTime");
+    localStorage.removeItem("role");
+    if (setUser) setUser(false);
+    navigate("/login");
+  };
+
+  // ======================
+  // RENDER
+  // ======================
   return (
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
@@ -251,6 +336,7 @@ function Dashboard({ setUser }) {
         {!sidebarCollapsed && (
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+
             <ul>
               {properties.map((prop) => (
                 <li
@@ -258,8 +344,10 @@ function Dashboard({ setUser }) {
                   className={completedProperties.includes(prop.name) ? "completed" : ""}
                   onClick={() => {
                     if (role === "admin") {
+                      // Admin: see submissions
                       navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                     } else {
+                      // User: fill form
                       navigate(`/form/${encodeURIComponent(prop.name)}`);
                     }
                   }}
@@ -279,10 +367,12 @@ function Dashboard({ setUser }) {
                 />
                 <span className="slider"></span>
               </label>
-              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
+              <span className="toggle-label">
+                {darkMode ? "🌙" : "☀️"}
+              </span>
             </div>
 
-            {/* Tools Section for Admin */}
+            {/* Tools for Admin */}
             {role === "admin" && (
               <div className="tools-section" style={{ marginTop: "20px" }}>
                 <h3>Tools</h3>
@@ -340,7 +430,21 @@ function Dashboard({ setUser }) {
                     : "Click to complete checklist"}
                 </p>
 
-                {/* If user (not admin), show a 'Navigate' button */}
+                {/* If admin, show "Remove" button */}
+                {role === "admin" && (
+                  <button
+                    style={{ marginTop: "8px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Instead of immediate removal, prompt for removal passkey.
+                      openRemovePasskeyPrompt(prop.name);
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+
+                {/* If user, show "Navigate" button (assuming lat/lng exist) */}
                 {role !== "admin" && prop.lat && prop.lng && (
                   <button
                     className="navigate-button"
@@ -357,7 +461,7 @@ function Dashboard({ setUser }) {
           </div>
         )}
 
-        {/* Prompt for passkey if needed */}
+        {/* Prompt for passkey if needed (for adding property) */}
         {passkeyPromptVisible && (
           <div className="passkey-modal">
             <h3>Enter passkey to add property</h3>
@@ -375,6 +479,7 @@ function Dashboard({ setUser }) {
         {addPropertyFormVisible && (
           <div className="add-property-form">
             <h3>Add New Property</h3>
+
             <label>
               Property Name:
               <input
@@ -383,6 +488,7 @@ function Dashboard({ setUser }) {
                 onChange={(e) => setNewPropName(e.target.value)}
               />
             </label>
+
             <label>
               Emails (comma-separated):
               <textarea
@@ -391,7 +497,7 @@ function Dashboard({ setUser }) {
               />
             </label>
 
-            {/* Instead of direct lat/lng input, let's have them type an address */}
+            {/* Instead of direct lat/lng input, let's let them type an address */}
             <label>
               Address (will geocode):
               <input
@@ -404,15 +510,32 @@ function Dashboard({ setUser }) {
               Geocode
             </button>
 
-            {/* We'll store the lat/lng but won't force them to edit it manually. */}
-            {/* If you want, you can show them read-only. */}
+            {/* Show geocoded lat/lng, but keep them read-only for the admin */}
             <div style={{ marginBottom: "1rem" }}>
-              <small>Lat: {newPropLat || "N/A"}</small><br/>
+              <small>Lat: {newPropLat || "N/A"}</small>
+              <br />
               <small>Lng: {newPropLng || "N/A"}</small>
             </div>
 
             <button onClick={handleCreateProperty}>Create</button>
             <button onClick={() => setAddPropertyFormVisible(false)}>Close</button>
+          </div>
+        )}
+
+        {/* Modal for removal passkey (for admin only) */}
+        {removePasskeyPromptVisible && (
+          <div className="passkey-modal">
+            <h3>
+              Enter removal passkey to remove property{" "}
+              {propertyToRemove && `"${propertyToRemove}"`}
+            </h3>
+            <input
+              type="password"
+              value={removePasskey}
+              onChange={(e) => setRemovePasskey(e.target.value)}
+            />
+            <button onClick={handleRemovePasskeySubmit}>Submit</button>
+            <button onClick={() => setRemovePasskeyPromptVisible(false)}>Cancel</button>
           </div>
         )}
       </div>

@@ -489,11 +489,9 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
-/**
- * ====== NEW ROUTES FOR PASSKEY AND ADD PROPERTY ======
- */
+// ====== NEW ROUTES FOR PASSKEY AND ADD PROPERTY ======
 
-// Verify passkey route
+// Verify passkey route for adding properties
 app.post("/api/verify-passkey", (req, res) => {
   try {
     const { passkey } = req.body;
@@ -505,6 +503,21 @@ app.post("/api/verify-passkey", (req, res) => {
   } catch (error) {
     console.error("❌ Error verifying passkey:", error);
     res.status(500).json({ message: "Server error verifying passkey" });
+  }
+});
+
+// ***** New: Verify removal passkey route *****
+app.post("/api/verify-remove-passkey", (req, res) => {
+  try {
+    const { passkey } = req.body;
+    if (passkey === process.env.REMOVE_PROPERTY_PASSKEY) {
+      return res.json({ valid: true });
+    } else {
+      return res.json({ valid: false });
+    }
+  } catch (error) {
+    console.error("❌ Error verifying removal passkey:", error);
+    res.status(500).json({ message: "Server error verifying removal passkey" });
   }
 });
 
@@ -551,4 +564,39 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     return res.status(500).json({ error: "Server error adding property" });
   }
 });
+
+app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, res) => {
+  try {
+    // Must be admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden - Admin only" });
+    }
+
+    const orgId = req.user.organizationId;
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    const { propertyName } = req.params;
+
+    // Find the index of the property
+    const propIndex = org.properties.findIndex((p) => p.name === propertyName);
+    if (propIndex === -1) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    // Remove it
+    org.properties.splice(propIndex, 1);
+
+    // Save
+    await org.save();
+
+    res.json({ success: true, message: `Property "${propertyName}" removed.` });
+  } catch (error) {
+    console.error("❌ Error removing property:", error);
+    res.status(500).json({ error: "Server error removing property" });
+  }
+});
+
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
