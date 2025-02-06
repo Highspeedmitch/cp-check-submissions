@@ -13,6 +13,21 @@ function isTokenExpired(token) {
   }
 }
 
+// Helper function to open Apple Maps on iOS, or Google Maps elsewhere
+function openNativeMaps(lat, lng) {
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    // Apple Maps URL scheme
+    window.open(`maps://maps.apple.com/?daddr=${lat},${lng}`, "_blank");
+  } else {
+    // Fallback to Google Maps
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+      "_blank"
+    );
+  }
+}
+
 function Dashboard({ setUser }) {
   const { property } = useParams();
   const navigate = useNavigate();
@@ -203,16 +218,11 @@ function Dashboard({ setUser }) {
 
                 {/* If user (not admin), show a 'Navigate' button */}
                 {role !== "admin" && prop.lat && prop.lng && (
-                  <button className="navigate-button"
+                  <button
+                    className="navigate-button"
                     onClick={(e) => {
                       e.stopPropagation(); // prevent card click
-                      // Open Google Maps directions link
-                      const lat = prop.lat;
-                      const lng = prop.lng;
-                      window.open(
-                        `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
-                        "_blank"
-                      );
+                      openNativeMaps(prop.lat, prop.lng); // open Apple/Google Maps
                     }}
                   >
                     Navigate
