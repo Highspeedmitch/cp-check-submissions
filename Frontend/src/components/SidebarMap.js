@@ -15,7 +15,7 @@ function SidebarMap({ mapboxToken, selectedCoords }) {
     // 2. Initialize the map
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v11',
+      style: 'mapbox://styles/highspeedmitch/cm6svxmqw008q01re096e2jma',
       center: [-98.35, 39.5], // default center
       zoom: 3,
     });
