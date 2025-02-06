@@ -432,7 +432,7 @@ function Dashboard({ setUser }) {
 
                 {/* If admin, show "Remove" button */}
                 {role === "admin" && (
-                  <button className='navigate-button'
+                  <button className='remove-button'
                     style={{ marginTop: "8px" }}
                     onClick={(e) => {
                       e.stopPropagation();
