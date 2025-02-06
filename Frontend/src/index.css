@@ -81,8 +81,8 @@ button:hover {
 /* Logout Button */
 .logout-btn {
   background-color: var(--error-color);
-  padding: 12px 20px;
-  margin-top: 20px;
+  padding: 6px 10px;
+  margin-top: 5px;
   border-radius: 6px;
   font-size: 16px;
   font-weight: 600;
@@ -334,7 +334,7 @@ button:hover {
 .property-card {
   background-color: #d2c7c7;
   color: #2d2d2d;
-  padding: 20px;
+  padding: 10px;
   border-radius: 10px;
   cursor: pointer;
   width: 100%;
