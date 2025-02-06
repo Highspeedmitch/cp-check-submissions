@@ -1,7 +1,8 @@
 // Dashboard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import SidebarMap from "./SidebarMap";
+import SidebarMap from "./SidebarMap"; // or "./MapWithDirections.js"
+
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -17,17 +18,29 @@ function Dashboard({ setUser }) {
   const { property } = useParams();
   const navigate = useNavigate();
 
-  // States for properties, sidebar, etc.
+  // -- State for properties, etc.
   const [properties, setProperties] = useState([]);
   const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // ---- DARK MODE STATE ----
+  // -- Dark Mode
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
 
-  // Update the <html> element class and localStorage when darkMode changes
+  // -- For Directions
+  const [selectedCoords, setSelectedCoords] = useState(null);
+
+  // -- Other session data
+  const token = localStorage.getItem("token");
+  const orgName = localStorage.getItem("orgName") || "Your Organization";
+  const role = localStorage.getItem("role") || "user";
+  const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
+
+  // -- Mapbox Token (replace with your own)
+  const mapboxToken = "YOUR_MAPBOX_TOKEN_HERE";
+
+  // -- Apply dark mode to the root document element
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) {
@@ -37,18 +50,8 @@ function Dashboard({ setUser }) {
     }
     localStorage.setItem("darkMode", darkMode);
   }, [darkMode]);
-  // -------------------------
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed((prev) => !prev);
-  };
-
-  const token = localStorage.getItem("token");
-  const orgName = localStorage.getItem("orgName") || "Your Organization";
-  const role = localStorage.getItem("role") || "user";
-  const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
-
-  // Check token validity and fetch properties/submissions
+  // -- Validate token, fetch properties, track completed
   useEffect(() => {
     if (!token || isTokenExpired(token)) {
       localStorage.removeItem("token");
@@ -60,7 +63,7 @@ function Dashboard({ setUser }) {
       return;
     }
 
-    // Fetch properties for the organization
+    // 1. Fetch properties (now returning objects like { name, lat, lng, ... })
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
@@ -80,7 +83,7 @@ function Dashboard({ setUser }) {
         setLoading(false);
       });
 
-    // For users, fetch recent submissions to mark completed properties
+    // 2. For "user" role, fetch recent submissions to mark completed props
     if (role === "user") {
       fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
         method: "GET",
@@ -101,6 +104,12 @@ function Dashboard({ setUser }) {
     }
   }, [navigate, token, loginTime, role, setUser]);
 
+  // -- Collapse/Expand Sidebar
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
+
+  // -- Logout
   const handleLogout = () => {
     console.log("🔹 Logging out... Clearing session data.");
     localStorage.removeItem("token");
@@ -110,8 +119,6 @@ function Dashboard({ setUser }) {
     if (setUser) setUser(false);
     navigate("/login");
   };
-
-  const mapboxToken = "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
 
   return (
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
@@ -125,8 +132,25 @@ function Dashboard({ setUser }) {
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
             <ul>
+              {/* 
+                For each property, show name; if user clicks, 
+                store coords and possibly navigate or do something else
+              */}
               {properties.map((prop) => (
-                <li key={prop.name} className={completedProperties.includes(prop.name) ? "completed" : ""}>
+                <li
+                  key={prop.name}
+                  className={completedProperties.includes(prop.name) ? "completed" : ""}
+                  onClick={() => {
+                    if (role === "admin") {
+                      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+                    } else {
+                      // Set the selected coords for directions
+                      setSelectedCoords({ lat: prop.lat, lng: prop.lng });
+                      // Also navigate to the form if needed
+                      navigate(`/form/${encodeURIComponent(prop.name)}`);
+                    }
+                  }}
+                >
                   {prop.name}
                 </li>
               ))}
@@ -145,10 +169,10 @@ function Dashboard({ setUser }) {
               <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
             </div>
 
-            {/* Map under the toggle */}
+            {/* Map Under the Toggle */}
             <SidebarMap
               mapboxToken={mapboxToken}
-              properties={properties}
+              selectedCoords={selectedCoords} // pass coords to the map
             />
           </>
         )}
@@ -170,14 +194,18 @@ function Dashboard({ setUser }) {
           <p className="error">{error}</p>
         ) : (
           <div className="property-cards">
+            {/* For each property card, same approach as the <li> above */}
             {properties.map((prop) => (
               <div
                 key={prop.name}
-                className={`property-card ${completedProperties.includes(prop.name) ? "completed-tile" : ""}`}
+                className={`property-card ${
+                  completedProperties.includes(prop.name) ? "completed-tile" : ""
+                }`}
                 onClick={() => {
                   if (role === "admin") {
                     navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                   } else {
+                    setSelectedCoords({ lat: prop.lat, lng: prop.lng });
                     navigate(`/form/${encodeURIComponent(prop.name)}`);
                   }
                 }}
