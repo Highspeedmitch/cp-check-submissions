@@ -562,7 +562,7 @@ button:hover {
   color: #e0e0e0;
 }
 .dark-mode .property-card.completed-tile {
-  background-color: var(--success-color);
+  background-color:#007BFF;
 }
 /* Toggle Switch Container */
 .dark-mode-toggle {
