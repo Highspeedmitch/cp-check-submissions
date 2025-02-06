@@ -532,7 +532,9 @@ button:hover {
   margin-top: 20px;
   padding: 0px;
 }
-
+.dark-mod-button:hover {
+  background-color: var(--primary-color);
+}
 /* The switch - the box around the slider */
 .switch {
   position: relative;
