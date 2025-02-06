@@ -1,7 +1,6 @@
 // Dashboard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import SidebarMap from "./SidebarMap"; // or "./MapWithDirections.js"
 
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
@@ -28,17 +27,11 @@ function Dashboard({ setUser }) {
   // -- Dark Mode
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
 
-  // -- For Directions
-  const [selectedCoords, setSelectedCoords] = useState(null);
-
   // -- Other session data
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
   const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
-
-  // -- Mapbox Token (replace with your own)
-  const mapboxToken = "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
 
   // -- Apply dark mode to the root document element
   useEffect(() => {
@@ -63,7 +56,7 @@ function Dashboard({ setUser }) {
       return;
     }
 
-    // 1. Fetch properties (now returning objects like { name, lat, lng, ... })
+    // Fetch properties (objects like { name, lat, lng, ... })
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
@@ -83,7 +76,7 @@ function Dashboard({ setUser }) {
         setLoading(false);
       });
 
-    // 2. For "user" role, fetch recent submissions to mark completed props
+    // For "user" role, fetch recent submissions to mark completed props
     if (role === "user") {
       fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
         method: "GET",
@@ -132,21 +125,16 @@ function Dashboard({ setUser }) {
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
             <ul>
-              {/* 
-                For each property, show name; if user clicks, 
-                store coords and possibly navigate or do something else
-              */}
               {properties.map((prop) => (
                 <li
                   key={prop.name}
                   className={completedProperties.includes(prop.name) ? "completed" : ""}
                   onClick={() => {
                     if (role === "admin") {
+                      // Admin: Go to submissions
                       navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                     } else {
-                      // Set the selected coords for directions
-                      setSelectedCoords({ lat: prop.lat, lng: prop.lng });
-                      // Also navigate to the form if needed
+                      // User: Go to form
                       navigate(`/form/${encodeURIComponent(prop.name)}`);
                     }
                   }}
@@ -168,12 +156,6 @@ function Dashboard({ setUser }) {
               </label>
               <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
             </div>
-
-            {/* Map Under the Toggle
-            <SidebarMap
-              mapboxToken={mapboxToken}
-              selectedCoords={selectedCoords} // pass coords to the map
-            />*/}
           </>
         )}
       </div>
@@ -194,7 +176,6 @@ function Dashboard({ setUser }) {
           <p className="error">{error}</p>
         ) : (
           <div className="property-cards">
-            {/* For each property card, same approach as the <li> above */}
             {properties.map((prop) => (
               <div
                 key={prop.name}
@@ -203,9 +184,10 @@ function Dashboard({ setUser }) {
                 }`}
                 onClick={() => {
                   if (role === "admin") {
+                    // Admin: Go to submissions
                     navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                   } else {
-                    setSelectedCoords({ lat: prop.lat, lng: prop.lng });
+                    // User: Go to form
                     navigate(`/form/${encodeURIComponent(prop.name)}`);
                   }
                 }}
@@ -218,6 +200,25 @@ function Dashboard({ setUser }) {
                     ? "Completed"
                     : "Click to complete checklist"}
                 </p>
+
+                {/* If user (not admin), show a 'Navigate' button */}
+                {role !== "admin" && prop.lat && prop.lng && (
+                  <button
+                    style={{ marginTop: "8px" }}
+                    onClick={(e) => {
+                      e.stopPropagation(); // prevent card click
+                      // Open Google Maps directions link
+                      const lat = prop.lat;
+                      const lng = prop.lng;
+                      window.open(
+                        `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+                        "_blank"
+                      );
+                    }}
+                  >
+                    Navigate
+                  </button>
+                )}
               </div>
             ))}
           </div>
