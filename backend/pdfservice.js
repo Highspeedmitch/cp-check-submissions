@@ -85,7 +85,7 @@ function generateChecklistPDF(formData, photoBuffers) {
         const buffers = grouped[field];
         buffers.forEach((buffer, idx) => {
           // If near bottom, add a new page
-          if (doc.y + 320 > doc.page.height - 50) {
+          if (doc.y + 480 > doc.page.height - 50) {
             doc.addPage();
             doc.moveDown(1);
           }

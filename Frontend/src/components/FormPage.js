@@ -114,21 +114,14 @@ function FormPage() {
     }
   };
 
-  // Helper component to preview multiple files
-  const FilePreviewList = ({ fieldName }) => {
+  // Renders just the file names for each field
+  const FileNameList = ({ fieldName }) => {
     const fileArray = formData.photos[fieldName] || [];
     return (
       <>
         {fileArray.map((file, idx) => (
-          <div key={idx} style={{ marginTop: '8px' }}>
-            <div style={{ fontSize: '0.85em', color: '#999' }}>
-              {file.name}
-            </div>
-            <img
-              src={URL.createObjectURL(file)}
-              alt={file.name}
-              style={{ width: '100px', marginRight: '8px' }}
-            />
+          <div key={idx} style={{ marginTop: '4px', fontSize: '0.9em', color: '#999' }}>
+            {file.name}
           </div>
         ))}
       </>
@@ -198,8 +191,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="parkingLotLights" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="parkingLotLights" />
                 </>
               )}
             </div>
@@ -227,8 +220,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="securityLights" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="securityLights" />
                 </>
               )}
             </div>
@@ -256,8 +249,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="underCanopyLights" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="underCanopyLights" />
                 </>
               )}
             </div>
@@ -285,8 +278,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="tenantSigns" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="tenantSigns" />
                 </>
               )}
             </div>
@@ -314,8 +307,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="graffiti" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="graffiti" />
                 </>
               )}
             </div>
@@ -343,8 +336,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="dumpsters" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="dumpsters" />
                 </>
               )}
             </div>
@@ -372,8 +365,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="trashCans" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="trashCans" />
                 </>
               )}
             </div>
@@ -401,8 +394,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="waterLeaks" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="waterLeaks" />
                 </>
               )}
             </div>
@@ -430,8 +423,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="waterLeaksTenant" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="waterLeaksTenant" />
                 </>
               )}
             </div>
@@ -459,8 +452,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="dangerousTrees" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="dangerousTrees" />
                 </>
               )}
             </div>
@@ -488,8 +481,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="brokenCurbs" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="brokenCurbs" />
                 </>
               )}
             </div>
@@ -517,8 +510,8 @@ function FormPage() {
                     onChange={handleChange}
                     placeholder="Describe the issue"
                   />
-                  {/* Preview */}
-                  <FilePreviewList fieldName="potholes" />
+                  {/* File name preview */}
+                  <FileNameList fieldName="potholes" />
                 </>
               )}
             </div>
