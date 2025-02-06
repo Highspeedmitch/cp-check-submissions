@@ -477,6 +477,16 @@ button:hover {
     padding: 5px;
     border: none;
   }
+  .navigate-button {
+    @extend .button;        /* If using SCSS, for instance */
+    background-color: #fff;
+    color: #2d2d2d;
+    border: 1px solid var(--border-color);
+  }
+  
+  .navigate-button:hover {
+    background-color: #f0f0f0;   /* Slight hover effect */
+  }  
 }
   /* ===== Dark Mode Overrides ===== */
 

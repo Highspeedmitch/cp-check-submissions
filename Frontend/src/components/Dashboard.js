@@ -203,8 +203,7 @@ function Dashboard({ setUser }) {
 
                 {/* If user (not admin), show a 'Navigate' button */}
                 {role !== "admin" && prop.lat && prop.lng && (
-                  <button
-                    style={{ marginTop: "8px" }}
+                  <button className="navigate-button"
                     onClick={(e) => {
                       e.stopPropagation(); // prevent card click
                       // Open Google Maps directions link
