@@ -244,7 +244,7 @@ function Dashboard({ setUser }) {
             {role === "admin" && (
               <div className="tools-section" style={{ marginTop: "20px" }}>
                 <h3>Tools</h3>
-                <button
+                <button className='Add-Prop'
                   onClick={() => {
                     setPasskeyPromptVisible(true);
                     setPasskey("");

@@ -564,6 +564,18 @@ button:hover {
 .dark-mode .property-card.completed-tile {
   background-color:#007BFF;
 }
+.Add-Prop{
+    background-color: var(--primary-color);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    width: Auto;
+}
+
 /* Toggle Switch Container */
 .dark-mode-toggle {
   display: flex;
