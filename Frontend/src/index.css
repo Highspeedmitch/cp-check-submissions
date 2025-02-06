@@ -533,7 +533,7 @@ button:hover {
   padding: 0px;
 }
 .dark-mod-button:hover {
-  background-color: var(--primary-color);
+  background-color: #007BFF;
 }
 /* The switch - the box around the slider */
 .switch {
