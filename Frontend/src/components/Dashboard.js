@@ -17,14 +17,9 @@ function isTokenExpired(token) {
 function openNativeMaps(lat, lng) {
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
   if (isIOS) {
-    // Apple Maps URL scheme
     window.open(`maps://maps.apple.com/?daddr=${lat},${lng}`, "_blank");
   } else {
-    // Fallback to Google Maps
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
-      "_blank"
-    );
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, "_blank");
   }
 }
 
@@ -47,6 +42,15 @@ function Dashboard({ setUser }) {
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
   const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
+
+  // -- For the "Add Property" admin flow
+  const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
+  const [passkey, setPasskey] = useState("");
+  const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
+  const [newPropName, setNewPropName] = useState("");
+  const [newPropEmails, setNewPropEmails] = useState("");
+  const [newPropLat, setNewPropLat] = useState("");
+  const [newPropLng, setNewPropLng] = useState("");
 
   // -- Apply dark mode to the root document element
   useEffect(() => {
@@ -128,6 +132,70 @@ function Dashboard({ setUser }) {
     navigate("/login");
   };
 
+  // ======================
+  //   ADD PROPERTY LOGIC
+  // ======================
+  const handlePasskeySubmit = () => {
+    // You can verify passkey on the backend or do a direct compare on the front
+    // For demonstration, let's do a quick fetch to some route:
+    fetch("/api/verify-passkey", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passkey }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.valid) {
+          setAddPropertyFormVisible(true);
+        } else {
+          alert("Invalid passkey. Cannot add property.");
+        }
+        setPasskeyPromptVisible(false); // hide prompt
+      })
+      .catch((err) => console.error("Error verifying passkey:", err));
+  };
+
+  const handleCreateProperty = async () => {
+    try {
+      const emailsArray = newPropEmails
+        .split(",")
+        .map((email) => email.trim())
+        .filter(Boolean);
+
+      const response = await fetch("/api/admin/add-property", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // pass token
+        },
+        body: JSON.stringify({
+          passkey, // this is needed on the backend to double-check if you want
+          name: newPropName,
+          emails: emailsArray,
+          lat: parseFloat(newPropLat),
+          lng: parseFloat(newPropLng),
+        }),
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        alert("Property added successfully!");
+        // Refresh property list
+        setAddPropertyFormVisible(false);
+        setNewPropName("");
+        setNewPropEmails("");
+        setNewPropLat("");
+        setNewPropLng("");
+        // re-fetch property list
+        // (or do an in-memory update to properties array)
+      }
+    } catch (error) {
+      console.error("Error creating property:", error);
+    }
+  };
+
   return (
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
@@ -171,6 +239,21 @@ function Dashboard({ setUser }) {
               </label>
               <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
             </div>
+
+            {/* Tools Section for Admin */}
+            {role === "admin" && (
+              <div className="tools-section" style={{ marginTop: "20px" }}>
+                <h3>Tools</h3>
+                <button
+                  onClick={() => {
+                    setPasskeyPromptVisible(true);
+                    setPasskey("");
+                  }}
+                >
+                  Add Property
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -222,7 +305,7 @@ function Dashboard({ setUser }) {
                     className="navigate-button"
                     onClick={(e) => {
                       e.stopPropagation(); // prevent card click
-                      openNativeMaps(prop.lat, prop.lng); // open Apple/Google Maps
+                      openNativeMaps(prop.lat, prop.lng); 
                     }}
                   >
                     Navigate
@@ -230,6 +313,61 @@ function Dashboard({ setUser }) {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Prompt for passkey if needed */}
+        {passkeyPromptVisible && (
+          <div className="passkey-modal">
+            <h3>Enter passkey to add property</h3>
+            <input
+              type="password"
+              value={passkey}
+              onChange={(e) => setPasskey(e.target.value)}
+            />
+            <button onClick={handlePasskeySubmit}>Submit</button>
+            <button onClick={() => setPasskeyPromptVisible(false)}>Cancel</button>
+          </div>
+        )}
+
+        {/* Show Add Property Form if passkey verified */}
+        {addPropertyFormVisible && (
+          <div className="add-property-form">
+            <h3>Add New Property</h3>
+            <label>
+              Property Name:
+              <input
+                type="text"
+                value={newPropName}
+                onChange={(e) => setNewPropName(e.target.value)}
+              />
+            </label>
+            <label>
+              Emails (comma-separated):
+              <textarea
+                value={newPropEmails}
+                onChange={(e) => setNewPropEmails(e.target.value)}
+              />
+            </label>
+            <label>
+              Latitude:
+              <input
+                type="text"
+                value={newPropLat}
+                onChange={(e) => setNewPropLat(e.target.value)}
+              />
+            </label>
+            <label>
+              Longitude:
+              <input
+                type="text"
+                value={newPropLng}
+                onChange={(e) => setNewPropLng(e.target.value)}
+              />
+            </label>
+
+            <button onClick={handleCreateProperty}>Create</button>
+            <button onClick={() => setAddPropertyFormVisible(false)}>Close</button>
           </div>
         )}
       </div>

@@ -489,5 +489,66 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
+/**
+ * ====== NEW ROUTES FOR PASSKEY AND ADD PROPERTY ======
+ */
 
+// Verify passkey route
+app.post("/api/verify-passkey", (req, res) => {
+  try {
+    const { passkey } = req.body;
+    if (passkey === process.env.ADD_PROPERTY_PASSKEY) {
+      return res.json({ valid: true });
+    } else {
+      return res.json({ valid: false });
+    }
+  } catch (error) {
+    console.error("❌ Error verifying passkey:", error);
+    res.status(500).json({ message: "Server error verifying passkey" });
+  }
+});
+
+// Admin add-property route
+app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
+  try {
+    // 1) Check the user is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    // 2) Validate the passkey
+    if (req.body.passkey !== process.env.ADD_PROPERTY_PASSKEY) {
+      return res.status(403).json({ error: "Invalid passkey" });
+    }
+
+    // 3) Get the organization for the admin user
+    const orgId = req.user.organizationId;
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    // 4) Extract incoming data
+    const { name, lat, lng, emails } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "Property name is required" });
+    }
+
+    // 5) Add the new property
+    org.properties.push({
+      name,
+      lat,
+      lng,
+      emails: emails || [],
+    });
+
+    // 6) Save
+    await org.save();
+
+    return res.json({ success: true, message: "Property added successfully" });
+  } catch (error) {
+    console.error("❌ Error adding property:", error);
+    return res.status(500).json({ error: "Server error adding property" });
+  }
+});
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
