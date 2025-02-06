@@ -138,7 +138,7 @@ function Dashboard({ setUser }) {
   const handlePasskeySubmit = () => {
     // You can verify passkey on the backend or do a direct compare on the front
     // For demonstration, let's do a quick fetch to some route:
-    fetch("/api/verify-passkey", {
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/verify-passkey", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ passkey }),
