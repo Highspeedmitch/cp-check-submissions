@@ -162,7 +162,7 @@ function Dashboard({ setUser }) {
         .map((email) => email.trim())
         .filter(Boolean);
 
-      const response = await fetch("/api/admin/add-property", {
+      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/admin/add-property", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
