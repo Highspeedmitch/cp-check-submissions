@@ -49,7 +49,7 @@ function SidebarMap({ mapboxToken, selectedCoords }) {
       ref={mapContainerRef}
       style={{
         width: '80%',
-        height: '400px',
+        height: '250px',
         margin: '0 auto',
         boxSizing: 'border-box',
       }}
