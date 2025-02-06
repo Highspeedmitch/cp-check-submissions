@@ -23,15 +23,16 @@ function FormPage() {
     dangerousTrees: '',
     brokenCurbs: '',
     potholes: '',
-    photos: {} // Now each fieldName will store an array of Files
+    photos: {} // Each fieldName will store an array of Files
   });
 
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Handle changes for standard text/textarea/select fields
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   /**
@@ -42,7 +43,7 @@ function FormPage() {
     const files = e.target.files; // This is a FileList
     if (!files || files.length === 0) return;
 
-    setFormData(prev => {
+    setFormData((prev) => {
       const updatedPhotos = { ...prev.photos };
       // If this field doesn't exist yet, initialize an empty array
       if (!updatedPhotos[fieldName]) {
@@ -60,7 +61,7 @@ function FormPage() {
 
       return {
         ...prev,
-        photos: updatedPhotos
+        photos: updatedPhotos,
       };
     });
   };
@@ -76,7 +77,7 @@ function FormPage() {
 
       // Append all text fields
       Object.keys(formData).forEach((key) => {
-        if (key !== "photos") {
+        if (key !== 'photos') {
           formDataToSend.append(key, formData[key]);
         }
       });
@@ -96,9 +97,7 @@ function FormPage() {
 
       const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/submit-form', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formDataToSend,
       });
 
@@ -115,15 +114,40 @@ function FormPage() {
     }
   };
 
+  // Helper component to preview multiple files
+  const FilePreviewList = ({ fieldName }) => {
+    const fileArray = formData.photos[fieldName] || [];
+    return (
+      <>
+        {fileArray.map((file, idx) => (
+          <div key={idx} style={{ marginTop: '8px' }}>
+            <div style={{ fontSize: '0.85em', color: '#999' }}>
+              {file.name}
+            </div>
+            <img
+              src={URL.createObjectURL(file)}
+              alt={file.name}
+              style={{ width: '100px', marginRight: '8px' }}
+            />
+          </div>
+        ))}
+      </>
+    );
+  };
+
   return (
     <div className="container">
-      <h1>{property} – Commercial Property Inspection Checklist</h1>
-        {/* Only show this if we're NOT submitted yet */}
-        {!submitted && (
+      <h1>
+        {property} – Commercial Property Inspection Checklist
+      </h1>
+
+      {/* Only show this if we're NOT submitted yet */}
+      {!submitted && (
         <div className="return-to-dash">
           <button onClick={() => navigate('/dashboard')}>Return To Dashboard</button>
         </div>
-)}
+      )}
+
       {submitted ? (
         <div>
           <h2>{message}</h2>
@@ -131,252 +155,391 @@ function FormPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
-          <input type="hidden" name="selectedProperty" value={property} /> {/* Ensure property is sent */}
+          <input type="hidden" name="selectedProperty" value={property} />
+
           <label>Shopping Center Name:</label>
-          <input type="text" name="businessName" onChange={handleChange} required />
+          <input
+            type="text"
+            name="businessName"
+            onChange={handleChange}
+            required
+          />
 
           <label>Property Address:</label>
-          <input type="text" name="propertyAddress" onChange={handleChange} required />
+          <input
+            type="text"
+            name="propertyAddress"
+            onChange={handleChange}
+            required
+          />
 
           <h2>Additional Property Condition Checks</h2>
+          <div className="additional-checks">
+            {/* ===== 1. Parking Lot Lights ===== */}
+            <div>
+              <label>Are parking lot lights out?:
+                <select name="parkingLotLights" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.parkingLotLights === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'parkingLotLights')}
+                  />
+                  <textarea
+                    name="parkingLotLightsDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="parkingLotLights" />
+                </>
+              )}
+            </div>
 
-<div className="additional-checks">
-  <div>
-  <label>Are parking lot lights out?:
-    <select name="parkingLotLights" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.parkingLotLights === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'parkingLotLights')} />
-      <textarea name="parkingLotLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-  </div>
-  <div>
-  <label>Are Rear security lights out?:
-    <select name="securityLights" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.securityLights === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'securityLights')} />
-      <textarea name="securityLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-  </div>
-  <div>
-  <label>Are any under canopy lights out?:
-    <select name="underCanopyLights" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.underCanopyLights === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'underCanopyLights')} />
-      <textarea name="underCanopyLightsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-  </div>
-  <div>
-  <label>Are any tenant signs out?:
-    <select name="tenantSigns" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.tenantSigns === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'tenantSigns')} />
-      <textarea name="tenantSignsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-  </div>
-  <div>
-  <label>Is there graffiti on or around the property?:
-    <select name="graffiti" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.graffiti === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'graffiti')} />
-      <textarea name="graffitiDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-  </div>
-  <div>
-<label>Is there trash overflowing from the dumpsters?:
-    <select name="dumpsters" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.dumpsters === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'dumpsters')} />
-      <textarea name="dumpstersDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-  </div>
-  <div>
-<label>Is there trash overflowing from the trashcans on sidewalks?:
-    <select name="trashCans" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.trashCans === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'trashCans')} />
-      <textarea name="trashCansDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-  </div>
-  <div>
-  <label>Are there any visible water leaks in parking lot? ie. irrigation leak:
-    <select name="waterLeaks" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.waterLeaks === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'waterLeaks')} />
-      <textarea name="waterLeaksDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-</div>
-<div>
-  <label>Are there any visible water leaks from specific tenant? ie. swamp cooler leak:
-    <select name="waterLeaksTenant" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.waterLeaksTenant === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'waterLeaksTenant')} />
-      <textarea name="waterLeaksTenantDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-</div>
-<div>
-  <label>Are there any obviously dangerous trees / branches?:
-    <select name="dangerousTrees" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.dangerousTrees === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'dangerousTrees')} />
-      <textarea name="dangerousTreesDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-</div>
-<div>
-  <label>Is there any broken parking lot curbing?:
-    <select name="brokenCurbs" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.brokenCurbs === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'brokenCurbs')} />
-      <textarea name="brokenCurbsDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-</div>
-<div>
-  <label>Are there any major potholes?:
-    <select name="potholes" onChange={handleChange}>
-      <option value="">Select...</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label>
-  {formData.potholes === 'yes' && (
-    <>
-      <input type="file"
-      accept="image/*"
-      capture="camera"
-      multiple
-      onChange={(e) => handleFileChange(e, 'potholes')} />
-      <textarea name="potholesDescription" onChange={handleChange} placeholder="Describe the issue"></textarea>
-    </>
-  )}
-  </div>
-</div>
+            {/* ===== 2. Security Lights ===== */}
+            <div>
+              <label>Are Rear security lights out?:
+                <select name="securityLights" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.securityLights === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'securityLights')}
+                  />
+                  <textarea
+                    name="securityLightsDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="securityLights" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 3. Under Canopy Lights ===== */}
+            <div>
+              <label>Are any under canopy lights out?:
+                <select name="underCanopyLights" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.underCanopyLights === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'underCanopyLights')}
+                  />
+                  <textarea
+                    name="underCanopyLightsDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="underCanopyLights" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 4. Tenant Signs ===== */}
+            <div>
+              <label>Are any tenant signs out?:
+                <select name="tenantSigns" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.tenantSigns === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'tenantSigns')}
+                  />
+                  <textarea
+                    name="tenantSignsDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="tenantSigns" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 5. Graffiti ===== */}
+            <div>
+              <label>Is there graffiti on or around the property?:
+                <select name="graffiti" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.graffiti === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'graffiti')}
+                  />
+                  <textarea
+                    name="graffitiDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="graffiti" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 6. Dumpsters ===== */}
+            <div>
+              <label>Is there trash overflowing from the dumpsters?:
+                <select name="dumpsters" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.dumpsters === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'dumpsters')}
+                  />
+                  <textarea
+                    name="dumpstersDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="dumpsters" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 7. Trash Cans ===== */}
+            <div>
+              <label>Is there trash overflowing from the trashcans on sidewalks?:
+                <select name="trashCans" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.trashCans === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'trashCans')}
+                  />
+                  <textarea
+                    name="trashCansDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="trashCans" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 8. Water Leaks (General) ===== */}
+            <div>
+              <label>Are there any visible water leaks in parking lot? ie. irrigation leak:
+                <select name="waterLeaks" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.waterLeaks === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'waterLeaks')}
+                  />
+                  <textarea
+                    name="waterLeaksDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="waterLeaks" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 9. Water Leaks (Tenant) ===== */}
+            <div>
+              <label>Are there any visible water leaks from specific tenant? ie. swamp cooler leak:
+                <select name="waterLeaksTenant" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.waterLeaksTenant === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'waterLeaksTenant')}
+                  />
+                  <textarea
+                    name="waterLeaksTenantDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="waterLeaksTenant" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 10. Dangerous Trees ===== */}
+            <div>
+              <label>Are there any obviously dangerous trees / branches?:
+                <select name="dangerousTrees" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.dangerousTrees === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'dangerousTrees')}
+                  />
+                  <textarea
+                    name="dangerousTreesDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="dangerousTrees" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 11. Broken Curbs ===== */}
+            <div>
+              <label>Is there any broken parking lot curbing?:
+                <select name="brokenCurbs" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.brokenCurbs === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'brokenCurbs')}
+                  />
+                  <textarea
+                    name="brokenCurbsDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="brokenCurbs" />
+                </>
+              )}
+            </div>
+
+            {/* ===== 12. Potholes ===== */}
+            <div>
+              <label>Are there any major potholes?:
+                <select name="potholes" onChange={handleChange}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {formData.potholes === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="camera"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'potholes')}
+                  />
+                  <textarea
+                    name="potholesDescription"
+                    onChange={handleChange}
+                    placeholder="Describe the issue"
+                  />
+                  {/* Preview */}
+                  <FilePreviewList fieldName="potholes" />
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Other text areas */}
           <label>Is there any homeless activity of note?:</label>
-          <textarea name="homelessActivity" onChange={handleChange}></textarea>
+          <textarea
+            name="homelessActivity"
+            onChange={handleChange}
+          />
 
           <label>Additional Comments:</label>
-          <textarea name="additionalComments" onChange={handleChange}></textarea>
+          <textarea
+            name="additionalComments"
+            onChange={handleChange}
+          />
 
-          <button type="submit" className='submit button'>Submit Checklist</button>
+          <button type="submit" className="submit button">
+            Submit Checklist
+          </button>
         </form>
       )}
     </div>
