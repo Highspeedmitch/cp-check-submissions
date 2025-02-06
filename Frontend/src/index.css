@@ -441,6 +441,24 @@ button:hover {
     background-color: #007BFF;   /* Slight hover effect */
   } 
 
+.remove-button {
+    background-color: #fff;      /* Lighter BG */
+    color: #2d2d2d;              /* Dark text for contrast */
+    border: 1px solid var(--border-color); /* Give it a border to stand out */
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    width: 100%;                /* match your other button widths, if desired */
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 6px;
+  }
+  .remove-button:hover {
+    background-color: #007BFF;   /* Slight hover effect */
+  }
+
 /* Responsive Adjustments */
 @media screen and (max-width: 480px) {
   .container {
@@ -514,6 +532,23 @@ button:hover {
   .navigate-button:hover {
     background-color: #f0f0f0;   /* Slight hover effect */
   }  
+  .remove-button {
+    background-color: #fff;      /* Lighter BG */
+    color: #2d2d2d;              /* Dark text for contrast */
+    border: 1px solid var(--border-color); /* Give it a border to stand out */
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    width: 100%;                /* match your other button widths, if desired */
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 6px;
+  }
+  .remove-button:hover {
+    background-color: #007BFF;   /* Slight hover effect */
+  }
 }
   /* ===== Dark Mode Overrides ===== */
 
