@@ -175,7 +175,7 @@ function Dashboard({ setUser }) {
     }
 
     // Replace with your own Mapbox token or store it in .env
-    const mapboxToken = "YOUR_MAPBOX_TOKEN_HERE";
+    const mapboxToken = "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
     const baseUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
     const url = `${baseUrl}${encodeURIComponent(newPropAddress)}.json?access_token=${mapboxToken}`;
 
