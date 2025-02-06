@@ -169,11 +169,11 @@ function Dashboard({ setUser }) {
               <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
             </div>
 
-            {/* Map Under the Toggle */}
+            {/* Map Under the Toggle
             <SidebarMap
               mapboxToken={mapboxToken}
               selectedCoords={selectedCoords} // pass coords to the map
-            />
+            />*/}
           </>
         )}
       </div>
