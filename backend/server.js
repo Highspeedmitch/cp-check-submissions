@@ -197,22 +197,32 @@ app.post('/api/login', async (req, res) => {
  * 🔹 Single /properties Route
  */
 app.get('/api/properties', authenticateToken, async (req, res) => {
-    try {
-      const org = await Organization.findById(req.user.organizationId);
-      if (!org) {
-        return res.status(404).json({ error: "Organization not found" });
-      }
-      // Extract property names as strings
-      const propertyNames = org.properties.map(p => p.name);
-      
-      console.log('Property Names:', propertyNames); // Debugging line
-  
-      res.json(propertyNames);
-    } catch (error) {
-      console.error("❌ Error fetching properties:", error);
-      res.status(500).json({ error: "Server error retrieving properties" });
+  try {
+    const org = await Organization.findById(req.user.organizationId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
     }
-  });
+
+    // Instead of just returning the name,
+    // return the entire property objects (with name, lat, lng, etc.)
+    // Example: if your schema has { name, lat, lng, emails: [...], ... }
+    // you can map them or just return org.properties directly.
+    // Here's a small transform:
+    const properties = org.properties.map((p) => ({
+      name: p.name,
+      lat: p.lat,
+      lng: p.lng,
+      emails: p.emails,
+      // Add anything else you need from p...
+    }));
+
+    console.log("Properties:", properties);
+    res.json(properties);
+  } catch (error) {
+    console.error("❌ Error fetching properties:", error);
+    res.status(500).json({ error: "Server error retrieving properties" });
+  }
+});
 
 /**
  * 🔹 Submit Form (Requires Authentication)

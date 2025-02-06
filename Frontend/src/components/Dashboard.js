@@ -1,7 +1,7 @@
 // Dashboard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
+import SidebarMap from "./SidebarMap";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -111,6 +111,8 @@ function Dashboard({ setUser }) {
     navigate("/login");
   };
 
+  const mapboxToken = "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
+
   return (
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
@@ -119,19 +121,18 @@ function Dashboard({ setUser }) {
           {sidebarCollapsed ? "☰" : "×"}
         </button>
 
-        {/* Only render the checklist and dark mode toggle when not collapsed */}
         {!sidebarCollapsed && (
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
             <ul>
               {properties.map((prop) => (
-                <li key={prop} className={completedProperties.includes(prop) ? "completed" : ""}>
-                  {prop}
+                <li key={prop.name} className={completedProperties.includes(prop.name) ? "completed" : ""}>
+                  {prop.name}
                 </li>
               ))}
             </ul>
 
-            {/* Dark Mode Toggle: sliding switch with emoji */}
+            {/* Dark Mode Toggle */}
             <div className="dark-mode-toggle">
               <label className="switch">
                 <input
@@ -143,6 +144,12 @@ function Dashboard({ setUser }) {
               </label>
               <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
             </div>
+
+            {/* Map under the toggle */}
+            <SidebarMap
+              mapboxToken={mapboxToken}
+              properties={properties}
+            />
           </>
         )}
       </div>
@@ -165,21 +172,21 @@ function Dashboard({ setUser }) {
           <div className="property-cards">
             {properties.map((prop) => (
               <div
-                key={prop}
-                className={`property-card ${completedProperties.includes(prop) ? "completed-tile" : ""}`}
+                key={prop.name}
+                className={`property-card ${completedProperties.includes(prop.name) ? "completed-tile" : ""}`}
                 onClick={() => {
                   if (role === "admin") {
-                    navigate(`/admin/submissions/${encodeURIComponent(prop)}`);
+                    navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                   } else {
-                    navigate(`/form/${encodeURIComponent(prop)}`);
+                    navigate(`/form/${encodeURIComponent(prop.name)}`);
                   }
                 }}
               >
-                <h3>{prop}</h3>
+                <h3>{prop.name}</h3>
                 <p>
                   {role === "admin"
                     ? "Click to view recent submissions"
-                    : completedProperties.includes(prop)
+                    : completedProperties.includes(prop.name)
                     ? "Completed"
                     : "Click to complete checklist"}
                 </p>

@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 
 const PropertySchema = new mongoose.Schema({
     name: { type: String, required: true },
+    lat: {type: Number },
+    lng: { type: Number },
     emails: { type: [String], default: [] }, // Emails specific to this property
 });
 
