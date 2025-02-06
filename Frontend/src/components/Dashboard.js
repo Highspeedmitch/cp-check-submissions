@@ -19,7 +19,10 @@ function openNativeMaps(lat, lng) {
   if (isIOS) {
     window.open(`maps://maps.apple.com/?daddr=${lat},${lng}`, "_blank");
   } else {
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, "_blank");
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+      "_blank"
+    );
   }
 }
 
@@ -35,13 +38,17 @@ function Dashboard({ setUser }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // -- Dark Mode
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
+  const [darkMode, setDarkMode] = useState(
+    () => localStorage.getItem("darkMode") === "true"
+  );
 
   // -- Other session data
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
-  const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
+  const [loginTime] = useState(
+    () => localStorage.getItem("loginTime") || new Date().toISOString()
+  );
 
   // -- For the "Add Property" admin flow
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
@@ -49,8 +56,13 @@ function Dashboard({ setUser }) {
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
   const [newPropName, setNewPropName] = useState("");
   const [newPropEmails, setNewPropEmails] = useState("");
+
+  // We'll store lat/lng behind the scenes. The admin won't edit these manually.
   const [newPropLat, setNewPropLat] = useState("");
   const [newPropLng, setNewPropLng] = useState("");
+
+  // We'll give them an "Address" field
+  const [newPropAddress, setNewPropAddress] = useState("");
 
   // -- Apply dark mode to the root document element
   useEffect(() => {
@@ -136,8 +148,7 @@ function Dashboard({ setUser }) {
   //   ADD PROPERTY LOGIC
   // ======================
   const handlePasskeySubmit = () => {
-    // You can verify passkey on the backend or do a direct compare on the front
-    // For demonstration, let's do a quick fetch to some route:
+    // We'll verify passkey on the server
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/verify-passkey", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -150,11 +161,44 @@ function Dashboard({ setUser }) {
         } else {
           alert("Invalid passkey. Cannot add property.");
         }
-        setPasskeyPromptVisible(false); // hide prompt
+        setPasskeyPromptVisible(false);
       })
       .catch((err) => console.error("Error verifying passkey:", err));
   };
 
+  // 1) We'll geocode the admin's typed address to lat/lng using Mapbox
+  async function handleGeocodeAddress(e) {
+    e.preventDefault();
+
+    if (!newPropAddress) {
+      return alert("Please enter an address to geocode.");
+    }
+
+    // Replace with your own Mapbox token or store it in .env
+    const mapboxToken = "YOUR_MAPBOX_TOKEN_HERE";
+    const baseUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
+    const url = `${baseUrl}${encodeURIComponent(newPropAddress)}.json?access_token=${mapboxToken}`;
+
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.features && data.features.length > 0) {
+        // Take the first match
+        const [lng, lat] = data.features[0].center;
+        setNewPropLat(lat.toString());
+        setNewPropLng(lng.toString());
+        alert(`Geocoded to: ${lat}, ${lng}`);
+      } else {
+        alert("No geocoding results found. Please refine the address.");
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      alert("Error geocoding address. Check console.");
+    }
+  }
+
+  // 2) Once lat/lng are set, the user can click "Create" to post to the server
   const handleCreateProperty = async () => {
     try {
       const emailsArray = newPropEmails
@@ -166,14 +210,14 @@ function Dashboard({ setUser }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // pass token
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          passkey, // this is needed on the backend to double-check if you want
+          passkey,
           name: newPropName,
           emails: emailsArray,
-          lat: parseFloat(newPropLat),
-          lng: parseFloat(newPropLng),
+          lat: parseFloat(newPropLat) || 0,
+          lng: parseFloat(newPropLng) || 0,
         }),
       });
 
@@ -182,14 +226,14 @@ function Dashboard({ setUser }) {
         alert(data.error);
       } else {
         alert("Property added successfully!");
-        // Refresh property list
+        // Optionally re-fetch property list
         setAddPropertyFormVisible(false);
         setNewPropName("");
         setNewPropEmails("");
         setNewPropLat("");
         setNewPropLng("");
-        // re-fetch property list
-        // (or do an in-memory update to properties array)
+        setNewPropAddress("");
+        // ...
       }
     } catch (error) {
       console.error("Error creating property:", error);
@@ -214,10 +258,8 @@ function Dashboard({ setUser }) {
                   className={completedProperties.includes(prop.name) ? "completed" : ""}
                   onClick={() => {
                     if (role === "admin") {
-                      // Admin: Go to submissions
                       navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                     } else {
-                      // User: Go to form
                       navigate(`/form/${encodeURIComponent(prop.name)}`);
                     }
                   }}
@@ -244,7 +286,8 @@ function Dashboard({ setUser }) {
             {role === "admin" && (
               <div className="tools-section" style={{ marginTop: "20px" }}>
                 <h3>Tools</h3>
-                <button className='Add-Prop'
+                <button
+                  className="Add-Prop"
                   onClick={() => {
                     setPasskeyPromptVisible(true);
                     setPasskey("");
@@ -282,10 +325,8 @@ function Dashboard({ setUser }) {
                 }`}
                 onClick={() => {
                   if (role === "admin") {
-                    // Admin: Go to submissions
                     navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                   } else {
-                    // User: Go to form
                     navigate(`/form/${encodeURIComponent(prop.name)}`);
                   }
                 }}
@@ -304,8 +345,8 @@ function Dashboard({ setUser }) {
                   <button
                     className="navigate-button"
                     onClick={(e) => {
-                      e.stopPropagation(); // prevent card click
-                      openNativeMaps(prop.lat, prop.lng); 
+                      e.stopPropagation();
+                      openNativeMaps(prop.lat, prop.lng);
                     }}
                   >
                     Navigate
@@ -349,22 +390,26 @@ function Dashboard({ setUser }) {
                 onChange={(e) => setNewPropEmails(e.target.value)}
               />
             </label>
+
+            {/* Instead of direct lat/lng input, let's have them type an address */}
             <label>
-              Latitude:
+              Address (will geocode):
               <input
                 type="text"
-                value={newPropLat}
-                onChange={(e) => setNewPropLat(e.target.value)}
+                value={newPropAddress}
+                onChange={(e) => setNewPropAddress(e.target.value)}
               />
             </label>
-            <label>
-              Longitude:
-              <input
-                type="text"
-                value={newPropLng}
-                onChange={(e) => setNewPropLng(e.target.value)}
-              />
-            </label>
+            <button onClick={handleGeocodeAddress} style={{ marginBottom: "1rem" }}>
+              Geocode
+            </button>
+
+            {/* We'll store the lat/lng but won't force them to edit it manually. */}
+            {/* If you want, you can show them read-only. */}
+            <div style={{ marginBottom: "1rem" }}>
+              <small>Lat: {newPropLat || "N/A"}</small><br/>
+              <small>Lng: {newPropLng || "N/A"}</small>
+            </div>
 
             <button onClick={handleCreateProperty}>Create</button>
             <button onClick={() => setAddPropertyFormVisible(false)}>Close</button>
