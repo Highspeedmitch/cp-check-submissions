@@ -1,3 +1,4 @@
+// pdfservice.js
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
@@ -59,12 +60,6 @@ function generateChecklistPDF(formData, photoBuffers) {
 
     // 3) Group and render photos by fieldName
     if (photoBuffers && photoBuffers.length > 0) {
-      // Optional: add some vertical space or a new page
-      // doc.addPage(); // Use doc.addPage() only if you want photos always on a separate page
-      doc.moveDown(2);
-      doc.fontSize(18).text('Inspection Photos', { underline: true });
-      doc.moveDown(1);
-
       // Group images
       const grouped = {};
       photoBuffers.forEach(({ fieldName, imageBuffer }) => {
@@ -77,14 +72,17 @@ function generateChecklistPDF(formData, photoBuffers) {
         grouped[fieldName].push(imageBuffer);
       });
 
-      // Print each field’s photos
+      // For each field, start on a NEW PAGE
       Object.keys(grouped).forEach(field => {
+        // Force a new page for this field
+        doc.addPage();
+        
         doc.fontSize(16).text(`Photos for: ${field}`, { bold: true, underline: true });
         doc.moveDown(1);
 
         const buffers = grouped[field];
         buffers.forEach((buffer, idx) => {
-          // If near bottom, add a new page
+          // If near bottom, add new page
           if (doc.y + 480 > doc.page.height - 50) {
             doc.addPage();
             doc.moveDown(1);
@@ -102,7 +100,7 @@ function generateChecklistPDF(formData, photoBuffers) {
           doc.moveDown(50);
         });
 
-        doc.moveDown(2); // space before the next field’s photos
+        doc.moveDown(2); // space before the next field’s page
       });
 
     } else {
