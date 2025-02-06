@@ -38,7 +38,7 @@ function Dashboard({ setUser }) {
   const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
 
   // -- Mapbox Token (replace with your own)
-  const mapboxToken = "YOUR_MAPBOX_TOKEN_HERE";
+  const mapboxToken = "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
 
   // -- Apply dark mode to the root document element
   useEffect(() => {
