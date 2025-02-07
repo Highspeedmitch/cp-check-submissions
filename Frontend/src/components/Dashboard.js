@@ -380,7 +380,7 @@ function Dashboard({ setUser }) {
 
             {/* Tools for Admin */}
             {role === "admin" && (
-              <div className="tools-section" style={{ marginTop: "20px" }}>
+              <div className="tools-section" style={{ marginTop: "10px", marginBottom:"-10px" }}>
                 <h3>Tools</h3>
                 <button
                   className="Admin-tools-primary"
