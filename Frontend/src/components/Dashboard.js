@@ -437,8 +437,7 @@ function Dashboard({ setUser }) {
 
                   {/* If admin, show "Remove" button */}
                   {role === "admin" && (
-                    <button
-                      style={{ marginTop: "8px" }}
+                    <button className='remove-button'
                       onClick={(e) => {
                         e.stopPropagation();
                         initiateRemoveProperty(prop.name);
