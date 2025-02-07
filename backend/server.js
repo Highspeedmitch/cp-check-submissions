@@ -712,5 +712,20 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error fetching users" });
   }
 });
+app.delete("/api/assignments/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedAssignment = await Assignment.findByIdAndDelete(id);
+
+    if (!deletedAssignment) {
+      return res.status(404).json({ error: "Assignment not found" });
+    }
+
+    res.json({ success: true, message: "Assignment deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting assignment:", error);
+    res.status(500).json({ error: "Server error deleting assignment" });
+  }
+});
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));

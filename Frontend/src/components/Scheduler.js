@@ -162,8 +162,8 @@ function Scheduler() {
   const events = assignments.map((assignment) => ({
     _id: assignment._id,
     title: assignment.propertyName,
-    start: new Date(assignment.startDate),
-    end: new Date(assignment.endDate),
+    start: new Date(assignment.startDate), // Ensure this is a valid Date object
+    end: new Date(assignment.endDate),     // Ensure this is a valid Date object
     userId: assignment.userId,
   }));
 
