@@ -117,6 +117,7 @@ button:hover {
 /* Reduce left margin when sidebar is collapsed */
 .dashboard-container.collapsed .main-content {
   margin-left: 50px;
+  justify-content: center;
 }
 
 /* Sidebar */
