@@ -750,76 +750,51 @@ button:hover {
   font-size: 1.2em;
 }
 /* Override calendar background */
+/* Override calendar background */
 .rbc-calendar {
-  background-color: #f8f9fa;  /* Light gray background */
+  background-color: #f8f9fa;
   border-radius: 8px;
   padding: 10px;
-  max-width: 900px;  /* Ensure it doesn’t overflow */
-  margin: 0 auto;  /* Center the calendar */
+  max-width: 900px;
+  margin: 0 auto; /* Center the calendar */
 }
 
-/* Customize event colors */
-.rbc-event {
-  background-color: #007bff !important; /* Blue events */
-  border-radius: 5px;
-  color: white !important;
-  font-weight: bold;
-  padding: 5px;
-  overflow: hidden; /* Prevent text clipping */
-}
-
-/* Make sure month view events are visible */
-.rbc-month-view .rbc-event {
-  height: auto !important;
-  white-space: normal !important;
-  font-size: 12px;
-}
-
-/* Ensure events appear correctly in Month View */
-.rbc-event-label {
-  display: none; /* Hide redundant labels */
-}
-
-/* Fix toolbar button alignment */
+/* Move Month/Week buttons to the top */
 .rbc-toolbar {
-  background: #343a40; /* Dark background */
-  color: white;
-  font-size: 16px;
-  padding: 10px;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column; /* Stack elements */
   align-items: center;
-  text-align: center;
+  gap: 10px;
 }
 
-/* Make navigation buttons (Today, Back, Next) centered */
-.rbc-btn-group {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 5px;  /* Add spacing between buttons */
+/* Adjust view selector buttons (Month/Week) */
+.rbc-toolbar .rbc-btn-group:first-child {
+  order: -1; /* Move to the top */
 }
 
-/* Ensure buttons are uniform */
+/* Move Back/Today/Next buttons below the calendar */
+.rbc-toolbar .rbc-btn-group:nth-child(2) {
+  order: 2;
+}
+
+/* Style navigation buttons */
 .rbc-btn-group button {
   background-color: #007bff !important;
   color: white !important;
-  border-radius: 4px;
-  padding: 8px 12px;
+  border-radius: 5px;
+  padding: 6px 12px;
   font-size: 14px;
   border: none;
+  margin: 2px;
 }
 
-/* Ensure button width does not exceed the calendar container */
+/* Ensure buttons fit within container */
 .rbc-toolbar .rbc-btn-group {
   max-width: 100%;
   justify-content: center;
-}
-
-/* Hide the 'Day' button to prevent clutter */
-.rbc-btn-group button:nth-child(3) {
-  display: none;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
 /* Adjust mobile responsiveness */
@@ -831,16 +806,12 @@ button:hover {
   .rbc-toolbar {
     font-size: 14px;
     flex-direction: column;
-    gap: 10px;
-  }
-
-  .rbc-event {
-    font-size: 12px;
   }
 
   .rbc-btn-group {
-    flex-direction: column;
-    width: 100%;
+    flex-direction: row;
+    justify-content: center;
   }
 }
+
 
