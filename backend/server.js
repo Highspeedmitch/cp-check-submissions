@@ -700,18 +700,17 @@ app.get('/api/assignments', authenticateToken, async (req, res) => {
  */
 app.get('/api/users', authenticateToken, async (req, res) => {
   try {
-    // Ensure only admins can see users
+    // Ensure only admins can fetch users
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: "Forbidden - Admin only" });
     }
-
-    // Fetch users from the same organization
-    const users = await User.find({ organizationId: req.user.organizationId }).select("_id email role");
-
+    // Fetch only users with role "user"
+    const users = await User.find({ organizationId: req.user.organizationId, role: "user" }).select("_id email");
     res.json(users);
   } catch (error) {
     console.error("❌ Error fetching users:", error);
     res.status(500).json({ error: "Server error fetching users" });
   }
 });
+
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));

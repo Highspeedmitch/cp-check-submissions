@@ -96,76 +96,73 @@ function Scheduler() {
   }));
 
   return (
-    <div className="scheduler-container">
+    <div style={{ maxWidth: "900px", margin: "0 auto", padding: "20px" }}>
       <h2>Scheduler</h2>
-
-      {/* ✅ Assignment Creation Form */}
-      <div className="scheduler-form-container">
-        <form onSubmit={handleCreateAssignment} className="scheduler-form">
-          <label>Property:</label>
-          <select
-            value={newAssignment.propertyName}
-            onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
-            required
-          >
-            <option value="">Select Property</option>
-            {properties.map((prop) => (
-              <option key={prop.name} value={prop.name}>
-                {prop.name}
-              </option>
-            ))}
-          </select>
-
-          <label>User:</label>
-          <select
-            value={newAssignment.userId}
-            onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
-            required
-          >
-            <option value="">Select User</option>
-            {users.length > 0 ? (
-              users.map((user) => (
-                <option key={user._id} value={user._id}>
-                  {user.email}
-                </option>
-              ))
-            ) : (
-              <option disabled>No users found</option>
-            )}
-          </select>
-
-          <label>Start Date:</label>
-          <input
-            type="datetime-local"
-            value={newAssignment.startDate}
-            onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
-            required
-          />
-
-          <label>End Date:</label>
-          <input
-            type="datetime-local"
-            value={newAssignment.endDate}
-            onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
-            required
-          />
-
-          <button type="submit" className="create-assignment-btn">Create Assignment</button>
-        </form>
-      </div>
-
-      {/* ✅ Calendar Display */}
-      <div className="calendar-container">
+  
+      {/* Assignment Creation Form */}
+      <form onSubmit={handleCreateAssignment} style={{ marginBottom: "20px" }}>
+        <label>Property:</label>
+        <select
+          value={newAssignment.propertyName}
+          onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
+          required
+        >
+          <option value="">Select Property</option>
+          {properties.map((prop) => (
+            <option key={prop.name} value={prop.name}>
+              {prop.name}
+            </option>
+          ))}
+        </select>
+  
+        <label>User:</label>
+        <select
+          value={newAssignment.userId}
+          onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
+          required
+        >
+          <option value="">Select User</option>
+          {users.map((user) => (
+            <option key={user._id} value={user._id}>
+              {user.email}
+            </option>
+          ))}
+        </select>
+  
+        <label>Start Date:</label>
+        <input
+          type="datetime-local"
+          value={newAssignment.startDate}
+          onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
+          required
+        />
+  
+        <label>End Date:</label>
+        <input
+          type="datetime-local"
+          value={newAssignment.endDate}
+          onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
+          required
+        />
+  
+        <button type="submit" style={{ marginTop: "10px", padding: "10px 15px", background: "#007bff", color: "white", border: "none", borderRadius: "5px" }}>
+          Create Assignment
+        </button>
+      </form>
+  
+      {/* Calendar Display (Now Properly Contained) */}
+      <div style={{ height: "600px", width: "100%", overflow: "hidden" }}>
         <Calendar
           localizer={localizer}
           events={events}
           startAccessor="start"
           endAccessor="end"
           views={["month", "week", "day"]}
+          style={{ height: "100%", width: "100%" }} // Ensure proper scaling
         />
       </div>
     </div>
-  );
+  );  
 }
 
 export default Scheduler;
