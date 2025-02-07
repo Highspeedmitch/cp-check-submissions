@@ -407,9 +407,10 @@ function Dashboard({ setUser }) {
                 >
                   + Property
                 </button>
-                <button className="Admin-tools-adtl" onClick={() => setViewScheduler(true)}>
-                    Scheduler
+                <button className="Admin-tools-adtl" onClick={() => navigate("/scheduler")}>
+                  Scheduler
                 </button>
+
               </div>
             )}
           </>
