@@ -288,6 +288,10 @@ button:hover {
   background: #218838;
 }
 
+.tools-section {
+  flex-direction: column;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .login-container {
