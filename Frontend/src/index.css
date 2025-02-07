@@ -295,6 +295,55 @@ button:hover {
   flex-direction: column;
 }
 
+.scheduler-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.scheduler-form-container {
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.scheduler-form label {
+  display: block;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.scheduler-form select, .scheduler-form input {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.create-assignment-btn {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.create-assignment-btn:hover {
+  background-color: #0056b3;
+}
+
+.calendar-container {
+  height: 500px;
+  background: white;
+  padding: 10px;
+  border-radius: 8px;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .login-container {
