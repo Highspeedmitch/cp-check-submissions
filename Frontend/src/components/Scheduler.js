@@ -166,7 +166,7 @@ function Scheduler() {
           startAccessor="start"
           endAccessor="end"
           views={["month", "week"]}
-          style={{ height: "100%", width: "100%" }}
+          style={{ height: "100%", width: "100%", flexWrap: "wrap"}}
         />
       </div>
     </div>
