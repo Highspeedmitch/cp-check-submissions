@@ -123,6 +123,30 @@ function Scheduler() {
       .catch((err) => console.error("Error updating assignment:", err));
   };
 
+  // Handle Delete Assignment
+  const handleDeleteAssignment = () => {
+    if (!editingAssignment) return;
+
+    if (!window.confirm("Are you sure you want to delete this assignment?")) return;
+
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          alert("✅ Assignment deleted successfully!");
+          setAssignments(assignments.filter((a) => a._id !== editingAssignment._id));
+          setEditingAssignment(null);
+          setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+        } else {
+          alert("❌ " + (data.error || "Failed to delete assignment."));
+        }
+      })
+      .catch((err) => console.error("Error deleting assignment:", err));
+  };
+
   // Handle Double Click (Edit Event)
   const handleEventDoubleClick = (event) => {
     setEditingAssignment(event);
@@ -154,59 +178,35 @@ function Scheduler() {
       {/* Form Section */}
       <form onSubmit={handleSaveAssignment} className="assignment-form">
         <label>Property:</label>
-        <select
-          value={newAssignment.propertyName}
-          onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
-          required
-        >
+        <select value={newAssignment.propertyName} onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })} required>
           <option value="">Select Property</option>
           {properties.map((prop) => (
-            <option key={prop.name} value={prop.name}>
-              {prop.name}
-            </option>
+            <option key={prop.name} value={prop.name}>{prop.name}</option>
           ))}
         </select>
 
         <label>User:</label>
-        <select
-          value={newAssignment.userId}
-          onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
-          required
-        >
+        <select value={newAssignment.userId} onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })} required>
           <option value="">Select User</option>
           {users.map((user) => (
-            <option key={user._id} value={user._id}>
-              {user.email}
-            </option>
+            <option key={user._id} value={user._id}>{user.email}</option>
           ))}
         </select>
-
-        <label>Start Date:</label>
-        <input type="datetime-local" value={newAssignment.startDate} onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })} required />
-
-        <label>End Date:</label>
-        <input type="datetime-local" value={newAssignment.endDate} onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })} required />
 
         <button type="submit" className="create-button">
           {editingAssignment ? "Update Assignment" : "Create Assignment"}
         </button>
+
+        {editingAssignment && (
+          <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
+            Delete Assignment
+          </button>
+        )}
       </form>
 
-      {/* Calendar Section */}
-      <div className="calendar-wrapper">
-        <DndProvider backend={HTML5Backend}>
-          <DnDCalendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            views={["month", "week"]}
-            style={{ height: "500px", width: "100%" }}
-            onEventDrop={handleEventDrop}
-            onSelectEvent={handleEventDoubleClick}
-          />
-        </DndProvider>
-      </div>
+      <DndProvider backend={HTML5Backend}>
+        <DnDCalendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" onEventDrop={handleEventDrop} onSelectEvent={handleEventDoubleClick} />
+      </DndProvider>
     </div>
   );
 }
