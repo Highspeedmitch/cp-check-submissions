@@ -509,8 +509,9 @@ app.post("/api/verify-passkey", (req, res) => {
 // ***** New: Verify removal passkey route *****
 app.post("/api/verify-remove-passkey", (req, res) => {
   try {
-    const { removepasskey } = req.body;
-    if (removepasskey === process.env.REMOVE_PROPERTY_PASSKEY) {
+    // rename this to match the front-end
+    const { removePasskey } = req.body;
+    if (removePasskey === process.env.REMOVE_PROPERTY_PASSKEY) {
       return res.json({ valid: true });
     } else {
       return res.json({ valid: false });
