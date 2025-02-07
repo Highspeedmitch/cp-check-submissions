@@ -252,7 +252,16 @@ function Scheduler() {
 </form>
 
       <DndProvider backend={HTML5Backend}>
-        <DnDCalendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" onEventDrop={handleEventDrop} onSelectEvent={handleEventDoubleClick} />
+      <DnDCalendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            views={["month", "week"]}
+            style={{ height: "500px", width: "100%" }}
+            onEventDrop={handleEventDrop}
+            onSelectEvent={handleEventDoubleClick}
+          />
       </DndProvider>
     </div>
   );
