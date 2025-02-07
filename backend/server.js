@@ -489,8 +489,57 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
-// ====== NEW ROUTES FOR PASSKEY AND ADD PROPERTY ======
+// Create a new assignment (scheduling an inspection)
+app.post('/api/assignments', authenticateToken, async (req, res) => {
+  try {
+    // Ensure only admins can create assignments
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden" });
+    }
 
+    const { propertyName, userId, startDate, endDate } = req.body;
+
+    // Check for overlapping assignments on the same property
+    const overlapping = await Assignment.findOne({
+      propertyName,
+      $or: [
+        { startDate: { $lte: new Date(endDate) }, endDate: { $gte: new Date(startDate) } }
+      ]
+    });
+
+    if (overlapping) {
+      return res.status(400).json({ error: "Overlapping assignment exists for this property." });
+    }
+
+    // Create the new assignment
+    const assignment = new Assignment({
+      propertyName,
+      userId,
+      startDate,
+      endDate
+    });
+
+    await assignment.save();
+
+    res.json({ success: true, message: "Assignment created successfully", assignment });
+  } catch (error) {
+    console.error("❌ Error creating assignment:", error);
+    res.status(500).json({ error: "Server error creating assignment" });
+  }
+});
+
+app.get('/api/assignments', authenticateToken, async (req, res) => {
+  try {
+    // For example, fetch all assignments for the admin's organization
+    // (You might need to adjust this if you store organization info on assignments)
+    const assignments = await Assignment.find({ /* possibly filter by orgId */ }).sort({ startDate: 1 });
+    res.json(assignments);
+  } catch (error) {
+    console.error("❌ Error fetching assignments:", error);
+    res.status(500).json({ error: "Server error fetching assignments" });
+  }
+});
+// ====== NEW ROUTES FOR PASSKEY AND ADD PROPERTY ======
 // Verify passkey route for adding properties
 app.post("/api/verify-passkey", (req, res) => {
   try {
@@ -505,7 +554,6 @@ app.post("/api/verify-passkey", (req, res) => {
     res.status(500).json({ message: "Server error verifying passkey" });
   }
 });
-
 // ***** New: Verify removal passkey route *****
 app.post("/api/verify-remove-passkey", (req, res) => {
   try {
@@ -521,7 +569,6 @@ app.post("/api/verify-remove-passkey", (req, res) => {
     res.status(500).json({ message: "Server error verifying removal passkey" });
   }
 });
-
 // Admin add-property route
 app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
   try {
@@ -565,7 +612,6 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     return res.status(500).json({ error: "Server error adding property" });
   }
 });
-
 app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, res) => {
   try {
     // Must be admin
@@ -599,5 +645,4 @@ app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, r
     res.status(500).json({ error: "Server error removing property" });
   }
 });
-
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
