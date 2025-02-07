@@ -749,3 +749,59 @@ button:hover {
   margin-left: 8px;
   font-size: 1.2em;
 }
+/* Override calendar background */
+.rbc-calendar {
+  background-color: #f8f9fa;  /* Light gray background */
+  border-radius: 8px;
+  padding: 10px;
+}
+
+/* Customize event colors */
+.rbc-event {
+  background-color: #007bff !important; /* Blue events */
+  border-radius: 5px;
+  color: white !important;
+  font-weight: bold;
+}
+
+/* Change selected event styles */
+.rbc-selected {
+  background-color: #ff5733 !important; /* Red when selected */
+}
+
+/* Style the calendar header */
+.rbc-toolbar {
+  background: #343a40; /* Dark background */
+  color: white;
+  font-size: 16px;
+  padding: 10px;
+}
+
+/* Change navigation buttons (Prev/Next) */
+.rbc-btn-group button {
+  background-color: #007bff !important;
+  color: white !important;
+  border-radius: 4px;
+  padding: 5px 10px;
+}
+
+/* Remove the 'Day' view button */
+.rbc-btn-group button:nth-child(3) {
+  display: none; /* Hides 'Day' view */
+}
+
+/* Adjust mobile responsiveness */
+@media (max-width: 768px) {
+  .rbc-calendar {
+    padding: 5px;
+  }
+
+  .rbc-toolbar {
+    font-size: 14px;
+  }
+
+  .rbc-event {
+    font-size: 12px;
+  }
+}
+
