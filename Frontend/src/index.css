@@ -33,7 +33,6 @@ body {
   border-radius: 10px;
   box-shadow: var(--shadow-light);
   transition: transform 0.3s ease, opacity 0.3s ease;
-  display: flex;
   justify-content: center;
 }
 
