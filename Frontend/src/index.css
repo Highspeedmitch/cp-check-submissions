@@ -754,6 +754,8 @@ button:hover {
   background-color: #f8f9fa;  /* Light gray background */
   border-radius: 8px;
   padding: 10px;
+  max-width: 900px;  /* Ensure it doesn’t overflow */
+  margin: 0 auto;  /* Center the calendar */
 }
 
 /* Customize event colors */
@@ -762,30 +764,62 @@ button:hover {
   border-radius: 5px;
   color: white !important;
   font-weight: bold;
+  padding: 5px;
+  overflow: hidden; /* Prevent text clipping */
 }
 
-/* Change selected event styles */
-.rbc-selected {
-  background-color: #ff5733 !important; /* Red when selected */
+/* Make sure month view events are visible */
+.rbc-month-view .rbc-event {
+  height: auto !important;
+  white-space: normal !important;
+  font-size: 12px;
 }
 
-/* Style the calendar header */
+/* Ensure events appear correctly in Month View */
+.rbc-event-label {
+  display: none; /* Hide redundant labels */
+}
+
+/* Fix toolbar button alignment */
 .rbc-toolbar {
   background: #343a40; /* Dark background */
   color: white;
   font-size: 16px;
   padding: 10px;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
-/* Change navigation buttons (Prev/Next) */
+/* Make navigation buttons (Today, Back, Next) centered */
+.rbc-btn-group {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;  /* Add spacing between buttons */
+}
+
+/* Ensure buttons are uniform */
 .rbc-btn-group button {
   background-color: #007bff !important;
   color: white !important;
   border-radius: 4px;
-  padding: 5px 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: none;
+}
+
+/* Ensure button width does not exceed the calendar container */
+.rbc-toolbar .rbc-btn-group {
+  max-width: 100%;
+  justify-content: center;
+}
+
+/* Hide the 'Day' button to prevent clutter */
+.rbc-btn-group button:nth-child(3) {
+  display: none;
 }
 
 /* Adjust mobile responsiveness */
@@ -796,10 +830,17 @@ button:hover {
 
   .rbc-toolbar {
     font-size: 14px;
+    flex-direction: column;
+    gap: 10px;
   }
 
   .rbc-event {
     font-size: 12px;
+  }
+
+  .rbc-btn-group {
+    flex-direction: column;
+    width: 100%;
   }
 }
 
