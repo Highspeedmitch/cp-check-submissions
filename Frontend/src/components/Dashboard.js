@@ -383,7 +383,7 @@ function Dashboard({ setUser }) {
               <div className="tools-section" style={{ marginTop: "20px" }}>
                 <h3>Tools</h3>
                 <button
-                  className="Add-Prop"
+                  className="Admin-tools-primary"
                   onClick={() => {
                     setPasskeyPromptVisible(true);
                     setPasskey("");
@@ -391,7 +391,7 @@ function Dashboard({ setUser }) {
                 >
                   Add Property
                 </button>
-                <button className="Add-Prop" onClick={() => setViewScheduler(true)}>
+                <button className="Admin-tools-adtl" onClick={() => setViewScheduler(true)}>
                   Scheduler
                 </button>
               </div>
