@@ -494,8 +494,8 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
 // Verify passkey route for adding properties
 app.post("/api/verify-passkey", (req, res) => {
   try {
-    const { passkey } = req.body;
-    if (passkey === process.env.ADD_PROPERTY_PASSKEY) {
+    const { removepasskey } = req.body;
+    if (removepasskey === process.env.ADD_PROPERTY_PASSKEY) {
       return res.json({ valid: true });
     } else {
       return res.json({ valid: false });
