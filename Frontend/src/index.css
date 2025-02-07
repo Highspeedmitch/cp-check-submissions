@@ -775,6 +775,8 @@ button:hover {
   color: white;
   font-size: 16px;
   padding: 10px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Change navigation buttons (Prev/Next) */
