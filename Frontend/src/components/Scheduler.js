@@ -98,7 +98,7 @@ function Scheduler() {
   }));
 
   return (
-    <div style={{ maxWidth: "900px", width: "100%", margin: "0 auto", padding: "10px" }}>
+    <div style={{ maxWidth: "500px", width: "100%", margin: "0 auto", padding: "10px", flexwrap:"wrap", }}>
       {/* Return to Dashboard Button */}
       <button 
         onClick={() => navigate("/dashboard")} 
@@ -159,7 +159,7 @@ function Scheduler() {
       </form>
 
       {/* Calendar Display */}
-      <div style={{ height: "500px", width: "100%", overflowX: "hidden" }}>
+      <div style={{ height: "500px", width: "100%", overflowX: "hidden", flexwrap: "wrap", }}>
         <Calendar
           localizer={localizer}
           events={events}
