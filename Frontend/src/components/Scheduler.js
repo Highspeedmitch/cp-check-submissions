@@ -26,6 +26,8 @@ function Scheduler() {
     endDate: "",
   });
 
+  const [editingAssignment, setEditingAssignment] = useState(null); // Holds event being edited
+
   // Fetch assignments
   useEffect(() => {
     if (!token) return;
@@ -65,40 +67,80 @@ function Scheduler() {
       .catch((err) => console.error("Error fetching users:", err));
   }, [token]);
 
-  // Handle form submission
-  const handleCreateAssignment = (e) => {
+  // Handle form submission (New or Editing)
+  const handleSaveAssignment = (e) => {
     e.preventDefault();
     if (!token) {
       alert("Unauthorized. Please log in again.");
       return;
     }
 
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
-      method: "POST",
-      headers: { 
+    const url = editingAssignment
+      ? `https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`
+      : "https://cp-check-submissions-dev-backend.onrender.com/api/assignments";
+
+    const method = editingAssignment ? "PUT" : "POST"; // Use PUT for updating
+
+    fetch(url, {
+      method,
+      headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}` 
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(newAssignment),
     })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.success) {
-        alert("✅ Assignment created successfully!");
-        setAssignments([...assignments, data.assignment]);
-        setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
-      } else {
-        alert("❌ " + (data.error || "Failed to create assignment."));
-      }
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          alert("✅ Assignment saved successfully!");
+          if (editingAssignment) {
+            setAssignments(assignments.map((a) => (a._id === editingAssignment._id ? data.assignment : a)));
+          } else {
+            setAssignments([...assignments, data.assignment]);
+          }
+          setEditingAssignment(null);
+          setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+        } else {
+          alert("❌ " + (data.error || "Failed to save assignment."));
+        }
+      })
+      .catch((err) => console.error("Error saving assignment:", err));
+  };
+
+  // Handle Event Drag (Move Dates)
+  const handleEventDrop = ({ event, start, end }) => {
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${event._id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ startDate: start, endDate: end }),
     })
-    .catch((err) => console.error("Error creating assignment:", err));
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setAssignments(assignments.map((a) => (a._id === event._id ? { ...a, startDate: start, endDate: end } : a)));
+        }
+      })
+      .catch((err) => console.error("Error updating assignment:", err));
+  };
+
+  // Handle Double Click (Edit Event)
+  const handleEventDoubleClick = (event) => {
+    setEditingAssignment(event);
+    setNewAssignment({
+      propertyName: event.propertyName,
+      userId: event.userId,
+      startDate: moment(event.start).format("YYYY-MM-DDTHH:mm"),
+      endDate: moment(event.end).format("YYYY-MM-DDTHH:mm"),
+    });
   };
 
   // Map assignments into events
   const events = assignments.map((assignment) => ({
+    _id: assignment._id,
     title: assignment.propertyName,
     start: new Date(assignment.startDate),
     end: new Date(assignment.endDate),
+    userId: assignment.userId,
   }));
 
   return (
@@ -110,7 +152,7 @@ function Scheduler() {
       <h2 className="scheduler-title">Scheduler</h2>
 
       {/* Form Section */}
-      <form onSubmit={handleCreateAssignment} className="assignment-form">
+      <form onSubmit={handleSaveAssignment} className="assignment-form">
         <label>Property:</label>
         <select
           value={newAssignment.propertyName}
@@ -146,7 +188,7 @@ function Scheduler() {
         <input type="datetime-local" value={newAssignment.endDate} onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })} required />
 
         <button type="submit" className="create-button">
-          Create Assignment
+          {editingAssignment ? "Update Assignment" : "Create Assignment"}
         </button>
       </form>
 
@@ -160,6 +202,8 @@ function Scheduler() {
             endAccessor="end"
             views={["month", "week"]}
             style={{ height: "500px", width: "100%" }}
+            onEventDrop={handleEventDrop}
+            onSelectEvent={handleEventDoubleClick}
           />
         </DndProvider>
       </div>
