@@ -777,6 +777,7 @@ button:hover {
   padding: 10px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
 }
 
 /* Change navigation buttons (Prev/Next) */

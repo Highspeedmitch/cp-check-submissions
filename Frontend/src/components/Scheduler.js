@@ -219,7 +219,7 @@ function Scheduler() {
 
       {/* Calendar Display with Drag & Drop */}
       <DndProvider backend={HTML5Backend}>
-        <DnDCalendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" views={["month", "week"]} onEventDrop={onEventDrop} resizable onEventResize={onEventResize} />
+        <DnDCalendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" views={["month", "week", "day"]} onEventDrop={onEventDrop} resizable onEventResize={onEventResize} />
       </DndProvider>
     </div>
   );
