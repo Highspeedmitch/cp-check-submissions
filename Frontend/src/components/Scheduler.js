@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-
+import { useNavigate } from "react-router-dom"; // Import navigation
 const localizer = momentLocalizer(moment);
 
 function Scheduler() {
@@ -95,74 +95,83 @@ function Scheduler() {
     end: new Date(assignment.endDate),
   }));
 
-  return (
-    <div style={{ maxWidth: "900px", margin: "0 auto", padding: "20px" }}>
-      <h2>Scheduler</h2>
+  const Scheduler = ({ token }) => {
+    const navigate = useNavigate(); // Initialize navigation
   
-      {/* Assignment Creation Form */}
-      <form onSubmit={handleCreateAssignment} style={{ marginBottom: "20px" }}>
-        <label>Property:</label>
-        <select
-          value={newAssignment.propertyName}
-          onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
-          required
+    return (
+      <div style={{ maxWidth: "900px", width: "100%", margin: "0 auto", padding: "10px" }}>
+        {/* Return to Dashboard Button */}
+        <button 
+          onClick={() => navigate("/dashboard")} 
+          style={{
+            marginBottom: "10px",
+            padding: "10px",
+            background: "#28a745",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer"
+          }}
         >
-          <option value="">Select Property</option>
-          {properties.map((prop) => (
-            <option key={prop.name} value={prop.name}>
-              {prop.name}
-            </option>
-          ))}
-        </select>
-  
-        <label>User:</label>
-        <select
-          value={newAssignment.userId}
-          onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
-          required
-        >
-          <option value="">Select User</option>
-          {users.map((user) => (
-            <option key={user._id} value={user._id}>
-              {user.email}
-            </option>
-          ))}
-        </select>
-  
-        <label>Start Date:</label>
-        <input
-          type="datetime-local"
-          value={newAssignment.startDate}
-          onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
-          required
-        />
-  
-        <label>End Date:</label>
-        <input
-          type="datetime-local"
-          value={newAssignment.endDate}
-          onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
-          required
-        />
-  
-        <button type="submit" style={{ marginTop: "10px", padding: "10px 15px", background: "#007bff", color: "white", border: "none", borderRadius: "5px" }}>
-          Create Assignment
+          ← Return to Dashboard
         </button>
-      </form>
   
-      {/* Calendar Display (Now Properly Contained) */}
-      <div style={{ height: "600px", width: "100%", overflow: "hidden" }}>
-        <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          views={["month", "week", "day"]}
-          style={{ height: "100%", width: "100%" }} // Ensure proper scaling
-        />
+        <h2 style={{ textAlign: "center" }}>Scheduler</h2>
+  
+        {/* Assignment Creation Form */}
+        <form onSubmit={handleCreateAssignment} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <label>Property:</label>
+          <select
+            value={newAssignment.propertyName}
+            onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
+            required
+          >
+            <option value="">Select Property</option>
+            {properties.map((prop) => (
+              <option key={prop.name} value={prop.name}>
+                {prop.name}
+              </option>
+            ))}
+          </select>
+  
+          <label>User:</label>
+          <select
+            value={newAssignment.userId}
+            onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
+            required
+          >
+            <option value="">Select User</option>
+            {users.map((user) => (
+              <option key={user._id} value={user._id}>
+                {user.email}
+              </option>
+            ))}
+          </select>
+  
+          <label>Start Date:</label>
+          <input type="datetime-local" value={newAssignment.startDate} onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })} required />
+  
+          <label>End Date:</label>
+          <input type="datetime-local" value={newAssignment.endDate} onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })} required />
+  
+          <button type="submit" style={{ marginTop: "10px", padding: "10px", background: "#007bff", color: "white", border: "none", borderRadius: "5px" }}>
+            Create Assignment
+          </button>
+        </form>
+  
+        {/* Calendar Display */}
+        <div style={{ height: "500px", width: "100%", overflowX: "hidden" }}>
+          <Calendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            views={["month", "week"]}
+            style={{ height: "100%", width: "100%" }}
+          />
+        </div>
       </div>
-    </div>
-  );  
+    );
+  };
 }
-
 export default Scheduler;
