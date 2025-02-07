@@ -389,7 +389,7 @@ function Dashboard({ setUser }) {
                     setPasskey("");
                   }}
                 >
-                  Add Property
+                  + Property
                 </button>
                 <button className="Admin-tools-adtl" onClick={() => setViewScheduler(true)}>
                   Scheduler

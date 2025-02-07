@@ -116,7 +116,7 @@ button:hover {
 
 /* Reduce left margin when sidebar is collapsed */
 .dashboard-container.collapsed .main-content {
-  margin-left: 150px;
+  margin-left: 50px;
   display:flex;
   flex-direction: column;
   justify-content: center;
