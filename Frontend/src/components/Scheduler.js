@@ -74,20 +74,32 @@ function Scheduler() {
       alert("Unauthorized. Please log in again.");
       return;
     }
-
+  
+    // Convert date strings into proper Date objects
+    const formattedAssignment = {
+      ...newAssignment,
+      startDate: new Date(newAssignment.startDate).toISOString(), // Convert to ISO format
+      endDate: new Date(newAssignment.endDate).toISOString(),
+    };
+  
+    if (isNaN(new Date(formattedAssignment.startDate)) || isNaN(new Date(formattedAssignment.endDate))) {
+      alert("❌ Invalid date format. Please select valid start and end dates.");
+      return;
+    }
+  
     const url = editingAssignment
       ? `https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`
       : "https://cp-check-submissions-dev-backend.onrender.com/api/assignments";
-
+  
     const method = editingAssignment ? "PUT" : "POST"; // Use PUT for updating
-
+  
     fetch(url, {
       method,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(newAssignment),
+      body: JSON.stringify(formattedAssignment),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -106,6 +118,7 @@ function Scheduler() {
       })
       .catch((err) => console.error("Error saving assignment:", err));
   };
+  
 
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {
@@ -187,32 +200,58 @@ function Scheduler() {
 
       {/* Form Section */}
       <form onSubmit={handleSaveAssignment} className="assignment-form">
-        <label>Property:</label>
-        <select value={newAssignment.propertyName} onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })} required>
-          <option value="">Select Property</option>
-          {properties.map((prop) => (
-            <option key={prop.name} value={prop.name}>{prop.name}</option>
-          ))}
-        </select>
+  <label>Property:</label>
+  <select
+    value={newAssignment.propertyName}
+    onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
+    required
+  >
+    <option value="">Select Property</option>
+    {properties.map((prop) => (
+      <option key={prop.name} value={prop.name}>{prop.name}</option>
+    ))}
+  </select>
 
-        <label>User:</label>
-        <select value={newAssignment.userId} onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })} required>
-          <option value="">Select User</option>
-          {users.map((user) => (
-            <option key={user._id} value={user._id}>{user.email}</option>
-          ))}
-        </select>
+  <label>User:</label>
+  <select
+    value={newAssignment.userId}
+    onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
+    required
+  >
+    <option value="">Select User</option>
+    {users.map((user) => (
+      <option key={user._id} value={user._id}>{user.email}</option>
+    ))}
+  </select>
 
-        <button type="submit" className="create-button">
-          {editingAssignment ? "Update Assignment" : "Create Assignment"}
-        </button>
+  {/* ✅ Start Date */}
+  <label>Start Date:</label>
+  <input
+    type="datetime-local"
+    value={newAssignment.startDate || ""}
+    onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
+    required
+  />
 
-        {editingAssignment && (
-          <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
-            Delete Assignment
-          </button>
-        )}
-      </form>
+  {/* ✅ End Date */}
+  <label>End Date:</label>
+  <input
+    type="datetime-local"
+    value={newAssignment.endDate || ""}
+    onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
+    required
+  />
+
+  <button type="submit" className="create-button">
+    {editingAssignment ? "Update Assignment" : "Create Assignment"}
+  </button>
+
+  {editingAssignment && (
+    <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
+      Delete Assignment
+    </button>
+  )}
+</form>
 
       <DndProvider backend={HTML5Backend}>
         <DnDCalendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" onEventDrop={handleEventDrop} onSelectEvent={handleEventDoubleClick} />
