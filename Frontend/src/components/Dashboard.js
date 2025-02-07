@@ -30,6 +30,10 @@ function Dashboard({ setUser }) {
   const { property } = useParams();
   const navigate = useNavigate();
 
+  // ----------- Paging -----------
+  const PAGE_SIZE = 4;
+  const [pageIndex, setPageIndex] = useState(0);
+
   // ----------- States for properties, loading, etc. ----------
   const [properties, setProperties] = useState([]);
   const [completedProperties, setCompletedProperties] = useState([]);
@@ -56,15 +60,11 @@ function Dashboard({ setUser }) {
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
   const [newPropName, setNewPropName] = useState("");
   const [newPropEmails, setNewPropEmails] = useState("");
-
-  // We'll store lat/lng behind the scenes. The admin won't edit these manually.
   const [newPropLat, setNewPropLat] = useState("");
   const [newPropLng, setNewPropLng] = useState("");
-
-  // We'll give them an "Address" field to geocode
   const [newPropAddress, setNewPropAddress] = useState("");
 
-  // ----------- New States for "Remove Property" Passkey -----------
+  // ----------- States for "Remove Property" Admin Flow -----------
   const [removePasskeyPromptVisible, setRemovePasskeyPromptVisible] = useState(false);
   const [removePasskey, setRemovePasskey] = useState("");
   const [propertyToRemove, setPropertyToRemove] = useState(null);
@@ -87,43 +87,14 @@ function Dashboard({ setUser }) {
   // ======================
   useEffect(() => {
     if (!token || isTokenExpired(token)) {
-      // If token missing or expired, force user to re-login
-      localStorage.removeItem("token");
-      localStorage.removeItem("orgName");
-      localStorage.removeItem("loginTime");
-      localStorage.removeItem("role");
+      localStorage.clear();
       if (setUser) setUser(false);
       navigate("/login");
       return;
     }
-
-    // Fetch org properties
     fetchProperties();
-
-    // For user role, fetch submissions to see which props are completed
-    if (role === "user") {
-      fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          const completed = Array.from(
-            new Set(
-              data
-                .filter((sub) => new Date(sub.submittedAt) >= new Date(loginTime))
-                .map((sub) => sub.property)
-            )
-          );
-          setCompletedProperties(completed);
-        })
-        .catch((err) => console.error("Error fetching submissions:", err));
-    }
   }, [navigate, token, loginTime, role, setUser]);
 
-  // ======================
-  // 2a) Helper: fetchProperties (so we can re-fetch if we remove or add props)
-  // ======================
   function fetchProperties() {
     setLoading(true);
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
@@ -146,43 +117,59 @@ function Dashboard({ setUser }) {
       });
   }
 
+  // If user is "user," fetch submissions to mark completed props
+  useEffect(() => {
+    if (role === "user" && token && !isTokenExpired(token)) {
+      fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const completed = Array.from(
+            new Set(
+              data
+                .filter((sub) => new Date(sub.submittedAt) >= new Date(loginTime))
+                .map((sub) => sub.property)
+            )
+          );
+          setCompletedProperties(completed);
+        })
+        .catch((err) => console.error("Error fetching submissions:", err));
+    }
+  }, [role, token, loginTime]);
+
   // ======================
   // 3) Remove Property Logic (admin only)
   // ======================
-  // Instead of directly removing a property, we now first prompt the admin for a removal passkey.
-  function openRemovePasskeyPrompt(propertyName) {
+  function initiateRemoveProperty(propertyName) {
     setPropertyToRemove(propertyName);
-    setRemovePasskey("");
     setRemovePasskeyPromptVisible(true);
   }
 
-  // Called when the admin submits the removal passkey
-  const handleRemovePasskeySubmit = () => {
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/verify-remove-passkey", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passkey: removePasskey }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.valid) {
-          // Proceed with removal
-          doRemoveProperty(propertyToRemove);
-        } else {
-          alert("Invalid removal passkey. Property not removed.");
-        }
-        setRemovePasskeyPromptVisible(false);
-        setRemovePasskey("");
-        setPropertyToRemove(null);
-      })
-      .catch((err) => console.error("Error verifying removal passkey:", err));
-  };
+  async function handleRemoveProperty() {
+    if (!propertyToRemove) return;
 
-  // Actually call the API to remove the property
-  async function doRemoveProperty(propertyName) {
     try {
-      const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(propertyName)}`,
+      // Verify the passkey for removal
+      const verifyResponse = await fetch(
+        "https://cp-check-submissions-dev-backend.onrender.com/api/verify-remove-passkey",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ removePasskey }),
+        }
+      );
+
+      const verifyData = await verifyResponse.json();
+      if (!verifyData.valid) {
+        alert("❌ Invalid passkey. Cannot remove property.");
+        return;
+      }
+
+      // If passkey is valid, proceed with deletion
+      const deleteResponse = await fetch(
+        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(propertyToRemove)}`,
         {
           method: "DELETE",
           headers: {
@@ -192,18 +179,21 @@ function Dashboard({ setUser }) {
         }
       );
 
-      const data = await response.json();
-      if (response.ok) {
-        alert(`Property "${propertyName}" removed successfully!`);
-        // Re-fetch to update UI
+      const deleteData = await deleteResponse.json();
+      if (deleteResponse.ok) {
+        alert(`✅ Property "${propertyToRemove}" removed successfully!`);
         fetchProperties();
       } else {
-        alert(data.error || "Error removing property.");
+        alert(deleteData.error || "❌ Error removing property.");
       }
     } catch (error) {
       console.error("Error removing property:", error);
-      alert("Server error removing property.");
+      alert("❌ Server error removing property.");
     }
+
+    setRemovePasskeyPromptVisible(false);
+    setPropertyToRemove(null);
+    setRemovePasskey("");
   }
 
   // ======================
@@ -314,13 +304,30 @@ function Dashboard({ setUser }) {
 
   const handleLogout = () => {
     console.log("🔹 Logging out... Clearing session data.");
-    localStorage.removeItem("token");
-    localStorage.removeItem("orgName");
-    localStorage.removeItem("loginTime");
-    localStorage.removeItem("role");
+    localStorage.clear();
     if (setUser) setUser(false);
     navigate("/login");
   };
+
+  // ======================
+  // 6) Paging Logic
+  // ======================
+  const totalPages = Math.ceil(properties.length / PAGE_SIZE);
+  const displayedProperties = properties.slice(
+    pageIndex * PAGE_SIZE,
+    pageIndex * PAGE_SIZE + PAGE_SIZE
+  );
+
+  const canGoPrev = pageIndex > 0;
+  const canGoNext = pageIndex < totalPages - 1;
+
+  function handleNextPage() {
+    if (canGoNext) setPageIndex((prev) => prev + 1);
+  }
+
+  function handlePrevPage() {
+    if (canGoPrev) setPageIndex((prev) => prev - 1);
+  }
 
   // ======================
   // RENDER
@@ -338,16 +345,14 @@ function Dashboard({ setUser }) {
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
 
             <ul>
-              {properties.map((prop) => (
+              {displayedProperties.map((prop) => (
                 <li
                   key={prop.name}
                   className={completedProperties.includes(prop.name) ? "completed" : ""}
                   onClick={() => {
                     if (role === "admin") {
-                      // Admin: see submissions
                       navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                     } else {
-                      // User: fill form
                       navigate(`/form/${encodeURIComponent(prop.name)}`);
                     }
                   }}
@@ -367,9 +372,7 @@ function Dashboard({ setUser }) {
                 />
                 <span className="slider"></span>
               </label>
-              <span className="toggle-label">
-                {darkMode ? "🌙" : "☀️"}
-              </span>
+              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
             </div>
 
             {/* Tools for Admin */}
@@ -406,62 +409,74 @@ function Dashboard({ setUser }) {
         ) : error ? (
           <p className="error">{error}</p>
         ) : (
-          <div className="property-cards">
-            {properties.map((prop) => (
-              <div
-                key={prop.name}
-                className={`property-card ${
-                  completedProperties.includes(prop.name) ? "completed-tile" : ""
-                }`}
-                onClick={() => {
-                  if (role === "admin") {
-                    navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-                  } else {
-                    navigate(`/form/${encodeURIComponent(prop.name)}`);
-                  }
-                }}
-              >
-                <h3>{prop.name}</h3>
-                <p>
-                  {role === "admin"
-                    ? "Click to view recent submissions"
-                    : completedProperties.includes(prop.name)
-                    ? "Completed"
-                    : "Click to complete checklist"}
-                </p>
+          <>
+            {/* Property Cards */}
+            <div className="property-cards">
+              {displayedProperties.map((prop) => (
+                <div
+                  key={prop.name}
+                  className={`property-card ${
+                    completedProperties.includes(prop.name) ? "completed-tile" : ""
+                  }`}
+                  onClick={() => {
+                    if (role === "admin") {
+                      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+                    } else {
+                      navigate(`/form/${encodeURIComponent(prop.name)}`);
+                    }
+                  }}
+                >
+                  <h3>{prop.name}</h3>
+                  <p>
+                    {role === "admin"
+                      ? "Click to view recent submissions"
+                      : completedProperties.includes(prop.name)
+                      ? "Completed"
+                      : "Click to complete checklist"}
+                  </p>
 
-                {/* If admin, show "Remove" button */}
-                {role === "admin" && (
-                  <button className='remove-button'
-                    style={{ marginTop: "8px" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Instead of immediate removal, prompt for removal passkey.
-                      openRemovePasskeyPrompt(prop.name);
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
+                  {/* If admin, show "Remove" button */}
+                  {role === "admin" && (
+                    <button
+                      style={{ marginTop: "8px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        initiateRemoveProperty(prop.name);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
 
-                {/* If user, show "Navigate" button (assuming lat/lng exist) */}
-                {role !== "admin" && prop.lat && prop.lng && (
-                  <button
-                    className="navigate-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openNativeMaps(prop.lat, prop.lng);
-                    }}
-                  >
-                    Navigate
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+                  {/* If user, show "Navigate" button (assuming lat/lng exist) */}
+                  {role !== "admin" && prop.lat && prop.lng && (
+                    <button
+                      className="navigate-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openNativeMaps(prop.lat, prop.lng);
+                      }}
+                    >
+                      Navigate
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="pagination-controls" style={{ marginTop: "1rem" }}>
+              {canGoPrev && (
+                <button onClick={handlePrevPage} style={{ marginRight: "10px" }}>
+                  Previous
+                </button>
+              )}
+              {canGoNext && <button onClick={handleNextPage}>Next</button>}
+            </div>
+          </>
         )}
 
-        {/* Prompt for passkey if needed (for adding property) */}
+        {/* Passkey prompt for adding property */}
         {passkeyPromptVisible && (
           <div className="passkey-modal">
             <h3>Enter passkey to add property</h3>
@@ -472,6 +487,20 @@ function Dashboard({ setUser }) {
             />
             <button onClick={handlePasskeySubmit}>Submit</button>
             <button onClick={() => setPasskeyPromptVisible(false)}>Cancel</button>
+          </div>
+        )}
+
+        {/* Passkey prompt for removing property */}
+        {removePasskeyPromptVisible && (
+          <div className="passkey-modal">
+            <h3>Enter passkey to remove property</h3>
+            <input
+              type="password"
+              value={removePasskey}
+              onChange={(e) => setRemovePasskey(e.target.value)}
+            />
+            <button onClick={handleRemoveProperty}>Confirm Removal</button>
+            <button onClick={() => setRemovePasskeyPromptVisible(false)}>Cancel</button>
           </div>
         )}
 
@@ -519,23 +548,6 @@ function Dashboard({ setUser }) {
 
             <button onClick={handleCreateProperty}>Create</button>
             <button onClick={() => setAddPropertyFormVisible(false)}>Close</button>
-          </div>
-        )}
-
-        {/* Modal for removal passkey (for admin only) */}
-        {removePasskeyPromptVisible && (
-          <div className="passkey-modal">
-            <h3>
-              Enter removal passkey to remove property{" "}
-              {propertyToRemove && `"${propertyToRemove}"`}
-            </h3>
-            <input
-              type="password"
-              value={removePasskey}
-              onChange={(e) => setRemovePasskey(e.target.value)}
-            />
-            <button onClick={handleRemovePasskeySubmit}>Submit</button>
-            <button onClick={() => setRemovePasskeyPromptVisible(false)}>Cancel</button>
           </div>
         )}
       </div>
