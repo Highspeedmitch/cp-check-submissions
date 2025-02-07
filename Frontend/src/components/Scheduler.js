@@ -1,12 +1,15 @@
-// Scheduler.js
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
 const localizer = momentLocalizer(moment);
 
-function Scheduler({ token }) {
+function Scheduler() {
+  const location = useLocation();
+  const token = location.state?.token || localStorage.getItem("token");
+
   const [assignments, setAssignments] = useState([]);
   const [properties, setProperties] = useState([]);
   const [users, setUsers] = useState([]);
@@ -17,8 +20,9 @@ function Scheduler({ token }) {
     endDate: "",
   });
 
-  // Fetch assignments when the page loads
+  // ✅ Fetch assignments
   useEffect(() => {
+    if (!token) return;
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
@@ -28,8 +32,9 @@ function Scheduler({ token }) {
       .catch((err) => console.error("Error fetching assignments:", err));
   }, [token]);
 
-  // Fetch properties for selection
+  // ✅ Fetch properties for selection
   useEffect(() => {
+    if (!token) return;
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
@@ -39,8 +44,9 @@ function Scheduler({ token }) {
       .catch((err) => console.error("Error fetching properties:", err));
   }, [token]);
 
-  // Fetch users for selection
+  // ✅ Fetch users for selection
   useEffect(() => {
+    if (!token) return;
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/users", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
@@ -50,10 +56,14 @@ function Scheduler({ token }) {
       .catch((err) => console.error("Error fetching users:", err));
   }, [token]);
 
-  // Handle form submission
+  // ✅ Handle form submission (create new assignment)
   const handleCreateAssignment = (e) => {
     e.preventDefault();
-    
+    if (!token) {
+      alert("Unauthorized. Please log in again.");
+      return;
+    }
+
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
       method: "POST",
       headers: { 
@@ -67,6 +77,7 @@ function Scheduler({ token }) {
       if (data.success) {
         alert("✅ Assignment created successfully!");
         setAssignments([...assignments, data.assignment]);
+        setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" }); // Reset form
       } else {
         alert("❌ " + (data.error || "Failed to create assignment."));
       }
@@ -74,7 +85,7 @@ function Scheduler({ token }) {
     .catch((err) => console.error("Error creating assignment:", err));
   };
 
-  // Map assignments into events
+  // ✅ Map assignments into events for the calendar
   const events = assignments.map((assignment) => ({
     title: assignment.propertyName,
     start: new Date(assignment.startDate),
@@ -85,7 +96,7 @@ function Scheduler({ token }) {
     <div>
       <h2>Scheduler</h2>
 
-      {/* Assignment Creation Form */}
+      {/* ✅ Assignment Creation Form */}
       <form onSubmit={handleCreateAssignment}>
         <label>Property:</label>
         <select
@@ -134,7 +145,7 @@ function Scheduler({ token }) {
         <button type="submit">Create Assignment</button>
       </form>
 
-      {/* Calendar Display */}
+      {/* ✅ Calendar Display */}
       <div style={{ height: "500px", marginTop: "20px" }}>
         <Calendar
           localizer={localizer}

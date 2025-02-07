@@ -1,7 +1,6 @@
 // Dashboard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Scheduler from "./Scheduler";
 
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
@@ -411,7 +410,7 @@ function Dashboard({ setUser }) {
                   className="Admin-tools-adtl" 
                   onClick={(e) => {
                     e.preventDefault();  // Prevent default behavior
-                    navigate("/scheduler");  // Ensure correct navigation
+                    navigate("/scheduler", { state: { token } });  // Ensure correct navigation
                     }}>
                     Scheduler
                     </button>
