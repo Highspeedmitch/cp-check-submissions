@@ -69,6 +69,9 @@ function Dashboard({ setUser }) {
   const [removePasskey, setRemovePasskey] = useState("");
   const [propertyToRemove, setPropertyToRemove] = useState(null);
 
+  //------------ State for 'setViewScheduler' Admin Flow -----------
+  const [viewScheduler, setViewScheduler] = useState(false);
+
   // ======================
   // 1) Apply dark mode on load
   // ======================
