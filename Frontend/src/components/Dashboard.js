@@ -1,6 +1,7 @@
 // Dashboard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import Scheduler from "./Scheduler";
 
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
@@ -71,6 +72,7 @@ function Dashboard({ setUser }) {
 
   //------------ State for 'setViewScheduler' Admin Flow -----------
   const [viewScheduler, setViewScheduler] = useState(false);
+  const [assignments, setAssignments] = useState([]);
 
   // ======================
   // 1) Apply dark mode on load
@@ -219,7 +221,21 @@ function Dashboard({ setUser }) {
       })
       .catch((err) => console.error("Error verifying passkey:", err));
   };
-
+  
+  useEffect(() => {
+    if (viewScheduler) {
+      fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setAssignments(data);
+        })
+        .catch((err) => console.error("Error fetching assignments:", err));
+    }
+  }, [viewScheduler, token]);
+  
   // Geocode address -> lat/lng using Mapbox
   async function handleGeocodeAddress(e) {
     e.preventDefault();
