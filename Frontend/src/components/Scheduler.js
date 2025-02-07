@@ -153,7 +153,7 @@ function Scheduler() {
         <label>End Date:</label>
         <input type="datetime-local" value={newAssignment.endDate} onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })} required />
 
-        <button type="submit" style={{ marginTop: "10px", padding: "30px", background: "#007bff", color: "white", border: "none", borderRadius: "5px" }}>
+        <button type="submit" style={{ marginTop: "10px", padding: "10px", background: "#007bff", color: "white", border: "none", borderRadius: "5px" }}>
           Create Assignment
         </button>
       </form>
