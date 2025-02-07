@@ -614,6 +614,7 @@ button:hover {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
     width: Auto;
     margin-top: -10px;
+    flex-direction: column
 }
 
 /* Toggle Switch Container */
