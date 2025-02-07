@@ -616,6 +616,7 @@ button:hover {
     width: Auto;
     max-width: 100px;
     flex-wrap: wrap;
+    margin-top: -10px;
 }
 
 /* Toggle Switch Container */

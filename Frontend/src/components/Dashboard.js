@@ -392,7 +392,7 @@ function Dashboard({ setUser }) {
                   Add Property
                 </button>
                 <button className="Add-Prop" onClick={() => setViewScheduler(true)}>
-                  View Scheduler
+                  Scheduler
                 </button>
               </div>
             )}
