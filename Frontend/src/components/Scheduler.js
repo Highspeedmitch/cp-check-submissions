@@ -159,7 +159,7 @@ function Scheduler() {
       </form>
 
       {/* Calendar Display */}
-      <div style={{ height: "500px", width: "100%", overflowX: "hidden", flexwrap: "wrap", }}>
+      <div style={{ height: "500px", width: "100%", overflowX:"scroll", flexwrap: "wrap", }}>
         <Calendar
           localizer={localizer}
           events={events}
