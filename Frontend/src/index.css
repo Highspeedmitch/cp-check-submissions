@@ -118,6 +118,7 @@ button:hover {
 .dashboard-container.collapsed .main-content {
   margin-left: 50px;
   display:flex;
+  flex-direction: column;
   justify-content: center;
 }
 
