@@ -788,11 +788,6 @@ button:hover {
   padding: 5px 10px;
 }
 
-/* Remove the 'Day' view button */
-.rbc-btn-group button:nth-child(3) {
-  display: none; /* Hides 'Day' view */
-}
-
 /* Adjust mobile responsiveness */
 @media (max-width: 768px) {
   .rbc-calendar {
