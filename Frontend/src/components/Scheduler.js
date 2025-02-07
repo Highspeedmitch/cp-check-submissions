@@ -159,13 +159,23 @@ function Scheduler() {
   };
 
   // Map assignments into events
-  const events = assignments.map((assignment) => ({
-    _id: assignment._id,
-    title: assignment.propertyName,
-    start: new Date(assignment.startDate), // Ensure this is a valid Date object
-    end: new Date(assignment.endDate),     // Ensure this is a valid Date object
-    userId: assignment.userId,
-  }));
+  const events = assignments.map((assignment) => {
+    let startDate = new Date(assignment.startDate);
+    let endDate = new Date(assignment.endDate);
+  
+    // Ensure event duration for month view (at least a full day)
+    if (startDate.toDateString() === endDate.toDateString()) {
+      endDate.setHours(endDate.getHours() + 1); // Extend by 1 hour
+    }
+  
+    return {
+      _id: assignment._id,
+      title: assignment.propertyName,
+      start: startDate,
+      end: endDate,
+      userId: assignment.userId,
+    };
+  });  
 
   return (
     <div className="scheduler-container">
