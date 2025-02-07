@@ -407,10 +407,14 @@ function Dashboard({ setUser }) {
                 >
                   + Property
                 </button>
-                <button className="Admin-tools-adtl" onClick={() => navigate("/scheduler")}>
-                  Scheduler
-                </button>
-
+                <button 
+                  className="Admin-tools-adtl" 
+                  onClick={(e) => {
+                    e.preventDefault();  // Prevent default behavior
+                    navigate("/scheduler");  // Ensure correct navigation
+                    }}>
+                    Scheduler
+                    </button>
               </div>
             )}
           </>

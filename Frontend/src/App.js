@@ -8,7 +8,7 @@ import PropertySelector from "./components/PropertySelector";
 import AdminSubmissions from "./components/AdminSubmissions";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
-
+import Scheduler from "./components/Scheduler";
 function App() {
   const [user, setUser] = useState(null);
 
@@ -31,6 +31,7 @@ function App() {
       <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/scheduler" element={<Scheduler />} />
     </Routes>
   );
 }
