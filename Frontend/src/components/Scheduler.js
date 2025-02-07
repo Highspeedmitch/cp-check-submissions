@@ -75,23 +75,19 @@ function Scheduler() {
       return;
     }
   
-    // Convert date strings into proper Date objects
-    const formattedAssignment = {
-      ...newAssignment,
-      startDate: new Date(newAssignment.startDate).toISOString(), // Convert to ISO format
-      endDate: new Date(newAssignment.endDate).toISOString(),
-    };
-  
-    if (isNaN(new Date(formattedAssignment.startDate)) || isNaN(new Date(formattedAssignment.endDate))) {
-      alert("❌ Invalid date format. Please select valid start and end dates.");
-      return;
-    }
-  
+    console.log("Editing assignment:", editingAssignment);
+    
     const url = editingAssignment
       ? `https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`
       : "https://cp-check-submissions-dev-backend.onrender.com/api/assignments";
   
-    const method = editingAssignment ? "PUT" : "POST"; // Use PUT for updating
+    const method = editingAssignment ? "PUT" : "POST";
+  
+    const formattedAssignment = {
+      ...newAssignment,
+      startDate: new Date(newAssignment.startDate).toISOString(),
+      endDate: new Date(newAssignment.endDate).toISOString(),
+    };
   
     fetch(url, {
       method,
@@ -103,13 +99,14 @@ function Scheduler() {
     })
       .then((res) => res.json())
       .then((data) => {
+        console.log("Server response:", data);
         if (data.success) {
           alert("✅ Assignment saved successfully!");
-          if (editingAssignment) {
-            setAssignments(assignments.map((a) => (a._id === editingAssignment._id ? data.assignment : a)));
-          } else {
-            setAssignments([...assignments, data.assignment]);
-          }
+          setAssignments(
+            assignments.map((a) =>
+              a._id === editingAssignment._id ? data.assignment : a
+            )
+          );
           setEditingAssignment(null);
           setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
         } else {
@@ -117,9 +114,8 @@ function Scheduler() {
         }
       })
       .catch((err) => console.error("Error saving assignment:", err));
-  };
+  };  
   
-
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {
     fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${event._id}`, {
@@ -162,14 +158,16 @@ function Scheduler() {
 
   // Handle Double Click (Edit Event)
   const handleEventDoubleClick = (event) => {
+    console.log("Editing event:", event);
     setEditingAssignment(event);
     setNewAssignment({
-      propertyName: event.propertyName,
+      propertyName: event.title, // Ensure correct mapping
       userId: event.userId,
       startDate: moment(event.start).format("YYYY-MM-DDTHH:mm"),
       endDate: moment(event.end).format("YYYY-MM-DDTHH:mm"),
     });
   };
+  
 
   // Map assignments into events
   const events = assignments.map((assignment) => {
