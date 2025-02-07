@@ -117,6 +117,7 @@ button:hover {
 /* Reduce left margin when sidebar is collapsed */
 .dashboard-container.collapsed .main-content {
   margin-left: 50px;
+  display:flex;
   justify-content: center;
 }
 
@@ -311,6 +312,7 @@ button:hover {
 .main-content {
   flex: 1;
   padding: 20px 30px;
+  justify-content: center;
 }
 
 /* Dashboard Header */
