@@ -31,7 +31,7 @@ function Dashboard({ setUser }) {
   const navigate = useNavigate();
 
   // ----------- Paging -----------
-  const PAGE_SIZE = 4;
+  const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
 
   // ----------- States for properties, loading, etc. ----------
