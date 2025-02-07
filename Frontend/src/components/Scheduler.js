@@ -2,36 +2,14 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
+import "react-big-calendar/lib/css/react-big-calendar.css"; 
+import "react-big-calendar/lib/addons/dragAndDrop/styles.css"; 
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
-
-function CustomToolbar({ label, onNavigate, onView, view }) {
-  return (
-    <div className="rbc-toolbar">
-      {/* View Selection (Month/Week) at the top */}
-      <div className="rbc-btn-group">
-        <button onClick={() => onView("month")} className={view === "month" ? "active" : ""}>Month</button>
-        <button onClick={() => onView("week")} className={view === "week" ? "active" : ""}>Week</button>
-      </div>
-
-      {/* Date Label in the center */}
-      <span className="rbc-toolbar-label">{label}</span>
-
-      {/* Navigation (Back/Today/Next) below the calendar */}
-      <div className="rbc-btn-group">
-        <button onClick={() => onNavigate("TODAY")}>Today</button>
-        <button onClick={() => onNavigate("PREV")}>Back</button>
-        <button onClick={() => onNavigate("NEXT")}>Next</button>
-      </div>
-    </div>
-  );
-}
 
 function Scheduler() {
   const navigate = useNavigate();
@@ -72,7 +50,7 @@ function Scheduler() {
       .catch((err) => console.error("Error fetching properties:", err));
   }, [token]);
 
-  // Fetch users (only non-admins)
+  // Fetch users (exclude admins)
   useEffect(() => {
     if (!token) return;
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/users", {
@@ -121,33 +99,59 @@ function Scheduler() {
     title: assignment.propertyName,
     start: new Date(assignment.startDate),
     end: new Date(assignment.endDate),
-    allDay: true
   }));
 
   return (
-    <div style={{ maxWidth: "900px", width: "100%", margin: "0 auto", padding: "10px" }}>
-      <button 
-        onClick={() => navigate("/dashboard")} 
-        style={{
-          marginBottom: "10px",
-          padding: "10px",
-          background: "#28a745",
-          color: "white",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer"
-        }}
-      >
+    <div className="scheduler-container">
+      <button onClick={() => navigate("/dashboard")} className="return-button">
         ← Return to Dashboard
       </button>
 
-      <h2 style={{ textAlign: "center" }}>Scheduler</h2>
+      <h2 className="scheduler-title">Scheduler</h2>
 
-      <form onSubmit={handleCreateAssignment} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {/* Inputs for property, user, start & end date */}
+      {/* Form Section */}
+      <form onSubmit={handleCreateAssignment} className="assignment-form">
+        <label>Property:</label>
+        <select
+          value={newAssignment.propertyName}
+          onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
+          required
+        >
+          <option value="">Select Property</option>
+          {properties.map((prop) => (
+            <option key={prop.name} value={prop.name}>
+              {prop.name}
+            </option>
+          ))}
+        </select>
+
+        <label>User:</label>
+        <select
+          value={newAssignment.userId}
+          onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
+          required
+        >
+          <option value="">Select User</option>
+          {users.map((user) => (
+            <option key={user._id} value={user._id}>
+              {user.email}
+            </option>
+          ))}
+        </select>
+
+        <label>Start Date:</label>
+        <input type="datetime-local" value={newAssignment.startDate} onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })} required />
+
+        <label>End Date:</label>
+        <input type="datetime-local" value={newAssignment.endDate} onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })} required />
+
+        <button type="submit" className="create-button">
+          Create Assignment
+        </button>
       </form>
 
-      <div style={{ height: "500px", width: "100%", overflowX: "hidden" }}>
+      {/* Calendar Section */}
+      <div className="calendar-wrapper">
         <DndProvider backend={HTML5Backend}>
           <DnDCalendar
             localizer={localizer}
@@ -156,7 +160,6 @@ function Scheduler() {
             endAccessor="end"
             views={["month", "week"]}
             style={{ height: "500px", width: "100%" }}
-            components={{ toolbar: CustomToolbar }} // Override toolbar
           />
         </DndProvider>
       </div>

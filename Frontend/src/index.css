@@ -751,67 +751,123 @@ button:hover {
 }
 /* Override calendar background */
 /* Override calendar background */
+/* Center the calendar container */
 .rbc-calendar {
   background-color: #f8f9fa;
   border-radius: 8px;
   padding: 10px;
   max-width: 900px;
-  margin: 0 auto; /* Center the calendar */
+  margin: 0 auto;
 }
 
-/* Move Month/Week buttons to the top */
+/* Toolbar Layout */
 .rbc-toolbar {
   display: flex;
-  flex-direction: column; /* Stack elements */
+  flex-direction: column;
   align-items: center;
   gap: 10px;
 }
 
-/* Adjust view selector buttons (Month/Week) */
+/* Style view selection buttons (Month, Week) */
 .rbc-toolbar .rbc-btn-group:first-child {
-  order: -1; /* Move to the top */
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
 }
 
-/* Move Back/Today/Next buttons below the calendar */
+/* Style navigation buttons (Today, Back, Next) */
 .rbc-toolbar .rbc-btn-group:nth-child(2) {
-  order: 2;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
 }
 
-/* Style navigation buttons */
-.rbc-btn-group button {
+/* Ensure buttons fit within the container */
+.rbc-toolbar .rbc-btn-group button {
   background-color: #007bff !important;
   color: white !important;
   border-radius: 5px;
   padding: 6px 12px;
   font-size: 14px;
   border: none;
-  margin: 2px;
+  width: auto;
+  min-width: 100px;
+  text-align: center;
 }
 
-/* Ensure buttons fit within container */
-.rbc-toolbar .rbc-btn-group {
-  max-width: 100%;
-  justify-content: center;
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-/* Adjust mobile responsiveness */
+/* Responsive Design */
 @media (max-width: 768px) {
-  .rbc-calendar {
-    padding: 5px;
-  }
-
   .rbc-toolbar {
-    font-size: 14px;
     flex-direction: column;
   }
 
   .rbc-btn-group {
     flex-direction: row;
     justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .rbc-btn-group button {
+    flex: 1;
   }
 }
+.scheduler-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
 
+.return-button {
+  display: block;
+  margin: 0 auto 20px;
+  padding: 10px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+}
 
+.scheduler-title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.assignment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.assignment-form label {
+  font-weight: bold;
+}
+
+.assignment-form select,
+.assignment-form input {
+  padding: 8px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.create-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.calendar-wrapper {
+  margin-top: 20px;
+}
