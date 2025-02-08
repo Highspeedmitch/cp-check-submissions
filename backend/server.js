@@ -292,6 +292,7 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
       pdfUrl: uploadResult.Location,
       submittedAt: new Date(),
     });
+    const submissionTimestamp = moment().format("YYYY-MM-DD");
 
     // Email the PDF
     const org = await Organization.findById(organizationId);
@@ -309,10 +310,11 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     const mailOptions = {
       from: 'highspeedmitch@gmail.com',
       to: recipientEmails,
-      subject: `Checklist PDF for ${propertyName}`,
+      subject: `Checklist PDF for ${propertyName} submitted on ${submissionTimestamp}`,
       text: `Attached is the checklist PDF for ${propertyName}.`,
       attachments: [{ filename: fileName, content: pdfBuffer }],
     };
+    
 
     await transporter.sendMail(mailOptions)
       .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
