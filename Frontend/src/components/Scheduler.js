@@ -257,7 +257,7 @@ function Scheduler() {
             events={events}
             startAccessor="start"
             endAccessor="end"
-            views={["month", "week", "Agenda"]}
+            views={["month", "week"]}
             style={{ height: "500px", width: "100%" }}
             onEventDrop={handleEventDrop}
             onSelectEvent={handleEventDoubleClick}
