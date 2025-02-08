@@ -713,35 +713,44 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
     }
 
     const { propertyName, userId, startDate, endDate } = req.body;
+    const organizationId = req.user.organizationId; // ✅ Get org ID from authenticated user
 
-    // Check for overlapping assignments on the same property
+    if (!organizationId) {
+      return res.status(400).json({ error: "Missing organizationId" });
+    }
+
+    // Check for overlapping assignments within the same organization
     const overlapping = await Assignment.findOne({
       propertyName,
+      organizationId, // 🔹 Ensure org-level uniqueness
       $or: [
         { startDate: { $lte: new Date(endDate) }, endDate: { $gte: new Date(startDate) } }
       ]
     });
 
     if (overlapping) {
-      return res.status(400).json({ error: "Overlapping assignment exists for this property." });
+      return res.status(400).json({ error: "Overlapping assignment exists for this property within your organization." });
     }
 
-    // Create the new assignment
+    // Create the new assignment with organizationId
     const assignment = new Assignment({
       propertyName,
       userId,
+      organizationId, // ✅ Ensure it gets stored
       startDate,
       endDate
     });
 
     await assignment.save();
 
-    res.json({ success: true, message: "Assignment created successfully", assignment });
+    res.json({ success: true, message: "✅ Assignment created successfully", assignment });
+
   } catch (error) {
     console.error("❌ Error creating assignment:", error);
     res.status(500).json({ error: "Server error creating assignment" });
   }
 });
+
 
 // Get all assignments (optionally, you could filter by organization here)
 app.get('/api/assignments', authenticateToken, async (req, res) => {
