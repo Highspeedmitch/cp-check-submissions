@@ -159,15 +159,19 @@ function Scheduler() {
   // Handle Double Click (Edit Event)
   const handleEventDoubleClick = (event) => {
     console.log("Editing event:", event);
+    
+    // Find matching property
+    const matchedProperty = properties.find(prop => prop.name === event.title.split(" - ")[0]); 
+    const propertyName = matchedProperty ? matchedProperty.name : event.title; // Fallback if not found
+  
     setEditingAssignment(event);
     setNewAssignment({
-      propertyName: event.title, // Ensure correct mapping
+      propertyName: propertyName, // ✅ Ensure correct property is populated
       userId: event.userId,
       startDate: moment(event.start).format("YYYY-MM-DDTHH:mm"),
       endDate: moment(event.end).format("YYYY-MM-DDTHH:mm"),
     });
   };
-  
 
   // Map assignments into events
   const events = assignments.map((assignment) => {
