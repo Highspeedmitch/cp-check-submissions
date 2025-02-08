@@ -27,7 +27,7 @@ function urlBase64ToUint8Array(base64String) {
       })
       .then(swReg => {
         // Get your VAPID public key from your environment or configuration
-        const vapidPublicKey = 'YourGeneratedPublicKeyHere'; // Replace with your key or load from config
+        const vapidPublicKey = process.env.VAPID_PUBLIC_KEY; // Replace with your key or load from config
         const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
         
         // Subscribe the user for push notifications
