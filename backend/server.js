@@ -713,44 +713,43 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
     }
 
     const { propertyName, userId, startDate, endDate } = req.body;
-    const organizationId = req.user.organizationId; // ✅ Get org ID from authenticated user
 
+    // Ensure organizationId is included
+    const organizationId = req.user.organizationId;
     if (!organizationId) {
-      return res.status(400).json({ error: "Missing organizationId" });
+      return res.status(400).json({ error: "Missing organization ID" });
     }
 
-    // Check for overlapping assignments within the same organization
+    // Check for overlapping assignments on the same property
     const overlapping = await Assignment.findOne({
+      organizationId,
       propertyName,
-      organizationId, // 🔹 Ensure org-level uniqueness
       $or: [
         { startDate: { $lte: new Date(endDate) }, endDate: { $gte: new Date(startDate) } }
       ]
     });
 
     if (overlapping) {
-      return res.status(400).json({ error: "Overlapping assignment exists for this property within your organization." });
+      return res.status(400).json({ error: "Overlapping assignment exists for this property." });
     }
 
-    // Create the new assignment with organizationId
+    // Create the new assignment
     const assignment = new Assignment({
+      organizationId, // ✅ Ensure organizationId is set
       propertyName,
       userId,
-      organizationId, // ✅ Ensure it gets stored
       startDate,
       endDate
     });
 
     await assignment.save();
 
-    res.json({ success: true, message: "✅ Assignment created successfully", assignment });
-
+    res.json({ success: true, message: "Assignment created successfully", assignment });
   } catch (error) {
     console.error("❌ Error creating assignment:", error);
     res.status(500).json({ error: "Server error creating assignment" });
   }
 });
-
 
 // Get all assignments (optionally, you could filter by organization here)
 app.get('/api/assignments', authenticateToken, async (req, res) => {
