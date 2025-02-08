@@ -76,7 +76,7 @@ function Scheduler() {
     }
   
     console.log("Editing assignment:", editingAssignment);
-    
+  
     const url = editingAssignment
       ? `https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`
       : "https://cp-check-submissions-dev-backend.onrender.com/api/assignments";
@@ -102,11 +102,17 @@ function Scheduler() {
         console.log("Server response:", data);
         if (data.success) {
           alert("✅ Assignment saved successfully!");
-          setAssignments(
-            assignments.map((a) =>
-              a._id === editingAssignment._id ? data.assignment : a
-            )
-          );
+          if (editingAssignment) {
+            // Update the assignment in the state if editing
+            setAssignments(
+              assignments.map((a) =>
+                a._id === editingAssignment._id ? data.assignment : a
+              )
+            );
+          } else {
+            // Append the new assignment if creating
+            setAssignments([...assignments, data.assignment]);
+          }
           setEditingAssignment(null);
           setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
         } else {
@@ -114,7 +120,8 @@ function Scheduler() {
         }
       })
       .catch((err) => console.error("Error saving assignment:", err));
-  };  
+  };
+  
   
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {
