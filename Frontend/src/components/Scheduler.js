@@ -179,9 +179,13 @@ function Scheduler() {
       endDate.setHours(endDate.getHours() + 1); // Extend by 1 hour
     }
   
+    // Find user email by ID
+    const assignedUser = users.find(user => user._id === assignment.userId);
+    const assignedUserEmail = assignedUser ? assignedUser.email : "Unknown User";
+
     return {
       _id: assignment._id,
-      title: assignment.propertyName,
+      title: `${assignment.propertyName} - ${assignedUserEmail}`,
       start: startDate,
       end: endDate,
       userId: assignment.userId,
@@ -257,7 +261,7 @@ function Scheduler() {
             events={events}
             startAccessor="start"
             endAccessor="end"
-            views={["month", "week"]}
+            views={["month", "week", "agenda"]}
             style={{ height: "500px", width: "100%" }}
             onEventDrop={handleEventDrop}
             onSelectEvent={handleEventDoubleClick}
