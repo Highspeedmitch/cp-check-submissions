@@ -567,18 +567,21 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
     await assignment.save();
 
     // Find the assigned user and get their subscription
-    const assignedUser = await User.findById(userId);
-    if (assignedUser && assignedUser.pushSubscription) {
-    const payload = JSON.stringify({
+    // Find the assigned user and get their subscription
+const assignedUser = await User.findById(userId);
+if (assignedUser && assignedUser.pushSubscription) {
+  const payload = JSON.stringify({
     title: 'New Assignment',
     body: `You have a new assignment for ${propertyName}.`
   });
+
   webpush.sendNotification(assignedUser.pushSubscription, payload)
     .then(() => console.log('Push notification sent successfully!'))
     .catch(err => console.error('Error sending push notification:', err));
-
-    res.json({ success: true, message: "Assignment created successfully", assignment });
 }
+
+// ✅ Always send a response
+res.json({ success: true, message: "Assignment created successfully", assignment });
   } catch (error) {
     console.error("❌ Error creating assignment:", error);
     res.status(500).json({ error: "Server error creating assignment" });
@@ -587,9 +590,8 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
 
 app.get('/api/assignments', authenticateToken, async (req, res) => {
   try {
-    // For example, fetch all assignments for the admin's organization
-    // (You might need to adjust this if you store organization info on assignments)
-    const assignments = await Assignment.find({ /* possibly filter by orgId */ }).sort({ startDate: 1 });
+    // Fetch assignments **only for the admin's organization**
+    const assignments = await Assignment.find({ organizationId: req.user.organizationId }).sort({ startDate: 1 });
     res.json(assignments);
   } catch (error) {
     console.error("❌ Error fetching assignments:", error);
@@ -772,7 +774,10 @@ app.get('/api/users', authenticateToken, async (req, res) => {
 app.delete("/api/assignments/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedAssignment = await Assignment.findByIdAndDelete(id);
+    const deletedAssignment = await Assignment.findOneAndDelete({
+      _id: id,
+      organizationId: req.user.organizationId // ✅ Ensure only admins of that org can delete
+    });
 
     if (!deletedAssignment) {
       return res.status(404).json({ error: "Assignment not found" });
@@ -786,13 +791,18 @@ app.delete("/api/assignments/:id", authenticateToken, async (req, res) => {
 });
 app.put("/api/assignments/:id", authenticateToken, async (req, res) => {
   try {
-    const assignment = await Assignment.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const assignment = await Assignment.findOneAndUpdate(
+      { _id: req.params.id, organizationId: req.user.organizationId },  // ✅ Ensure org matches
+      req.body,
+      { new: true }
+    );
     if (!assignment) return res.status(404).json({ success: false, error: "Assignment not found" });
     res.json({ success: true, assignment });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 app.post("/api/send-push-notification", authenticateToken, async (req, res) => {
   try {
     const { userId, propertyName } = req.body;
