@@ -84,10 +84,12 @@ function Scheduler() {
     const method = editingAssignment ? "PUT" : "POST";
   
     const formattedAssignment = {
-      ...newAssignment,
-      startDate: new Date(newAssignment.startDate).toISOString(),
-      endDate: new Date(newAssignment.endDate).toISOString(),
-    };
+        organizationId: storedOrgId,  // ✅ Ensures organizationId is sent
+        propertyName: newAssignment.propertyName,
+        userId: newAssignment.userId,
+        startDate: new Date(newAssignment.startDate).toISOString(),
+        endDate: new Date(newAssignment.endDate).toISOString(),
+      };
   
     try {
       console.log("📤 Sending request to:", url, "Method:", method);
@@ -126,7 +128,7 @@ function Scheduler() {
         setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
   
         // ✅ Send push notification
-        /*console.log("📢 Sending push notification to user...");
+        console.log("📢 Sending push notification to user...");
         const notifResponse = await fetch(
           "https://cp-check-submissions-dev-backend.onrender.com/api/send-push-notification",
           {
@@ -143,7 +145,7 @@ function Scheduler() {
         );
   
         const notifData = await notifResponse.json();
-        console.log("📩 Push notification response:", notifData);*/
+        console.log("📩 Push notification response:", notifData);
   
       } else {
         console.error("❌ Server error:", data);
