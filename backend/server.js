@@ -727,5 +727,13 @@ app.delete("/api/assignments/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error deleting assignment" });
   }
 });
-
+app.put("/api/assignments/:id", async (req, res) => {
+  try {
+    const assignment = await Assignment.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!assignment) return res.status(404).json({ success: false, error: "Assignment not found" });
+    res.json({ success: true, assignment });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
