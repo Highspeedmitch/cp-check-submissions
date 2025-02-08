@@ -21,7 +21,16 @@ function App() {
     }
   }, []);
 
-  // Initialize push notifications once when the app loads
+  // ✅ Register Service Worker
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('✅ Service Worker Registered:', reg))
+        .catch(err => console.error('❌ Service Worker Error:', err));
+    }
+  }, []);
+
+  // ✅ Initialize push notifications after service worker is ready
   useEffect(() => {
     initPushNotifications();
   }, []);
