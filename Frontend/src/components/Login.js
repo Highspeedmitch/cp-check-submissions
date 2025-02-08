@@ -41,7 +41,7 @@ function Login({ setUser }) {
           body: JSON.stringify({ email: email.toLowerCase(), password }),
         }
       );
-
+  
       const text = await response.text();
       try {
         const data = JSON.parse(text);
@@ -50,7 +50,15 @@ function Login({ setUser }) {
           localStorage.setItem("orgName", data.orgName || "Your Organization");
           localStorage.setItem("role", data.role || "user");
           localStorage.setItem("loginTime", new Date().toISOString());
-          
+  
+          // ✅ Store organizationId (Ensure backend sends this)
+          if (data.organizationId) {
+            localStorage.setItem("organizationId", data.organizationId);
+            console.log("✅ organizationId stored:", data.organizationId);
+          } else {
+            console.warn("❌ organizationId missing in response.");
+          }
+  
           // Extract and store userId from the token payload
           try {
             const decoded = JSON.parse(atob(data.token.split(".")[1]));
@@ -62,7 +70,7 @@ function Login({ setUser }) {
           } catch (decodeError) {
             console.error("Error decoding token for userId:", decodeError);
           }
-          
+  
           setUser(true);
           navigate("/dashboard");
         } else {
@@ -76,7 +84,7 @@ function Login({ setUser }) {
       console.error("❌ Login error:", error);
       alert("Server error. Please try again.");
     }
-  };
+  };  
 
   return (
     <div className="login-container">
