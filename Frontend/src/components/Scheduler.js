@@ -100,28 +100,50 @@ function Scheduler() {
       .then((res) => res.json())
       .then((data) => {
         console.log("Server response:", data);
+  
         if (data.success) {
           alert("✅ Assignment saved successfully!");
+  
+          // Update assignments list
           if (editingAssignment) {
-            // Update the assignment in the state if editing
             setAssignments(
               assignments.map((a) =>
                 a._id === editingAssignment._id ? data.assignment : a
               )
             );
           } else {
-            // Append the new assignment if creating
             setAssignments([...assignments, data.assignment]);
           }
+  
           setEditingAssignment(null);
           setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+  
+          console.log("📢 Attempting to send push notification...");
+  
+          // Trigger push notification for the assigned user
+          fetch("https://cp-check-submissions-dev-backend.onrender.com/api/send-push-notification", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              userId: newAssignment.userId,
+              propertyName: newAssignment.propertyName,
+            }),
+          })
+            .then((res) => res.json())
+            .then((notifData) => {
+              console.log("📩 Push notification response:", notifData);
+            })
+            .catch((err) => console.error("❌ Error sending push notification:", err));
+  
         } else {
           alert("❌ " + (data.error || "Failed to save assignment."));
         }
       })
-      .catch((err) => console.error("Error saving assignment:", err));
-  };
-  
+      .catch((err) => console.error("❌ Error saving assignment:", err));
+  };  
   
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {

@@ -793,4 +793,38 @@ app.put("/api/assignments/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.post("/api/send-push-notification", authenticateToken, async (req, res) => {
+  try {
+    const { userId, propertyName } = req.body;
+
+    console.log("🔍 Looking for user:", userId);
+
+    // Find the user in the database
+    const user = await User.findById(userId);
+
+    if (!user || !user.pushSubscription) {
+      console.error("❌ No push subscription found for this user.");
+      return res.status(404).json({ error: "User not subscribed to push notifications." });
+    }
+
+    const payload = JSON.stringify({
+      title: "New Assignment",
+      body: `You have a new property inspection assignment for ${propertyName}.`,
+    });
+
+    console.log("📢 Sending push notification...");
+
+    // Send push notification
+    await webpush.sendNotification(user.pushSubscription, payload);
+
+    console.log("✅ Push notification sent successfully!");
+    res.json({ success: true, message: "Push notification sent." });
+
+  } catch (error) {
+    console.error("❌ Error sending push notification:", error);
+    res.status(500).json({ error: "Failed to send push notification." });
+  }
+});
+
+
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
