@@ -30,7 +30,7 @@ function Dashboard({ setUser }) {
   const { property } = useParams();
   const navigate = useNavigate();
 
-  // ----------- Paging -----------
+  // ----------- Paging -----------  
   const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -69,7 +69,7 @@ function Dashboard({ setUser }) {
   const [removePasskey, setRemovePasskey] = useState("");
   const [propertyToRemove, setPropertyToRemove] = useState(null);
 
-  //------------ State for 'setViewScheduler' Admin Flow -----------
+  // ------------ State for 'setViewScheduler' Admin Flow -----------
   const [viewScheduler, setViewScheduler] = useState(false);
   const [assignments, setAssignments] = useState([]);
 
@@ -120,12 +120,48 @@ function Dashboard({ setUser }) {
         setLoading(false);
       });
   }
+
+  // Fetch user assignments for non-admin users
   useEffect(() => {
     if (role !== "admin") {
       fetchUserAssignments();
     }
   }, [role, token]);  
-  // If user is "user," fetch submissions to mark completed props
+
+  function fetchUserAssignments() {
+    if (!token) return;
+    
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      console.error("⚠️ No userId found in localStorage!");
+      return;
+    }
+  
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("📌 API Response:", data);
+  
+        if (!Array.isArray(data)) {
+          console.error("❌ Invalid API response. Expected an array.");
+          return;
+        }
+  
+        const userAssignments = data.filter((assignment) => assignment.userId === userId);
+        
+        if (userAssignments.length === 0) {
+          console.warn("⚠️ No assignments found for user:", userId);
+        }
+  
+        setAssignments(userAssignments);
+      })
+      .catch((err) => console.error("Error fetching assignments:", err));
+  }
+
+  // Fetch submissions to mark completed properties (for user role)
   useEffect(() => {
     if (role === "user" && token && !isTokenExpired(token)) {
       fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
@@ -224,7 +260,8 @@ function Dashboard({ setUser }) {
       })
       .catch((err) => console.error("Error verifying passkey:", err));
   };
-  
+
+  // If viewScheduler flag is set, fetch assignments (for admin scheduler view)
   useEffect(() => {
     if (viewScheduler) {
       fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
@@ -238,8 +275,10 @@ function Dashboard({ setUser }) {
         .catch((err) => console.error("Error fetching assignments:", err));
     }
   }, [viewScheduler, token]);
-  
-  // Geocode address -> lat/lng using Mapbox
+
+  // ======================
+  // 5) Geocode address -> lat/lng using Mapbox (for adding property)
+  // ======================
   async function handleGeocodeAddress(e) {
     e.preventDefault();
     if (!newPropAddress) {
@@ -250,9 +289,7 @@ function Dashboard({ setUser }) {
     const mapboxToken =
       "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
     const baseUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
-    const url = `${baseUrl}${encodeURIComponent(
-      newPropAddress
-    )}.json?access_token=${mapboxToken}`;
+    const url = `${baseUrl}${encodeURIComponent(newPropAddress)}.json?access_token=${mapboxToken}`;
 
     try {
       const res = await fetch(url);
@@ -272,7 +309,9 @@ function Dashboard({ setUser }) {
     }
   }
 
-  // Submit to the server after lat/lng are set
+  // ======================
+  // 6) Submit new property to the server (admin only)
+  // ======================
   const handleCreateProperty = async () => {
     try {
       const emailsArray = newPropEmails
@@ -318,7 +357,7 @@ function Dashboard({ setUser }) {
   };
 
   // ======================
-  // 5) Sidebar toggling, logout, etc.
+  // 7) Sidebar toggling, logout, etc.
   // ======================
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);
@@ -332,10 +371,23 @@ function Dashboard({ setUser }) {
   };
 
   // ======================
-  // 6) Paging Logic
+  // 8) Sorted Properties & Paging Logic
   // ======================
-  const totalPages = Math.ceil(properties.length / PAGE_SIZE);
-  const displayedProperties = properties.slice(
+  // Compute sortedProperties:
+  const assignedPropertyNames = assignments
+    .filter(a => a.userId === localStorage.getItem("userId"))
+    .map(a => a.propertyName);
+
+  // Sort properties so that those with assignments come first.
+  const sortedProperties = properties.slice().sort((a, b) => {
+    const aAssigned = assignedPropertyNames.includes(a.name);
+    const bAssigned = assignedPropertyNames.includes(b.name);
+    if (aAssigned === bAssigned) return 0;
+    return aAssigned ? -1 : 1;
+  });
+
+  const totalPages = Math.ceil(sortedProperties.length / PAGE_SIZE);
+  const displayedProperties = sortedProperties.slice(
     pageIndex * PAGE_SIZE,
     pageIndex * PAGE_SIZE + PAGE_SIZE
   );
@@ -350,141 +402,109 @@ function Dashboard({ setUser }) {
   function handlePrevPage() {
     if (canGoPrev) setPageIndex((prev) => prev - 1);
   }
-  function fetchUserAssignments() {
-    if (!token) return;
-    
-    const userId = localStorage.getItem("userId"); // Ensure we have the userId
-    if (!userId) {
-      console.error("⚠️ No userId found in localStorage!");
-      return;
-    }
-  
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("📌 API Response:", data); // Debugging: Check response structure
-  
-        if (!Array.isArray(data)) {
-          console.error("❌ Invalid API response. Expected an array.");
-          return;
-        }
-  
-        const userAssignments = data.filter((assignment) => assignment.userId === userId);
-        
-        if (userAssignments.length === 0) {
-          console.warn("⚠️ No assignments found for user:", userId);
-        }
-  
-        setAssignments(userAssignments); // Update state
-      })
-      .catch((err) => console.error("Error fetching assignments:", err));
-  }
-  
+
+  // ======================
+  // 9) Fetch user assignments function (defined above)
+  // ======================
+  // (Already defined in fetchUserAssignments)
+
   // ======================
   // RENDER
   // ======================
   return (
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
-      {/* Sidebar */}
-<div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-  <button className="sidebar-toggle" onClick={toggleSidebar}>
-    {sidebarCollapsed ? "☰" : "×"}
-  </button>
+      <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
+        <button className="sidebar-toggle" onClick={toggleSidebar}>
+          {sidebarCollapsed ? "☰" : "×"}
+        </button>
 
-  {!sidebarCollapsed && (
-    <>
-      <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+        {!sidebarCollapsed && (
+          <>
+            <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
 
-      <ul>
-        {displayedProperties.map((prop) => (
-          <li
-            key={prop.name}
-            className={completedProperties.includes(prop.name) ? "completed" : ""}
-            onClick={() => {
-              if (role === "admin") {
-                navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-              } else {
-                navigate(`/form/${encodeURIComponent(prop.name)}`);
-              }
-            }}
-          >
-            {prop.name}
-          </li>
-        ))}
-      </ul>
-
-      {/* New section for My assignments */}
-      {role !== "admin" && (
-        <div className="assignments-section">
-          <h3>My assignments</h3>
-          {assignments.length === 0 ? (
-            <p>No assignments yet.</p>
-          ) : (
             <ul>
-            {assignments.map((assignment) => (
-              <li
-                key={assignment._id}
-                // If you intend for these items to be clickable, you can add an onClick handler here.
-                // Otherwise, you might remove the pointer style in your CSS.
-                onClick={() => {
-                  // For example, navigate to an assignment details page
-                  // navigate(`/assignment/${assignment._id}`);
-                }}
-              >
-                {assignment.propertyName} -{" "}
-                {new Date(assignment.startDate).toLocaleDateString()}
-              </li>
-            ))}
-          </ul>
-          )}
-        </div>
-      )}
+              {displayedProperties.map((prop) => (
+                <li
+                  key={prop.name}
+                  className={completedProperties.includes(prop.name) ? "completed" : ""}
+                  onClick={() => {
+                    if (role === "admin") {
+                      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+                    } else {
+                      navigate(`/form/${encodeURIComponent(prop.name)}`);
+                    }
+                  }}
+                >
+                  {prop.name}
+                </li>
+              ))}
+            </ul>
 
-      {/* Dark Mode Toggle */}
-      <div className="dark-mode-toggle">
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={darkMode}
-            onChange={() => setDarkMode((prev) => !prev)}
-          />
-          <span className="slider"></span>
-        </label>
-        <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
+            {/* New section for My assignments */}
+            {role !== "admin" && (
+              <div className="assignments-section">
+                <h3>My assignments</h3>
+                {assignments.length === 0 ? (
+                  <p>No assignments yet.</p>
+                ) : (
+                  <ul>
+                    {assignments.map((assignment) => (
+                      <li
+                        key={assignment._id}
+                        onClick={() => {
+                          // For example, you might add a click handler to show assignment details.
+                        }}
+                      >
+                        {assignment.propertyName} -{" "}
+                        {new Date(assignment.startDate).toLocaleDateString()}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {/* Dark Mode Toggle */}
+            <div className="dark-mode-toggle">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={darkMode}
+                  onChange={() => setDarkMode((prev) => !prev)}
+                />
+                <span className="slider"></span>
+              </label>
+              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
+            </div>
+
+            {/* Tools for Admin */}
+            {role === "admin" && (
+              <div className="tools-section" style={{ marginBottom: "-10px" }}>
+                <h3>Admin Tools</h3>
+                <button
+                  className="Admin-tools-primary"
+                  onClick={() => {
+                    setPasskeyPromptVisible(true);
+                    setPasskey("");
+                  }}
+                >
+                  + Property
+                </button>
+                <button
+                  className="Admin-tools-adtl"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/scheduler", { state: { token } });
+                  }}
+                >
+                  Scheduler
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
-
-      {/* Tools for Admin */}
-      {role === "admin" && (
-        <div className="tools-section" style={{ marginBottom: "-10px" }}>
-          <h3>Admin Tools</h3>
-          <button
-            className="Admin-tools-primary"
-            onClick={() => {
-              setPasskeyPromptVisible(true);
-              setPasskey("");
-            }}
-          >
-            + Property
-          </button>
-          <button
-            className="Admin-tools-adtl"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate("/scheduler", { state: { token } });
-            }}
-          >
-            Scheduler
-          </button>
-        </div>
-      )}
-    </>
-  )}
-</div>
-
 
       {/* Main Content */}
       <div className="main-content">
@@ -529,7 +549,8 @@ function Dashboard({ setUser }) {
 
                   {/* If admin, show "Remove" button */}
                   {role === "admin" && (
-                    <button className='remove-button'
+                    <button
+                      className="remove-button"
                       onClick={(e) => {
                         e.stopPropagation();
                         initiateRemoveProperty(prop.name);
@@ -617,7 +638,7 @@ function Dashboard({ setUser }) {
               />
             </label>
 
-            {/* Instead of direct lat/lng input, let's let them type an address */}
+            {/* Instead of direct lat/lng input, let them type an address */}
             <label>
               Address (will geocode):
               <input

@@ -320,12 +320,25 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
 
     fs.unlinkSync(filePath);
 
+// After the PDF is generated, uploaded, emailed, etc.
+// Check if an assignment exists for this user and property
+// After sending the email and unlinking the file:
+      const assignmentToRemove = await Assignment.findOne({
+      propertyName: propertyName,  // Use propertyName instead of property
+      userId: req.user.userId
+      });
+      if (assignmentToRemove) {
+      await Assignment.findByIdAndDelete(assignmentToRemove._id);
+      console.log(`✅ Removed assignment for property ${propertyName}`);
+    }
+
     res.json({ message: 'Form successfully submitted!', pdfUrl: uploadResult.Location });
 
   } catch (error) {
     console.error('❌ Error processing form submission:', error);
     res.status(500).json({ message: 'Error processing form submission' });
   }
+
 });
 
 // Step 1: Forgot Password Route
@@ -736,7 +749,7 @@ app.delete("/api/assignments/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error deleting assignment" });
   }
 });
-app.put("/api/assignments/:id", async (req, res) => {
+app.put("/api/assignments/:id", authenticateToken, async (req, res) => {
   try {
     const assignment = await Assignment.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!assignment) return res.status(404).json({ success: false, error: "Assignment not found" });
