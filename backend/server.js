@@ -151,6 +151,9 @@ app.post('/api/register', async (req, res) => {
 /**
  * 🔹 User Login (Returns JWT)
  */
+/**
+ * 🔹 User Login (Returns JWT)
+ */
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -171,9 +174,14 @@ app.post('/api/login', async (req, res) => {
       return res.status(500).json({ message: "Organization not found for user" });
     }
 
-    // Generate JWT, including the role in the payload
+    // Generate JWT, including the role and userId in the payload
     const token = jwt.sign(
-      { email: user.email, organizationId: user.organizationId._id, role: user.role },
+      {
+        email: user.email,
+        organizationId: user.organizationId._id,
+        role: user.role,
+        userId: user._id  // Added userId here
+      },
       SECRET_KEY,
       { expiresIn: '2h' }
     );
@@ -191,6 +199,7 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: "Server error during login." });
   }
 });
+
 
 
 /**
