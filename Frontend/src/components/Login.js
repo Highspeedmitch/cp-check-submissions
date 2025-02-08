@@ -50,6 +50,19 @@ function Login({ setUser }) {
           localStorage.setItem("orgName", data.orgName || "Your Organization");
           localStorage.setItem("role", data.role || "user");
           localStorage.setItem("loginTime", new Date().toISOString());
+          
+          // Extract and store userId from the token payload
+          try {
+            const decoded = JSON.parse(atob(data.token.split(".")[1]));
+            if (decoded.userId) {
+              localStorage.setItem("userId", decoded.userId);
+            } else {
+              console.warn("No userId found in token payload.");
+            }
+          } catch (decodeError) {
+            console.error("Error decoding token for userId:", decodeError);
+          }
+          
           setUser(true);
           navigate("/dashboard");
         } else {
@@ -69,7 +82,11 @@ function Login({ setUser }) {
     <div className="login-container">
       {/* Branding Banner */}
       <div className="login-banner">
-        <img src="/apple-touch-icon.png" alt="Inspectors Gadget Logo" className="login-logo" />
+        <img
+          src="/apple-touch-icon.png"
+          alt="Inspectors Gadget Logo"
+          className="login-logo"
+        />
         <h1 className="brand-title">Inspectors Gadget</h1>
       </div>
 
@@ -103,7 +120,9 @@ function Login({ setUser }) {
         <div className="register-container">
           <span>Don't have an account?</span>
           <Link to="/register">
-            <button type="button" className="register-btn">Register</button>
+            <button type="button" className="register-btn">
+              Register
+            </button>
           </Link>
         </div>
       </div>
