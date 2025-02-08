@@ -346,7 +346,46 @@ function Dashboard({ setUser }) {
   function handlePrevPage() {
     if (canGoPrev) setPageIndex((prev) => prev - 1);
   }
-
+  function Sidebar({ token }) {
+    const [assignments, setAssignments] = useState([]);
+  
+    useEffect(() => {
+      if (!token) return;
+  
+      // Fetch user's assignments
+      fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          // Filter assignments belonging to the logged-in user
+          const userId = localStorage.getItem("userId"); // Assuming user ID is stored here
+          const userAssignments = data.filter(assignment => assignment.userId === userId);
+          setAssignments(userAssignments);
+        })
+        .catch((err) => console.error("Error fetching assignments:", err));
+    }, [token]);
+  
+    return (
+      <div className="sidebar">
+        {/* Dark mode toggle (assuming it exists above) */}
+  
+        <h3>My Assignments</h3>
+        <ul>
+          {assignments.length > 0 ? (
+            assignments.map((assignment) => (
+              <li key={assignment._id}>
+                {assignment.propertyName} - {new Date(assignment.startDate).toLocaleDateString()}
+              </li>
+            ))
+          ) : (
+            <li>No current assignments</li>
+          )}
+        </ul>
+      </div>
+    );
+  }
   // ======================
   // RENDER
   // ======================
