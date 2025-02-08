@@ -9,6 +9,8 @@ import AdminSubmissions from "./components/AdminSubmissions";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import Scheduler from "./components/Scheduler";
+import { initPushNotifications } from "./components/PushNotifications"; // Import the function
+
 function App() {
   const [user, setUser] = useState(null);
 
@@ -17,6 +19,11 @@ function App() {
     if (token) {
       setUser(true);
     }
+  }, []);
+
+  // Initialize push notifications once when the app loads
+  useEffect(() => {
+    initPushNotifications();
   }, []);
 
   return (

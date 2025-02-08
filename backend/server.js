@@ -37,6 +37,20 @@ AWS.config.update({
 // Create S3 Instance
 const s3 = new AWS.S3();
 
+const webpush = require('web-push');
+
+const vapidKeys = {
+  publicKey: process.env.VAPID_PUBLIC_KEY,
+  privateKey: process.env.VAPID_PRIVATE_KEY
+};
+
+webpush.setVapidDetails(
+  'mailto:highspeedmitch@gmail.com',
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
+
+
 // Example: Upload a File to S3
 const uploadToS3 = (fileContent, fileName, organizationId, propertyName) => {
   const uniqueFileName = `${uuidv4()}-${fileName}`;
@@ -147,10 +161,17 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-
-/**
- * 🔹 User Login (Returns JWT)
- */
+app.post('/api/save-subscription', authenticateToken, async (req, res) => {
+  const subscription = req.body;
+  try {
+    // Assuming your User model has a "pushSubscription" field
+    await User.findByIdAndUpdate(req.user.userId, { pushSubscription: subscription });
+    res.status(201).json({ message: 'Subscription saved.' });
+  } catch (err) {
+    console.error('Error saving subscription:', err);
+    res.status(500).json({ error: 'Error saving subscription.' });
+  }
+});
 /**
  * 🔹 User Login (Returns JWT)
  */
@@ -545,7 +566,19 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
 
     await assignment.save();
 
+    // Find the assigned user and get their subscription
+    const assignedUser = await User.findById(userId);
+    if (assignedUser && assignedUser.pushSubscription) {
+    const payload = JSON.stringify({
+    title: 'New Assignment',
+    body: `You have a new assignment for ${propertyName}.`
+  });
+  webpush.sendNotification(assignedUser.pushSubscription, payload)
+    .then(() => console.log('Push notification sent successfully!'))
+    .catch(err => console.error('Error sending push notification:', err));
+
     res.json({ success: true, message: "Assignment created successfully", assignment });
+}
   } catch (error) {
     console.error("❌ Error creating assignment:", error);
     res.status(500).json({ error: "Server error creating assignment" });
