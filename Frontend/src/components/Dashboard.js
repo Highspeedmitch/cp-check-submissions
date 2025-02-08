@@ -120,7 +120,11 @@ function Dashboard({ setUser }) {
         setLoading(false);
       });
   }
-
+  useEffect(() => {
+    if (role !== "admin") {
+      fetchUserAssignments();
+    }
+  }, [role, token]);  
   // If user is "user," fetch submissions to mark completed props
   useEffect(() => {
     if (role === "user" && token && !isTokenExpired(token)) {
@@ -346,118 +350,132 @@ function Dashboard({ setUser }) {
   function handlePrevPage() {
     if (canGoPrev) setPageIndex((prev) => prev - 1);
   }
-  function Sidebar({ token }) {
-    const [assignments, setAssignments] = useState([]);
+  function fetchUserAssignments() {
+    if (!token) return;
+    
+    const userId = localStorage.getItem("userId"); // Ensure we have the userId
+    if (!userId) {
+      console.error("⚠️ No userId found in localStorage!");
+      return;
+    }
   
-    useEffect(() => {
-      if (!token) return;
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("📌 API Response:", data); // Debugging: Check response structure
   
-      // Fetch user's assignments
-      fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
+        if (!Array.isArray(data)) {
+          console.error("❌ Invalid API response. Expected an array.");
+          return;
+        }
+  
+        const userAssignments = data.filter((assignment) => assignment.userId === userId);
+        
+        if (userAssignments.length === 0) {
+          console.warn("⚠️ No assignments found for user:", userId);
+        }
+  
+        setAssignments(userAssignments); // Update state
       })
-        .then((res) => res.json())
-        .then((data) => {
-          // Filter assignments belonging to the logged-in user
-          const userId = localStorage.getItem("userId"); // Assuming user ID is stored here
-          const userAssignments = data.filter(assignment => assignment.userId === userId);
-          setAssignments(userAssignments);
-        })
-        .catch((err) => console.error("Error fetching assignments:", err));
-    }, [token]);
-  
-    return (
-      <div className="sidebar">
-        {/* Dark mode toggle (assuming it exists above) */}
-  
-        <h3>My Assignments</h3>
-        <ul>
-          {assignments.length > 0 ? (
-            assignments.map((assignment) => (
-              <li key={assignment._id}>
-                {assignment.propertyName} - {new Date(assignment.startDate).toLocaleDateString()}
-              </li>
-            ))
-          ) : (
-            <li>No current assignments</li>
-          )}
-        </ul>
-      </div>
-    );
+      .catch((err) => console.error("Error fetching assignments:", err));
   }
+  
   // ======================
   // RENDER
   // ======================
   return (
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
-      <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <button className="sidebar-toggle" onClick={toggleSidebar}>
-          {sidebarCollapsed ? "☰" : "×"}
-        </button>
+      {/* Sidebar */}
+<div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
+  <button className="sidebar-toggle" onClick={toggleSidebar}>
+    {sidebarCollapsed ? "☰" : "×"}
+  </button>
 
-        {!sidebarCollapsed && (
-          <>
-            <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+  {!sidebarCollapsed && (
+    <>
+      <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
 
+      <ul>
+        {displayedProperties.map((prop) => (
+          <li
+            key={prop.name}
+            className={completedProperties.includes(prop.name) ? "completed" : ""}
+            onClick={() => {
+              if (role === "admin") {
+                navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+              } else {
+                navigate(`/form/${encodeURIComponent(prop.name)}`);
+              }
+            }}
+          >
+            {prop.name}
+          </li>
+        ))}
+      </ul>
+
+      {/* New section for My assignments */}
+      {role !== "admin" && (
+        <div className="assignments-section">
+          <h3>My assignments</h3>
+          {assignments.length === 0 ? (
+            <p>No assignments yet.</p>
+          ) : (
             <ul>
-              {displayedProperties.map((prop) => (
-                <li
-                  key={prop.name}
-                  className={completedProperties.includes(prop.name) ? "completed" : ""}
-                  onClick={() => {
-                    if (role === "admin") {
-                      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-                    } else {
-                      navigate(`/form/${encodeURIComponent(prop.name)}`);
-                    }
-                  }}
-                >
-                  {prop.name}
+              {assignments.map((assignment) => (
+                <li key={assignment.id}>
+                  {assignment.title || assignment.name}
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+      )}
 
-            {/* Dark Mode Toggle */}
-            <div className="dark-mode-toggle">
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={darkMode}
-                  onChange={() => setDarkMode((prev) => !prev)}
-                />
-                <span className="slider"></span>
-              </label>
-              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
-            </div>
-
-            {/* Tools for Admin */}
-            {role === "admin" && (
-              <div className="tools-section" style={{marginBottom:"-10px" }}>
-                <h3>Admin Tools</h3>
-                <button
-                  className="Admin-tools-primary"
-                  onClick={() => {
-                    setPasskeyPromptVisible(true);
-                    setPasskey("");
-                  }}
-                >
-                  + Property
-                </button>
-                <button 
-                  className="Admin-tools-adtl" 
-                  onClick={(e) => {
-                    e.preventDefault();  // Prevent default behavior
-                    navigate("/scheduler", { state: { token } });  // Ensure correct navigation
-                    }}>
-                    Scheduler
-                    </button>
-              </div>
-            )}
-          </>
-        )}
+      {/* Dark Mode Toggle */}
+      <div className="dark-mode-toggle">
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={darkMode}
+            onChange={() => setDarkMode((prev) => !prev)}
+          />
+          <span className="slider"></span>
+        </label>
+        <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
       </div>
+
+      {/* Tools for Admin */}
+      {role === "admin" && (
+        <div className="tools-section" style={{ marginBottom: "-10px" }}>
+          <h3>Admin Tools</h3>
+          <button
+            className="Admin-tools-primary"
+            onClick={() => {
+              setPasskeyPromptVisible(true);
+              setPasskey("");
+            }}
+          >
+            + Property
+          </button>
+          <button
+            className="Admin-tools-adtl"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/scheduler", { state: { token } });
+            }}
+          >
+            Scheduler
+          </button>
+        </div>
+      )}
+    </>
+  )}
+</div>
+
 
       {/* Main Content */}
       <div className="main-content">
