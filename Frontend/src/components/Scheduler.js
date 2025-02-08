@@ -83,6 +83,13 @@ function Scheduler() {
   
     const method = editingAssignment ? "PUT" : "POST";
   
+    const storedOrgId = localStorage.getItem("organizationId");
+    if (!storedOrgId) {
+      console.error("❌ Missing organizationId. Ensure it is stored correctly in localStorage.");
+      alert("❌ Error: Organization ID is missing.");
+      return;
+    }
+
     const formattedAssignment = {
         organizationId: storedOrgId,  // ✅ Ensures organizationId is sent
         propertyName: newAssignment.propertyName,
