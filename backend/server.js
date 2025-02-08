@@ -40,8 +40,8 @@ const s3 = new AWS.S3();
 const webpush = require('web-push');
 
 const vapidKeys = {
-  publicKey: process.env.VAPID_PUBLIC_KEY,
-  privateKey: process.env.VAPID_PRIVATE_KEY
+  publicKey: process.env.REACT_APP_VAPID_PUBLIC_KEY,
+  privateKey: process.env.REACT_APP_VAPID_PRIVATE_KEY
 };
 
 webpush.setVapidDetails(
