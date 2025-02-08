@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";  // ✅ Ensure correct imports
+import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import FormPage from "./components/FormPage";
@@ -9,7 +9,7 @@ import AdminSubmissions from "./components/AdminSubmissions";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import Scheduler from "./components/Scheduler";
-import { initPushNotifications } from "./components/PushNotifications"; // Import the function
+import { initPushNotifications } from "./components/PushNotifications";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -27,7 +27,7 @@ function App() {
   }, []);
 
   return (
-    <Routes>  {/* ✅ Ensure Routes is inside App */}
+    <Routes>
       <Route path="/" element={!user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />

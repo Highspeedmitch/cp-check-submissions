@@ -1,3 +1,5 @@
+// Frontend/src/components/PushNotifications.js
+
 // Utility: Convert VAPID public key from URL-safe base64 to Uint8Array
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -26,8 +28,8 @@ function urlBase64ToUint8Array(base64String) {
         return navigator.serviceWorker.ready;
       })
       .then(swReg => {
-        // Get your VAPID public key from your environment or configuration
-        const vapidPublicKey = process.env.VAPID_PUBLIC_KEY; // Replace with your key or load from config
+        // Use the REACT_APP_ prefixed VAPID public key from your environment
+        const vapidPublicKey = process.env.REACT_APP_VAPID_PUBLIC_KEY; 
         const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
         
         // Subscribe the user for push notifications
