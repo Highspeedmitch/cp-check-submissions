@@ -436,8 +436,7 @@ function Dashboard({ setUser }) {
                 }}
               >
                 {assignment.propertyName} -{" "}
-                {new Date(assignment.startDate).toLocaleDateString()} to{" "}
-                {new Date(assignment.endDate).toLocaleDateString()}
+                {new Date(assignment.startDate).toLocaleDateString()}
               </li>
             ))}
           </ul>
