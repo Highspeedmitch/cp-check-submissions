@@ -425,12 +425,22 @@ function Dashboard({ setUser }) {
             <p>No assignments yet.</p>
           ) : (
             <ul>
-              {assignments.map((assignment) => (
-                <li key={assignment.id}>
-                  {assignment.title || assignment.name}
-                </li>
-              ))}
-            </ul>
+            {assignments.map((assignment) => (
+              <li
+                key={assignment._id}
+                // If you intend for these items to be clickable, you can add an onClick handler here.
+                // Otherwise, you might remove the pointer style in your CSS.
+                onClick={() => {
+                  // For example, navigate to an assignment details page
+                  // navigate(`/assignment/${assignment._id}`);
+                }}
+              >
+                {assignment.propertyName} -{" "}
+                {new Date(assignment.startDate).toLocaleDateString()} to{" "}
+                {new Date(assignment.endDate).toLocaleDateString()}
+              </li>
+            ))}
+          </ul>
           )}
         </div>
       )}
