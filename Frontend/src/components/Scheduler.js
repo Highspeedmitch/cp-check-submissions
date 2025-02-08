@@ -126,7 +126,7 @@ function Scheduler() {
         setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
   
         // ✅ Send push notification
-        console.log("📢 Sending push notification to user...");
+        /*console.log("📢 Sending push notification to user...");
         const notifResponse = await fetch(
           "https://cp-check-submissions-dev-backend.onrender.com/api/send-push-notification",
           {
@@ -143,7 +143,7 @@ function Scheduler() {
         );
   
         const notifData = await notifResponse.json();
-        console.log("📩 Push notification response:", notifData);
+        console.log("📩 Push notification response:", notifData);*/
   
       } else {
         console.error("❌ Server error:", data);
