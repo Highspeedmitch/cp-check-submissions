@@ -174,27 +174,34 @@ function Scheduler() {
   };
 
   // Map assignments into events
-  const events = assignments.map((assignment) => {
+const events = assignments.map((assignment) => {
+    // Convert stored ISO dates to Date objects
     let startDate = new Date(assignment.startDate);
     let endDate = new Date(assignment.endDate);
   
-    // Ensure event duration for month view (at least a full day)
+    // If the event is date-only and the start and end are the same,
+    // adjust the end date to be the next day so the event spans the whole day.
     if (startDate.toDateString() === endDate.toDateString()) {
-      endDate.setHours(endDate.getHours() + 1); // Extend by 1 hour
+      // Create a new date object based on the start date and add one day.
+      const adjustedEndDate = new Date(startDate);
+      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+      endDate = adjustedEndDate;
     }
   
     // Find user email by ID
     const assignedUser = users.find(user => user._id === assignment.userId);
     const assignedUserEmail = assignedUser ? assignedUser.email : "Unknown User";
-
+  
     return {
       _id: assignment._id,
       title: `${assignment.propertyName} - ${assignedUserEmail}`,
       start: startDate,
       end: endDate,
       userId: assignment.userId,
+      allDay: true, // This flag tells react-big-calendar to treat this as an all-day event
     };
-  });  
+  });
+  
 
   return (
     <div className="scheduler-container">
@@ -232,21 +239,21 @@ function Scheduler() {
 
   {/* ✅ Start Date */}
   <label>Start Date:</label>
-  <input
-    type="datetime-local"
-    value={newAssignment.startDate || ""}
-    onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
-    required
-  />
+<input
+  type="date"
+  value={newAssignment.startDate || ""}
+  onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
+  required
+/>
 
-  {/* ✅ End Date */}
-  <label>End Date:</label>
-  <input
-    type="datetime-local"
-    value={newAssignment.endDate || ""}
-    onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
-    required
-  />
+<label>End Date:</label>
+<input
+  type="date"
+  value={newAssignment.endDate || ""}
+  onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
+  required
+/>
+
 
   <button type="submit" className="create-button">
     {editingAssignment ? "Update Assignment" : "Create Assignment"}
