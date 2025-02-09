@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
+// Helper component: Displays uploaded file names
+const FileNameList = ({ fieldName, formData }) => {
+    const fileArray = formData.photos[fieldName] || [];
+    return (
+      <>
+        {fileArray.map((file, idx) => (
+          <div key={idx} style={{ marginTop: "4px", fontSize: "0.9em", color: "#999" }}>
+            {file.name}
+          </div>
+        ))}
+      </>
+    );
+  };  
 function ShortTermRental() {
   const { property } = useParams();
   const navigate = useNavigate();
