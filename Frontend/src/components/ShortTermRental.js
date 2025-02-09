@@ -40,6 +40,8 @@ function ShortTermRental() {
   const [accessInstructions, setAccessInstructions] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
+  const [orgType, setOrgType] = useState(""); // ✅ Add orgType state
+
 
   useEffect(() => {
     // Fetch property details including custom form fields and access instructions
@@ -52,9 +54,10 @@ function ShortTermRental() {
         
         const data = await response.json();
         if (response.ok) {
-          setCustomQuestions(data.customFields || []);
-          setAccessInstructions(data.accessInstructions || "No instructions provided.");
-        }
+            setCustomQuestions(data.customFields || []);
+            setAccessInstructions(data.accessInstructions || "No instructions provided.");
+            setOrgType(data.orgType || ""); // ✅ Save orgType from API
+          }          
       } catch (error) {
         console.error("Error fetching property data:", error);
       }
