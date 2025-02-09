@@ -289,21 +289,14 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     }
    
     const customFields = {};
-Object.keys(req.body).forEach((key) => {
-  if (key.startsWith("custom_")) {
-    const fieldName = key.replace("custom_", ""); // Remove the prefix
-    customFields[fieldName] = req.body[key];
-  }
-});
+    Object.keys(req.body).forEach((key) => {
+      if (key.startsWith("custom_")) {
+        const fieldName = key.replace("custom_", ""); // Remove the prefix
+        customFields[fieldName] = req.body[key];
+      }
+    });
 
-// ✅ Save custom fields in the database
-await Submission.create({
-  organizationId: req.user.organizationId,
-  property: propertyName,
-  pdfUrl: uploadResult.Location,
-  submittedAt: new Date(),
-  customFields // Store in DB
-});
+    // (Removed the initial Submission.create that referenced uploadResult.Location)
 
     const organizationId = req.user.organizationId;
     const org = await Organization.findById(organizationId);
@@ -344,56 +337,59 @@ await Submission.create({
     }
     console.log("📷 Processed Photo Buffers:", photoBuffers);
 
-   // **Generate PDF**
-let pdfStream, filePath, fileName;
-try {
-  const pdfGenerationResult = await generateChecklistPDF(data, photoBuffers);
-  pdfStream = pdfGenerationResult.pdfStream;
-  filePath = pdfGenerationResult.filePath;
-  fileName = pdfGenerationResult.fileName;
+    // **Generate PDF**
+    let pdfStream, filePath, fileName;
+    try {
+      const pdfGenerationResult = await generateChecklistPDF(data, photoBuffers);
+      pdfStream = pdfGenerationResult.pdfStream;
+      filePath = pdfGenerationResult.filePath;
+      fileName = pdfGenerationResult.fileName;
 
-  if (!pdfStream || typeof pdfStream.pipe !== 'function') {
-    throw new Error('PDF generation failed - no valid stream received');
-  }
-} catch (error) {
-  console.error('❌ PDF Generation Error:', error);
-  return res.status(500).json({ message: 'PDF generation failed' });
-}
+      if (!pdfStream || typeof pdfStream.pipe !== 'function') {
+        throw new Error('PDF generation failed - no valid stream received');
+      }
+    } catch (error) {
+      console.error('❌ PDF Generation Error:', error);
+      return res.status(500).json({ message: 'PDF generation failed' });
+    }
 
-// **Upload PDF to AWS S3**
-let uploadResult;
-try {
-  if (!filePath || !fs.existsSync(filePath)) {
-    throw new Error('File path is invalid or does not exist');
-  }
+    // **Upload PDF to AWS S3**
+    let uploadResult;
+    let pdfBuffer;  // Declare pdfBuffer in the outer scope for later use
+    try {
+      if (!filePath || !fs.existsSync(filePath)) {
+        throw new Error('File path is invalid or does not exist');
+      }
 
-  const pdfBuffer = fs.readFileSync(filePath);
-  uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
-  
-  if (!uploadResult || !uploadResult.Location) {
-    throw new Error('S3 Upload failed');
-  }
-  
-  console.log('✅ PDF uploaded to S3:', uploadResult.Location);
-} catch (error) {
-  console.error('❌ PDF Upload Error:', error);
-  return res.status(500).json({ message: 'PDF upload failed' });
-}
+      pdfBuffer = fs.readFileSync(filePath);
+      uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
+      
+      if (!uploadResult || !uploadResult.Location) {
+        throw new Error('S3 Upload failed');
+      }
+      
+      console.log('✅ PDF uploaded to S3:', uploadResult.Location);
+    } catch (error) {
+      console.error('❌ PDF Upload Error:', error);
+      return res.status(500).json({ message: 'PDF upload failed' });
+    }
 
-// **Save submission record in DB**
-try {
-  await Submission.create({
-    organizationId: organizationId,
-    property: propertyName,
-    pdfUrl: uploadResult.Location,
-    submittedAt: new Date(),
-  });
+    // **Save submission record in DB** (now using uploadResult after it is defined)
+    try {
+      await Submission.create({
+        organizationId: organizationId,
+        property: propertyName,
+        pdfUrl: uploadResult.Location,
+        submittedAt: new Date(),
+        customFields: customFields  // Save any custom fields as well
+      });
 
-  console.log('✅ Submission saved in database');
-} catch (error) {
-  console.error('❌ Database Submission Error:', error);
-  return res.status(500).json({ message: 'Error saving submission to database' });
-}
+      console.log('✅ Submission saved in database');
+    } catch (error) {
+      console.error('❌ Database Submission Error:', error);
+      return res.status(500).json({ message: 'Error saving submission to database' });
+    }
+
     const submissionTimestamp = moment().format("YYYY-MM-DD");
     // **Generate Email Subject Based on orgType**
     let emailSubject = `Checklist Submission for ${propertyName}`;
@@ -462,7 +458,6 @@ try {
     res.status(500).json({ message: 'Error processing form submission' });
   }
 });
-
 
 // Step 1: Forgot Password Route
 app.post('/api/forgot-password', async (req, res) => {
