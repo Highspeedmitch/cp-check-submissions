@@ -344,26 +344,56 @@ await Submission.create({
     }
     console.log("📷 Processed Photo Buffers:", photoBuffers);
 
-    // **Generate PDF**
-    const { pdfStream, filePath, fileName } = await generateChecklistPDF(data, photoBuffers);
+   // **Generate PDF**
+let pdfStream, filePath, fileName;
+try {
+  const pdfGenerationResult = await generateChecklistPDF(data, photoBuffers);
+  pdfStream = pdfGenerationResult.pdfStream;
+  filePath = pdfGenerationResult.filePath;
+  fileName = pdfGenerationResult.fileName;
 
-    if (!pdfStream || typeof pdfStream.pipe !== 'function') {
-      throw new Error('PDF generation failed - no valid stream received');
-    }
+  if (!pdfStream || typeof pdfStream.pipe !== 'function') {
+    throw new Error('PDF generation failed - no valid stream received');
+  }
+} catch (error) {
+  console.error('❌ PDF Generation Error:', error);
+  return res.status(500).json({ message: 'PDF generation failed' });
+}
 
-    // **Upload PDF to AWS S3**
-    const pdfBuffer = fs.readFileSync(filePath);
-    const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
-    console.log('✅ PDF uploaded to S3:', uploadResult.Location);
+// **Upload PDF to AWS S3**
+let uploadResult;
+try {
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new Error('File path is invalid or does not exist');
+  }
 
-    // **Save submission record in DB**
-    await Submission.create({
-      organizationId: organizationId,
-      property: propertyName,
-      pdfUrl: uploadResult.Location,
-      submittedAt: new Date(),
-    });
+  const pdfBuffer = fs.readFileSync(filePath);
+  uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
+  
+  if (!uploadResult || !uploadResult.Location) {
+    throw new Error('S3 Upload failed');
+  }
+  
+  console.log('✅ PDF uploaded to S3:', uploadResult.Location);
+} catch (error) {
+  console.error('❌ PDF Upload Error:', error);
+  return res.status(500).json({ message: 'PDF upload failed' });
+}
 
+// **Save submission record in DB**
+try {
+  await Submission.create({
+    organizationId: organizationId,
+    property: propertyName,
+    pdfUrl: uploadResult.Location,
+    submittedAt: new Date(),
+  });
+
+  console.log('✅ Submission saved in database');
+} catch (error) {
+  console.error('❌ Database Submission Error:', error);
+  return res.status(500).json({ message: 'Error saving submission to database' });
+}
     const submissionTimestamp = moment().format("YYYY-MM-DD");
     // **Generate Email Subject Based on orgType**
     let emailSubject = `Checklist Submission for ${propertyName}`;

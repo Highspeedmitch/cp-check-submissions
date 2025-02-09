@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 // Helper component: Displays uploaded file names
 const FileNameList = ({ fieldName, formData }) => {
-    const fileArray = formData.photos[fieldName] || [];
+    if (!formData.photos || !formData.photos[fieldName]) return null; // Prevents crash
+    const fileArray = formData.photos[fieldName];
+  
     return (
       <>
         {fileArray.map((file, idx) => (
@@ -12,7 +14,8 @@ const FileNameList = ({ fieldName, formData }) => {
         ))}
       </>
     );
-  };  
+  };
+    
 function ShortTermRental() {
   const { property } = useParams();
   const navigate = useNavigate();
@@ -104,7 +107,7 @@ function ShortTermRental() {
         }
       });
       
-      formDataToSend.append("orgType", "LTR");
+      formDataToSend.append("orgType", orgType);
       formDataToSend.append("selectedProperty", property);
       
       // Append custom form fields
