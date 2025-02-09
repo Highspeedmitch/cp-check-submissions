@@ -428,7 +428,8 @@ function Dashboard({ setUser }) {
              console.log(`Rendering: ${prop.name}, orgType: ${prop.orgType}`); // Debugging log
 
               // ✅ Use `prop.orgType` (from API), NOT localStorage
-              const orgType = prop.orgType || "COM";
+              const orgType = prop.orgType || "COM";  
+              let formRoute = "/form"; // Default to commercial
 
               // ✅ Ensure correct form route
               if (orgType === "LTR") {

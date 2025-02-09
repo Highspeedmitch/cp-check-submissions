@@ -51,9 +51,9 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<Scheduler />} />
-      <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />
-      <Route path="/long-term-rental-form/:property" element={user ? <LongTermRentalForm /> : <Navigate to="/" />} />
-      <Route path="/short-term-rental-form/:property" element={user ? <ShortTermRentalForm /> : <Navigate to="/" />} />
+      <Route path="/residential-form/:property" element={user ? <Residential /> : <Navigate to="/" />} />
+      <Route path="/long-term-rental-form/:property" element={user ? <LongTermRental /> : <Navigate to="/" />} />
+      <Route path="/short-term-rental-form/:property" element={user ? <ShortTermRental /> : <Navigate to="/" />} />
     </Routes>
   );
 }
