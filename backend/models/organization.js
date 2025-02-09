@@ -6,6 +6,8 @@ const PropertySchema = new mongoose.Schema({
     lat: {type: Number },
     lng: { type: Number },
     emails: { type: [String], default: [] }, // Emails specific to this property
+    accessInstructions: { type: String, default: "" },  // ✅ New Field
+    customFields: { type: [String], default: [] }       // ✅ New Field
 });
 
 const OrganizationSchema = new mongoose.Schema({

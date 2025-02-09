@@ -318,7 +318,7 @@ function Dashboard({ setUser }) {
         .split(",")
         .map((email) => email.trim())
         .filter(Boolean);
-
+  
       const response = await fetch(
         "https://cp-check-submissions-dev-backend.onrender.com/api/admin/add-property",
         {
@@ -336,25 +336,32 @@ function Dashboard({ setUser }) {
           }),
         }
       );
-
+  
       const data = await response.json();
       if (data.error) {
         alert(data.error);
       } else {
         alert("Property added successfully!");
-        // Re-fetch to update UI
-        setAddPropertyFormVisible(false);
-        setNewPropName("");
-        setNewPropEmails("");
-        setNewPropLat("");
-        setNewPropLng("");
-        setNewPropAddress("");
-        fetchProperties();
+  
+        // ✅ Check if the user belongs to an STR organization
+        const orgType = localStorage.getItem("orgType") || "COM"; // Default to COM
+        if (orgType === "STR" && data.propertyId) {
+          navigate(`/admin/edit-property/${data.propertyId}`); // Redirect STR admins to edit page
+        } else {
+          // ✅ Keep existing functionality for non-STR users
+          setAddPropertyFormVisible(false);
+          setNewPropName("");
+          setNewPropEmails("");
+          setNewPropLat("");
+          setNewPropLng("");
+          setNewPropAddress("");
+          fetchProperties();
+        }
       }
     } catch (error) {
       console.error("Error creating property:", error);
     }
-  };
+  };  
 
   // ======================
   // 7) Sidebar toggling, logout, etc.
@@ -425,38 +432,86 @@ function Dashboard({ setUser }) {
 
             <ul>
             {displayedProperties.map((prop) => {
-             console.log(`Rendering: ${prop.name}, orgType: ${prop.orgType}`); // Debugging log
+  console.log(`Rendering: ${prop.name}, orgType: ${prop.orgType}`); // Debugging log
 
-              // ✅ Use `prop.orgType` (from API), NOT localStorage
-              const orgType = prop.orgType || "COM";  
-              let formRoute = "/form"; // Default to commercial
+  const orgType = prop.orgType || "COM";  
+  let formRoute = "/form"; // Default to commercial
 
-              // ✅ Ensure correct form route
-              if (orgType === "LTR") {
-                formRoute = "/long-term-rental";
-              } else if (orgType === "RES") {
-                formRoute = "/residential";
-              } else if (orgType === "STR") {
-                formRoute = "/short-term-rental";
-              }
-    return (
-      <li
-        key={prop.name}
-        className={completedProperties.includes(prop.name) ? "completed" : ""}
-        onClick={() => {
-          console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`); // Debugging log
+  if (orgType === "LTR") {
+    formRoute = "/long-term-rental";
+  } else if (orgType === "RES") {
+    formRoute = "/residential";
+  } else if (orgType === "STR") {
+    formRoute = "/short-term-rental";
+  }
 
-          if (role === "admin") {
-            navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+  console.log(`🚀 Calculated formRoute: ${formRoute} for ${prop.name}`);
+
+  return (
+    <div
+      key={prop.name}
+      className={`property-card ${
+        completedProperties.includes(prop.name) ? "completed-tile" : ""
+      }`}
+      onClick={() => {
+        if (role === "admin") {
+          navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+        } else {
+          if (orgType === "STR") {
+            // ✅ Show prompt for STR users instead of direct navigation
+            const userChoice = window.confirm(
+              `Select an action for ${prop.name}:\n\nOK = View Access Instructions\nCancel = Submit Form`
+            );
+            if (userChoice) {
+              navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
+            } else {
+              navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+            }
           } else {
+            // ✅ Keep default navigation for non-STR users
             navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
           }
-        }}
-      >
-        {prop.name}
-      </li>
-    );
-  })}
+        }
+      }}
+    >
+      <h3>{prop.name}</h3>
+      <p>
+        {role === "admin"
+          ? "Click to view recent submissions"
+          : completedProperties.includes(prop.name)
+          ? "Completed"
+          : "Click to complete checklist"}
+      </p>
+
+      {/* If admin, show "Remove" button */}
+      {role === "admin" && (
+        <button
+          className="remove-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            initiateRemoveProperty(prop.name);
+          }}
+        >
+          Remove
+        </button>
+      )}
+
+      {/* If user, show "Navigate" button (assuming lat/lng exist) */}
+      {role !== "admin" && prop.lat && prop.lng && (
+        <button
+          className="navigate-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            openNativeMaps(prop.lat, prop.lng);
+          }}
+        >
+          Navigate
+        </button>
+      )}
+    </div>
+  );
+})}
+
 
 </ul>
             {/* New section for My assignments */}

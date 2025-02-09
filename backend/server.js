@@ -287,6 +287,23 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     if (!propertyName) {
       return res.status(400).json({ message: "Property name is missing in submission." });
     }
+   
+    const customFields = {};
+Object.keys(req.body).forEach((key) => {
+  if (key.startsWith("custom_")) {
+    const fieldName = key.replace("custom_", ""); // Remove the prefix
+    customFields[fieldName] = req.body[key];
+  }
+});
+
+// ✅ Save custom fields in the database
+await Submission.create({
+  organizationId: req.user.organizationId,
+  property: propertyName,
+  pdfUrl: uploadResult.Location,
+  submittedAt: new Date(),
+  customFields // Store in DB
+});
 
     const organizationId = req.user.organizationId;
     const org = await Organization.findById(organizationId);
@@ -683,46 +700,104 @@ app.post("/api/verify-remove-passkey", (req, res) => {
 // Admin add-property route
 app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
   try {
-    // 1) Check the user is an admin
+    // 1) Ensure only admins can create properties
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    // 2) Validate the passkey
+    // 2) Validate passkey
     if (req.body.passkey !== process.env.ADD_PROPERTY_PASSKEY) {
       return res.status(403).json({ error: "Invalid passkey" });
     }
 
-    // 3) Get the organization for the admin user
+    // 3) Fetch organization details
     const orgId = req.user.organizationId;
     const org = await Organization.findById(orgId);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
 
-    // 4) Extract incoming data
+    // 4) Extract property details
     const { name, lat, lng, emails } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Property name is required" });
     }
 
-    // 5) Add the new property
-    org.properties.push({
+    // 5) Determine if this is an STR organization
+    const isSTR = org.orgType === "STR";
+
+    // 6) Create the property (without `accessInstructions` & `customFields` initially)
+    const newProperty = {
       name,
       lat,
       lng,
       emails: emails || [],
-    });
-
-    // 6) Save
+      ...(isSTR && { 
+        accessInstructions: accessInstructions || "No instructions provided.",
+        customFields: Array.isArray(customFields) ? customFields : []
+      })
+    };
+    
+    org.properties.push(newProperty);
     await org.save();
+    
+    // ✅ Find the newly added property and return its ID
+    const savedProperty = org.properties.find(p => p.name === name);
+    
+    return res.json({ 
+      success: true, 
+      message: "Property added successfully", 
+      propertyId: savedProperty?._id // Ensure propertyId is always returned
+    });    
 
-    return res.json({ success: true, message: "Property added successfully" });
   } catch (error) {
     console.error("❌ Error adding property:", error);
     return res.status(500).json({ error: "Server error adding property" });
   }
 });
+
+app.put("/api/admin/edit-property/:propertyId", authenticateToken, async (req, res) => {
+  try {
+    // 1) Ensure only admins can edit properties
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const orgId = req.user.organizationId;
+    const { propertyId } = req.params;
+    const { accessInstructions, customFields } = req.body;
+
+    // 2) Find the organization & property
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    const property = org.properties.id(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    // 3) Ensure this is an STR organization
+    if (org.orgType !== "STR") {
+      return res.status(403).json({ error: "Access Instructions only allowed for STR organizations." });
+    }
+
+    // 4) Update access instructions & custom fields
+    property.accessInstructions = accessInstructions || property.accessInstructions;
+    property.customFields = Array.isArray(customFields) ? customFields : property.customFields;
+
+    // 5) Save updates
+    await org.save();
+
+    return res.json({ success: true, message: "Property updated successfully" });
+
+  } catch (error) {
+    console.error("❌ Error updating property:", error);
+    return res.status(500).json({ error: "Server error updating property" });
+  }
+});
+
 app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, res) => {
   try {
     // Must be admin
