@@ -33,8 +33,8 @@ function App() {
       <Route path="/property-selector" element={user ? <PropertySelector /> : <Navigate to="/" />} />
       <Route path="/form/:property" element={user ? <FormPage /> : <Navigate to="/" />} />
       <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />
-      <Route path="/long-term-rental/:property" element={user ? <LongTermRental /> : <Navigate to="/" />} />
-      <Route path="/short-term-rental/:property" element={user ? <ShortTermRental /> : <Navigate to="/" />} />
+      <Route path="/long-term-rental-form/:property" element={user ? <LongTermRental /> : <Navigate to="/" />} />
+      <Route path="/short-term-rental-form/:property" element={user ? <ShortTermRental /> : <Navigate to="/" />} />
       <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />

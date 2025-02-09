@@ -142,7 +142,7 @@ function ShortTermRental() {
 
   return (
     <div className="container">
-      <h1>{property} – Long-Term Rental Inspection Checklist</h1>
+      <h1>{property} – Short-Term Rental Inspection Checklist</h1>
       <h2>Access Instructions</h2>
       <p>{accessInstructions}</p>
 
