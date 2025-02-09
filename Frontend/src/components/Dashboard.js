@@ -612,7 +612,6 @@ function Dashboard({ setUser }) {
     </div>
   );
 })}
-
             </div>
 
             {/* Pagination Controls */}
