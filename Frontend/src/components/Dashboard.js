@@ -424,38 +424,37 @@ function Dashboard({ setUser }) {
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
 
             <ul>
-              {displayedProperties.map((prop) => (
-                <li
-                  key={prop.name}
-                  className={completedProperties.includes(prop.name) ? "completed" : ""}
-                  onClick={() => {
-                    const orgType = localStorage.getItem("orgType") || "COM"; // Default to Commercial
-                    if (role === "admin") {
-                      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-                    } else {
-                      switch (orgType) {
-                        case "COM":
-                          navigate(`/commercial-form/${encodeURIComponent(prop.name)}`);
-                          break;
-                        case "RES":
-                          navigate(`/residential-form/${encodeURIComponent(prop.name)}`);
-                          break;
-                        case "LTR":
-                          navigate(`/long-term-rental-form/${encodeURIComponent(prop.name)}`);
-                          break;
-                        case "STR":
-                          navigate(`/short-term-rental-form/${encodeURIComponent(prop.name)}`);
-                          break;
-                        default:
-                          navigate(`/commercial-form/${encodeURIComponent(prop.name)}`); // Default fallback
-                      }
-                    }
-                  }}                  
-                >
-                  {prop.name}
-                </li>
-              ))}
-            </ul>
+  {displayedProperties.map((prop) => {
+    const orgType = localStorage.getItem("orgType") || "COM"; // Default to COM
+    let formRoute = "/form"; // Default to commercial
+
+    // Determine form route based on organization type
+    if (orgType === "LTR") {
+      formRoute = "/long-term-rental";
+    } else if (orgType === "RES") {
+      formRoute = "/residential";
+    } else if (orgType === "STR") {
+      formRoute = "/short-term-rental";
+    }
+
+    return (
+      <li
+        key={prop.name}
+        className={completedProperties.includes(prop.name) ? "completed" : ""}
+        onClick={() => {
+          if (role === "admin") {
+            navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+          } else {
+            navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+          }
+        }}
+      >
+        {prop.name}
+      </li>
+    );
+  })}
+</ul>
+
 
             {/* New section for My assignments */}
             {role !== "admin" && (
