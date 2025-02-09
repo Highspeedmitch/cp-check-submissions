@@ -1,4 +1,3 @@
-// LongTermRental.js
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -10,11 +9,15 @@ function LongTermRental() {
     businessName: "",
     propertyAddress: "",
     toiletriesStocked: "",
+    toiletriesStockedDescription: "",
     furnitureCorrect: "",
-    checkoutProcedureFollowed: "",
+    furnitureCorrectDescription: "",
+    checkoutProcedure: "",
+    checkoutProcedureDescription: "",
     propertyDamage: "",
+    propertyDamageDescription: "",
     additionalComments: "",
-    photos: {}, // Each fieldName will store an array of Files
+    photos: {}, // Stores photos per field
   });
 
   const [submitted, setSubmitted] = useState(false);
@@ -26,13 +29,17 @@ function LongTermRental() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle multiple file uploads for a given field
+  /**
+   * Handle multiple file uploads for a given field.
+   * Stores an array of files in formData.photos[fieldName].
+   */
   const handleFileChange = (e, fieldName) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     setFormData((prev) => {
       const updatedPhotos = { ...prev.photos };
+
       if (!updatedPhotos[fieldName]) {
         updatedPhotos[fieldName] = [];
       }
@@ -52,21 +59,24 @@ function LongTermRental() {
     });
   };
 
-  // Submit the form with text fields + photos in FormData
+  /**
+   * Submit form data and files to backend
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
       const formDataToSend = new FormData();
 
-      // Append text fields
+      // Append all text fields
       Object.keys(formData).forEach((key) => {
         if (key !== "photos") {
           formDataToSend.append(key, formData[key]);
         }
       });
 
-      // Append selected property
+      // ✅ Ensure orgType is included
+      formDataToSend.append("orgType", "LTR");
       formDataToSend.append("selectedProperty", property);
 
       // Append photos
@@ -79,14 +89,11 @@ function LongTermRental() {
         }
       });
 
-      const response = await fetch(
-        "https://cp-check-submissions-dev-backend.onrender.com/api/submit-form",
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formDataToSend,
-        }
-      );
+      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/submit-form", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formDataToSend,
+      });
 
       const data = await response.json();
       if (response.ok) {
@@ -101,7 +108,7 @@ function LongTermRental() {
     }
   };
 
-  // Renders just the file names for each field
+  // Renders uploaded file names
   const FileNameList = ({ fieldName }) => {
     const fileArray = formData.photos[fieldName] || [];
     return (
@@ -140,51 +147,37 @@ function LongTermRental() {
           <label>Property Address:</label>
           <input type="text" name="propertyAddress" onChange={handleChange} required />
 
-          <h2>Additional Property Condition Checks</h2>
-          <div className="additional-checks">
-            {/* Toiletries Restocked */}
+          <h2>Inspection Items</h2>
+          <div className="inspection-items">
+            {/* Toiletries Need Re-stocked */}
             <div>
-              <label>
-                Toiletries need re-stocked?:
-                <select name="toiletriesStocked" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
+              <label>Toiletries need re-stocked?</label>
+              <select name="toiletriesStocked" onChange={handleChange}>
+                <option value="">Select...</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
               {formData.toiletriesStocked === "yes" && (
                 <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, "toiletriesStocked")}
-                  />
+                  <textarea name="toiletriesStockedDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "toiletriesStocked")} />
                   <FileNameList fieldName="toiletriesStocked" />
                 </>
               )}
             </div>
 
-            {/* Furniture Placement */}
+            {/* Furniture Correct */}
             <div>
-              <label>
-                Furniture is in the correct place?:
-                <select name="furnitureCorrect" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.furnitureCorrect === "no" && (
+              <label>Furniture is in correct place?</label>
+              <select name="furnitureCorrect" onChange={handleChange}>
+                <option value="">Select...</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              {formData.furnitureCorrect === "yes" && (
                 <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, "furnitureCorrect")}
-                  />
+                  <textarea name="furnitureCorrectDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "furnitureCorrect")} />
                   <FileNameList fieldName="furnitureCorrect" />
                 </>
               )}
@@ -192,54 +185,40 @@ function LongTermRental() {
 
             {/* Guest Checkout Procedure */}
             <div>
-              <label>
-                Guest checkout procedure followed?:
-                <select name="checkoutProcedureFollowed" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.checkoutProcedureFollowed === "no" && (
+              <label>Guest checkout procedure followed?</label>
+              <select name="checkoutProcedure" onChange={handleChange}>
+                <option value="">Select...</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              {formData.checkoutProcedure === "no" && (
                 <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, "checkoutProcedureFollowed")}
-                  />
-                  <FileNameList fieldName="checkoutProcedureFollowed" />
+                  <textarea name="checkoutProcedureDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "checkoutProcedure")} />
+                  <FileNameList fieldName="checkoutProcedure" />
                 </>
               )}
             </div>
 
-            {/* Any Property Damage */}
+            {/* Any Damage to Property */}
             <div>
-              <label>
-                Any damage to property?:
-                <select name="propertyDamage" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
+              <label>Any damage to property?</label>
+              <select name="propertyDamage" onChange={handleChange}>
+                <option value="">Select...</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
               {formData.propertyDamage === "yes" && (
                 <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, "propertyDamage")}
-                  />
+                  <textarea name="propertyDamageDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "propertyDamage")} />
                   <FileNameList fieldName="propertyDamage" />
                 </>
               )}
             </div>
           </div>
 
-          {/* Additional Comments */}
+          {/* Other Text Areas */}
           <label>Additional Comments:</label>
           <textarea name="additionalComments" onChange={handleChange} />
 
