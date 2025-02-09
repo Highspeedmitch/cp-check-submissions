@@ -424,8 +424,10 @@ function Dashboard({ setUser }) {
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
 
             <ul>
-  {displayedProperties.map((prop) => {
-    const orgType = localStorage.getItem("orgType") || "COM"; // Default to COM
+            {displayedProperties.map((prop) => {
+    console.log(`Rendering Property: ${prop.name}, OrgType: ${prop.orgType}`); // Debugging log
+
+    const orgType = prop.orgType || "COM"; // ✅ Use `prop.orgType`, NOT localStorage
     let formRoute = "/form"; // Default to commercial
 
     // Determine form route based on organization type
@@ -442,6 +444,7 @@ function Dashboard({ setUser }) {
         key={prop.name}
         className={completedProperties.includes(prop.name) ? "completed" : ""}
         onClick={() => {
+          console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`); // Debugging log
           if (role === "admin") {
             navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
           } else {
