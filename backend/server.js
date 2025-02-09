@@ -281,9 +281,7 @@ const upload = multer({ storage: storage }); // Initialize Multer
 app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), async (req, res) => {
   try {
     const data = req.body;
-
-    console.log('Form Data Received:', data);
-    console.log('Selected Property:', data.selectedProperty);
+    console.log('✅ Form Data Received:', data);
 
     const propertyName = data.selectedProperty || data.property;
     if (!propertyName) {
@@ -291,48 +289,90 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     }
 
     const organizationId = req.user.organizationId;
+    const org = await Organization.findById(organizationId);
+    if (!org) {
+      return res.status(404).json({ message: "Organization not found." });
+    }
+
+    // Extract the organization type (COM, LTR, RES, STR)
+    const orgType = org.orgType;
+    console.log(`📌 Organization Type: ${orgType}`);
+
+    // Find the property in the organization
+    const property = org.properties.find(p => p.name === propertyName);
+    if (!property) {
+      return res.status(404).json({ message: `Property ${propertyName} not found in organization.` });
+    }
+
+    // **Determine recipients based on orgType**
+    let recipientEmails = [];
+    if (property.emails && property.emails.length > 0) {
+      recipientEmails = property.emails;
+    } else {
+      recipientEmails = ["highspeedmitch@gmail.com"]; // Fallback email
+    }
+
+    console.log(`📨 Sending email to: ${recipientEmails.join(", ")}`);
 
     // **Ensure photos are correctly linked to fields**
     let photoBuffers = [];
     if (req.files && req.files.length > 0) {
-       req.files.forEach(file => {
-           const extractedFieldName = file.originalname.split('-')[0]; // Extracts the field name
-            photoBuffers.push({
-               fieldName: extractedFieldName, // Now properly labeled
-              imageBuffer: file.buffer
-    });
-  });
-}
-    console.log("Processed Photo Buffers:", photoBuffers);
+      req.files.forEach(file => {
+        const extractedFieldName = file.originalname.split('-')[0]; // Extracts the field name
+        photoBuffers.push({
+          fieldName: extractedFieldName,
+          imageBuffer: file.buffer
+        });
+      });
+    }
+    console.log("📷 Processed Photo Buffers:", photoBuffers);
 
-    // Generate PDF
+    // **Generate PDF**
     const { pdfStream, filePath, fileName } = await generateChecklistPDF(data, photoBuffers);
 
     if (!pdfStream || typeof pdfStream.pipe !== 'function') {
       throw new Error('PDF generation failed - no valid stream received');
     }
 
-    // Read the generated PDF file from disk
+    // **Upload PDF to AWS S3**
     const pdfBuffer = fs.readFileSync(filePath);
-
-    // Upload the PDF to AWS S3
     const uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
     console.log('✅ PDF uploaded to S3:', uploadResult.Location);
 
-    // Save submission record in DB
+    // **Save submission record in DB**
     await Submission.create({
       organizationId: organizationId,
       property: propertyName,
       pdfUrl: uploadResult.Location,
       submittedAt: new Date(),
     });
-    const submissionTimestamp = moment().format("YYYY-MM-DD");
 
-    // Email the PDF
-    const org = await Organization.findById(organizationId);
-    const property = org.properties.find(p => p.name === propertyName);
-    const recipientEmails = property.emails.length > 0 ? property.emails.join(",") : 'highspeedmitch@gmail.com';
+    // **Generate Email Subject Based on orgType**
+    let emailSubject = `Checklist Submission for ${propertyName}`;
+    let emailBody = `Attached is the checklist PDF for ${propertyName}.`;
 
+    switch (orgType) {
+      case "COM":
+        emailSubject = `🔹 Commercial Property Submission – ${propertyName} submitted on ${submissionTimestamp}`;
+        emailBody = `A new commercial property inspection was submitted for ${propertyName}`;
+        break;
+      case "LTR":
+        emailSubject = `🏠 Long-Term Rental Submission – ${propertyName} submitted on ${submissionTimestamp}`;
+        emailBody = `A new long-term rental inspection was submitted for ${propertyName}.`;
+        break;
+      case "RES":
+        emailSubject = `🏡 Residential Property Submission – ${propertyName} submitted on ${submissionTimestamp}`;
+        emailBody = `A new residential property inspection was submitted for ${propertyName}.`;
+        break;
+      case "STR":
+        emailSubject = `🏨 Short-Term Rental Submission – ${propertyName} submitted on ${submissionTimestamp}`;
+        emailBody = `A new short-term rental inspection was submitted for ${propertyName}.`;
+        break;
+      default:
+        console.warn("⚠️ Unknown organization type, defaulting to generic subject.");
+    }
+
+    // **Send Email with PDF Attachment**
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -343,27 +383,26 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
 
     const mailOptions = {
       from: 'highspeedmitch@gmail.com',
-      to: recipientEmails,
-      subject: `Checklist PDF for ${propertyName} submitted on ${submissionTimestamp}`,
-      text: `Attached is the checklist PDF for ${propertyName}.`,
+      to: recipientEmails.join(","),
+      subject: emailSubject,
+      text: emailBody,
       attachments: [{ filename: fileName, content: pdfBuffer }],
     };
-    
 
     await transporter.sendMail(mailOptions)
       .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
       .catch(err => console.error('❌ Error sending email:', err));
 
+    // **Cleanup temporary file**
     fs.unlinkSync(filePath);
 
-// After the PDF is generated, uploaded, emailed, etc.
-// Check if an assignment exists for this user and property
-// After sending the email and unlinking the file:
-      const assignmentToRemove = await Assignment.findOne({
-      propertyName: propertyName,  // Use propertyName instead of property
+    // **Remove assignment if it exists**
+    const assignmentToRemove = await Assignment.findOne({
+      propertyName: propertyName,
       userId: req.user.userId
-      });
-      if (assignmentToRemove) {
+    });
+
+    if (assignmentToRemove) {
       await Assignment.findByIdAndDelete(assignmentToRemove._id);
       console.log(`✅ Removed assignment for property ${propertyName}`);
     }
@@ -374,8 +413,8 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     console.error('❌ Error processing form submission:', error);
     res.status(500).json({ message: 'Error processing form submission' });
   }
-
 });
+
 
 // Step 1: Forgot Password Route
 app.post('/api/forgot-password', async (req, res) => {
