@@ -542,56 +542,77 @@ function Dashboard({ setUser }) {
           <>
             {/* Property Cards */}
             <div className="property-cards">
-              {displayedProperties.map((prop) => (
-                <div
-                  key={prop.name}
-                  className={`property-card ${
-                    completedProperties.includes(prop.name) ? "completed-tile" : ""
-                  }`}
-                  onClick={() => {
-                    if (role === "admin") {
-                      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-                    } else {
-                      navigate(`/form/${encodeURIComponent(prop.name)}`);
-                    }
-                  }}
-                >
-                  <h3>{prop.name}</h3>
-                  <p>
-                    {role === "admin"
-                      ? "Click to view recent submissions"
-                      : completedProperties.includes(prop.name)
-                      ? "Completed"
-                      : "Click to complete checklist"}
-                  </p>
+            {displayedProperties.map((prop) => {
+  console.log(`Rendering: ${prop.name}, orgType: ${prop.orgType}`); // Debugging log
 
-                  {/* If admin, show "Remove" button */}
-                  {role === "admin" && (
-                    <button
-                      className="remove-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        initiateRemoveProperty(prop.name);
-                      }}
-                    >
-                      Remove
-                    </button>
-                  )}
+  // ✅ Use `prop.orgType` from the API response, NOT localStorage
+  const orgType = prop.orgType || "COM";  
+  let formRoute = "/form"; // Default to commercial
 
-                  {/* If user, show "Navigate" button (assuming lat/lng exist) */}
-                  {role !== "admin" && prop.lat && prop.lng && (
-                    <button
-                      className="navigate-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openNativeMaps(prop.lat, prop.lng);
-                      }}
-                    >
-                      Navigate
-                    </button>
-                  )}
-                </div>
-              ))}
+  // ✅ Ensure correct form route
+  if (orgType === "LTR") {
+    formRoute = "/long-term-rental";
+  } else if (orgType === "RES") {
+    formRoute = "/residential";
+  } else if (orgType === "STR") {
+    formRoute = "/short-term-rental";
+  }
+
+  console.log(`🚀 Calculated formRoute: ${formRoute} for ${prop.name}`);
+
+  return (
+    <div
+      key={prop.name}
+      className={`property-card ${
+        completedProperties.includes(prop.name) ? "completed-tile" : ""
+      }`}
+      onClick={() => {
+        if (role === "admin") {
+          navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+        } else {
+          console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`);
+          navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+        }
+      }}
+    >
+      <h3>{prop.name}</h3>
+      <p>
+        {role === "admin"
+          ? "Click to view recent submissions"
+          : completedProperties.includes(prop.name)
+          ? "Completed"
+          : "Click to complete checklist"}
+      </p>
+
+      {/* If admin, show "Remove" button */}
+      {role === "admin" && (
+        <button
+          className="remove-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            initiateRemoveProperty(prop.name);
+          }}
+        >
+          Remove
+        </button>
+      )}
+
+      {/* If user, show "Navigate" button (assuming lat/lng exist) */}
+      {role !== "admin" && prop.lat && prop.lng && (
+        <button
+          className="navigate-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            openNativeMaps(prop.lat, prop.lng);
+          }}
+        >
+          Navigate
+        </button>
+      )}
+    </div>
+  );
+})}
+
             </div>
 
             {/* Pagination Controls */}
