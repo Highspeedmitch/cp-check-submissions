@@ -573,8 +573,22 @@ function Dashboard({ setUser }) {
         if (role === "admin") {
           navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
         } else {
-          console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`);
-          navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+          const orgType = prop.orgType || "COM"; // Ensure we use the correct orgType
+
+          if (orgType === "STR") {
+            // ✅ STR Users should be prompted
+            const userChoice = window.confirm(
+              `Select an action for ${prop.name}:\n\nOK = View Access Instructions\nForm = Submit Form`
+            );
+            if (userChoice) {
+              navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
+            } else {
+              navigate(`/short-term-rental/${encodeURIComponent(prop.name)}`);
+            }
+          } else {
+            console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`);
+            navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+          }
         }
       }}
     >
@@ -612,7 +626,7 @@ function Dashboard({ setUser }) {
           Navigate
         </button>
       )}
-    </div>
+</div>
   );
 })}
             </div>
