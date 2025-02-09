@@ -10,7 +10,12 @@ const PropertySchema = new mongoose.Schema({
 
 const OrganizationSchema = new mongoose.Schema({
     name: { type: String, required: true, unique: true },
-    properties: { type: [PropertySchema], default: [] }, // Array of properties with their emails
+    orgType: { 
+        type: String, 
+        enum: ["COM", "RES", "LTR", "STR"], // Allowed organization types
+        required: true 
+    },
+    properties: { type: [PropertySchema], default: [] },
 });
 
 module.exports = mongoose.model('Organization', OrganizationSchema);

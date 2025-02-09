@@ -132,7 +132,11 @@ app.post('/api/register', async (req, res) => {
         message: "Organization name not recognized. Please check the spelling of your Organization and register again."
       });
     }
-
+    // ✅ Extract the orgType from the found organization
+    const orgType = org.orgType;
+    if (!orgType) {
+      return res.status(500).json({ message: "Organization type not found for this organization." });
+    }
     // If the adminPasskey field is present, verify it
     let role = "user";
     if (adminPasskey) {
@@ -154,7 +158,13 @@ app.post('/api/register', async (req, res) => {
       role: role
     });
 
-    res.status(201).json({ message: "User registered under organization successfully!" });
+    res.status(201).json({
+      message: "User registered under organization successfully!",
+      organizationId: org._id,
+      orgName: org.name,
+      orgType: orgType, // ✅ Include orgType in response
+      role: role
+    });
   } catch (error) {
     console.error("❌ Error registering organization/user:", error);
     res.status(500).json({ message: "Error registering organization/user." });
@@ -195,33 +205,40 @@ app.post('/api/login', async (req, res) => {
       return res.status(500).json({ message: "Organization not found for user" });
     }
 
-    // Generate JWT, including the role and userId in the payload
+    // ✅ Extract the `orgType` from the organization
+    const orgType = user.organizationId.orgType;
+    if (!orgType) {
+      return res.status(500).json({ message: "Organization type not found for this organization." });
+    }
+
+    // Generate JWT, including the role, userId, and orgType in the payload
     const token = jwt.sign(
       {
         email: user.email,
         organizationId: user.organizationId._id,
         role: user.role,
-        userId: user._id  // Added userId here
+        userId: user._id,
+        orgType: orgType, // ✅ Inject orgType into JWT payload
       },
       SECRET_KEY,
       { expiresIn: '2h' }
     );
 
-    // Return the token along with organization ID, name, and role
+    // ✅ Return the token along with organization details, role, and orgType
     res.json({ 
       message: "Login successful", 
       token, 
       organizationId: user.organizationId._id,
       orgName: user.organizationId.name,
+      orgType: orgType, // ✅ Include orgType in response
       role: user.role
     });
+
   } catch (error) {
     console.error("❌ Login error:", error);
     res.status(500).json({ message: "Server error during login." });
   }
 });
-
-
 
 /**
  * 🔹 Single /properties Route

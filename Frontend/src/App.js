@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
-import FormPage from "./components/FormPage";
+import FormPage from "./components/FormPage";//commercial form
 import Register from "./components/Register";
 import PropertySelector from "./components/PropertySelector";
 import AdminSubmissions from "./components/AdminSubmissions";
@@ -10,6 +10,9 @@ import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import Scheduler from "./components/Scheduler";
 import { initPushNotifications } from "./components/PushNotifications";
+import ResidentialForm from "./components/ResidentialForm";
+import LongTermRentalForm from "./components/LongTermRental";
+import ShortTermRentalForm from "./components/ShortTermRental";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -48,6 +51,9 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<Scheduler />} />
+      <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />
+      <Route path="/long-term-rental-form/:property" element={user ? <LongTermRentalForm /> : <Navigate to="/" />} />
+      <Route path="/short-term-rental-form/:property" element={user ? <ShortTermRentalForm /> : <Navigate to="/" />} />
     </Routes>
   );
 }

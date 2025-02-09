@@ -48,6 +48,8 @@ function Login({ setUser }) {
         if (response.ok) {
           localStorage.setItem("token", data.token);
           localStorage.setItem("orgName", data.orgName || "Your Organization");
+          localStorage.setItem("organizationId", data.organizationId);
+          localStorage.setItem("orgType", data.orgType);  // ✅ Store orgType
           localStorage.setItem("role", data.role || "user");
           localStorage.setItem("loginTime", new Date().toISOString());
   
