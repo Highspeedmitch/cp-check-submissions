@@ -454,8 +454,6 @@ function Dashboard({ setUser }) {
     );
   })}
 </ul>
-
-
             {/* New section for My assignments */}
             {role !== "admin" && (
               <div className="assignments-section">
