@@ -347,6 +347,7 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
       submittedAt: new Date(),
     });
 
+    const submissionTimestamp = moment().format("YYYY-MM-DD");
     // **Generate Email Subject Based on orgType**
     let emailSubject = `Checklist Submission for ${propertyName}`;
     let emailBody = `Attached is the checklist PDF for ${propertyName}.`;
