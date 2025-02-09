@@ -550,7 +550,7 @@ function Dashboard({ setUser }) {
       <button
         className="modal-btn"
         onClick={() => {
-          navigate(`/short-term-rental/${encodeURIComponent(selectedProperty)}`);
+          navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}`);
           setShowModal(false);
         }}
       >
