@@ -73,6 +73,11 @@ function Dashboard({ setUser }) {
   const [viewScheduler, setViewScheduler] = useState(false);
   const [assignments, setAssignments] = useState([]);
 
+  //------------- Modal injection -----------------
+  const [showModal, setShowModal] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState("");
+
+
   // ======================
   // 1) Apply dark mode on load
   // ======================
@@ -525,6 +530,43 @@ function Dashboard({ setUser }) {
             )}
           </>
         )}
+        {/* STR Property Selection Modal */}
+{showModal && (
+  <div className="modal-overlay">
+    <div className="modal">
+      <h2>Select an Action</h2>
+      <p>What would you like to do for <strong>{selectedProperty}</strong>?</p>
+      
+      <button
+        className="modal-btn"
+        onClick={() => {
+          navigate(`/access-instructions/${encodeURIComponent(selectedProperty)}`);
+          setShowModal(false);
+        }}
+      >
+        Access Instructions
+      </button>
+
+      <button
+        className="modal-btn"
+        onClick={() => {
+          navigate(`/short-term-rental/${encodeURIComponent(selectedProperty)}`);
+          setShowModal(false);
+        }}
+      >
+        Submit Form
+      </button>
+
+      <button
+        className="modal-close"
+        onClick={() => setShowModal(false)}
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
+
       </div>
 
       {/* Main Content */}
@@ -565,67 +607,62 @@ function Dashboard({ setUser }) {
 
   return (
     <div
-      key={prop.name}
-      className={`property-card ${
-        completedProperties.includes(prop.name) ? "completed-tile" : ""
-      }`}
-      onClick={() => {
-        if (role === "admin") {
-          navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-        } else {
-          const orgType = prop.orgType || "COM"; // Ensure we use the correct orgType
+  key={prop.name}
+  className={`property-card ${
+    completedProperties.includes(prop.name) ? "completed-tile" : ""
+  }`}
+  onClick={() => {
+    if (role === "admin") {
+      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+    } else {
+      const orgType = prop.orgType || "COM"; // Ensure orgType is used correctly
 
-          if (orgType === "STR") {
-            // ✅ STR Users should be prompted
-            const userChoice = window.confirm(
-              `Select an action for ${prop.name}:\n\nOK = View Access Instructions\nForm = Submit Form`
-            );
-            if (userChoice) {
-              navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
-            } else {
-              navigate(`/short-term-rental/${encodeURIComponent(prop.name)}`);
-            }
-          } else {
-            console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`);
-            navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
-          }
-        }
+      if (orgType === "STR") {
+        // ✅ Trigger modal for STR users
+        setSelectedProperty(prop.name);
+        setShowModal(true);
+      } else {
+        // ✅ Navigate directly for non-STR users
+        console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`);
+        navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+      }
+    }
+  }}
+>
+  <h3>{prop.name}</h3>
+  <p>
+    {role === "admin"
+      ? "Click to view recent submissions"
+      : completedProperties.includes(prop.name)
+      ? "Completed"
+      : "Click to complete checklist"}
+  </p>
+
+  {/* If admin, show "Remove" button */}
+  {role === "admin" && (
+    <button
+      className="remove-button"
+      onClick={(e) => {
+        e.stopPropagation();
+        initiateRemoveProperty(prop.name);
       }}
     >
-      <h3>{prop.name}</h3>
-      <p>
-        {role === "admin"
-          ? "Click to view recent submissions"
-          : completedProperties.includes(prop.name)
-          ? "Completed"
-          : "Click to complete checklist"}
-      </p>
+      Remove
+    </button>
+  )}
 
-      {/* If admin, show "Remove" button */}
-      {role === "admin" && (
-        <button
-          className="remove-button"
-          onClick={(e) => {
-            e.stopPropagation();
-            initiateRemoveProperty(prop.name);
-          }}
-        >
-          Remove
-        </button>
-      )}
-
-      {/* If user, show "Navigate" button (assuming lat/lng exist) */}
-      {role !== "admin" && prop.lat && prop.lng && (
-        <button
-          className="navigate-button"
-          onClick={(e) => {
-            e.stopPropagation();
-            openNativeMaps(prop.lat, prop.lng);
-          }}
-        >
-          Navigate
-        </button>
-      )}
+  {/* If user, show "Navigate" button (assuming lat/lng exist) */}
+  {role !== "admin" && prop.lat && prop.lng && (
+    <button
+      className="navigate-button"
+      onClick={(e) => {
+        e.stopPropagation();
+        openNativeMaps(prop.lat, prop.lng);
+      }}
+    >
+      Navigate
+    </button>
+  )}
 </div>
   );
 })}
