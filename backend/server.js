@@ -250,20 +250,16 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "Organization not found" });
     }
 
-    // Instead of just returning the name,
-    // return the entire property objects (with name, lat, lng, etc.)
-    // Example: if your schema has { name, lat, lng, emails: [...], ... }
-    // you can map them or just return org.properties directly.
-    // Here's a small transform:
+    // ✅ Include `orgType` in each property response
     const properties = org.properties.map((p) => ({
       name: p.name,
       lat: p.lat,
       lng: p.lng,
       emails: p.emails,
-      // Add anything else you need from p...
+      orgType: org.orgType,  // ✅ Now added!
     }));
 
-    console.log("Properties:", properties);
+    console.log("Properties with orgType:", properties);
     res.json(properties);
   } catch (error) {
     console.error("❌ Error fetching properties:", error);
