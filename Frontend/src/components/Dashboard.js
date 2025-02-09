@@ -425,26 +425,27 @@ function Dashboard({ setUser }) {
 
             <ul>
             {displayedProperties.map((prop) => {
-    console.log(`Rendering Property: ${prop.name}, OrgType: ${prop.orgType}`); // Debugging log
+             console.log(`Rendering: ${prop.name}, orgType: ${prop.orgType}`); // Debugging log
 
-    const orgType = prop.orgType || "COM"; // ✅ Use `prop.orgType`, NOT localStorage
-    let formRoute = "/form"; // Default to commercial
+              // ✅ Use `prop.orgType` (from API), NOT localStorage
+              const orgType = prop.orgType || "COM";  
+              let formRoute = "/form"; // Default to commercial
 
-    // Determine form route based on organization type
-    if (orgType === "LTR") {
-      formRoute = "/long-term-rental";
-    } else if (orgType === "RES") {
-      formRoute = "/residential";
-    } else if (orgType === "STR") {
-      formRoute = "/short-term-rental";
-    }
-
+              // ✅ Ensure correct form route
+              if (orgType === "LTR") {
+                formRoute = "/long-term-rental";
+              } else if (orgType === "RES") {
+                formRoute = "/residential";
+              } else if (orgType === "STR") {
+                formRoute = "/short-term-rental";
+              }
     return (
       <li
         key={prop.name}
         className={completedProperties.includes(prop.name) ? "completed" : ""}
         onClick={() => {
           console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`); // Debugging log
+
           if (role === "admin") {
             navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
           } else {
@@ -456,6 +457,7 @@ function Dashboard({ setUser }) {
       </li>
     );
   })}
+
 </ul>
             {/* New section for My assignments */}
             {role !== "admin" && (
