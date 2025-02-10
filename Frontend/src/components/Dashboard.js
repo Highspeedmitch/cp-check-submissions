@@ -27,7 +27,7 @@ function openNativeMaps(lat, lng) {
 }
 
 function Dashboard({ setUser }) {
-  const { property } = useParams();
+  //const { propertyId } = useParams();
   const navigate = useNavigate();
 
   // ----------- Paging -----------  
