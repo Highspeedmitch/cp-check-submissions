@@ -184,12 +184,13 @@ function ShortTermRental() {
                 <option value="no">No</option>
               </select>
               {formData.toiletriesStocked === "yes" && (
-                <>
-                  <textarea name="toiletriesStockedDescription" onChange={handleChange} placeholder="Describe the issue" />
-                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "toiletriesStocked")} />
-                  <FileNameList fieldName="toiletriesStocked" />
-                </>
-              )}
+                    <>
+                <textarea name="toiletriesStockedDescription" onChange={handleChange} placeholder="Describe the issue" />
+                <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "toiletriesStocked")} />
+                <FileNameList fieldName="toiletriesStocked" formData={formData} />
+            </>
+            )}
+
             </div>
 
             {/* Furniture Correct */}
@@ -204,7 +205,7 @@ function ShortTermRental() {
                 <>
                   <textarea name="furnitureCorrectDescription" onChange={handleChange} placeholder="Describe the issue" />
                   <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "furnitureCorrect")} />
-                  <FileNameList fieldName="furnitureCorrect" />
+                  <FileNameList fieldName="furnitureCorrect" formData={formData} />
                 </>
               )}
             </div>
@@ -221,7 +222,7 @@ function ShortTermRental() {
                 <>
                   <textarea name="checkoutProcedureDescription" onChange={handleChange} placeholder="Describe the issue" />
                   <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "checkoutProcedure")} />
-                  <FileNameList fieldName="checkoutProcedure" />
+                  <FileNameList fieldName="checkoutProcedure" formData={formData} />
                 </>
               )}
             </div>
@@ -238,7 +239,7 @@ function ShortTermRental() {
                 <>
                   <textarea name="propertyDamageDescription" onChange={handleChange} placeholder="Describe the issue" />
                   <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "propertyDamage")} />
-                  <FileNameList fieldName="propertyDamage" />
+                  <FileNameList fieldName="propertyDamage" formData={formData} />
                 </>
               )}
             </div>
