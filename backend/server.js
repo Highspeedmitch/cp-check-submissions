@@ -996,6 +996,6 @@ app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => 
     console.error("❌ Error fetching property details:", error);
     res.status(500).json({ error: "Server error retrieving property details" });
   }
-});
+});*/
 
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));*/
+app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
