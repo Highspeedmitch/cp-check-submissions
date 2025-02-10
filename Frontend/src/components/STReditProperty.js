@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 function STReditProperty() {
-  // Use "propertyName" from the URL, e.g. /admin/edit-property/:propertyName
-  const { propertyName } = useParams();
+  // Use "propertyId" since your URL now passes the ID (e.g., /admin/edit-property/:propertyId)
+  const { propertyId } = useParams();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
@@ -17,9 +17,8 @@ function STReditProperty() {
   useEffect(() => {
     const fetchPropertyDetails = async () => {
       try {
-        // Make sure to encode the property name if it contains spaces or special characters
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/properties/${encodeURIComponent(propertyName)}`,
+          `https://cp-check-submissions-dev-backend.onrender.com/api/properties/${propertyId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -40,7 +39,7 @@ function STReditProperty() {
     };
 
     fetchPropertyDetails();
-  }, [propertyName, token]);
+  }, [propertyId, token]);
 
   // Handler for adding a new custom field locally
   const handleAddCustomField = () => {
@@ -57,7 +56,7 @@ function STReditProperty() {
   const handleSaveChanges = async () => {
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/edit-property/${encodeURIComponent(propertyName)}`,
+        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/edit-property/${propertyId}`,
         {
           method: "PUT",
           headers: {

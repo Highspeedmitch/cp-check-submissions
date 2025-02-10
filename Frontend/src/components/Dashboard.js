@@ -350,8 +350,8 @@ function Dashboard({ setUser }) {
   
         // ✅ Check if the user belongs to an STR organization
         const orgType = localStorage.getItem("orgType") || "COM"; // Default to COM
-        if (orgType === "STR") {
-          navigate(`/admin/edit-property/${encodeURIComponent(newPropName)}`);
+        if (orgType === "STR" && data.propertyId) {
+          navigate(`/admin/edit-property/${data.propertyId}`); // Redirect STR admins to edit page
         } else {
           // ✅ Keep existing functionality for non-STR users
           setAddPropertyFormVisible(false);

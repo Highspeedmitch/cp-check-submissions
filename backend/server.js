@@ -981,6 +981,21 @@ app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => 
     res.status(500).json({ error: "Server error retrieving property details" });
   }
 });
-
+app.get('/api/properties/:id', authenticateToken, async (req, res) => {
+  try {
+    const org = await Organization.findById(req.user.organizationId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+    const property = org.properties.id(req.params.id);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    res.json(property);
+  } catch (error) {
+    console.error("❌ Error fetching property details:", error);
+    res.status(500).json({ error: "Server error retrieving property details" });
+  }
+});
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
