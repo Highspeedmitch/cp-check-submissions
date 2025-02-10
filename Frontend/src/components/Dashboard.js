@@ -30,6 +30,10 @@ function Dashboard({ setUser }) {
   //const { propertyId } = useParams();
   const navigate = useNavigate();
 
+ // 🚗 New states for mileage tracking
+ const [mileageTracking, setMileageTracking] = useState(false);
+ const [mileageCount, setMileageCount] = useState(null); // Null to start blank
+
   // ----------- Paging -----------  
   const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
@@ -424,151 +428,177 @@ function Dashboard({ setUser }) {
   // ======================
   // RENDER
   // ======================
+   // 🚀 Track mileage every 30 seconds when enabled
+   useEffect(() => {
+    let interval;
+    if (mileageTracking) {
+      interval = setInterval(() => {
+        setMileageCount((prev) => (prev !== null ? prev + 0.5 : 0.5)); // Start at 0.5 miles if first toggle
+      }, 30000);
+    }
+    return () => clearInterval(interval);
+  }, [mileageTracking]);
+
+  // 🔄 Reset on new session (login/logout)
+  useEffect(() => {
+    setMileageTracking(false); // Toggle defaults to OFF
+    setMileageCount(null); // Reset mileage to blank
+  }, []);
   return (
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <button className="sidebar-toggle" onClick={toggleSidebar}>
-          {sidebarCollapsed ? "☰" : "×"}
-        </button>
+  <button className="sidebar-toggle" onClick={toggleSidebar}>
+    {sidebarCollapsed ? "☰" : "×"}
+  </button>
 
-        {!sidebarCollapsed && (
-          <>
-            <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+  {!sidebarCollapsed && (
+    <>
+      <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+      <ul>
+        {displayedProperties.map((prop) => (
+          <li
+            key={prop.name}
+            className={completedProperties.includes(prop.name) ? "completed" : ""}
+            onClick={() => {
+              if (role === "admin") {
+                navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+              } else {
+                switch (prop.orgType) { // ✅ Use orgType from API, NOT localStorage
+                  case "COM":
+                    navigate(`/commercial-form/${encodeURIComponent(prop.name)}`);
+                    break;
+                  case "RES":
+                    navigate(`/residential-form/${encodeURIComponent(prop.name)}`);
+                    break;
+                  case "LTR":
+                    navigate(`/long-term-rental-form/${encodeURIComponent(prop.name)}`);
+                    break;
+                  case "STR":
+                    navigate(`/short-term-rental-form/${encodeURIComponent(prop.name)}`);
+                    break;
+                  default:
+                    navigate(`/commercial-form/${encodeURIComponent(prop.name)}`); // Default fallback
+                }
+              }
+            }}
+          >
+            {prop.name}
+          </li>
+        ))}
+      </ul>
+
+      {/* New section for My assignments */}
+      {role !== "admin" && (
+        <div className="assignments-section">
+          <h3>My assignments</h3>
+          {assignments.length === 0 ? (
+            <p>No assignments yet.</p>
+          ) : (
             <ul>
-              {displayedProperties.map((prop) => (
-                <li
-                key={prop.name}
-                className={completedProperties.includes(prop.name) ? "completed" : ""}
-                onClick={() => {
-                  if (role === "admin") {
-                    navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-                  } else {
-                    switch (prop.orgType) { // ✅ Use orgType from API, NOT localStorage
-                      case "COM":
-                        navigate(`/commercial-form/${encodeURIComponent(prop.name)}`);
-                        break;
-                      case "RES":
-                        navigate(`/residential-form/${encodeURIComponent(prop.name)}`);
-                        break;
-                      case "LTR":
-                        navigate(`/long-term-rental-form/${encodeURIComponent(prop.name)}`);
-                        break;
-                      case "STR":
-                        navigate(`/short-term-rental-form/${encodeURIComponent(prop.name)}`);
-                        break;
-                      default:
-                        navigate(`/commercial-form/${encodeURIComponent(prop.name)}`); // Default fallback
-                    }
-                  }
-                }}
-              >
-                {prop.name}
-              </li>
-              
+              {assignments.map((assignment) => (
+                <li key={assignment._id}>
+                  {assignment.propertyName} -{" "}
+                  {new Date(assignment.startDate).toLocaleDateString()}
+                </li>
               ))}
             </ul>
-            {/* New section for My assignments */}
-            {role !== "admin" && (
-              <div className="assignments-section">
-                <h3>My assignments</h3>
-                {assignments.length === 0 ? (
-                  <p>No assignments yet.</p>
-                ) : (
-                  <ul>
-                    {assignments.map((assignment) => (
-                      <li
-                        key={assignment._id}
-                        onClick={() => {
-                          // For example, you might add a click handler to show assignment details.
-                        }}
-                      >
-                        {assignment.propertyName} -{" "}
-                        {new Date(assignment.startDate).toLocaleDateString()}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
+          )}
+        </div>
+      )}
 
-            {/* Dark Mode Toggle */}
-            <div className="dark-mode-toggle">
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={darkMode}
-                  onChange={() => setDarkMode((prev) => !prev)}
-                />
-                <span className="slider"></span>
-              </label>
-              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
-            </div>
+      {/* 🚗 Mileage Tracking Toggle (For Non-Admins) */}
+      {role !== "admin" && (
+        <div className="mileage-tracking-toggle">
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={mileageTracking}
+              onChange={() => setMileageTracking((prev) => !prev)}
+            />
+            <span className="slider"></span>
+          </label>
+          <span className="toggle-label">
+            {mileageTracking ? `🚗 ${mileageCount ? mileageCount.toFixed(1) : "0"} mi` : "🚦 Off"}
+          </span>
+        </div>
+      )}
 
-            {/* Tools for Admin */}
-            {role === "admin" && (
-              <div className="tools-section" style={{ marginBottom: "-10px" }}>
-                <h3>Admin Tools</h3>
-                <button
-                  className="Admin-tools-primary"
-                  onClick={() => {
-                    setPasskeyPromptVisible(true);
-                    setPasskey("");
-                  }}
-                >
-                  + Property
-                </button>
-                <button
-                  className="Admin-tools-adtl"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate("/scheduler", { state: { token } });
-                  }}
-                >
-                  Scheduler
-                </button>
-              </div>
-            )}
-          </>
-        )}
-        {/* STR Property Selection Modal */}
-{showModal && (
-  <div className="modal-overlay">
-    <div className="modal">
-      <h2>Select an Action</h2>
-      <p>What would you like to do for <strong>{selectedProperty}</strong>?</p>
-      
-      <button
-        className="modal-btn"
-        onClick={() => {
-          navigate(`/access-instructions/${encodeURIComponent(selectedProperty)}`);
-          setShowModal(false);
-        }}
-      >
-        Access Instructions
-      </button>
-
-      <button
-        className="modal-btn"
-        onClick={() => {
-          navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}`);
-          setShowModal(false);
-        }}
-      >
-        Submit Form
-      </button>
-
-      <button
-        className="modal-close"
-        onClick={() => setShowModal(false)}
-      >
-        Cancel
-      </button>
-    </div>
-  </div>
-)}
-
+      {/* Dark Mode Toggle */}
+      <div className="dark-mode-toggle">
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={darkMode}
+            onChange={() => setDarkMode((prev) => !prev)}
+          />
+          <span className="slider"></span>
+        </label>
+        <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
       </div>
+
+      {/* Tools for Admin */}
+      {role === "admin" && (
+        <div className="tools-section" style={{ marginBottom: "-10px" }}>
+          <h3>Admin Tools</h3>
+          <button
+            className="Admin-tools-primary"
+            onClick={() => {
+              setPasskeyPromptVisible(true);
+              setPasskey("");
+            }}
+          >
+            + Property
+          </button>
+          <button
+            className="Admin-tools-adtl"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/scheduler", { state: { token } });
+            }}
+          >
+            Scheduler
+          </button>
+        </div>
+      )}
+    </>
+  )}
+
+  {/* STR Property Selection Modal */}
+  {showModal && (
+    <div className="modal-overlay">
+      <div className="modal">
+        <h2>Select an Action</h2>
+        <p>What would you like to do for <strong>{selectedProperty}</strong>?</p>
+
+        <button
+          className="modal-btn"
+          onClick={() => {
+            navigate(`/access-instructions/${encodeURIComponent(selectedProperty)}`);
+            setShowModal(false);
+          }}
+        >
+          Access Instructions
+        </button>
+        <button
+          className="modal-btn"
+          onClick={() => {
+            navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}`);
+            setShowModal(false);
+          }}
+        >
+          Submit Form
+        </button>
+        <button
+          className="modal-close"
+          onClick={() => setShowModal(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )}
+</div>
 
       {/* Main Content */}
       <div className="main-content">
