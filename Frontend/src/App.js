@@ -13,14 +13,17 @@ import ResidentialForm from "./components/ResidentialForm";
 import LongTermRental from "./components/LongTermRental";
 import ShortTermRental from "./components/ShortTermRental";
 import STReditProperty from "./components/STReditProperty"; // ✅ New STR Admin Edit Page
+import Payments from "./components/Payments"; // ✅ Import Payments Page
 
 function App() {
   const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
       setUser(true);
+      setRole(localStorage.getItem("role")); // ✅ Fetch user role
     }
   }, []);
 
@@ -39,9 +42,12 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<Scheduler />} />
-      
+
       {/* ✅ New STR Admin Edit Property Route */}
       <Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />
+
+      {/* ✅ Payments Page - Only Admins Can Access */}
+      <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
 
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />

@@ -590,29 +590,41 @@ function Dashboard({ setUser }) {
       </div>
 
       {/* Tools for Admin */}
-      {role === "admin" && (
-        <div className="tools-section" style={{ marginBottom: "-10px" }}>
-          <h3>Admin Tools</h3>
-          <button
-            className="Admin-tools-primary"
-            onClick={() => {
-              setPasskeyPromptVisible(true);
-              setPasskey("");
-            }}
-          >
-            + Property
-          </button>
-          <button
-            className="Admin-tools-adtl"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate("/scheduler", { state: { token } });
-            }}
-          >
-            Scheduler
-          </button>
-        </div>
-      )}
+{role === "admin" && (
+  <div className="tools-section" style={{ marginBottom: "-10px" }}>
+    <h3>Admin Tools</h3>
+    
+    <button
+      className="Admin-tools-primary"
+      onClick={() => {
+        setPasskeyPromptVisible(true);
+        setPasskey("");
+      }}
+    >
+      + Property
+    </button>
+    
+    <button
+      className="Admin-tools-adtl"
+      onClick={(e) => {
+        e.preventDefault();
+        navigate("/scheduler", { state: { token } });
+      }}
+    >
+      Scheduler
+    </button>
+
+    <button
+      className="Admin-tools-adtl"
+      onClick={(e) => {
+        e.preventDefault();
+        navigate("/payments", { state: { token } });
+      }}
+    >
+      Payments
+    </button>
+  </div>
+)}
     </>
   )}
 

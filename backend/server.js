@@ -18,7 +18,8 @@ const Organization = require('./models/organization');
 const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
-
+const express = require("express");
+const authenticateToken = require("./middleware/authenticateToken");
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
 
@@ -79,6 +80,17 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limi
 
 // ✅ Middleware & Route Usage
 app.use("/api/mileage", mileageTrackingRoutes);
+
+// ✅ Middleware to ensure only admins can access
+function requireAdmin(req, res, next) {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Access denied: Admins only!" });
+  }
+  next();
+}
+
+// ✅ Admin-only payments route
+app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
 
 // ✅ CORS configuration
 app.use(cors({
