@@ -81,10 +81,10 @@ function generateChecklistPDF(formData, photoBuffers) {
         fieldMappings = {
           businessName: "Property Name",
           propertyAddress: "Property Address",
-          linensClean: "Linens and Towels Clean?",
-          kitchenStocked: "Kitchen Stocked with Essentials?",
-          maintenanceIssues: "Any Maintenance Issues?",
-          guestComplaints: "Any Guest Complaints?",
+          toiletriesStocked: "Toiletries Need Re-stocked?",
+          furnitureCorrect: "Furniture in Correct Place?",
+          checkoutProcedure: "Guest Checkout Procedure Followed?",
+          propertyDamage: "Any Damage to Property?",
           additionalComments: "Additional Comments"
         };
         break;
