@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const MileageTracking = require("../models/mileageTracking");
 const User = require("../models/user"); // ✅ Import User model
-
+const authenticateToken = require("../server").authenticateToken;
 // ✅ Start or Resume Tracking (Called when the user enables the toggle)
 router.post("/start", authenticateToken, async (req, res) => {
   try {
