@@ -12,7 +12,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const crypto = require('crypto'); // For password reset if needed
 const rateLimit = require('express-rate-limit'); // For security
-
+const Assignment = require('./models/assignment');
 // ✅ Import your models
 const Organization = require('./models/organization');
 const User = require('./models/user');
@@ -856,53 +856,6 @@ app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, r
     res.status(500).json({ error: "Server error removing property" });
   }
 });
-const Assignment = require('./models/assignment');
-app.post('/api/assignments', authenticateToken, async (req, res) => {
-  try {
-    // Ensure only admins can create assignments
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    const { propertyName, userId, startDate, endDate } = req.body;
-
-    // Ensure organizationId is included
-    const organizationId = req.user.organizationId;
-    if (!organizationId) {
-      return res.status(400).json({ error: "Missing organization ID" });
-    }
-
-    // Check for overlapping assignments on the same property
-    const overlapping = await Assignment.findOne({
-      organizationId,
-      propertyName,
-      $or: [
-        { startDate: { $lte: new Date(endDate) }, endDate: { $gte: new Date(startDate) } }
-      ]
-    });
-
-    if (overlapping) {
-      return res.status(400).json({ error: "Overlapping assignment exists for this property." });
-    }
-
-    // Create the new assignment
-    const assignment = new Assignment({
-      organizationId, // ✅ Ensure organizationId is set
-      propertyName,
-      userId,
-      startDate,
-      endDate
-    });
-
-    await assignment.save();
-
-    res.json({ success: true, message: "Assignment created successfully", assignment });
-  } catch (error) {
-    console.error("❌ Error creating assignment:", error);
-    res.status(500).json({ error: "Server error creating assignment" });
-  }
-});
-
 // Get all assignments (optionally, you could filter by organization here)
 app.get('/api/assignments', authenticateToken, async (req, res) => {
   try {
@@ -1004,6 +957,22 @@ app.post("/api/send-push-notification", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("❌ Error sending push notification:", error);
     res.status(500).json({ error: "Failed to send push notification." });
+  }
+});
+app.get('/api/properties/:id', authenticateToken, async (req, res) => {
+  try {
+    const org = await Organization.findById(req.user.organizationId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+    const property = org.properties.id(req.params.id);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    res.json(property);
+  } catch (error) {
+    console.error("❌ Error fetching property details:", error);
+    res.status(500).json({ error: "Server error retrieving property details" });
   }
 });
 
