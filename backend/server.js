@@ -20,7 +20,6 @@ const Submission = require('./models/submission'); // New Model for Submissions
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
-const mileageTrackingRoutes = require("./Routes/mileageTracking");
 // AWS S3 and UUID Integration
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
@@ -994,6 +993,4 @@ app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => 
     res.status(500).json({ error: "Server error retrieving property details" });
   }
 });
-module.exports = { authenticateToken };
-
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
