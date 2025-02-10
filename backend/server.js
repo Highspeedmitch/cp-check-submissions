@@ -751,8 +751,8 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     // 5) Determine if this is an STR organization
     const isSTR = org.orgType === "STR";
 
-    // 6) Create the property
-    const newProperty = {
+     // 6) Create the property
+     const newProperty = {
       name,
       lat,
       lng,
@@ -766,13 +766,13 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     org.properties.push(newProperty);
     await org.save();
     
-    // Find the newly added property and return its ID
+    // Find the newly added property by name
     const savedProperty = org.properties.find(p => p.name === name);
     
     return res.json({ 
       success: true, 
       message: "Property added successfully", 
-      propertyId: savedProperty?._id 
+      propertyName: savedProperty ? savedProperty.name : null 
     });    
   } catch (error) {
     console.error("❌ Error adding property:", error);
@@ -780,7 +780,7 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
   }
 });
 
-app.put("/api/admin/edit-property/:propertyId", authenticateToken, async (req, res) => {
+app.put("/api/admin/edit-property/:propertyName", authenticateToken, async (req, res) => {
   try {
     // 1) Ensure only admins can edit properties
     if (req.user.role !== 'admin') {
@@ -788,7 +788,7 @@ app.put("/api/admin/edit-property/:propertyId", authenticateToken, async (req, r
     }
 
     const orgId = req.user.organizationId;
-    const { propertyId } = req.params;
+    const { propertyName } = req.params;
     const { accessInstructions, customFields } = req.body;
 
     // 2) Find the organization & property
@@ -797,7 +797,7 @@ app.put("/api/admin/edit-property/:propertyId", authenticateToken, async (req, r
       return res.status(404).json({ error: "Organization not found" });
     }
 
-    const property = org.properties.id(propertyId);
+    const property = org.properties.id(propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
