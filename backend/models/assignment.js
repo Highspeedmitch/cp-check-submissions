@@ -1,4 +1,3 @@
-// models/assignment.js
 const mongoose = require('mongoose');
 
 const assignmentSchema = new mongoose.Schema({
@@ -12,7 +11,8 @@ const assignmentSchema = new mongoose.Schema({
     enum: ['scheduled', 'completed', 'canceled'], // 🔹 Defined status options
     default: 'scheduled'
   },
-  notes: { type: String } // Optional field for additional info
+  notes: { type: String }, // Optional field for additional info
+  oneTimeCheckRequest: { type: String, default: "" } // ✅ NEW: One-Time Additional Check Request Field
 }, { timestamps: true }); // 🔹 Adds createdAt and updatedAt fields automatically
 
 // 🔹 Ensure uniqueness for assignments within an organization (prevents duplicates)

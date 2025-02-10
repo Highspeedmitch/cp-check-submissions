@@ -637,7 +637,7 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    const { propertyName, userId, startDate, endDate } = req.body;
+    const { propertyName, userId, startDate, endDate, oneTimeCheckRequest } = req.body; // ✅ Destructure oneTimeCheckRequest
 
     // ✅ Ensure `organizationId` is included
     const organizationId = req.user.organizationId;
@@ -665,7 +665,8 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
       propertyName,
       userId,
       startDate,
-      endDate
+      endDate,
+      oneTimeCheckRequest: oneTimeCheckRequest || "", // ✅ Default to empty string if not provided
     });
 
     await assignment.save();

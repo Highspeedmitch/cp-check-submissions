@@ -24,6 +24,7 @@ function Scheduler() {
     userId: "",
     startDate: "",
     endDate: "",
+    oneTimeCheckRequest: "", // New field for one-time request
   });
 
   const [editingAssignment, setEditingAssignment] = useState(null); // Holds event being edited
@@ -91,12 +92,13 @@ function Scheduler() {
     }
 
     const formattedAssignment = {
-        organizationId: storedOrgId,  // ✅ Ensures organizationId is sent
-        propertyName: newAssignment.propertyName,
-        userId: newAssignment.userId,
-        startDate: new Date(newAssignment.startDate).toISOString(),
-        endDate: new Date(newAssignment.endDate).toISOString(),
-      };
+      organizationId: storedOrgId,  
+      propertyName: newAssignment.propertyName,
+      userId: newAssignment.userId,
+      startDate: new Date(newAssignment.startDate).toISOString(),
+      endDate: new Date(newAssignment.endDate).toISOString(),
+      oneTimeCheckRequest: newAssignment.oneTimeCheckRequest, // Include this in the request
+    };
   
     try {
       console.log("📤 Sending request to:", url, "Method:", method);
