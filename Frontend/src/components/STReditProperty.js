@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 function STReditProperty() {
-  const { propertyId } = useParams();
+  // Use "propertyName" from the URL, e.g. /admin/edit-property/:propertyName
+  const { propertyName } = useParams();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
+
   const [propertyData, setPropertyData] = useState({
     name: "",
     accessInstructions: "",
@@ -15,8 +17,9 @@ function STReditProperty() {
   useEffect(() => {
     const fetchPropertyDetails = async () => {
       try {
+        // Make sure to encode the property name if it contains spaces or special characters
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/properties/${propertyId}`,
+          `https://cp-check-submissions-dev-backend.onrender.com/api/properties/${encodeURIComponent(propertyName)}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -28,19 +31,18 @@ function STReditProperty() {
             accessInstructions: data.accessInstructions || "",
             customFields: data.customFields || [],
           });
+        } else {
+          console.error("Failed to fetch property details", data);
         }
       } catch (error) {
         console.error("Error fetching property details:", error);
       }
     };
+
     fetchPropertyDetails();
-  }, [propertyId, token]);
+  }, [propertyName, token]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setPropertyData((prev) => ({ ...prev, [name]: value }));
-  };
-
+  // Handler for adding a new custom field locally
   const handleAddCustomField = () => {
     if (newField.trim()) {
       setPropertyData((prev) => ({
@@ -51,17 +53,21 @@ function STReditProperty() {
     }
   };
 
+  // Handler for saving changes (calls your PUT route)
   const handleSaveChanges = async () => {
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/edit-property/${propertyId}`,
+        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/edit-property/${encodeURIComponent(propertyName)}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(propertyData),
+          body: JSON.stringify({
+            accessInstructions: propertyData.accessInstructions,
+            customFields: propertyData.customFields,
+          }),
         }
       );
 
@@ -83,10 +89,15 @@ function STReditProperty() {
       <textarea
         name="accessInstructions"
         value={propertyData.accessInstructions}
-        onChange={handleInputChange}
+        onChange={(e) =>
+          setPropertyData((prev) => ({
+            ...prev,
+            accessInstructions: e.target.value,
+          }))
+        }
         placeholder="Enter access instructions..."
       />
-      
+
       <h2>Custom Form Fields</h2>
       <ul>
         {propertyData.customFields.map((field, index) => (
