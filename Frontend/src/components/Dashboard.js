@@ -33,6 +33,7 @@ function Dashboard({ setUser }) {
  // 🚗 New states for mileage tracking
  const [mileageTracking, setMileageTracking] = useState(false);
  const [mileageCount, setMileageCount] = useState(null); // Null to start blank
+ const [lastLocation, setLastLocation] = useState(null);
 
   // ----------- Paging -----------  
   const PAGE_SIZE = 3;
@@ -431,13 +432,66 @@ function Dashboard({ setUser }) {
    // 🚀 Track mileage every 30 seconds when enabled
    useEffect(() => {
     let interval;
+    
     if (mileageTracking) {
       interval = setInterval(() => {
-        setMileageCount((prev) => (prev !== null ? prev + 0.5 : 0.5)); // Start at 0.5 miles if first toggle
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const { latitude, longitude } = position.coords;
+  
+              if (lastLocation) {
+                const distance = calculateDistance(
+                  lastLocation.latitude,
+                  lastLocation.longitude,
+                  latitude,
+                  longitude
+                );
+  
+                if (distance > 0.05) { // ✅ Only update if moved at least 0.05 miles
+                  setMileageCount((prev) => (prev !== null ? prev + distance : distance));
+  
+                  // ✅ Send Update to Backend
+                  fetch("https://your-api.com/mileage/update", {
+                    method: "POST",
+                    headers: { 
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${localStorage.getItem("token")}`
+                    },
+                    body: JSON.stringify({ miles: distance }),
+                  });
+                }
+              }
+  
+              // ✅ Update last known location
+              setLastLocation({ latitude, longitude });
+            },
+            (error) => console.error("GPS error:", error),
+            { enableHighAccuracy: true, maximumAge: 10000 }
+          );
+        }
       }, 30000);
     }
+  
     return () => clearInterval(interval);
-  }, [mileageTracking]);
+  }, [mileageTracking, lastLocation]);
+  
+  // Function to calculate distance between two GPS coordinates
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 3958.8; // Radius of Earth in miles
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+  
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
 
   // 🔄 Reset on new session (login/logout)
   useEffect(() => {

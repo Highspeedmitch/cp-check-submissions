@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const MileageTracking = require("../models/mileageTracking");
+const User = require("../models/user"); // ✅ Import User model
 const authenticateToken = require("../middleware/authenticateToken");
 
 // ✅ Start or Resume Tracking (Called when the user enables the toggle)
@@ -24,43 +25,41 @@ router.post("/start", authenticateToken, async (req, res) => {
 
 // ✅ Update Mileage (Every 30s)
 router.post("/update", authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.user;
-    const { miles } = req.body; // Client sends mileage increment (0.5 miles per update)
-
-    let mileageRecord = await MileageTracking.findOne({ userId });
-
-    if (!mileageRecord) {
-      return res.status(404).json({ error: "Mileage tracking session not found." });
+    try {
+      const { userId } = req.user;
+      const { miles } = req.body; 
+  
+      let user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found." });
+      }
+  
+      user.totalMiles += miles;
+      await user.save();
+  
+      res.json({ success: true, totalMiles: user.totalMiles });
+    } catch (error) {
+      console.error("Error updating mileage:", error);
+      res.status(500).json({ error: "Server error updating mileage" });
     }
-
-    mileageRecord.totalMiles += miles;
-    mileageRecord.lastUpdated = Date.now();
-
-    await mileageRecord.save();
-    res.json({ success: true, totalMiles: mileageRecord.totalMiles });
-  } catch (error) {
-    console.error("Error updating mileage:", error);
-    res.status(500).json({ error: "Server error updating mileage" });
-  }
-});
-
-// ✅ Get User's Mileage (For Admin Payment Calculator)
-router.get("/user/:userId", authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const mileageRecord = await MileageTracking.findOne({ userId });
-
-    if (!mileageRecord) {
-      return res.json({ success: true, totalMiles: 0 }); // Return 0 if no record found
+  });
+  
+  // ✅ Get User's Mileage for Admin
+  router.get("/user/:userId", authenticateToken, async (req, res) => {
+    try {
+      const { userId } = req.params;
+  
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.json({ success: true, totalMiles: 0 }); 
+      }
+  
+      res.json({ success: true, totalMiles: user.totalMiles });
+    } catch (error) {
+      console.error("Error fetching mileage data:", error);
+      res.status(500).json({ error: "Server error fetching mileage" });
     }
-
-    res.json({ success: true, totalMiles: mileageRecord.totalMiles });
-  } catch (error) {
-    console.error("Error fetching mileage data:", error);
-    res.status(500).json({ error: "Server error fetching mileage" });
-  }
-});
-
-module.exports = router;
+  });
+  
+  module.exports = router;
+  
