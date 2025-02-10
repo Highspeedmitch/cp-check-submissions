@@ -965,18 +965,23 @@ app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => 
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
-    // Find property by name (you could use an ID instead for a more robust solution)
+    // Find property by name (consider using an ID in the future for more robustness)
     const property = org.properties.find(p => p.name === req.params.propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
-    res.json(property);
+    // Merge property details with organization-level data
+    const propertyDetails = {
+      ...property.toObject(), // convert Mongoose subdocument to plain object
+      orgType: org.orgType,   // add orgType from the organization
+      orgName: org.name       // if you need the organization name as well
+    };
+    res.json(propertyDetails);
   } catch (error) {
     console.error("❌ Error fetching property details:", error);
     res.status(500).json({ error: "Server error retrieving property details" });
   }
 });
-
 
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
