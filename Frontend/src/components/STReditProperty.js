@@ -56,7 +56,7 @@ function STReditProperty() {
   const handleSaveChanges = async () => {
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend-onrender.com/api/admin/edit-property/${encodeURIComponent(propertyName)}`,
+        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/edit-property/${encodeURIComponent(propertyName)}`,
         {
           method: "PUT",
           headers: {
