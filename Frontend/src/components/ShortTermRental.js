@@ -76,7 +76,44 @@ function ShortTermRental() {
         console.error("Error fetching property data:", error);
       }
     };
-  
+    const fetchAssignmentData = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const userId = localStorage.getItem("userId");
+      
+          if (!token || !userId) return;
+      
+          const response = await fetch(
+            `https://cp-check-submissions-dev-backend.onrender.com/api/assignments`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+      
+          const data = await response.json();
+      
+          if (response.ok) {
+            // Find the assignment matching the user and property
+            const userAssignment = data.find(
+              (assignment) => 
+                assignment.userId === userId && assignment.propertyName === property
+            );
+      
+            if (userAssignment) {
+              console.log("📌 One-Time Check Request:", userAssignment.oneTimeCheckRequest);
+              setFormData((prev) => ({
+                ...prev,
+                oneTimeCheckRequest: userAssignment.oneTimeCheckRequest || "",
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching assignment data:", error);
+        }
+      };
+      
+      // ✅ Call the new function inside `useEffect`
+      fetchAssignmentData();      
     fetchPropertyData();
   }, [property]);  
 
@@ -338,6 +375,13 @@ function ShortTermRental() {
   ))
 ) : (
   <p>No additional custom fields.</p>
+)}
+{/* One-Time Check Request (only if it exists) */}
+{formData.oneTimeCheckRequest && (
+  <div>
+    <h2>One-Time Additional Check</h2>
+    <p>{formData.oneTimeCheckRequest}</p>
+  </div>
 )}
           {/* Other Text Areas */}
           <label>Additional Comments:</label>
