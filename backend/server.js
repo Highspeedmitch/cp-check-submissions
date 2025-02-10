@@ -757,11 +757,13 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
       lat,
       lng,
       emails: emails || [],
+      orgType: org.orgType, // ✅ Ensure orgType is explicitly stored in each property
       ...(isSTR && { 
         accessInstructions: accessInstructions || "No instructions provided.",
         customFields: Array.isArray(customFields) ? customFields : []
       })
     };
+    
     
     org.properties.push(newProperty);
     await org.save();
