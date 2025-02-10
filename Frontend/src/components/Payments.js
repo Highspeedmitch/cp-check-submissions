@@ -10,11 +10,6 @@ function Payments() {
   const [totalPayment, setTotalPayment] = useState(null);
   const [currentWeek, setCurrentWeek] = useState("");
 
-  const token = localStorage.getItem("token"); // ✅ Get token from storage
-  if (!token) {
-    console.error("🚨 No token found in localStorage!");
-    return;
-  }
   // 🚀 Function to get the current week's range (Sunday - Saturday)
   function getCurrentWeekRange() {
     const today = new Date();
@@ -35,39 +30,62 @@ function Payments() {
   }, []);
 
   // 🚀 Fetch all users & their payment status
-  useEffect(() => {
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/users", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => setUsers(data))
-      .catch((err) => console.error("Error fetching users:", err));
-  }, []);
+useEffect(() => {
+    const token = localStorage.getItem("token"); // ✅ Get token from storage
+    if (!token) {
+        console.error("🚨 No token found in localStorage!");
+        return;
+    }
 
-  // 🚀 Fetch selected user's data
-  function fetchUserData(userId) {
-    setSelectedUser(userId);
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/users", {
+        headers: { Authorization: `Bearer ${token}` },
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch users");
+        return res.json();
+    })
+    .then((data) => setUsers(data))
+    .catch((err) => console.error("Error fetching users:", err));
+}, []);
+
+// 🚀 Fetch selected user's data when selectedUser changes
+useEffect(() => {
+    if (!selectedUser) return; // ✅ Ensure selectedUser is set
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+        console.error("🚨 No token found in localStorage!");
+        return;
+    }
 
     // ✅ Fetch submissions since last payment
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/admin/user-submissions/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/admin/user-submissions/${selectedUser}`, {
+        headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
-      .then((data) => setSubmissions(data.count));
+    .then((res) => res.json())
+    .then((data) => setSubmissions(data.count))
+    .catch((err) => console.error("Error fetching submissions:", err));
 
     // ✅ Fetch miles since last payment
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/mileage/user/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/mileage/user/${selectedUser}`, {
+        headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
-      .then((data) => setMileage(data.totalMiles));
-  }
+    .then((res) => res.json())
+    .then((data) => setMileage(data.totalMiles))
+    .catch((err) => console.error("Error fetching mileage:", err));
 
-  // ✅ Calculate Payment
-  function calculatePayment() {
+}, [selectedUser]); // ✅ Runs only when selectedUser changes
+
+// 🚀 Select a user and trigger data fetching
+function fetchUserData(userId) {
+    setSelectedUser(userId); // ✅ This will now trigger the useEffect above
+}
+
+// ✅ Calculate Payment
+function calculatePayment() {
     const total = submissions * perSubmissionRate + mileage * perMileRate;
     setTotalPayment(total);
-  }
+}
 
   // ✅ Log Payment & Reset Data
   function logPayment() {

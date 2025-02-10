@@ -20,7 +20,7 @@ const Submission = require('./models/submission'); // New Model for Submissions
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
-
+const authenticateToken = require("./middleware/authenticateToken"); // ✅ Import the new middleware
 // AWS S3 and UUID Integration
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
@@ -101,23 +101,6 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Error:", err));
 
-/**
- * 🔹 JWT Auth Middleware
- */
-jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-  if (err) {
-    return res.status(403).json({ error: "Invalid or expired token." });
-  }
-  
-  req.user = decoded; // ✅ Ensure req.user includes all fields
-  if (!req.user.role) {
-    return res.status(403).json({ error: "User role missing. Access denied." });
-  }
-  next();
-});
-
-// ✅ Admin-only payments route
-app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
 
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
