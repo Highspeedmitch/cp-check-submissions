@@ -60,6 +60,9 @@ function ShortTermRental() {
           setAccessInstructions(data.accessInstructions || "No instructions provided.");
           setOrgType(data.orgType || "");
   
+          // ✅ Store orgType in localStorage to persist across navigation
+          localStorage.setItem("orgType", data.orgType || "");
+  
           // ✅ Initialize formData with fetched custom fields
           setFormData((prev) => ({
             ...prev,
@@ -134,7 +137,7 @@ function ShortTermRental() {
         }
       });
       formDataToSend.append("selectedProperty", property);
-  
+      formDataToSend.append("orgType", orgType);
       // Append custom fields (text + yes/no)
       Object.keys(formData.customFields).forEach((key) => {
         formDataToSend.append(`custom_${key}`, formData.customFields[key]);
