@@ -20,7 +20,7 @@ const Submission = require('./models/submission'); // New Model for Submissions
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
-
+const mileageTrackingRoutes = require("./Routes/mileageTracking");
 // AWS S3 and UUID Integration
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
@@ -76,8 +76,6 @@ const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
 
-// ✅ Middleware & Route Usage
-app.use("/api/mileage", mileageTrackingRoutes);
 
 // ✅ Middleware to ensure only admins can access
 function requireAdmin(req, res, next) {
@@ -117,6 +115,9 @@ const authenticateToken = (req, res, next) => {
 
 // ✅ Admin-only payments route
 app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
+
+// ✅ Middleware & Route Usage
+app.use("/api/mileage", authenticateToken, mileageTrackingRoutes);
 
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
