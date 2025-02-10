@@ -44,27 +44,38 @@ function ShortTermRental() {
 
 
   useEffect(() => {
-    // Fetch property details including custom form fields and access instructions
     const fetchPropertyData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/properties/${encodeURIComponent(property)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        
+        const response = await fetch(
+          `https://cp-check-submissions-dev-backend.onrender.com/api/properties/${encodeURIComponent(property)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+  
         const data = await response.json();
         if (response.ok) {
-            setCustomQuestions(data.customFields || []);
-            setAccessInstructions(data.accessInstructions || "No instructions provided.");
-            setOrgType(data.orgType || ""); // ✅ Save orgType from API
-          }          
+          setCustomQuestions(data.customFields || []);
+          setAccessInstructions(data.accessInstructions || "No instructions provided.");
+          setOrgType(data.orgType || "");
+  
+          // ✅ Initialize formData with fetched custom fields
+          setFormData((prev) => ({
+            ...prev,
+            customFields: data.customFields.reduce((acc, field) => {
+              acc[field] = "";
+              return acc;
+            }, {}),
+          }));
+        }
       } catch (error) {
         console.error("Error fetching property data:", error);
       }
     };
-
+  
     fetchPropertyData();
-  }, [property]);
+  }, [property]);  
 
   // Handle changes for standard text/textarea/select fields
   const handleChange = (e) => {
@@ -113,10 +124,11 @@ function ShortTermRental() {
       formDataToSend.append("orgType", orgType);
       formDataToSend.append("selectedProperty", property);
       
-      // Append custom form fields
-      Object.keys(formData.customFields).forEach((key) => {
-        formDataToSend.append(`custom_${key}`, formData.customFields[key]);
-      });
+      // Append custom form fieldss
+Object.keys(formData.customFields).forEach((key) => {
+    formDataToSend.append(`custom_${key}`, formData.customFields[key]);
+  });
+  
 
       Object.keys(formData.photos).forEach((field) => {
         const files = formData.photos[field];
@@ -244,7 +256,27 @@ function ShortTermRental() {
               )}
             </div>
           </div>
-
+          <h2>Custom Inspection Fields</h2>
+                {customQuestions.length > 0 ? (
+                customQuestions.map((question, index) => (
+                    <div key={index}>
+                    <label>{question}</label>
+                    <input
+                        type="text"
+                        name={`custom_${question}`}
+                        value={formData.customFields[question] || ""}
+                        onChange={(e) =>
+                        setFormData((prev) => ({
+                            ...prev,
+                            customFields: { ...prev.customFields, [question]: e.target.value },
+                        }))
+                        }
+                    />
+                    </div>
+                ))
+                ) : (
+                <p>No additional custom fields.</p>
+                )}
           {/* Other Text Areas */}
           <label>Additional Comments:</label>
           <textarea name="additionalComments" onChange={handleChange} />
