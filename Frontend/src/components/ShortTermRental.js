@@ -111,25 +111,35 @@ function ShortTermRental() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Check all Yes/No fields to ensure photos exist when "Yes" is selected
+    for (const question of customQuestions) {
+      if (question.type === "yesno" && formData.customFields[question.name] === "yes") {
+        if (!formData.customFields[`description_${question.name}`]?.trim()) {
+          alert(`Please provide a description for: ${question.name}`);
+          return;
+        }
+        if (!formData.photos[question.name] || formData.photos[question.name].length === 0) {
+          alert(`You must upload a photo for: ${question.name}`);
+          return;
+        }
+      }
+    }
     try {
       const token = localStorage.getItem("token");
       const formDataToSend = new FormData();
-
+      // Append standard fields
       Object.keys(formData).forEach((key) => {
         if (key !== "photos" && key !== "customFields") {
           formDataToSend.append(key, formData[key]);
         }
       });
-      
-      formDataToSend.append("orgType", orgType);
       formDataToSend.append("selectedProperty", property);
-      
-      // Append custom form fieldss
-Object.keys(formData.customFields).forEach((key) => {
-    formDataToSend.append(`custom_${key}`, formData.customFields[key]);
-  });
   
-
+      // Append custom fields (text + yes/no)
+      Object.keys(formData.customFields).forEach((key) => {
+        formDataToSend.append(`custom_${key}`, formData.customFields[key]);
+      });
+      // Append Photos
       Object.keys(formData.photos).forEach((field) => {
         const files = formData.photos[field];
         if (Array.isArray(files)) {
@@ -138,13 +148,13 @@ Object.keys(formData.customFields).forEach((key) => {
           });
         }
       });
-
+  
       const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/submit-form", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formDataToSend,
       });
-
+  
       const data = await response.json();
       if (response.ok) {
         setMessage(data.message);
@@ -157,7 +167,6 @@ Object.keys(formData.customFields).forEach((key) => {
       alert("Error submitting form. Please try again.");
     }
   };
-
   return (
     <div className="container">
       <h1>{property} – Short-Term Rental Inspection Checklist</h1>
@@ -257,26 +266,76 @@ Object.keys(formData.customFields).forEach((key) => {
             </div>
           </div>
           <h2>Custom Inspection Fields</h2>
-                {customQuestions.length > 0 ? (
-                customQuestions.map((question, index) => (
-                    <div key={index}>
-                    <label>{question}</label>
-                    <input
-                        type="text"
-                        name={`custom_${question}`}
-                        value={formData.customFields[question] || ""}
-                        onChange={(e) =>
-                        setFormData((prev) => ({
-                            ...prev,
-                            customFields: { ...prev.customFields, [question]: e.target.value },
-                        }))
-                        }
-                    />
-                    </div>
-                ))
-                ) : (
-                <p>No additional custom fields.</p>
-                )}
+{customQuestions.length > 0 ? (
+  customQuestions.map((question, index) => (
+    <div key={index}>
+      <label>{question.name}</label>
+      
+      {question.type === "text" && (
+        <input
+          type="text"
+          name={`custom_${question.name}`}
+          value={formData.customFields[question.name] || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              customFields: { ...prev.customFields, [question.name]: e.target.value },
+            }))
+          }
+        />
+      )}
+{question.type === "yesno" && (
+  <>
+    <select
+      name={`custom_${question.name}`}
+      value={formData.customFields[question.name] || ""}
+      onChange={(e) =>
+        setFormData((prev) => ({
+          ...prev,
+          customFields: { ...prev.customFields, [question.name]: e.target.value },
+        }))
+      }
+      required
+    >
+      <option value="">Select...</option>
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select>
+    {/* Require Description if "Yes" is selected */}
+    {formData.customFields[question.name] === "yes" && (
+      <>
+        <textarea
+          name={`description_${question.name}`}
+          value={formData.customFields[`description_${question.name}`] || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              customFields: { ...prev.customFields, [`description_${question.name}`]: e.target.value },
+            }))
+          }
+          placeholder="Describe the issue"
+          required
+        />
+        {/* Require File Upload if "Yes" is selected */}
+        <input
+          type="file"
+          accept="image/*"
+          capture="camera"
+          multiple
+          onChange={(e) => handleFileChange(e, question.name)}
+          required
+        />
+        {/* Show file names if uploaded */}
+        <FileNameList fieldName={question.name} formData={formData} />
+      </>
+    )}
+  </>
+)}
+    </div>
+  ))
+) : (
+  <p>No additional custom fields.</p>
+)}
           {/* Other Text Areas */}
           <label>Additional Comments:</label>
           <textarea name="additionalComments" onChange={handleChange} />

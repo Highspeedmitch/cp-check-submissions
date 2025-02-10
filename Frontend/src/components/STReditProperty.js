@@ -47,15 +47,20 @@ function STReditProperty() {
   
 
   // Handler for adding a new custom field locally
-  const handleAddCustomField = () => {
-    if (newField.trim()) {
-      setPropertyData((prev) => ({
-        ...prev,
-        customFields: [...prev.customFields, newField.trim()],
-      }));
-      setNewField("");
-    }
-  };
+  const [newFieldName, setNewFieldName] = useState("");
+const [newFieldType, setNewFieldType] = useState("text"); // Default type
+
+const handleAddCustomField = () => {
+  if (newFieldName.trim()) {
+    setPropertyData((prev) => ({
+      ...prev,
+      customFields: [...prev.customFields, { name: newFieldName.trim(), type: newFieldType }],
+    }));
+    setNewFieldName("");
+    setNewFieldType("text");
+  }
+};
+
 
   // Handler for saving changes (calls your PUT route)
   const handleSaveChanges = async () => {
@@ -102,19 +107,21 @@ function STReditProperty() {
         placeholder="Enter access instructions..."
       />
 
-      <h2>Custom Form Fields</h2>
-      <ul>
-        {propertyData.customFields.map((field, index) => (
-          <li key={index}>{field}</li>
-        ))}
-      </ul>
-      <input
-        type="text"
-        value={newField}
-        onChange={(e) => setNewField(e.target.value)}
-        placeholder="Add new field"
-      />
-      <button onClick={handleAddCustomField}>Add Field</button>
+<h2>Add New Custom Field</h2>
+<input
+  type="text"
+  value={newFieldName}
+  onChange={(e) => setNewFieldName(e.target.value)}
+  placeholder="Enter field name"
+/>
+
+<select value={newFieldType} onChange={(e) => setNewFieldType(e.target.value)}>
+  <option value="text">Text Input</option>
+  <option value="yesno">Yes/No with Picture</option>
+</select>
+
+<button onClick={handleAddCustomField}>Add Field</button>
+
       
       <button onClick={handleSaveChanges} className="save-button">
         Save Changes

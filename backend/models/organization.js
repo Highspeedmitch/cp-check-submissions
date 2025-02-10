@@ -3,11 +3,16 @@ const mongoose = require('mongoose');
 
 const PropertySchema = new mongoose.Schema({
     name: { type: String, required: true },
-    lat: {type: Number },
+    lat: { type: Number },
     lng: { type: Number },
-    emails: { type: [String], default: [] }, // Emails specific to this property
-    accessInstructions: { type: String, default: "" },  // ✅ New Field
-    customFields: { type: [String], default: [] }       // ✅ New Field
+    emails: { type: [String], default: [] },
+    accessInstructions: { type: String, default: "" },
+    customFields: [
+        {
+            name: { type: String, required: true }, // Field name
+            type: { type: String, enum: ["text", "yesno"], required: true } // Field type
+        }
+    ]
 });
 
 const OrganizationSchema = new mongoose.Schema({
