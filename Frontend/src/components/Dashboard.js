@@ -452,7 +452,7 @@ function Dashboard({ setUser }) {
                   setMileageCount((prev) => (prev !== null ? prev + distance : distance));
   
                   // ✅ Send Update to Backend
-                  fetch("https://cp-check-submissions-dev-backend.onrender.com/mileage/update", {
+                  fetch("https://cp-check-submissions-dev-backend.onrender.com/api/mileage/update", {
                     method: "POST",
                     headers: { 
                       "Content-Type": "application/json",

@@ -33,7 +33,7 @@ function Payments() {
 
   // 🚀 Fetch all users & their payment status
   useEffect(() => {
-    fetch("https://your-api.com/admin/users", {
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/users", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -46,14 +46,14 @@ function Payments() {
     setSelectedUser(userId);
 
     // ✅ Fetch submissions since last payment
-    fetch(`https://your-api.com/admin/user-submissions/${userId}`, {
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/admin/user-submissions/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => setSubmissions(data.count));
 
     // ✅ Fetch miles since last payment
-    fetch(`https://your-api.com/mileage/user/${userId}`, {
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/mileage/user/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -68,7 +68,7 @@ function Payments() {
 
   // ✅ Log Payment & Reset Data
   function logPayment() {
-    fetch("https://your-api.com/admin/process-payment", {
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/admin/process-payment", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
