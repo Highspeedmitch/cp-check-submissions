@@ -17,6 +17,7 @@ const Assignment = require('./models/assignment');
 const Organization = require('./models/organization');
 const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
+const mileageTrackingRoutes = require("./Routes/mileageTracking");
 
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
@@ -75,6 +76,9 @@ const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 // Increase size limits for JSON and URL-encoded data
 app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
+
+// ✅ Middleware & Route Usage
+app.use("/api/mileage", mileageTrackingRoutes);
 
 // ✅ CORS configuration
 app.use(cors({
@@ -979,22 +983,5 @@ app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => 
     res.status(500).json({ error: "Server error retrieving property details" });
   }
 });
-
-/*app.get('/api/properties/:id', authenticateToken, async (req, res) => {
-  try {
-    const org = await Organization.findById(req.user.organizationId);
-    if (!org) {
-      return res.status(404).json({ error: "Organization not found" });
-    }
-    const property = org.properties.id(req.params.id);
-    if (!property) {
-      return res.status(404).json({ error: "Property not found" });
-    }
-    res.json(property);
-  } catch (error) {
-    console.error("❌ Error fetching property details:", error);
-    res.status(500).json({ error: "Server error retrieving property details" });
-  }
-});*/
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
