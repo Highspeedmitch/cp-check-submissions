@@ -303,8 +303,14 @@ const events = assignments.map((assignment) => {
   onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
   required
 />
-
-
+<label>One-Time Additional Check Request:</label>
+<textarea
+  value={newAssignment.oneTimeCheckRequest || ""}
+  onChange={(e) =>
+    setNewAssignment({ ...newAssignment, oneTimeCheckRequest: e.target.value })
+  }
+  placeholder="Enter any additional request for this specific assignment..."
+/>
   <button type="submit" className="create-button">
     {editingAssignment ? "Update Assignment" : "Create Assignment"}
   </button>
