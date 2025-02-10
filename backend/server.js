@@ -959,13 +959,14 @@ app.post("/api/send-push-notification", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Failed to send push notification." });
   }
 });
-app.get('/api/properties/:id', authenticateToken, async (req, res) => {
+app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => {
   try {
     const org = await Organization.findById(req.user.organizationId);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
-    const property = org.properties.id(req.params.id);
+    // Find property by name (you could use an ID instead for a more robust solution)
+    const property = org.properties.find(p => p.name === req.params.propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
@@ -975,6 +976,7 @@ app.get('/api/properties/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error retrieving property details" });
   }
 });
+
 
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
