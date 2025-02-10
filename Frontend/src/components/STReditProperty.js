@@ -15,6 +15,10 @@ function STReditProperty() {
   const [newField, setNewField] = useState("");
 
   useEffect(() => {
+    if (!propertyName) {
+      console.warn("⚠️ propertyName is undefined, skipping fetch...");
+      return; // Prevent fetch from running with undefined
+    }
     const fetchPropertyDetails = async () => {
       try {
         const response = await fetch(
@@ -37,9 +41,10 @@ function STReditProperty() {
         console.error("Error fetching property details:", error);
       }
     };
-
+  
     fetchPropertyDetails();
-  }, [propertyName, token]);
+  }, [propertyName, token]);  
+  
 
   // Handler for adding a new custom field locally
   const handleAddCustomField = () => {

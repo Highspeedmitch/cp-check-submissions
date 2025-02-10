@@ -782,49 +782,42 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
 
 app.put("/api/admin/edit-property/:propertyName", authenticateToken, async (req, res) => {
   try {
-    // 1) Ensure only admins can edit properties
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: "Forbidden" });
     }
 
     const orgId = req.user.organizationId;
-    const { propertyName } = req.params;
-    const { accessInstructions, customFields } = req.body;
+    const decodedPropertyName = decodeURIComponent(req.params.propertyName);
+    console.log("🛠️ Editing Property:", decodedPropertyName);
 
-    // 2) Find the organization & property
     const org = await Organization.findById(orgId);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
 
-    const property = org.properties.id(propertyName);
+    const property = org.properties.find(p => p.name === decodedPropertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
 
-    // 3) Ensure this is an STR organization
     if (org.orgType !== "STR") {
       return res.status(403).json({ error: "Access Instructions only allowed for STR organizations." });
     }
 
-    // 4) Update access instructions & custom fields
-    property.accessInstructions = accessInstructions || property.accessInstructions;
-    property.customFields = Array.isArray(customFields) ? customFields : property.customFields;
+    property.accessInstructions = req.body.accessInstructions || property.accessInstructions;
+    property.customFields = Array.isArray(req.body.customFields) ? req.body.customFields : property.customFields;
 
-    // 5) Save updates
     await org.save();
 
-    return res.json({ success: true, message: "Property updated successfully" });
-
+    res.json({ success: true, message: "Property updated successfully" });
   } catch (error) {
     console.error("❌ Error updating property:", error);
-    return res.status(500).json({ error: "Server error updating property" });
+    res.status(500).json({ error: "Server error updating property" });
   }
 });
 
 app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, res) => {
   try {
-    // Must be admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: "Forbidden - Admin only" });
     }
@@ -835,21 +828,18 @@ app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, r
       return res.status(404).json({ error: "Organization not found" });
     }
 
-    const { propertyName } = req.params;
+    const decodedPropertyName = decodeURIComponent(req.params.propertyName);
+    console.log("🗑️ Deleting Property:", decodedPropertyName);
 
-    // Find the index of the property
-    const propIndex = org.properties.findIndex((p) => p.name === propertyName);
+    const propIndex = org.properties.findIndex(p => p.name === decodedPropertyName);
     if (propIndex === -1) {
       return res.status(404).json({ error: "Property not found" });
     }
 
-    // Remove it
     org.properties.splice(propIndex, 1);
-
-    // Save
     await org.save();
 
-    res.json({ success: true, message: `Property "${propertyName}" removed.` });
+    res.json({ success: true, message: `Property "${decodedPropertyName}" removed.` });
   } catch (error) {
     console.error("❌ Error removing property:", error);
     res.status(500).json({ error: "Server error removing property" });
@@ -964,23 +954,29 @@ app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => 
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
-    // Find property by name (consider using an ID in the future for more robustness)
-    const property = org.properties.find(p => p.name === req.params.propertyName);
+
+    const decodedPropertyName = decodeURIComponent(req.params.propertyName);
+    console.log("🔍 Decoded Property Name:", decodedPropertyName); // Debugging log
+
+    const property = org.properties.find(p => p.name === decodedPropertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
+
     // Merge property details with organization-level data
     const propertyDetails = {
-      ...property.toObject(), // convert Mongoose subdocument to plain object
-      orgType: org.orgType,   // add orgType from the organization
-      orgName: org.name       // if you need the organization name as well
+      ...property.toObject(),
+      orgType: org.orgType,
+      orgName: org.name
     };
+
     res.json(propertyDetails);
   } catch (error) {
     console.error("❌ Error fetching property details:", error);
     res.status(500).json({ error: "Server error retrieving property details" });
   }
 });
+
 /*app.get('/api/properties/:id', authenticateToken, async (req, res) => {
   try {
     const org = await Organization.findById(req.user.organizationId);
