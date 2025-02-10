@@ -18,6 +18,7 @@ const Organization = require('./models/organization');
 const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
+const adminRoutes = require("./Routes/admin");
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
 // AWS S3 and UUID Integration
@@ -117,6 +118,7 @@ app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
 
 // ✅ Middleware & Route Usage
 app.use("/api/mileage", authenticateToken, mileageTrackingRoutes);
+app.use("/admin", authenticateToken, adminRoutes);
 
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
