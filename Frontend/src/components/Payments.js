@@ -10,6 +10,8 @@ function Payments() {
   const [totalPayment, setTotalPayment] = useState(null);
   const [currentWeek, setCurrentWeek] = useState("");
 
+  const token = localStorage.getItem("token");
+
   // 🚀 Function to get the current week's range (Sunday - Saturday)
   function getCurrentWeekRange() {
     const today = new Date();
@@ -30,97 +32,68 @@ function Payments() {
   }, []);
 
   // 🚀 Fetch all users & their payment status
-useEffect(() => {
-    const token = localStorage.getItem("token"); // ✅ Get token from storage
-    if (!token) {
-        console.error("🚨 No token found in localStorage!");
-        return;
-    }
-
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/users", {
-        headers: { Authorization: `Bearer ${token}` },
+  useEffect(() => {
+    fetch("https://your-api.com/admin/users", {
+      headers: { Authorization: `Bearer ${token}` },
     })
-    .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch users");
-        return res.json();
-    })
-    .then((data) => setUsers(data))
-    .catch((err) => console.error("Error fetching users:", err));
-}, []);
+      .then((res) => res.json())
+      .then((data) => setUsers(data))
+      .catch((err) => console.error("Error fetching users:", err));
+  }, []);
 
-// 🚀 Fetch selected user's data when selectedUser changes
-useEffect(() => {
-    if (!selectedUser) return; // ✅ Ensure selectedUser is set
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-        console.error("🚨 No token found in localStorage!");
-        return;
-    }
+  // 🚀 Fetch selected user's data
+  function fetchUserData(userId) {
+    setSelectedUser(userId);
 
     // ✅ Fetch submissions since last payment
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/admin/user-submissions/${selectedUser}`, {
-        headers: { Authorization: `Bearer ${token}` },
+    fetch(`https://your-api.com/admin/user-submissions/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
     })
-    .then((res) => res.json())
-    .then((data) => setSubmissions(data.count))
-    .catch((err) => console.error("Error fetching submissions:", err));
+      .then((res) => res.json())
+      .then((data) => setSubmissions(data.count));
 
     // ✅ Fetch miles since last payment
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/mileage/user/${selectedUser}`, {
-        headers: { Authorization: `Bearer ${token}` },
+    fetch(`https://your-api.com/mileage/user/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
     })
-    .then((res) => res.json())
-    .then((data) => setMileage(data.totalMiles))
-    .catch((err) => console.error("Error fetching mileage:", err));
+      .then((res) => res.json())
+      .then((data) => setMileage(data.totalMiles));
+  }
 
-}, [selectedUser]); // ✅ Runs only when selectedUser changes
-
-// 🚀 Select a user and trigger data fetching
-function fetchUserData(userId) {
-    setSelectedUser(userId); // ✅ This will now trigger the useEffect above
-}
-
-// ✅ Calculate Payment
-function calculatePayment() {
+  // ✅ Calculate Payment
+  function calculatePayment() {
     const total = submissions * perSubmissionRate + mileage * perMileRate;
     setTotalPayment(total);
-}
+  }
 
   // ✅ Log Payment & Reset Data
-function logPayment() {
-    const token = localStorage.getItem("token"); // ✅ Ensure token is retrieved inside the function
-    if (!token) {
-        console.error("🚨 No token found in localStorage!");
-        return;
-    }
-
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-            userId: selectedUser,
-            submissions,
-            mileage,
-            perSubmissionRate,
-            perMileRate,
-            totalPayment,
-        }),
+  function logPayment() {
+    fetch("https://your-api.com/admin/process-payment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        userId: selectedUser,
+        submissions,
+        mileage,
+        perSubmissionRate,
+        perMileRate,
+        totalPayment,
+      }),
     }).then(() => {
-        alert("Payment logged!");
-        setUsers((prevUsers) =>
-            prevUsers.map((user) =>
-                user._id === selectedUser ? { ...user, status: "PAID" } : user
-            )
-        );
-        setSubmissions(0);
-        setMileage(0);
-        setTotalPayment(null);
-    }).catch((err) => console.error("❌ Error logging payment:", err));
-}
+      alert("Payment logged!");
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user._id === selectedUser ? { ...user, status: "PAID" } : user
+        )
+      );
+      setSubmissions(0);
+      setMileage(0);
+      setTotalPayment(null);
+    });
+  }
 
   return (
     <div>
@@ -180,10 +153,7 @@ function logPayment() {
             <h2>Total Payment: ${totalPayment.toFixed(2)}</h2>
           )}
 
-<button onClick={logPayment} disabled={totalPayment === null}>
-  Log Payment
-</button>
-
+          <button onClick={logPayment}>Log Payment</button>
         </>
       )}
     </div>

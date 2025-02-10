@@ -18,9 +18,11 @@ const Organization = require('./models/organization');
 const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
+const express = require("express");
+const authenticateToken = require("./middleware/authenticateToken");
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
-const authenticateToken = require("./middleware/authenticateToken"); // ✅ Import the new middleware
+
 // AWS S3 and UUID Integration
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
@@ -87,6 +89,9 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ✅ Admin-only payments route
+app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
+
 // ✅ CORS configuration
 app.use(cors({
     origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
@@ -101,6 +106,19 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Error:", err));
 
+/**
+ * 🔹 JWT Auth Middleware
+ */
+const authenticateToken = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
+
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) return res.status(403).json({ message: "Invalid token" });
+    req.user = user;
+    next();
+  });
+};
 
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
