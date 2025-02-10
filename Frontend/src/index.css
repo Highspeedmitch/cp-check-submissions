@@ -950,3 +950,14 @@ button:hover {
     transform: scale(1);
   }
 }
+.mileage-tracking-toggle {
+  display: flex;
+  align-items: center; /* Align toggle and text inline */
+  gap: 5px; /* Small spacing between toggle and text */
+  font-size: 0.85rem; /* Slightly smaller text */
+}
+
+.mileage-tracking-toggle .toggle-label {
+  white-space: nowrap; /* Prevents text from wrapping */
+  font-weight: 500; /* Slightly lighter than bold */
+}

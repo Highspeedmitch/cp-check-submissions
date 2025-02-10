@@ -506,24 +506,22 @@ function Dashboard({ setUser }) {
           )}
         </div>
       )}
-
-      {/* 🚗 Mileage Tracking Toggle (For Non-Admins) */}
-      {role !== "admin" && (
-        <div className="mileage-tracking-toggle">
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={mileageTracking}
-              onChange={() => setMileageTracking((prev) => !prev)}
-            />
-            <span className="slider"></span>
-          </label>
-          <span className="toggle-label">
-            {mileageTracking ? `🚗 ${mileageCount ? mileageCount.toFixed(1) : "0"} mi` : "🚦 Off"}
-          </span>
-        </div>
-      )}
-
+              {/* 🚗 Mileage Tracking Toggle (For Non-Admins) */}
+        {role !== "admin" && (
+          <div className="mileage-tracking-toggle">
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={mileageTracking}
+                onChange={() => setMileageTracking((prev) => !prev)}
+              />
+              <span className="slider"></span>
+            </label>
+            <span className="toggle-label">
+              {mileageTracking ? `🚗 ${mileageCount ? mileageCount.toFixed(1) : "0"} mi` : "🚦 Off"}
+            </span>
+          </div>
+        )}
       {/* Dark Mode Toggle */}
       <div className="dark-mode-toggle">
         <label className="switch">
