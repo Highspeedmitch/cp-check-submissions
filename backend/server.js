@@ -742,8 +742,8 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "Organization not found" });
     }
 
-    // 4) Extract property details
-    const { name, lat, lng, emails } = req.body;
+    // 4) Extract property details (including accessInstructions and customFields for STR)
+    const { name, lat, lng, emails, accessInstructions, customFields } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Property name is required" });
     }
@@ -751,7 +751,7 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     // 5) Determine if this is an STR organization
     const isSTR = org.orgType === "STR";
 
-    // 6) Create the property (without `accessInstructions` & `customFields` initially)
+    // 6) Create the property
     const newProperty = {
       name,
       lat,
@@ -766,15 +766,14 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     org.properties.push(newProperty);
     await org.save();
     
-    // ✅ Find the newly added property and return its ID
+    // Find the newly added property and return its ID
     const savedProperty = org.properties.find(p => p.name === name);
     
     return res.json({ 
       success: true, 
       message: "Property added successfully", 
-      propertyId: savedProperty?._id // Ensure propertyId is always returned
+      propertyId: savedProperty?._id 
     });    
-
   } catch (error) {
     console.error("❌ Error adding property:", error);
     return res.status(500).json({ error: "Server error adding property" });
