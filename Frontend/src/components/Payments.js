@@ -10,8 +10,11 @@ function Payments() {
   const [totalPayment, setTotalPayment] = useState(null);
   const [currentWeek, setCurrentWeek] = useState("");
 
-  const token = localStorage.getItem("token");
-
+  const token = localStorage.getItem("token"); // ✅ Get token from storage
+  if (!token) {
+    console.error("🚨 No token found in localStorage!");
+    return;
+  }
   // 🚀 Function to get the current week's range (Sunday - Saturday)
   function getCurrentWeekRange() {
     const today = new Date();

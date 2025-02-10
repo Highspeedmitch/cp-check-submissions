@@ -104,16 +104,17 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 /**
  * 🔹 JWT Auth Middleware
  */
-const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
-
-  jwt.verify(token, SECRET_KEY, (err, user) => {
-    if (err) return res.status(403).json({ message: "Invalid token" });
-    req.user = user;
-    next();
-  });
-};
+jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  if (err) {
+    return res.status(403).json({ error: "Invalid or expired token." });
+  }
+  
+  req.user = decoded; // ✅ Ensure req.user includes all fields
+  if (!req.user.role) {
+    return res.status(403).json({ error: "User role missing. Access denied." });
+  }
+  next();
+});
 
 // ✅ Admin-only payments route
 app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
