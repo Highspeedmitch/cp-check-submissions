@@ -88,33 +88,39 @@ function calculatePayment() {
 }
 
   // ✅ Log Payment & Reset Data
-  function logPayment() {
+function logPayment() {
+    const token = localStorage.getItem("token"); // ✅ Ensure token is retrieved inside the function
+    if (!token) {
+        console.error("🚨 No token found in localStorage!");
+        return;
+    }
+
     fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        userId: selectedUser,
-        submissions,
-        mileage,
-        perSubmissionRate,
-        perMileRate,
-        totalPayment,
-      }),
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+            userId: selectedUser,
+            submissions,
+            mileage,
+            perSubmissionRate,
+            perMileRate,
+            totalPayment,
+        }),
     }).then(() => {
-      alert("Payment logged!");
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user._id === selectedUser ? { ...user, status: "PAID" } : user
-        )
-      );
-      setSubmissions(0);
-      setMileage(0);
-      setTotalPayment(null);
-    });
-  }
+        alert("Payment logged!");
+        setUsers((prevUsers) =>
+            prevUsers.map((user) =>
+                user._id === selectedUser ? { ...user, status: "PAID" } : user
+            )
+        );
+        setSubmissions(0);
+        setMileage(0);
+        setTotalPayment(null);
+    }).catch((err) => console.error("❌ Error logging payment:", err));
+}
 
   return (
     <div>
@@ -174,7 +180,10 @@ function calculatePayment() {
             <h2>Total Payment: ${totalPayment.toFixed(2)}</h2>
           )}
 
-          <button onClick={logPayment}>Log Payment</button>
+<button onClick={logPayment} disabled={totalPayment === null}>
+  Log Payment
+</button>
+
         </>
       )}
     </div>
