@@ -41,7 +41,7 @@ function App() {
       <Route path="/scheduler" element={<Scheduler />} />
       
       {/* ✅ New STR Admin Edit Property Route */}
-      <Route path="/admin/edit-property/:propertyId" element={user ? <STReditProperty /> : <Navigate to="/" />} />
+      <Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />
 
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />

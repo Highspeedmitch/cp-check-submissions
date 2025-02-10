@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 function STReditProperty() {
   // Use "propertyId" since your URL now passes the ID (e.g., /admin/edit-property/:propertyId)
-  const { propertyId } = useParams();
+  const { propertyName } = useParams();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
@@ -18,7 +18,7 @@ function STReditProperty() {
     const fetchPropertyDetails = async () => {
       try {
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/properties/${propertyId}`,
+          `https://cp-check-submissions-dev-backend.onrender.com/api/properties/${encodeURIComponent(propertyName)}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -37,9 +37,9 @@ function STReditProperty() {
         console.error("Error fetching property details:", error);
       }
     };
-
+  
     fetchPropertyDetails();
-  }, [propertyId, token]);
+  }, [propertyName, token]);  
 
   // Handler for adding a new custom field locally
   const handleAddCustomField = () => {
