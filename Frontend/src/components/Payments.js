@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import "./Payments.css";  // Make sure this file includes your CSS styles
 
 function Payments() {
   const [users, setUsers] = useState([]);
@@ -9,8 +11,8 @@ function Payments() {
   const [perMileRate, setPerMileRate] = useState(0.5);
   const [totalPayment, setTotalPayment] = useState(null);
   const [currentWeek, setCurrentWeek] = useState("");
-
   const token = localStorage.getItem("token");
+  const navigate = useNavigate();
 
   // ===== Utility: Current Week Range =====
   function getCurrentWeekRange() {
@@ -68,7 +70,7 @@ function Payments() {
       .catch((err) => console.error("Error fetching submissions:", err));
 
     // Fetch miles since last payment
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/mileage/user/${userId}`, {
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/mileage/user/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -116,6 +118,10 @@ function Payments() {
   return (
     <div className="payments-container">
       <h1 className="payments-header">Payments 💰</h1>
+      {/* Back to Dashboard Button */}
+      <button className="back-button" onClick={() => navigate("/dashboard")}>
+        ← Back to Dashboard
+      </button>
       <h2 className="payments-subheader">Week: {currentWeek}</h2>
 
       <div className="table-wrapper">
