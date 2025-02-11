@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./Payments.css";  // Make sure this file includes your CSS styles
 
 function Payments() {
   const [users, setUsers] = useState([]);
