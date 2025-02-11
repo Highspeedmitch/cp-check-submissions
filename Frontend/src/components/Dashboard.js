@@ -492,62 +492,85 @@ function Dashboard({ setUser }) {
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
             <ul>
-              {displayedProperties.map((prop) => (
-                <li
-                  key={prop.name}
-                  className={
-                    completedProperties.includes(prop.name) ? "completed" : ""
-                  }
-                  onClick={() => {
-                    if (role === "admin") {
-                      // CHANGE HERE: Decide route based on STR or not
-                      if (adminOrgType === "STR") {
-                        // STR admin => go to access instructions (editable)
-                        navigate(
-                          `/access-instructions/${encodeURIComponent(prop.name)}`
-                        );
-                      } else {
-                        // Non-STR => submissions
-                        navigate(
-                          `/admin/submissions/${encodeURIComponent(prop.name)}`
-                        );
-                      }
-                    } else {
-                      // Non-admin user => forms or modal
-                      switch (prop.orgType) {
-                        case "COM":
-                          navigate(
-                            `/commercial-form/${encodeURIComponent(prop.name)}`
-                          );
-                          break;
-                        case "RES":
-                          navigate(
-                            `/residential-form/${encodeURIComponent(prop.name)}`
-                          );
-                          break;
-                        case "LTR":
-                          navigate(
-                            `/long-term-rental-form/${encodeURIComponent(
-                              prop.name
-                            )}`
-                          );
-                          break;
-                        case "STR":
-                          // Show the STR modal (with read-only Access Instructions)
-                          setSelectedProperty(prop.name);
-                          setShowModal(true);
-                          break;
-                        default:
-                          navigate(
-                            `/commercial-form/${encodeURIComponent(prop.name)}`
-                          );
-                      }
-                    }
-                  }}
-                >
-                  {prop.name}
-                </li>
-              ))}
+              {/* Inside .property-cards mapping, or wherever you render each property card */}
+{displayedProperties.map((prop) => {
+  const orgType = prop.orgType || "COM";
+  const isCompleted = completedProperties.includes(prop.name);
+
+  return (
+    <div
+      key={prop.name}
+      className={`property-card ${isCompleted ? "completed-tile" : ""}`}
+      onClick={() => {
+        if (role === "admin") {
+          // For all admins, property-card click => "view recent submissions"
+          navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+        } else {
+          // For regular users => forms or STR modal
+          if (orgType === "STR") {
+            setSelectedProperty(prop.name);
+            setShowModal(true);
+          } else {
+            let formRoute = "/commercial-form";
+            if (orgType === "LTR") formRoute = "/long-term-rental-form";
+            if (orgType === "RES") formRoute = "/residential-form";
+            navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+          }
+        }
+      }}
+    >
+      <h3>{prop.name}</h3>
+
+      {/* Display label under the property name */}
+      <p>
+        {role === "admin"
+          ? "Click to view recent submissions"
+          : isCompleted
+          ? "Completed"
+          : "Click to complete checklist"}
+      </p>
+
+      {/* If STR admin => Show "Access Instructions" button, but NOT "Remove" */}
+      {role === "admin" && adminOrgType === "STR" && (
+        <button
+          className="access-instructions-button"
+          onClick={(e) => {
+            e.stopPropagation(); // prevent triggering the card's onClick
+            navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
+          }}
+        >
+          Access Instructions
+        </button>
+      )}
+
+      {/* If admin is NOT STR => Show "Remove" button (the old approach) */}
+      {role === "admin" && adminOrgType !== "STR" && (
+        <button
+          className="remove-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            initiateRemoveProperty(prop.name);
+          }}
+        >
+          Remove
+        </button>
+      )}
+
+      {/* If user => Optionally show "Navigate" button (assuming lat/lng exist) */}
+      {role !== "admin" && prop.lat && prop.lng && (
+        <button
+          className="navigate-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            openNativeMaps(prop.lat, prop.lng);
+          }}
+        >
+          Navigate
+        </button>
+      )}
+    </div>
+  );
+})}
             </ul>
 
             {/* My assignments (non-admin users) */}
