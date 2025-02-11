@@ -35,16 +35,16 @@ router.get("/users", async (req, res) => {
   });  
 
 // ✅ Get user's submissions since last payment
-router.get("/user-submissions/:userId", async (req, res) => {
+router.get("/user-submissions/:userId", authenticateToken, async (req, res) => {
     try {
       const { userId } = req.params;
       const user = await User.findById(userId);
       if (!user) return res.status(404).json({ error: "User not found." });
   
-      // Filter submissions by userId and by created date (if needed)
+      // Use submittedAt instead of createdAt
       const submissions = await Submission.find({
-        userId: userId,
-        submittedAt: { $gt: user.lastPaidDate || new Date(0) }
+        userId,
+        submittedAt: { $gt: user.lastPaidDate || new Date(0) },
       });
   
       res.json({ count: submissions.length });
@@ -52,9 +52,8 @@ router.get("/user-submissions/:userId", async (req, res) => {
       console.error("Error fetching submissions:", error);
       res.status(500).json({ error: "Server error fetching submissions" });
     }
-  });
+  });  
   
-
 // ✅ Process Payment & Reset Data
 router.post("/process-payment", async (req, res) => {
   try {
