@@ -74,6 +74,7 @@ function Dashboard({ setUser }) {
     useState(false);
   const [removePasskey, setRemovePasskey] = useState("");
   const [propertyToRemove, setPropertyToRemove] = useState(null);
+  const [removePropertyModalVisible, setRemovePropertyModalVisible] = useState(false);
 
   // ------------ Scheduler Flow -----------
   const [viewScheduler, setViewScheduler] = useState(false);
@@ -200,9 +201,12 @@ function Dashboard({ setUser }) {
   }
 
   async function handleRemoveProperty() {
-    if (!propertyToRemove) return;
+    if (!propertyToRemove) {
+      alert("Please select a property to remove.");
+      return;
+    }
     try {
-      // Verify the passkey for removal
+      // Verify removal passkey
       const verifyResponse = await fetch(
         "https://cp-check-submissions-dev-backend.onrender.com/api/verify-remove-passkey",
         {
@@ -211,18 +215,15 @@ function Dashboard({ setUser }) {
           body: JSON.stringify({ removePasskey }),
         }
       );
-
       const verifyData = await verifyResponse.json();
       if (!verifyData.valid) {
         alert("❌ Invalid passkey. Cannot remove property.");
         return;
       }
-
-      // If passkey is valid, proceed with deletion
+  
+      // Passkey is valid, proceed with deletion
       const deleteResponse = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(
-          propertyToRemove
-        )}`,
+        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(propertyToRemove)}`,
         {
           method: "DELETE",
           headers: {
@@ -231,11 +232,11 @@ function Dashboard({ setUser }) {
           },
         }
       );
-
+  
       const deleteData = await deleteResponse.json();
       if (deleteResponse.ok) {
         alert(`✅ Property "${propertyToRemove}" removed successfully!`);
-        fetchProperties();
+        fetchProperties(); // Refresh list
       } else {
         alert(deleteData.error || "❌ Error removing property.");
       }
@@ -243,11 +244,12 @@ function Dashboard({ setUser }) {
       console.error("Error removing property:", error);
       alert("❌ Server error removing property.");
     }
-
-    setRemovePasskeyPromptVisible(false);
-    setPropertyToRemove(null);
+  
+    // Close modal & reset
+    setRemovePropertyModalVisible(false);
     setRemovePasskey("");
-  }
+    setPropertyToRemove("");
+  }  
 
   // ======================
   // 4) Add Property Logic
@@ -711,32 +713,32 @@ function Dashboard({ setUser }) {
             {/* Property Cards */}
             <div className="property-cards">
               {/* Inside .property-cards mapping, or wherever you render each property card */}
-{displayedProperties.map((prop) => {
-  const orgType = prop.orgType || "COM";
-  const isCompleted = completedProperties.includes(prop.name);
+      {displayedProperties.map((prop) => {
+        const orgType = prop.orgType || "COM";
+        const isCompleted = completedProperties.includes(prop.name);
 
-  return (
-    <div
-      key={prop.name}
-      className={`property-card ${isCompleted ? "completed-tile" : ""}`}
-      onClick={() => {
-        if (role === "admin") {
-          // For all admins, property-card click => "view recent submissions"
-          navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-        } else {
-          // For regular users => forms or STR modal
-          if (orgType === "STR") {
-            setSelectedProperty(prop.name);
-            setShowModal(true);
-          } else {
-            let formRoute = "/commercial-form";
-            if (orgType === "LTR") formRoute = "/long-term-rental-form";
-            if (orgType === "RES") formRoute = "/residential-form";
-            navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
-          }
-        }
-      }}
-    >
+        return (
+          <div
+            key={prop.name}
+            className={`property-card ${isCompleted ? "completed-tile" : ""}`}
+            onClick={() => {
+              if (role === "admin") {
+                // For all admins, property-card click => "view recent submissions"
+                navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+              } else {
+                // For regular users => forms or STR modal
+                if (orgType === "STR") {
+                  setSelectedProperty(prop.name);
+                  setShowModal(true);
+                } else {
+                  let formRoute = "/commercial-form";
+                  if (orgType === "LTR") formRoute = "/long-term-rental-form";
+                  if (orgType === "RES") formRoute = "/residential-form";
+                  navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+                }
+              }
+            }}
+          >
       <h3>{prop.name}</h3>
 
       {/* Display label under the property name */}
@@ -789,7 +791,56 @@ function Dashboard({ setUser }) {
     </div>
   );
 })}
+    {/* Remove Property Modal */}
+{removePropertyModalVisible && (
+  <div className="modal-overlay">
+    <div className="modal">
+      <h2>Remove Property</h2>
+      <p>Select the property you wish to remove:</p>
 
+      <select
+        value={propertyToRemove}
+        onChange={(e) => setPropertyToRemove(e.target.value)}
+      >
+        <option value="">-- Select Property --</option>
+        {properties.map((prop) => (
+          <option key={prop.name} value={prop.name}>
+            {prop.name}
+          </option>
+        ))}
+      </select>
+      <br />
+
+      <label>
+        Enter Removal Passkey:
+        <input
+          type="password"
+          value={removePasskey}
+          onChange={(e) => setRemovePasskey(e.target.value)}
+        />
+      </label>
+
+      <div style={{ marginTop: "10px" }}>
+        <button
+          onClick={handleRemoveProperty}
+          className="payments-button"
+        >
+          Confirm Removal
+        </button>
+        <button
+          onClick={() => {
+            setRemovePropertyModalVisible(false);
+            setRemovePasskey("");
+            setPropertyToRemove("");
+          }}
+          className="payments-button"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
             </div>
 
             {/* Pagination Controls */}
