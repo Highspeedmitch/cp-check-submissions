@@ -13,6 +13,7 @@ import ResidentialForm from "./components/ResidentialForm";
 import LongTermRental from "./components/LongTermRental";
 import ShortTermRental from "./components/ShortTermRental";
 import STReditProperty from "./components/STReditProperty"; // ✅ New STR Admin Edit Page
+import AccessInstructions from "./components/AccessInstructions";
 import Payments from "./components/Payments"; // ✅ Import Payments Page
 
 function App() {
@@ -42,7 +43,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<Scheduler />} />
-
+      <Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />
       {/* ✅ New STR Admin Edit Property Route */}
       <Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />
 
