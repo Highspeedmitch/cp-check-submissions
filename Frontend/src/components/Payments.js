@@ -85,6 +85,13 @@ function Payments() {
 
   // ===== Log Payment & Reset Data =====
   function logPayment() {
+
+    // Prevent logging if totalPayment is 0 (or not greater than 0)
+    if (!totalPayment || totalPayment <= 0) {
+        alert("Payment total is $0. Cannot log a $0 payment.");
+        return;
+      }
+
     fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment", {
       method: "POST",
       headers: {
@@ -129,22 +136,24 @@ function Payments() {
             <tr>
               <th>User</th>
               <th>Status</th>
+              <th>YTD</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr
+                <tr
                 key={user._id}
                 onClick={() => fetchUserData(user._id)}
                 className="clickable-row"
-              >
+                >
                 <td>{user.username}</td>
                 <td className={user.status === "PAID" ? "status-paid" : "status-awaiting"}>
-                  {user.status}
+                    {user.status}
                 </td>
-              </tr>
+                <td>{user.ytd ? `$${user.ytd.toFixed(2)}` : "$0.00"}</td>
+                </tr>
             ))}
-          </tbody>
+            </tbody>
         </table>
       </div>
 
@@ -188,7 +197,11 @@ function Payments() {
             </h2>
           )}
 
-          <button onClick={logPayment} className="payments-button payments-success">
+            <button
+            onClick={logPayment}
+            className="payments-button payments-success"
+            disabled={!totalPayment || totalPayment <= 0}
+          >
             Log Payment
           </button>
         </div>
