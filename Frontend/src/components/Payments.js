@@ -5,14 +5,22 @@ function Payments() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
 
+  // Submissions & mileage since last payment
   const [submissions, setSubmissions] = useState(0);
   const [mileage, setMileage] = useState(0);
-  const [ytdMiles, setYtdMiles] = useState(0); // <-- NEW: store YTD miles in state
 
+  // YTD data
+  const [ytdMiles, setYtdMiles] = useState(0); // YTD miles
+  // For YTD dollars, we rely on user.ytd from GET /admin/users
+
+  // Payment rates
   const [perSubmissionRate, setPerSubmissionRate] = useState(25);
   const [perMileRate, setPerMileRate] = useState(0.5);
+
+  // Calculated total for this pay period
   const [totalPayment, setTotalPayment] = useState(null);
 
+  // Date range display
   const [currentWeek, setCurrentWeek] = useState("");
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
@@ -36,14 +44,15 @@ function Payments() {
     setCurrentWeek(getCurrentWeekRange());
   }, []);
 
-  // ===== Fetch Users =====
+  // ===== Fetch Users (Including YTD $) =====
   useEffect(() => {
     fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/users", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
-        // Compute payment status based on lastPaidDate and start of week
+        // data is an array of users with:
+        //   user.username, user._id, user.lastPaidDate, user.status, user.ytd (dollars)
         const today = new Date();
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
@@ -61,11 +70,11 @@ function Payments() {
       .catch((err) => console.error("Error fetching users:", err));
   }, [token]);
 
-  // ===== Fetch Selected User Data =====
+  // ===== Fetch Data for a Clicked User =====
   function fetchUserData(userId) {
     setSelectedUser(userId);
 
-    // Fetch submissions since last payment
+    // Submissions since last payment
     fetch(
       `https://cp-check-submissions-dev-backend.onrender.com/admin/user-submissions/${userId}`,
       {
@@ -76,7 +85,7 @@ function Payments() {
       .then((data) => setSubmissions(data.count))
       .catch((err) => console.error("Error fetching submissions:", err));
 
-    // Fetch miles since last payment + YTD miles
+    // Miles since last payment + YTD miles
     fetch(
       `https://cp-check-submissions-dev-backend.onrender.com/api/mileage/user/${userId}`,
       {
@@ -93,7 +102,7 @@ function Payments() {
       .catch((err) => console.error("Error fetching mileage:", err));
   }
 
-  // ===== Calculate Payment =====
+  // ===== Calculate Payment for this Pay Period =====
   function calculatePayment() {
     const total = submissions * perSubmissionRate + mileage * perMileRate;
     setTotalPayment(total);
@@ -101,7 +110,6 @@ function Payments() {
 
   // ===== Log Payment & Reset Data =====
   function logPayment() {
-    // Prevent logging if totalPayment is 0 (or not greater than 0)
     if (!totalPayment || totalPayment <= 0) {
       alert("Payment total is $0. Cannot log a $0 payment.");
       return;
@@ -128,20 +136,19 @@ function Payments() {
       .then(() => {
         alert("Payment logged!");
 
-        // Mark that user as "Paid"
+        // Mark user as "Paid" locally
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
             user._id === selectedUser ? { ...user, status: "PAID" } : user
           )
         );
-        // Reset local states
+
+        // Clear local states
         setSubmissions(0);
         setMileage(0);
         setTotalPayment(null);
 
-        // Optionally fetch YTD again if the route updates it
-        // For instance, if the server increments ytdMiles in the DB
-        // or we re-calc it. We'll do a quick refetch:
+        // Optional: refetch to update any YTD logic
         fetchUserData(selectedUser);
       })
       .catch((err) => console.error("Error logging payment:", err));
@@ -150,10 +157,11 @@ function Payments() {
   return (
     <div className="payments-container">
       <h1 className="payments-header">Payments 💰</h1>
-      {/* Back to Dashboard Button */}
+
       <button className="back-button" onClick={() => navigate("/dashboard")}>
         ← Back to Dashboard
       </button>
+
       <h2 className="payments-subheader">Week: {currentWeek}</h2>
 
       <div className="table-wrapper">
@@ -162,33 +170,45 @@ function Payments() {
             <tr>
               <th>User</th>
               <th>Status</th>
-              {/* Show YTD miles or YTD $$? We'll do miles for now */}
               <th>YTD Miles</th>
+              <th>YTD $</th> {/* NEW COLUMN for YTD dollar amount */}
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr
-                key={user._id}
-                onClick={() => fetchUserData(user._id)}
-                className="clickable-row"
-              >
-                <td>{user.username}</td>
-                <td
-                  className={
-                    user.status === "PAID" ? "status-paid" : "status-awaiting"
-                  }
+            {users.map((user) => {
+              // user.ytd -> total $$ from Payment aggregator
+              return (
+                <tr
+                  key={user._id}
+                  onClick={() => fetchUserData(user._id)}
+                  className="clickable-row"
                 >
-                  {user.status}
-                </td>
-                {/* We'll only show YTD miles if the user is selected (or store YTD per-user) */}
-                <td>
-                  {user._id === selectedUser
-                    ? `${ytdMiles.toFixed(2)}`
-                    : "—"}
-                </td>
-              </tr>
-            ))}
+                  <td>{user.username}</td>
+                  <td
+                    className={
+                      user.status === "PAID"
+                        ? "status-paid"
+                        : "status-awaiting"
+                    }
+                  >
+                    {user.status}
+                  </td>
+                  {/* YTD Miles: only show for selected user */}
+                  <td>
+                    {user._id === selectedUser
+                      ? ytdMiles.toFixed(2)
+                      : "—"}
+                  </td>
+                  {/* YTD $: always available from user.ytd aggregator */}
+                  <td>
+                    {/* user.ytd might be 0 or undefined, so safe check */}
+                    {user.ytd !== undefined
+                      ? `$${user.ytd.toFixed(2)}`
+                      : "$0.00"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -196,8 +216,9 @@ function Payments() {
       {selectedUser && (
         <div className="payment-card">
           <h3 className="card-title">Payment Details</h3>
+
           <p>
-            <strong>Submissions:</strong> {submissions}
+            <strong>Submissions (since last payment):</strong> {submissions}
           </p>
           <p>
             <strong>Miles Driven (since last payment):</strong> {mileage}
