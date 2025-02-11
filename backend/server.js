@@ -1000,4 +1000,71 @@ app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => 
     res.status(500).json({ error: "Server error retrieving property details" });
   }
 });
+// Access Instructions Routes
+app.get('/api/access-instructions/:propertyName', authenticateToken, async (req, res) => {
+  try {
+    // 1) Find the organization
+    const org = await Organization.findById(req.user.organizationId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    // 2) Find the property
+    const decodedPropName = decodeURIComponent(req.params.propertyName);
+    const property = org.properties.find(p => p.name === decodedPropName);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    // 3) If this org is not STR, maybe block or just return instructions anyway
+    if (org.orgType !== "STR") {
+      return res.status(403).json({ error: "Access instructions only apply to STR organizations." });
+    }
+
+    // 4) Return the instructions (or empty string if not set)
+    return res.json({ instructions: property.accessInstructions || "" });
+  } catch (error) {
+    console.error("Error in GET access-instructions:", error);
+    return res.status(500).json({ error: "Server error fetching instructions." });
+  }
+});
+
+app.put('/api/access-instructions/:propertyName', authenticateToken, async (req, res) => {
+  try {
+    // 1) Ensure only admins can update instructions
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden. Only admins can update instructions." });
+    }
+
+    // 2) Find the organization
+    const org = await Organization.findById(req.user.organizationId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    // 3) Find the property
+    const decodedPropName = decodeURIComponent(req.params.propertyName);
+    const property = org.properties.find(p => p.name === decodedPropName);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    // 4) If not STR, maybe block
+    if (org.orgType !== "STR") {
+      return res.status(403).json({ error: "Only STR orgs can have access instructions." });
+    }
+
+    // 5) Update instructions
+    property.accessInstructions = req.body.instructions || property.accessInstructions;
+    
+    // 6) Save
+    await org.save();
+    return res.json({ message: "Instructions updated successfully!" });
+  } catch (error) {
+    console.error("Error in PUT access-instructions:", error);
+    return res.status(500).json({ error: "Server error saving instructions." });
+  }
+});
+
+
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
