@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import "./Payments.css";  // Import your CSS file
 
 function Payments() {
   const [users, setUsers] = useState([]);
