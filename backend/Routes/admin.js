@@ -35,7 +35,7 @@ router.get("/users", async (req, res) => {
   });  
 
 // ✅ Get user's submissions since last payment
-router.get("/user-submissions/:userId", authenticateToken, async (req, res) => {
+router.get("/user-submissions/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
       const user = await User.findById(userId);
