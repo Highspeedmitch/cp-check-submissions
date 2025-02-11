@@ -24,39 +24,42 @@ router.post("/start", async (req, res) => {
 
 // ✅ Update Mileage (Every 30s)
 router.post("/update", async (req, res) => {
-  try {
-    const { userId, miles } = req.body; 
-
-    let user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found." });
+    try {
+      const { userId, miles } = req.body; 
+  
+      // Find the MileageTracking document for the user
+      let mileageRecord = await MileageTracking.findOne({ userId });
+      if (!mileageRecord) {
+        return res.status(404).json({ error: "Mileage record not found." });
+      }
+  
+      // Update the mileage record rather than the User model
+      mileageRecord.totalMiles += miles;
+      mileageRecord.lastUpdated = new Date();
+      await mileageRecord.save();
+  
+      res.json({ success: true, totalMiles: mileageRecord.totalMiles });
+    } catch (error) {
+      console.error("Error updating mileage:", error);
+      res.status(500).json({ error: "Server error updating mileage" });
     }
-
-    user.totalMiles += miles;
-    await user.save();
-
-    res.json({ success: true, totalMiles: user.totalMiles });
-  } catch (error) {
-    console.error("Error updating mileage:", error);
-    res.status(500).json({ error: "Server error updating mileage" });
-  }
-});
+  });
+  
 
 // ✅ Get User's Mileage for Admin
 router.get("/user/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.json({ success: true, totalMiles: 0 }); 
+    try {
+      const { userId } = req.params;
+      const mileageRecord = await MileageTracking.findOne({ userId });
+      if (!mileageRecord) {
+        return res.json({ success: true, totalMiles: 0 });
+      }
+      res.json({ success: true, totalMiles: mileageRecord.totalMiles });
+    } catch (error) {
+      console.error("Error fetching mileage data:", error);
+      res.status(500).json({ error: "Server error fetching mileage" });
     }
-
-    res.json({ success: true, totalMiles: user.totalMiles });
-  } catch (error) {
-    console.error("Error fetching mileage data:", error);
-    res.status(500).json({ error: "Server error fetching mileage" });
-  }
-});
+  });
+  
 
 module.exports = router;
