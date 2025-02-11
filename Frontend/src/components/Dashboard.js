@@ -54,7 +54,7 @@ function Dashboard({ setUser }) {
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
-  const adminOrgType = localStorage.getItem("orgType") || "COM"; // <-- Track orgType
+  const adminOrgType = localStorage.getItem("orgType") || "COM";
   const [loginTime] = useState(
     () => localStorage.getItem("loginTime") || new Date().toISOString()
   );
@@ -70,11 +70,10 @@ function Dashboard({ setUser }) {
   const [newPropAddress, setNewPropAddress] = useState("");
 
   // ----------- "Remove Property" Admin Flow -----------
-  const [removePasskeyPromptVisible, setRemovePasskeyPromptVisible] =
-    useState(false);
-  const [removePasskey, setRemovePasskey] = useState("");
-  const [propertyToRemove, setPropertyToRemove] = useState(null);
+  // We have a single modal for removing property + passkey.
   const [removePropertyModalVisible, setRemovePropertyModalVisible] = useState(false);
+  const [removePasskey, setRemovePasskey] = useState("");
+  const [propertyToRemove, setPropertyToRemove] = useState("");
 
   // ------------ Scheduler Flow -----------
   const [viewScheduler, setViewScheduler] = useState(false);
@@ -195,11 +194,7 @@ function Dashboard({ setUser }) {
   // ======================
   // 3) Remove Property Logic (admin only)
   // ======================
-  function initiateRemoveProperty(propertyName) {
-    setPropertyToRemove(propertyName);
-    setRemovePasskeyPromptVisible(true);
-  }
-
+  // Instead of two modals, we combine property selection + passkey in one.
   async function handleRemoveProperty() {
     if (!propertyToRemove) {
       alert("Please select a property to remove.");
@@ -220,7 +215,7 @@ function Dashboard({ setUser }) {
         alert("❌ Invalid passkey. Cannot remove property.");
         return;
       }
-  
+
       // Passkey is valid, proceed with deletion
       const deleteResponse = await fetch(
         `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(propertyToRemove)}`,
@@ -232,7 +227,6 @@ function Dashboard({ setUser }) {
           },
         }
       );
-  
       const deleteData = await deleteResponse.json();
       if (deleteResponse.ok) {
         alert(`✅ Property "${propertyToRemove}" removed successfully!`);
@@ -244,12 +238,12 @@ function Dashboard({ setUser }) {
       console.error("Error removing property:", error);
       alert("❌ Server error removing property.");
     }
-  
+
     // Close modal & reset
     setRemovePropertyModalVisible(false);
     setRemovePasskey("");
     setPropertyToRemove("");
-  }  
+  }
 
   // ======================
   // 4) Add Property Logic
@@ -295,7 +289,6 @@ function Dashboard({ setUser }) {
     if (!newPropAddress) {
       return alert("Please enter an address to geocode.");
     }
-    // Replace with your actual Mapbox token
     const mapboxToken =
       "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
     const baseUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
@@ -345,7 +338,6 @@ function Dashboard({ setUser }) {
           }),
         }
       );
-
       const data = await response.json();
       if (data.error) {
         alert(data.error);
@@ -502,20 +494,19 @@ function Dashboard({ setUser }) {
                   }
                   onClick={() => {
                     if (role === "admin") {
-                      // CHANGE HERE: Decide route based on STR or not
+                      // For STR admin => Access Instructions
+                      // For non-STR => Submissions
                       if (adminOrgType === "STR") {
-                        // STR admin => go to access instructions (editable)
                         navigate(
                           `/access-instructions/${encodeURIComponent(prop.name)}`
                         );
                       } else {
-                        // Non-STR => submissions
                         navigate(
                           `/admin/submissions/${encodeURIComponent(prop.name)}`
                         );
                       }
                     } else {
-                      // Non-admin user => forms or modal
+                      // For non-admin user => forms or STR modal
                       switch (prop.orgType) {
                         case "COM":
                           navigate(
@@ -571,7 +562,7 @@ function Dashboard({ setUser }) {
               </div>
             )}
 
-            {/* Mileage toggle (non-admin only) */}
+            {/* Mileage toggle (non-admin) */}
             {role !== "admin" && (
               <div className="mileage-tracking-toggle">
                 <label className="switch">
@@ -618,12 +609,14 @@ function Dashboard({ setUser }) {
                   + Property
                 </button>
 
-                {/* CHANGE HERE: Show "- Property" only if STR Admin */}
                 {adminOrgType === "STR" && (
                   <button
                     className="Admin-tools-primary"
                     onClick={() => {
-                      setRemovePasskeyPromptVisible(true);
+                      // Show the single remove-property modal
+                      setRemovePropertyModalVisible(true);
+                      setRemovePasskey("");
+                      setPropertyToRemove("");
                     }}
                   >
                     - Property
@@ -639,7 +632,6 @@ function Dashboard({ setUser }) {
                 >
                   Scheduler
                 </button>
-
                 <button
                   className="Admin-tools-adtl"
                   onClick={(e) => {
@@ -666,7 +658,6 @@ function Dashboard({ setUser }) {
                 className="modal-btn"
                 onClick={() => {
                   // For normal user in STR org => read-only instructions
-                  // (In your AccessInstructions component, check role === 'user' to disable edits)
                   navigate(
                     `/access-instructions/${encodeURIComponent(selectedProperty)}`
                   );
@@ -712,136 +703,141 @@ function Dashboard({ setUser }) {
           <>
             {/* Property Cards */}
             <div className="property-cards">
-              {/* Inside .property-cards mapping, or wherever you render each property card */}
-      {displayedProperties.map((prop) => {
-        const orgType = prop.orgType || "COM";
-        const isCompleted = completedProperties.includes(prop.name);
+              {displayedProperties.map((prop) => {
+                const orgType = prop.orgType || "COM";
+                const isCompleted = completedProperties.includes(prop.name);
 
-        return (
-          <div
-            key={prop.name}
-            className={`property-card ${isCompleted ? "completed-tile" : ""}`}
-            onClick={() => {
-              if (role === "admin") {
-                // For all admins, property-card click => "view recent submissions"
-                navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-              } else {
-                // For regular users => forms or STR modal
-                if (orgType === "STR") {
-                  setSelectedProperty(prop.name);
-                  setShowModal(true);
-                } else {
-                  let formRoute = "/commercial-form";
-                  if (orgType === "LTR") formRoute = "/long-term-rental-form";
-                  if (orgType === "RES") formRoute = "/residential-form";
-                  navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
-                }
-              }
-            }}
-          >
-      <h3>{prop.name}</h3>
+                return (
+                  <div
+                    key={prop.name}
+                    className={`property-card ${
+                      isCompleted ? "completed-tile" : ""
+                    }`}
+                    onClick={() => {
+                      if (role === "admin") {
+                        // For all admins, property-card click => "view recent submissions"
+                        navigate(
+                          `/admin/submissions/${encodeURIComponent(prop.name)}`
+                        );
+                      } else {
+                        // For regular users => forms or STR modal
+                        if (orgType === "STR") {
+                          setSelectedProperty(prop.name);
+                          setShowModal(true);
+                        } else {
+                          let formRoute = "/commercial-form";
+                          if (orgType === "LTR") formRoute = "/long-term-rental-form";
+                          if (orgType === "RES") formRoute = "/residential-form";
+                          navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+                        }
+                      }
+                    }}
+                  >
+                    <h3>{prop.name}</h3>
 
-      {/* Display label under the property name */}
-      <p>
-        {role === "admin"
-          ? "Click to view recent submissions"
-          : isCompleted
-          ? "Completed"
-          : "Click to complete checklist"}
-      </p>
+                    <p>
+                      {role === "admin"
+                        ? "Click to view recent submissions"
+                        : isCompleted
+                        ? "Completed"
+                        : "Click to complete checklist"}
+                    </p>
 
-      {/* If STR admin => Show "Access Instructions" button, but NOT "Remove" */}
-      {role === "admin" && adminOrgType === "STR" && (
-        <button
-          className="access-instructions-button"
-          onClick={(e) => {
-            e.stopPropagation(); // prevent triggering the card's onClick
-            navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
-          }}
-        >
-          Access Instructions
-        </button>
-      )}
+                    {/* If STR admin => Show "Access Instructions" button, but NOT "Remove" */}
+                    {role === "admin" && adminOrgType === "STR" && (
+                      <button
+                        className="access-instructions-button"
+                        onClick={(e) => {
+                          e.stopPropagation(); // prevent card click
+                          navigate(
+                            `/access-instructions/${encodeURIComponent(prop.name)}`
+                          );
+                        }}
+                      >
+                        Access Instructions
+                      </button>
+                    )}
 
-      {/* If admin is NOT STR => Show "Remove" button (the old approach) */}
-      {role === "admin" && adminOrgType !== "STR" && (
-        <button
-          className="remove-button"
-          onClick={(e) => {
-            e.stopPropagation();
-            initiateRemoveProperty(prop.name);
-          }}
-        >
-          Remove
-        </button>
-      )}
+                    {/* If admin is NOT STR => Show "Remove" button */}
+                    {role === "admin" && adminOrgType !== "STR" && (
+                      <button
+                        className="remove-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // directly remove passkey prompt for non-STR admins
+                          setPropertyToRemove(prop.name);
+                          setRemovePropertyModalVisible(true);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
 
-      {/* If user => Optionally show "Navigate" button (assuming lat/lng exist) */}
-      {role !== "admin" && prop.lat && prop.lng && (
-        <button
-          className="navigate-button"
-          onClick={(e) => {
-            e.stopPropagation();
-            openNativeMaps(prop.lat, prop.lng);
-          }}
-        >
-          Navigate
-        </button>
-      )}
-    </div>
-  );
-})}
-    {/* Remove Property Modal */}
-{removePropertyModalVisible && (
-  <div className="modal-overlay">
-    <div className="modal">
-      <h2>Remove Property</h2>
-      <p>Select the property you wish to remove:</p>
-
-      <select
-        value={propertyToRemove}
-        onChange={(e) => setPropertyToRemove(e.target.value)}
-      >
-        <option value="">-- Select Property --</option>
-        {properties.map((prop) => (
-          <option key={prop.name} value={prop.name}>
-            {prop.name}
-          </option>
-        ))}
-      </select>
-      <br />
-
-      <label>
-        Enter Removal Passkey:
-        <input
-          type="password"
-          value={removePasskey}
-          onChange={(e) => setRemovePasskey(e.target.value)}
-        />
-      </label>
-
-      <div style={{ marginTop: "10px" }}>
-        <button
-          onClick={handleRemoveProperty}
-          className="payments-button"
-        >
-          Confirm Removal
-        </button>
-        <button
-          onClick={() => {
-            setRemovePropertyModalVisible(false);
-            setRemovePasskey("");
-            setPropertyToRemove("");
-          }}
-          className="payments-button"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                    {/* If user => show "Navigate" if lat/lng exist */}
+                    {role !== "admin" && prop.lat && prop.lng && (
+                      <button
+                        className="navigate-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openNativeMaps(prop.lat, prop.lng);
+                        }}
+                      >
+                        Navigate
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+
+            {/* Remove Property Modal (one combined) */}
+            {removePropertyModalVisible && (
+              <div className="modal-overlay">
+                <div className="modal">
+                  <h2>Remove Property</h2>
+                  <p>Select the property you wish to remove:</p>
+                  <select
+                    value={propertyToRemove}
+                    onChange={(e) => setPropertyToRemove(e.target.value)}
+                  >
+                    <option value="">-- Select Property --</option>
+                    {properties.map((prop) => (
+                      <option key={prop.name} value={prop.name}>
+                        {prop.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label style={{ marginTop: "1rem", display: "block" }}>
+                    Enter Removal Passkey:
+                    <input
+                      type="password"
+                      value={removePasskey}
+                      onChange={(e) => setRemovePasskey(e.target.value)}
+                    />
+                  </label>
+
+                  <div style={{ marginTop: "10px" }}>
+                    <button
+                      onClick={handleRemoveProperty}
+                      className="payments-button"
+                    >
+                      Confirm Removal
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRemovePropertyModalVisible(false);
+                        setRemovePasskey("");
+                        setPropertyToRemove("");
+                      }}
+                      className="payments-button"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Pagination Controls */}
             <div className="pagination-controls" style={{ marginTop: "1rem" }}>
@@ -869,22 +865,6 @@ function Dashboard({ setUser }) {
           </div>
         )}
 
-        {/* Passkey prompt for removing property */}
-        {removePasskeyPromptVisible && (
-          <div className="passkey-modal">
-            <h3>Enter passkey to remove property</h3>
-            <input
-              type="password"
-              value={removePasskey}
-              onChange={(e) => setRemovePasskey(e.target.value)}
-            />
-            <button onClick={handleRemoveProperty}>Confirm Removal</button>
-            <button onClick={() => setRemovePasskeyPromptVisible(false)}>
-              Cancel
-            </button>
-          </div>
-        )}
-
         {/* Show Add Property Form if passkey verified */}
         {addPropertyFormVisible && (
           <div className="add-property-form">
@@ -897,7 +877,6 @@ function Dashboard({ setUser }) {
                 onChange={(e) => setNewPropName(e.target.value)}
               />
             </label>
-
             <label>
               Emails (comma-separated):
               <textarea
@@ -905,8 +884,6 @@ function Dashboard({ setUser }) {
                 onChange={(e) => setNewPropEmails(e.target.value)}
               />
             </label>
-
-            {/* Let them type an address for geocoding */}
             <label>
               Address (will geocode):
               <input
@@ -918,13 +895,11 @@ function Dashboard({ setUser }) {
             <button onClick={handleGeocodeAddress} style={{ marginBottom: "1rem" }}>
               Geocode
             </button>
-
             <div style={{ marginBottom: "1rem" }}>
               <small>Lat: {newPropLat || "N/A"}</small>
               <br />
               <small>Lng: {newPropLng || "N/A"}</small>
             </div>
-
             <button onClick={handleCreateProperty}>Create</button>
             <button onClick={() => setAddPropertyFormVisible(false)}>Close</button>
           </div>
