@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import "./Payments.css";  // Import your CSS file
 
 function Payments() {
   const [users, setUsers] = useState([]);
@@ -12,7 +13,7 @@ function Payments() {
 
   const token = localStorage.getItem("token");
 
-  // 🚀 Function to get the current week's range (Sunday - Saturday)
+  // ===== Utility: Current Week Range =====
   function getCurrentWeekRange() {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday
@@ -31,42 +32,58 @@ function Payments() {
     setCurrentWeek(getCurrentWeekRange());
   }, []);
 
-  // 🚀 Fetch all users & their payment status
+  // ===== Fetch Users =====
   useEffect(() => {
     fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/users", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setUsers(data))
+      .then((data) => {
+        // Compute payment status based on lastPaidDate and start of week
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        const usersWithStatus = data.map((user) => {
+          if (user.lastPaidDate && new Date(user.lastPaidDate) >= startOfWeek) {
+            user.status = "PAID";
+          } else {
+            user.status = "Awaiting Payment";
+          }
+          return user;
+        });
+        setUsers(usersWithStatus);
+      })
       .catch((err) => console.error("Error fetching users:", err));
-  }, []);
+  }, [token]);
 
-  // 🚀 Fetch selected user's data
+  // ===== Fetch Selected User Data =====
   function fetchUserData(userId) {
     setSelectedUser(userId);
 
-    // ✅ Fetch submissions since last payment
+    // Fetch submissions since last payment
     fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/admin/user-submissions/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setSubmissions(data.count));
+      .then((data) => setSubmissions(data.count))
+      .catch((err) => console.error("Error fetching submissions:", err));
 
-    // ✅ Fetch miles since last payment
+    // Fetch miles since last payment
     fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/mileage/user/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setMileage(data.totalMiles));
+      .then((data) => setMileage(data.totalMiles))
+      .catch((err) => console.error("Error fetching mileage:", err));
   }
 
-  // ✅ Calculate Payment
+  // ===== Calculate Payment =====
   function calculatePayment() {
     const total = submissions * perSubmissionRate + mileage * perMileRate;
     setTotalPayment(total);
   }
 
-  // ✅ Log Payment & Reset Data
+  // ===== Log Payment & Reset Data =====
   function logPayment() {
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/admin/process-payment", {
       method: "POST",
@@ -82,79 +99,95 @@ function Payments() {
         perMileRate,
         totalPayment,
       }),
-    }).then(() => {
-      alert("Payment logged!");
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user._id === selectedUser ? { ...user, status: "PAID" } : user
-        )
-      );
-      setSubmissions(0);
-      setMileage(0);
-      setTotalPayment(null);
-    });
+    })
+      .then(() => {
+        alert("Payment logged!");
+        setUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user._id === selectedUser ? { ...user, status: "PAID" } : user
+          )
+        );
+        setSubmissions(0);
+        setMileage(0);
+        setTotalPayment(null);
+      })
+      .catch((err) => console.error("Error logging payment:", err));
   }
 
   return (
-    <div>
-      <h1>Payments 💰</h1>
-      <h2>Week: {currentWeek}</h2>
+    <div className="payments-container">
+      <h1 className="payments-header">Payments 💰</h1>
+      <h2 className="payments-subheader">Week: {currentWeek}</h2>
 
-      <table>
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr
-              key={user._id}
-              onClick={() => fetchUserData(user._id)}
-              style={{ cursor: "pointer" }}
-            >
-              <td>{user.username}</td>
-              <td
-                style={{
-                  color: user.status === "PAID" ? "green" : "blue",
-                  fontWeight: "bold",
-                }}
-              >
-                {user.status}
-              </td>
+      <div className="table-wrapper">
+        <table className="payments-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.map((user) => (
+              <tr
+                key={user._id}
+                onClick={() => fetchUserData(user._id)}
+                className="clickable-row"
+              >
+                <td>{user.username}</td>
+                <td className={user.status === "PAID" ? "status-paid" : "status-awaiting"}>
+                  {user.status}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {selectedUser && (
-        <>
-          <h3>Submissions: {submissions}</h3>
-          <h3>Miles Driven: {mileage}</h3>
+        <div className="payment-card">
+          <h3 className="card-title">Payment Details</h3>
+          <p>
+            <strong>Submissions:</strong> {submissions}
+          </p>
+          <p>
+            <strong>Miles Driven:</strong> {mileage}
+          </p>
 
-          <label>Per Submission Rate ($):</label>
-          <input
-            type="number"
-            value={perSubmissionRate}
-            onChange={(e) => setPerSubmissionRate(Number(e.target.value))}
-          />
+          <label>
+            Per Submission Rate ($):
+            <input
+              type="number"
+              value={perSubmissionRate}
+              onChange={(e) => setPerSubmissionRate(Number(e.target.value))}
+              className="payments-input"
+            />
+          </label>
 
-          <label>Per Mile Rate ($):</label>
-          <input
-            type="number"
-            value={perMileRate}
-            onChange={(e) => setPerMileRate(Number(e.target.value))}
-          />
+          <label>
+            Per Mile Rate ($):
+            <input
+              type="number"
+              value={perMileRate}
+              onChange={(e) => setPerMileRate(Number(e.target.value))}
+              className="payments-input"
+            />
+          </label>
 
-          <button onClick={calculatePayment}>Calculate Payment</button>
+          <button onClick={calculatePayment} className="payments-button">
+            Calculate Payment
+          </button>
 
           {totalPayment !== null && (
-            <h2>Total Payment: ${totalPayment.toFixed(2)}</h2>
+            <h2 className="total-payment">
+              Total Payment: ${totalPayment.toFixed(2)}
+            </h2>
           )}
 
-          <button onClick={logPayment}>Log Payment</button>
-        </>
+          <button onClick={logPayment} className="payments-button payments-success">
+            Log Payment
+          </button>
+        </div>
       )}
     </div>
   );

@@ -961,3 +961,104 @@ button:hover {
   white-space: nowrap; /* Prevents text from wrapping */
   font-weight: 500; /* Slightly lighter than bold */
 }
+/* Payments.css */
+.payments-container {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.payments-header {
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 1.8em;
+}
+
+.payments-subheader {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.payments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.payments-table th {
+  border-bottom: 2px solid #ddd;
+  padding: 10px;
+  text-align: left;
+  background-color: #f8f8f8;
+}
+
+.payments-table td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.status-paid {
+  color: green;
+  font-weight: bold;
+}
+
+.status-awaiting {
+  color: blue;
+  font-weight: bold;
+}
+
+.payment-card {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fdfdfd;
+}
+
+.card-title {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.payments-input {
+  padding: 8px;
+  margin: 5px 0 15px;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.payments-button {
+  padding: 10px 20px;
+  margin: 10px 5px;
+  background-color: #007BFF;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.payments-success {
+  background-color: #28a745;
+}
+
+.total-payment {
+  margin-top: 10px;
+  text-align: center;
+}
