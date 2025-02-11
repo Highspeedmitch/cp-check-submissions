@@ -33,7 +33,7 @@ function Dashboard({ setUser }) {
   const [mileageTracking, setMileageTracking] = useState(false);
   const [mileageCount, setMileageCount] = useState(null);
   const [lastLocation, setLastLocation] = useState(null);
-
+  const organizationId = localStorage.getItem("organizationId");
   // ----------- Paging -----------
   const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
@@ -404,10 +404,50 @@ function Dashboard({ setUser }) {
   function handlePrevPage() {
     if (canGoPrev) setPageIndex((prev) => prev - 1);
   }
+  async function startMileageTracking() {
+    if (!userId) {
+      console.error("⚠️ No userId found in localStorage. Cannot track mileage.");
+      return;
+    }
 
+    // We only call this if there's no existing doc, or
+    // we just want to ensure a doc exists in DB
+    try {
+      const res = await fetch(
+        "https://cp-check-submissions-dev-backend.onrender.com/api/mileage/start",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            userId,          // CHANGED: include userId
+            organizationId   // optional if your route requires it
+          })
+        }
+      );
+      const data = await res.json();
+      if (!data.success) {
+        console.warn("⚠️ Could not start mileage tracking:", data.error);
+      } else {
+        console.log("✅ Mileage tracking started:", data.mileageRecord);
+      }
+    } catch (error) {
+      console.error("Error starting mileage tracking:", error);
+    }
+  }
   // ======================
   // 9) Mileage Tracking
   // ======================
+  function handleMileageToggle() {
+    // If toggling from OFF to ON, call start
+    if (!mileageTracking) {
+      startMileageTracking();
+    }
+    setMileageTracking(!mileageTracking);
+  }
+ 
   useEffect(() => {
     let interval;
     if (mileageTracking) {
@@ -427,18 +467,21 @@ function Dashboard({ setUser }) {
                   setMileageCount((prev) =>
                     prev !== null ? prev + distance : distance
                   );
-                  // Send update to backend
+                  // Send update to backend, including userId
                   fetch(
                     "https://cp-check-submissions-dev-backend.onrender.com/api/mileage/update",
                     {
                       method: "POST",
                       headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                        Authorization: `Bearer ${token}`
                       },
-                      body: JSON.stringify({ miles: distance }),
+                      body: JSON.stringify({
+                        userId, // CHANGED: pass userId
+                        miles: distance
+                      })
                     }
-                  );
+                  ).catch((err) => console.error("Mileage update error:", err));
                 }
               }
               setLastLocation({ latitude, longitude });
@@ -450,8 +493,9 @@ function Dashboard({ setUser }) {
       }, 30000);
     }
     return () => clearInterval(interval);
-  }, [mileageTracking, lastLocation]);
+  }, [mileageTracking, lastLocation, token, userId]);
 
+  // Helper to calculate distance
   function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 3958.8; // miles
     const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -465,7 +509,7 @@ function Dashboard({ setUser }) {
     return R * c;
   }
 
-  // Reset mileage on component mount
+  // On mount, reset states
   useEffect(() => {
     setMileageTracking(false);
     setMileageCount(null);
@@ -569,7 +613,7 @@ function Dashboard({ setUser }) {
                   <input
                     type="checkbox"
                     checked={mileageTracking}
-                    onChange={() => setMileageTracking((prev) => !prev)}
+                    onChange={handleMileageToggle}
                   />
                   <span className="slider"></span>
                 </label>
