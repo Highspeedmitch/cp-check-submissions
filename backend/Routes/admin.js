@@ -6,7 +6,7 @@ const MileageTracking = require("../models/mileageTracking");
 const Payment = require("../models/Payment");
 
 // ✅ Get all users & their payment status
-router.get("/users", authenticateToken, async (req, res) => {
+router.get("/users", async (req, res) => {
     try {
       const adminOrgId = req.user.organizationId;
       // Get only non-admin users from the admin's organization
