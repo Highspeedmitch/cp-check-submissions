@@ -1,6 +1,6 @@
 // Dashboard.js
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
@@ -27,19 +27,18 @@ function openNativeMaps(lat, lng) {
 }
 
 function Dashboard({ setUser }) {
-  //const { propertyId } = useParams();
   const navigate = useNavigate();
 
- // 🚗 New states for mileage tracking
- const [mileageTracking, setMileageTracking] = useState(false);
- const [mileageCount, setMileageCount] = useState(null); // Null to start blank
- const [lastLocation, setLastLocation] = useState(null);
+  // 🚗 Mileage states
+  const [mileageTracking, setMileageTracking] = useState(false);
+  const [mileageCount, setMileageCount] = useState(null);
+  const [lastLocation, setLastLocation] = useState(null);
 
-  // ----------- Paging -----------  
+  // ----------- Paging -----------
   const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
 
-  // ----------- States for properties, loading, etc. ----------
+  // ----------- States for properties, loading, etc. -----------
   const [properties, setProperties] = useState([]);
   const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,11 +54,12 @@ function Dashboard({ setUser }) {
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
+  const adminOrgType = localStorage.getItem("orgType") || "COM"; // <-- Track orgType
   const [loginTime] = useState(
     () => localStorage.getItem("loginTime") || new Date().toISOString()
   );
 
-  // ----------- States for "Add Property" Admin Flow -----------
+  // ----------- "Add Property" Admin Flow -----------
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
   const [passkey, setPasskey] = useState("");
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
@@ -69,19 +69,19 @@ function Dashboard({ setUser }) {
   const [newPropLng, setNewPropLng] = useState("");
   const [newPropAddress, setNewPropAddress] = useState("");
 
-  // ----------- States for "Remove Property" Admin Flow -----------
-  const [removePasskeyPromptVisible, setRemovePasskeyPromptVisible] = useState(false);
+  // ----------- "Remove Property" Admin Flow -----------
+  const [removePasskeyPromptVisible, setRemovePasskeyPromptVisible] =
+    useState(false);
   const [removePasskey, setRemovePasskey] = useState("");
   const [propertyToRemove, setPropertyToRemove] = useState(null);
 
-  // ------------ State for 'setViewScheduler' Admin Flow -----------
+  // ------------ Scheduler Flow -----------
   const [viewScheduler, setViewScheduler] = useState(false);
   const [assignments, setAssignments] = useState([]);
 
-  //------------- Modal injection -----------------
+  // ------------- STR user modal -------------
   const [showModal, setShowModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState("");
-
 
   // ======================
   // 1) Apply dark mode on load
@@ -111,10 +111,13 @@ function Dashboard({ setUser }) {
 
   function fetchProperties() {
     setLoading(true);
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(
+      "https://cp-check-submissions-dev-backend.onrender.com/api/properties",
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    )
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
@@ -136,36 +139,28 @@ function Dashboard({ setUser }) {
     if (role !== "admin") {
       fetchUserAssignments();
     }
-  }, [role, token]);  
+  }, [role, token]);
 
   function fetchUserAssignments() {
     if (!token) return;
-    
     const userId = localStorage.getItem("userId");
     if (!userId) {
       console.error("⚠️ No userId found in localStorage!");
       return;
     }
-  
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log("📌 API Response:", data);
-  
         if (!Array.isArray(data)) {
           console.error("❌ Invalid API response. Expected an array.");
           return;
         }
-  
-        const userAssignments = data.filter((assignment) => assignment.userId === userId);
-        
-        if (userAssignments.length === 0) {
-          console.warn("⚠️ No assignments found for user:", userId);
-        }
-  
+        const userAssignments = data.filter(
+          (assignment) => assignment.userId === userId
+        );
         setAssignments(userAssignments);
       })
       .catch((err) => console.error("Error fetching assignments:", err));
@@ -174,10 +169,13 @@ function Dashboard({ setUser }) {
   // Fetch submissions to mark completed properties (for user role)
   useEffect(() => {
     if (role === "user" && token && !isTokenExpired(token)) {
-      fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      fetch(
+        "https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions",
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
         .then((res) => res.json())
         .then((data) => {
           const completed = Array.from(
@@ -203,7 +201,6 @@ function Dashboard({ setUser }) {
 
   async function handleRemoveProperty() {
     if (!propertyToRemove) return;
-
     try {
       // Verify the passkey for removal
       const verifyResponse = await fetch(
@@ -223,7 +220,9 @@ function Dashboard({ setUser }) {
 
       // If passkey is valid, proceed with deletion
       const deleteResponse = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(propertyToRemove)}`,
+        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(
+          propertyToRemove
+        )}`,
         {
           method: "DELETE",
           headers: {
@@ -287,14 +286,13 @@ function Dashboard({ setUser }) {
   }, [viewScheduler, token]);
 
   // ======================
-  // 5) Geocode address -> lat/lng using Mapbox (for adding property)
+  // 5) Geocode address (Mapbox)
   // ======================
   async function handleGeocodeAddress(e) {
     e.preventDefault();
     if (!newPropAddress) {
       return alert("Please enter an address to geocode.");
     }
-
     // Replace with your actual Mapbox token
     const mapboxToken =
       "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
@@ -304,7 +302,6 @@ function Dashboard({ setUser }) {
     try {
       const res = await fetch(url);
       const data = await res.json();
-
       if (data.features && data.features.length > 0) {
         const [lng, lat] = data.features[0].center;
         setNewPropLat(lat.toString());
@@ -320,7 +317,7 @@ function Dashboard({ setUser }) {
   }
 
   // ======================
-  // 6) Submit new property to the server (admin only)
+  // 6) Submit new property (admin only)
   // ======================
   const handleCreateProperty = async () => {
     try {
@@ -328,7 +325,7 @@ function Dashboard({ setUser }) {
         .split(",")
         .map((email) => email.trim())
         .filter(Boolean);
-  
+
       const response = await fetch(
         "https://cp-check-submissions-dev-backend.onrender.com/api/admin/add-property",
         {
@@ -346,20 +343,17 @@ function Dashboard({ setUser }) {
           }),
         }
       );
-  
+
       const data = await response.json();
       if (data.error) {
         alert(data.error);
       } else {
         alert("Property added successfully!");
-  
-        // ✅ Check if the user belongs to an STR organization
-        const orgType = localStorage.getItem("orgType") || "COM"; // Default to COM
-        if (orgType === "STR") {
-          // Use newPropName (encoded) as the parameter in the URL
+        // If STR org, navigate to edit-property route
+        if (adminOrgType === "STR") {
           navigate(`/admin/edit-property/${encodeURIComponent(newPropName)}`);
         } else {
-          // ✅ Keep existing functionality for non-STR users
+          // Otherwise, just refresh & close
           setAddPropertyFormVisible(false);
           setNewPropName("");
           setNewPropEmails("");
@@ -372,7 +366,7 @@ function Dashboard({ setUser }) {
     } catch (error) {
       console.error("Error creating property:", error);
     }
-  };  
+  };
 
   // ======================
   // 7) Sidebar toggling, logout, etc.
@@ -382,21 +376,18 @@ function Dashboard({ setUser }) {
   };
 
   const handleLogout = () => {
-    console.log("🔹 Logging out... Clearing session data.");
     localStorage.clear();
     if (setUser) setUser(false);
     navigate("/login");
   };
 
   // ======================
-  // 8) Sorted Properties & Paging Logic
+  // 8) Sorted Properties & Paging
   // ======================
-  // Compute sortedProperties:
   const assignedPropertyNames = assignments
-    .filter(a => a.userId === localStorage.getItem("userId"))
-    .map(a => a.propertyName);
+    .filter((a) => a.userId === localStorage.getItem("userId"))
+    .map((a) => a.propertyName);
 
-  // Sort properties so that those with assignments come first.
   const sortedProperties = properties.slice().sort((a, b) => {
     const aAssigned = assignedPropertyNames.includes(a.name);
     const bAssigned = assignedPropertyNames.includes(b.name);
@@ -409,7 +400,6 @@ function Dashboard({ setUser }) {
     pageIndex * PAGE_SIZE,
     pageIndex * PAGE_SIZE + PAGE_SIZE
   );
-
   const canGoPrev = pageIndex > 0;
   const canGoNext = pageIndex < totalPages - 1;
 
@@ -422,24 +412,16 @@ function Dashboard({ setUser }) {
   }
 
   // ======================
-  // 9) Fetch user assignments function (defined above)
+  // 9) Mileage Tracking
   // ======================
-  // (Already defined in fetchUserAssignments)
-
-  // ======================
-  // RENDER
-  // ======================
-   // 🚀 Track mileage every 30 seconds when enabled
-   useEffect(() => {
+  useEffect(() => {
     let interval;
-    
     if (mileageTracking) {
       interval = setInterval(() => {
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
               const { latitude, longitude } = position.coords;
-  
               if (lastLocation) {
                 const distance = calculateDistance(
                   lastLocation.latitude,
@@ -447,23 +429,24 @@ function Dashboard({ setUser }) {
                   latitude,
                   longitude
                 );
-  
-                if (distance > 0.05) { // ✅ Only update if moved at least 0.05 miles
-                  setMileageCount((prev) => (prev !== null ? prev + distance : distance));
-  
-                  // ✅ Send Update to Backend
-                  fetch("https://cp-check-submissions-dev-backend.onrender.com/api/mileage/update", {
-                    method: "POST",
-                    headers: { 
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${localStorage.getItem("token")}`
-                    },
-                    body: JSON.stringify({ miles: distance }),
-                  });
+                if (distance > 0.05) {
+                  setMileageCount((prev) =>
+                    prev !== null ? prev + distance : distance
+                  );
+                  // Send update to backend
+                  fetch(
+                    "https://cp-check-submissions-dev-backend.onrender.com/api/mileage/update",
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                      },
+                      body: JSON.stringify({ miles: distance }),
+                    }
+                  );
                 }
               }
-  
-              // ✅ Update last known location
               setLastLocation({ latitude, longitude });
             },
             (error) => console.error("GPS error:", error),
@@ -472,197 +455,242 @@ function Dashboard({ setUser }) {
         }
       }, 30000);
     }
-  
     return () => clearInterval(interval);
   }, [mileageTracking, lastLocation]);
-  
-  // Function to calculate distance between two GPS coordinates
+
   function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 3958.8; // Radius of Earth in miles
+    const R = 3958.8; // miles
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-  
     const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLat / 2) ** 2 +
       Math.cos(lat1 * (Math.PI / 180)) *
         Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    
+        Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
-  // 🔄 Reset on new session (login/logout)
+  // Reset mileage on component mount
   useEffect(() => {
-    setMileageTracking(false); // Toggle defaults to OFF
-    setMileageCount(null); // Reset mileage to blank
+    setMileageTracking(false);
+    setMileageCount(null);
   }, []);
+
+  // ======================
+  // RENDER
+  // ======================
   return (
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-  <button className="sidebar-toggle" onClick={toggleSidebar}>
-    {sidebarCollapsed ? "☰" : "×"}
-  </button>
+        <button className="sidebar-toggle" onClick={toggleSidebar}>
+          {sidebarCollapsed ? "☰" : "×"}
+        </button>
 
-  {!sidebarCollapsed && (
-    <>
-      <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
-      <ul>
-        {displayedProperties.map((prop) => (
-          <li
-            key={prop.name}
-            className={completedProperties.includes(prop.name) ? "completed" : ""}
-            onClick={() => {
-              if (role === "admin") {
-                navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-              } else {
-                switch (prop.orgType) { // ✅ Use orgType from API, NOT localStorage
-                  case "COM":
-                    navigate(`/commercial-form/${encodeURIComponent(prop.name)}`);
-                    break;
-                  case "RES":
-                    navigate(`/residential-form/${encodeURIComponent(prop.name)}`);
-                    break;
-                  case "LTR":
-                    navigate(`/long-term-rental-form/${encodeURIComponent(prop.name)}`);
-                    break;
-                  case "STR":
-                    navigate(`/short-term-rental-form/${encodeURIComponent(prop.name)}`);
-                    break;
-                  default:
-                    navigate(`/commercial-form/${encodeURIComponent(prop.name)}`); // Default fallback
-                }
-              }
-            }}
-          >
-            {prop.name}
-          </li>
-        ))}
-      </ul>
-
-      {/* New section for My assignments */}
-      {role !== "admin" && (
-        <div className="assignments-section">
-          <h3>My assignments</h3>
-          {assignments.length === 0 ? (
-            <p>No assignments yet.</p>
-          ) : (
+        {!sidebarCollapsed && (
+          <>
+            <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
             <ul>
-              {assignments.map((assignment) => (
-                <li key={assignment._id}>
-                  {assignment.propertyName} -{" "}
-                  {new Date(assignment.startDate).toLocaleDateString()}
+              {displayedProperties.map((prop) => (
+                <li
+                  key={prop.name}
+                  className={
+                    completedProperties.includes(prop.name) ? "completed" : ""
+                  }
+                  onClick={() => {
+                    if (role === "admin") {
+                      // CHANGE HERE: Decide route based on STR or not
+                      if (adminOrgType === "STR") {
+                        // STR admin => go to access instructions (editable)
+                        navigate(
+                          `/access-instructions/${encodeURIComponent(prop.name)}`
+                        );
+                      } else {
+                        // Non-STR => submissions
+                        navigate(
+                          `/admin/submissions/${encodeURIComponent(prop.name)}`
+                        );
+                      }
+                    } else {
+                      // Non-admin user => forms or modal
+                      switch (prop.orgType) {
+                        case "COM":
+                          navigate(
+                            `/commercial-form/${encodeURIComponent(prop.name)}`
+                          );
+                          break;
+                        case "RES":
+                          navigate(
+                            `/residential-form/${encodeURIComponent(prop.name)}`
+                          );
+                          break;
+                        case "LTR":
+                          navigate(
+                            `/long-term-rental-form/${encodeURIComponent(
+                              prop.name
+                            )}`
+                          );
+                          break;
+                        case "STR":
+                          // Show the STR modal (with read-only Access Instructions)
+                          setSelectedProperty(prop.name);
+                          setShowModal(true);
+                          break;
+                        default:
+                          navigate(
+                            `/commercial-form/${encodeURIComponent(prop.name)}`
+                          );
+                      }
+                    }
+                  }}
+                >
+                  {prop.name}
                 </li>
               ))}
             </ul>
-          )}
-        </div>
-      )}
-              {/* 🚗 Mileage Tracking Toggle (For Non-Admins) */}
-        {role !== "admin" && (
-          <div className="mileage-tracking-toggle">
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={mileageTracking}
-                onChange={() => setMileageTracking((prev) => !prev)}
-              />
-              <span className="slider"></span>
-            </label>
-            <span className="toggle-label">
-              {mileageTracking ? `🚗 ${mileageCount ? mileageCount.toFixed(1) : "0"} mi` : "🚦 Off"}
-            </span>
+
+            {/* My assignments (non-admin users) */}
+            {role !== "admin" && (
+              <div className="assignments-section">
+                <h3>My assignments</h3>
+                {assignments.length === 0 ? (
+                  <p>No assignments yet.</p>
+                ) : (
+                  <ul>
+                    {assignments.map((assignment) => (
+                      <li key={assignment._id}>
+                        {assignment.propertyName} -{" "}
+                        {new Date(assignment.startDate).toLocaleDateString()}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {/* Mileage toggle (non-admin only) */}
+            {role !== "admin" && (
+              <div className="mileage-tracking-toggle">
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={mileageTracking}
+                    onChange={() => setMileageTracking((prev) => !prev)}
+                  />
+                  <span className="slider"></span>
+                </label>
+                <span className="toggle-label">
+                  {mileageTracking
+                    ? `🚗 ${mileageCount ? mileageCount.toFixed(1) : "0"} mi`
+                    : "🚦 Off"}
+                </span>
+              </div>
+            )}
+
+            {/* Dark mode */}
+            <div className="dark-mode-toggle">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={darkMode}
+                  onChange={() => setDarkMode((prev) => !prev)}
+                />
+                <span className="slider"></span>
+              </label>
+              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
+            </div>
+
+            {/* Admin Tools */}
+            {role === "admin" && (
+              <div className="tools-section" style={{ marginBottom: "-10px" }}>
+                <h3>Admin Tools</h3>
+
+                <button
+                  className="Admin-tools-primary"
+                  onClick={() => {
+                    setPasskeyPromptVisible(true);
+                    setPasskey("");
+                  }}
+                >
+                  + Property
+                </button>
+
+                {/* CHANGE HERE: Show "- Property" only if STR Admin */}
+                {adminOrgType === "STR" && (
+                  <button
+                    className="Admin-tools-primary"
+                    onClick={() => {
+                      setRemovePasskeyPromptVisible(true);
+                    }}
+                  >
+                    - Property
+                  </button>
+                )}
+
+                <button
+                  className="Admin-tools-adtl"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/scheduler", { state: { token } });
+                  }}
+                >
+                  Scheduler
+                </button>
+
+                <button
+                  className="Admin-tools-adtl"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/payments", { state: { token } });
+                  }}
+                >
+                  Payments
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* STR user modal (read-only access instructions) */}
+        {showModal && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <h2>Select an Action</h2>
+              <p>
+                What would you like to do for <strong>{selectedProperty}</strong>?
+              </p>
+              <button
+                className="modal-btn"
+                onClick={() => {
+                  // For normal user in STR org => read-only instructions
+                  // (In your AccessInstructions component, check role === 'user' to disable edits)
+                  navigate(
+                    `/access-instructions/${encodeURIComponent(selectedProperty)}`
+                  );
+                  setShowModal(false);
+                }}
+              >
+                Access Instructions
+              </button>
+              <button
+                className="modal-btn"
+                onClick={() => {
+                  navigate(
+                    `/short-term-rental-form/${encodeURIComponent(selectedProperty)}`
+                  );
+                  setShowModal(false);
+                }}
+              >
+                Submit Form
+              </button>
+              <button className="modal-close" onClick={() => setShowModal(false)}>
+                Cancel
+              </button>
+            </div>
           </div>
         )}
-      {/* Dark Mode Toggle */}
-      <div className="dark-mode-toggle">
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={darkMode}
-            onChange={() => setDarkMode((prev) => !prev)}
-          />
-          <span className="slider"></span>
-        </label>
-        <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
       </div>
-
-      {/* Tools for Admin */}
-{role === "admin" && (
-  <div className="tools-section" style={{ marginBottom: "-10px" }}>
-    <h3>Admin Tools</h3>
-    
-    <button
-      className="Admin-tools-primary"
-      onClick={() => {
-        setPasskeyPromptVisible(true);
-        setPasskey("");
-      }}
-    >
-      + Property
-    </button>
-    
-    <button
-      className="Admin-tools-adtl"
-      onClick={(e) => {
-        e.preventDefault();
-        navigate("/scheduler", { state: { token } });
-      }}
-    >
-      Scheduler
-    </button>
-
-    <button
-      className="Admin-tools-adtl"
-      onClick={(e) => {
-        e.preventDefault();
-        navigate("/payments", { state: { token } });
-      }}
-    >
-      Payments
-    </button>
-  </div>
-)}
-    </>
-  )}
-
-  {/* STR Property Selection Modal */}
-  {showModal && (
-    <div className="modal-overlay">
-      <div className="modal">
-        <h2>Select an Action</h2>
-        <p>What would you like to do for <strong>{selectedProperty}</strong>?</p>
-
-        <button
-          className="modal-btn"
-          onClick={() => {
-            navigate(`/access-instructions/${encodeURIComponent(selectedProperty)}`);
-            setShowModal(false);
-          }}
-        >
-          Access Instructions
-        </button>
-        <button
-          className="modal-btn"
-          onClick={() => {
-            navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}`);
-            setShowModal(false);
-          }}
-        >
-          Submit Form
-        </button>
-        <button
-          className="modal-close"
-          onClick={() => setShowModal(false)}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  )}
-</div>
 
       {/* Main Content */}
       <div className="main-content">
@@ -682,85 +710,82 @@ function Dashboard({ setUser }) {
           <>
             {/* Property Cards */}
             <div className="property-cards">
-            {displayedProperties.map((prop) => {
-  console.log(`Rendering: ${prop.name}, orgType: ${prop.orgType}`); // Debugging log
+              {displayedProperties.map((prop) => {
+                const orgType = prop.orgType || "COM";
+                const isCompleted = completedProperties.includes(prop.name);
 
-  // ✅ Use `prop.orgType` from the API response, NOT localStorage
-  const orgType = prop.orgType || "COM";  
-  let formRoute = "/form"; // Default to commercial
+                return (
+                  <div
+                    key={prop.name}
+                    className={`property-card ${isCompleted ? "completed-tile" : ""}`}
+                    onClick={() => {
+                      if (role === "admin") {
+                        // CHANGE HERE: STR admin => access instructions; else => submissions
+                        if (adminOrgType === "STR") {
+                          navigate(
+                            `/access-instructions/${encodeURIComponent(prop.name)}`
+                          );
+                        } else {
+                          navigate(
+                            `/admin/submissions/${encodeURIComponent(prop.name)}`
+                          );
+                        }
+                      } else {
+                        // Non-admin user => forms or the STR modal
+                        if (orgType === "STR") {
+                          setSelectedProperty(prop.name);
+                          setShowModal(true);
+                        } else {
+                          // For non-STR, direct to relevant form
+                          let formRoute = "/commercial-form";
+                          if (orgType === "LTR") formRoute = "/long-term-rental-form";
+                          if (orgType === "RES") formRoute = "/residential-form";
+                          navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+                        }
+                      }
+                    }}
+                  >
+                    <h3>{prop.name}</h3>
+                    <p>
+                      {role === "admin" ? (
+                        adminOrgType === "STR"
+                          ? "Access Instructions" // CHANGE HERE
+                          : "View Recent Submissions"
+                      ) : isCompleted ? (
+                        "Completed"
+                      ) : (
+                        "Click to complete checklist"
+                      )}
+                    </p>
 
-  // ✅ Ensure correct form route
-  if (orgType === "LTR") {
-    formRoute = "/long-term-rental";
-  } else if (orgType === "RES") {
-    formRoute = "/residential";
-  } else if (orgType === "STR") {
-    formRoute = "/short-term-rental";
-  }
+                    {/* CHANGE HERE: show "Remove" only if admin & NOT an STR admin */}
+                    {role === "admin" && adminOrgType !== "STR" && (
+                      <button
+                        className="remove-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          initiateRemoveProperty(prop.name);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
 
-  console.log(`🚀 Calculated formRoute: ${formRoute} for ${prop.name}`);
-
-  return (
-    <div
-  key={prop.name}
-  className={`property-card ${
-    completedProperties.includes(prop.name) ? "completed-tile" : ""
-  }`}
-  onClick={() => {
-    if (role === "admin") {
-      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-    } else {
-      const orgType = prop.orgType || "COM"; // Ensure orgType is used correctly
-
-      if (orgType === "STR") {
-        // ✅ Trigger modal for STR users
-        setSelectedProperty(prop.name);
-        setShowModal(true);
-      } else {
-        // ✅ Navigate directly for non-STR users
-        console.log(`Navigating to: ${formRoute}/${encodeURIComponent(prop.name)}`);
-        navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
-      }
-    }
-  }}
->
-  <h3>{prop.name}</h3>
-  <p>
-    {role === "admin"
-      ? "Click to view recent submissions"
-      : completedProperties.includes(prop.name)
-      ? "Completed"
-      : "Click to complete checklist"}
-  </p>
-
-  {/* If admin, show "Remove" button */}
-  {role === "admin" && (
-    <button
-      className="remove-button"
-      onClick={(e) => {
-        e.stopPropagation();
-        initiateRemoveProperty(prop.name);
-      }}
-    >
-      Remove
-    </button>
-  )}
-
-  {/* If user, show "Navigate" button (assuming lat/lng exist) */}
-  {role !== "admin" && prop.lat && prop.lng && (
-    <button
-      className="navigate-button"
-      onClick={(e) => {
-        e.stopPropagation();
-        openNativeMaps(prop.lat, prop.lng);
-      }}
-    >
-      Navigate
-    </button>
-  )}
-</div>
-  );
-})}
+                    {/* If user, show "Navigate" (assuming lat/lng) */}
+                    {role !== "admin" && prop.lat && prop.lng && (
+                      <button
+                        className="navigate-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openNativeMaps(prop.lat, prop.lng);
+                        }}
+                      >
+                        Navigate
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Pagination Controls */}
@@ -799,7 +824,9 @@ function Dashboard({ setUser }) {
               onChange={(e) => setRemovePasskey(e.target.value)}
             />
             <button onClick={handleRemoveProperty}>Confirm Removal</button>
-            <button onClick={() => setRemovePasskeyPromptVisible(false)}>Cancel</button>
+            <button onClick={() => setRemovePasskeyPromptVisible(false)}>
+              Cancel
+            </button>
           </div>
         )}
 
@@ -807,7 +834,6 @@ function Dashboard({ setUser }) {
         {addPropertyFormVisible && (
           <div className="add-property-form">
             <h3>Add New Property</h3>
-
             <label>
               Property Name:
               <input
@@ -825,7 +851,7 @@ function Dashboard({ setUser }) {
               />
             </label>
 
-            {/* Instead of direct lat/lng input, let them type an address */}
+            {/* Let them type an address for geocoding */}
             <label>
               Address (will geocode):
               <input
@@ -838,7 +864,6 @@ function Dashboard({ setUser }) {
               Geocode
             </button>
 
-            {/* Show geocoded lat/lng, but keep them read-only for the admin */}
             <div style={{ marginBottom: "1rem" }}>
               <small>Lat: {newPropLat || "N/A"}</small>
               <br />
