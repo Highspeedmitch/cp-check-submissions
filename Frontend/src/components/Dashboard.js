@@ -25,32 +25,35 @@ function openNativeMaps(lat, lng) {
 function Dashboard({ setUser }) {
   const navigate = useNavigate();
 
-  // Mileage tracking states
+  // Retrieve organization type from localStorage
+  const adminOrgType = localStorage.getItem("orgType") || "COM";
+
+  // 🚗 Mileage tracking states
   const [mileageTracking, setMileageTracking] = useState(false);
   const [mileageCount, setMileageCount] = useState(null);
   const [lastLocation, setLastLocation] = useState(null);
 
-  // Paging
+  // ----------- Paging -----------  
   const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
 
-  // Properties and assignments
+  // ----------- States for properties, loading, etc. ----------
   const [properties, setProperties] = useState([]);
   const [completedProperties, setCompletedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Dark mode
+  // ----------- Dark Mode -----------  
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
 
-  // Auth / Org Info
+  // ----------- Auth / Org Info -----------  
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
   const [loginTime] = useState(() => localStorage.getItem("loginTime") || new Date().toISOString());
 
-  // Admin property management states
+  // ----------- States for "Add Property" Admin Flow -----------  
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
   const [passkey, setPasskey] = useState("");
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
@@ -60,25 +63,36 @@ function Dashboard({ setUser }) {
   const [newPropLng, setNewPropLng] = useState("");
   const [newPropAddress, setNewPropAddress] = useState("");
 
-  // Remove property modal states (for admin removal; only for STR admins)
+  // ----------- States for "Remove Property" Admin Flow -----------  
   const [removePropertyModalVisible, setRemovePropertyModalVisible] = useState(false);
   const [removePasskey, setRemovePasskey] = useState("");
   const [propertyToRemove, setPropertyToRemove] = useState("");
 
-  // Scheduler assignments
+  // ------------ State for 'setViewScheduler' Admin Flow -----------  
   const [viewScheduler, setViewScheduler] = useState(false);
   const [assignments, setAssignments] = useState([]);
 
-  // Modal for STR users (for Submit Form/Access Instructions)
+  // ------------- Modal injection for STR users -----------------  
   const [showModal, setShowModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState("");
 
-  // Current week state
+  // ======================
+  // 10) Current Week Calculation
   const [currentWeek, setCurrentWeek] = useState("");
+  useEffect(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    const formatDate = (date) =>
+      `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+    setCurrentWeek(`${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`);
+  }, []);
 
   // ======================
   // 1) Apply dark mode on load
-  // ======================
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) {
@@ -90,8 +104,7 @@ function Dashboard({ setUser }) {
   }, [darkMode]);
 
   // ======================
-  // 2) Fetch properties
-  // ======================
+  // 2) Fetch properties & submissions
   useEffect(() => {
     if (!token || isTokenExpired(token)) {
       localStorage.clear();
@@ -124,7 +137,7 @@ function Dashboard({ setUser }) {
       });
   }
 
-  // Fetch assignments for non-admin users
+  // Fetch user assignments for non-admin users
   useEffect(() => {
     if (role !== "admin") {
       fetchUserAssignments();
@@ -153,7 +166,7 @@ function Dashboard({ setUser }) {
       .catch((err) => console.error("Error fetching assignments:", err));
   }
 
-  // Fetch submissions for marking completed properties (for non-admin users)
+  // Fetch submissions to mark completed properties (for user role)
   useEffect(() => {
     if (role === "user" && token && !isTokenExpired(token)) {
       fetch("https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions", {
@@ -175,11 +188,11 @@ function Dashboard({ setUser }) {
   }, [role, token, loginTime]);
 
   // ======================
-  // 3) Remove Property Logic (moved to admin sidebar)
+  // 3) Remove Property Logic (handled via admin sidebar modal)
   async function handleRemoveProperty() {
     if (!propertyToRemove) return;
     try {
-      // Verify the removal passkey
+      // Verify removal passkey
       const verifyResponse = await fetch(
         "https://cp-check-submissions-dev-backend.onrender.com/api/verify-remove-passkey",
         {
@@ -294,8 +307,7 @@ function Dashboard({ setUser }) {
         alert(data.error);
       } else {
         alert("Property added successfully!");
-        const orgType = localStorage.getItem("orgType") || "COM";
-        if (orgType === "STR") {
+        if (adminOrgType === "STR") {
           navigate(`/admin/edit-property/${encodeURIComponent(newPropName)}`);
         } else {
           setAddPropertyFormVisible(false);
@@ -317,7 +329,6 @@ function Dashboard({ setUser }) {
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);
   };
-
   const handleLogout = () => {
     console.log("🔹 Logging out... Clearing session data.");
     localStorage.clear();
@@ -388,12 +399,12 @@ function Dashboard({ setUser }) {
   }, [mileageTracking, lastLocation]);
 
   function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 3958.8; // Radius of Earth in miles
+    const R = 3958.8;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) ** 2;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+              Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -401,20 +412,6 @@ function Dashboard({ setUser }) {
   useEffect(() => {
     setMileageTracking(false);
     setMileageCount(null);
-  }, []);
-
-  // ======================
-  // 10) Current Week Calculation
-  useEffect(() => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - dayOfWeek);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    const formatDate = (date) =>
-      `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-    setCurrentWeek(`${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`);
   }, []);
 
   return (
@@ -434,15 +431,14 @@ function Dashboard({ setUser }) {
                   className={completedProperties.includes(prop.name) ? "completed" : ""}
                   onClick={() => {
                     if (role === "admin") {
-                      if (localStorage.getItem("orgType") === "STR") {
-                        // For STR admins, navigate to access instructions
+                      if (adminOrgType === "STR") {
+                        // For STR admins, property card click navigates to access instructions
                         navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
                       } else {
-                        // For non-STR admins, default to admin submissions
+                        // For non-STR admins, navigate to recent submissions
                         navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                       }
                     } else {
-                      // For non-admin users, use existing logic
                       switch (prop.orgType) {
                         case "COM":
                           navigate(`/commercial-form/${encodeURIComponent(prop.name)}`);
@@ -465,11 +461,9 @@ function Dashboard({ setUser }) {
                 >
                   <h3>{prop.name}</h3>
                   <p>
-                    {role === "admin"
-                      ? "Click to access instructions"
-                      : completedProperties.includes(prop.name)
-                      ? "Completed"
-                      : "Click to complete checklist"}
+                    {role === "admin" 
+                      ? (adminOrgType === "STR" ? "access instructions" : "view recent submissions")
+                      : (completedProperties.includes(prop.name) ? "Completed" : "Click to complete checklist")}
                   </p>
                   {role !== "admin" && prop.lat && prop.lng && (
                     <button
@@ -494,8 +488,7 @@ function Dashboard({ setUser }) {
                   <ul>
                     {assignments.map((assignment) => (
                       <li key={assignment._id}>
-                        {assignment.propertyName} -{" "}
-                        {new Date(assignment.startDate).toLocaleDateString()}
+                        {assignment.propertyName} - {new Date(assignment.startDate).toLocaleDateString()}
                       </li>
                     ))}
                   </ul>
@@ -513,9 +506,7 @@ function Dashboard({ setUser }) {
                   <span className="slider"></span>
                 </label>
                 <span className="toggle-label">
-                  {mileageTracking
-                    ? `🚗 ${mileageCount ? mileageCount.toFixed(1) : "0"} mi`
-                    : "🚦 Off"}
+                  {mileageTracking ? `🚗 ${mileageCount ? mileageCount.toFixed(1) : "0"} mi` : "🚦 Off"}
                 </span>
               </div>
             )}
@@ -672,14 +663,15 @@ function Dashboard({ setUser }) {
                 return (
                   <div
                     key={prop.name}
-                    className={`property-card ${
-                      completedProperties.includes(prop.name) ? "completed-tile" : ""
-                    }`}
+                    className={`property-card ${completedProperties.includes(prop.name) ? "completed-tile" : ""}`}
                     onClick={() => {
                       if (role === "admin") {
-                        if (localStorage.getItem("orgType") === "STR") {
-                          navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
+                        if (adminOrgType === "STR") {
+                          // For STR admins, clicking the card navigates to access instructions,
+                          // but the displayed text will be "view recent submissions"
+                          navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                         } else {
+                          // For non-STR admins, navigate to recent submissions
                           navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                         }
                       } else {
@@ -706,10 +698,8 @@ function Dashboard({ setUser }) {
                     <h3>{prop.name}</h3>
                     <p>
                       {role === "admin"
-                        ? "Click to access instructions"
-                        : completedProperties.includes(prop.name)
-                        ? "Completed"
-                        : "Click to complete checklist"}
+                        ? (adminOrgType === "STR" ? "access instructions" : "view recent submissions")
+                        : (completedProperties.includes(prop.name) ? "Completed" : "Click to complete checklist")}
                     </p>
                     {role !== "admin" && prop.lat && prop.lng && (
                       <button
