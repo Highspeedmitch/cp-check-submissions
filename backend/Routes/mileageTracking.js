@@ -47,19 +47,35 @@ router.post("/update", async (req, res) => {
   
 
 // ✅ Get User's Mileage for Admin
+// GET /api/mileage/user/:userId
+// Return { totalMiles, ytdMiles } so the admin page can display both
 router.get("/user/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      const mileageRecord = await MileageTracking.findOne({ userId });
-      if (!mileageRecord) {
-        return res.json({ success: true, totalMiles: 0 });
+      const currentYear = new Date().getFullYear();
+  
+      const record = await MileageTracking.findOne({ userId });
+      if (!record) {
+        return res.json({ totalMiles: 0, ytdMiles: 0 });
       }
-      res.json({ success: true, totalMiles: mileageRecord.totalMiles });
-    } catch (error) {
-      console.error("Error fetching mileage data:", error);
+  
+      // totalMiles is what's accumulated since last payment
+      const totalMiles = record.totalMiles;
+  
+      // Summation of all milesPaid in `history` for the current year
+      let ytdMiles = 0;
+      for (const entry of record.history) {
+        const yr = new Date(entry.paidDate).getFullYear();
+        if (yr === currentYear) {
+          ytdMiles += entry.milesPaid;
+        }
+      }
+  
+      res.json({ totalMiles, ytdMiles });
+    } catch (err) {
+      console.error("Error in GET mileage:", err);
       res.status(500).json({ error: "Server error fetching mileage" });
     }
-  });
-  
+  });  
 
 module.exports = router;

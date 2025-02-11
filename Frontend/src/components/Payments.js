@@ -4,11 +4,15 @@ import { useNavigate } from "react-router-dom";
 function Payments() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+
   const [submissions, setSubmissions] = useState(0);
   const [mileage, setMileage] = useState(0);
+  const [ytdMiles, setYtdMiles] = useState(0); // <-- NEW: store YTD miles in state
+
   const [perSubmissionRate, setPerSubmissionRate] = useState(25);
   const [perMileRate, setPerMileRate] = useState(0.5);
   const [totalPayment, setTotalPayment] = useState(null);
+
   const [currentWeek, setCurrentWeek] = useState("");
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
@@ -43,6 +47,7 @@ function Payments() {
         const today = new Date();
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
+
         const usersWithStatus = data.map((user) => {
           if (user.lastPaidDate && new Date(user.lastPaidDate) >= startOfWeek) {
             user.status = "PAID";
@@ -61,19 +66,30 @@ function Payments() {
     setSelectedUser(userId);
 
     // Fetch submissions since last payment
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/admin/user-submissions/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(
+      `https://cp-check-submissions-dev-backend.onrender.com/admin/user-submissions/${userId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    )
       .then((res) => res.json())
       .then((data) => setSubmissions(data.count))
       .catch((err) => console.error("Error fetching submissions:", err));
 
-    // Fetch miles since last payment
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/mileage/user/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    // Fetch miles since last payment + YTD miles
+    fetch(
+      `https://cp-check-submissions-dev-backend.onrender.com/api/mileage/user/${userId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    )
       .then((res) => res.json())
-      .then((data) => setMileage(data.totalMiles))
+      .then((data) => {
+        // data.totalMiles = miles since last payment
+        // data.ytdMiles   = sum of miles paid so far this year
+        setMileage(data.totalMiles);
+        setYtdMiles(data.ytdMiles || 0);
+      })
       .catch((err) => console.error("Error fetching mileage:", err));
   }
 
@@ -85,38 +101,48 @@ function Payments() {
 
   // ===== Log Payment & Reset Data =====
   function logPayment() {
-
     // Prevent logging if totalPayment is 0 (or not greater than 0)
     if (!totalPayment || totalPayment <= 0) {
-        alert("Payment total is $0. Cannot log a $0 payment.");
-        return;
-      }
+      alert("Payment total is $0. Cannot log a $0 payment.");
+      return;
+    }
 
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        userId: selectedUser,
-        submissions,
-        mileage,
-        perSubmissionRate,
-        perMileRate,
-        totalPayment,
-      }),
-    })
+    fetch(
+      "https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: selectedUser,
+          submissions,
+          mileage,
+          perSubmissionRate,
+          perMileRate,
+          totalPayment,
+        }),
+      }
+    )
       .then(() => {
         alert("Payment logged!");
+
+        // Mark that user as "Paid"
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
             user._id === selectedUser ? { ...user, status: "PAID" } : user
           )
         );
+        // Reset local states
         setSubmissions(0);
         setMileage(0);
         setTotalPayment(null);
+
+        // Optionally fetch YTD again if the route updates it
+        // For instance, if the server increments ytdMiles in the DB
+        // or we re-calc it. We'll do a quick refetch:
+        fetchUserData(selectedUser);
       })
       .catch((err) => console.error("Error logging payment:", err));
   }
@@ -136,24 +162,34 @@ function Payments() {
             <tr>
               <th>User</th>
               <th>Status</th>
-              <th>YTD</th>
+              {/* Show YTD miles or YTD $$? We'll do miles for now */}
+              <th>YTD Miles</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
-                <tr
+              <tr
                 key={user._id}
                 onClick={() => fetchUserData(user._id)}
                 className="clickable-row"
-                >
+              >
                 <td>{user.username}</td>
-                <td className={user.status === "PAID" ? "status-paid" : "status-awaiting"}>
-                    {user.status}
+                <td
+                  className={
+                    user.status === "PAID" ? "status-paid" : "status-awaiting"
+                  }
+                >
+                  {user.status}
                 </td>
-                <td>{user.ytd ? `$${user.ytd.toFixed(2)}` : "$0.00"}</td>
-                </tr>
+                {/* We'll only show YTD miles if the user is selected (or store YTD per-user) */}
+                <td>
+                  {user._id === selectedUser
+                    ? `${ytdMiles.toFixed(2)}`
+                    : "—"}
+                </td>
+              </tr>
             ))}
-            </tbody>
+          </tbody>
         </table>
       </div>
 
@@ -164,7 +200,7 @@ function Payments() {
             <strong>Submissions:</strong> {submissions}
           </p>
           <p>
-            <strong>Miles Driven:</strong> {mileage}
+            <strong>Miles Driven (since last payment):</strong> {mileage}
           </p>
 
           <label>
@@ -197,7 +233,7 @@ function Payments() {
             </h2>
           )}
 
-            <button
+          <button
             onClick={logPayment}
             className="payments-button payments-success"
             disabled={!totalPayment || totalPayment <= 0}
