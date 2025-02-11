@@ -34,6 +34,7 @@ function Dashboard({ setUser }) {
   const [mileageCount, setMileageCount] = useState(null);
   const [lastLocation, setLastLocation] = useState(null);
   const organizationId = localStorage.getItem("organizationId");
+  const userId = localStorage.getItem("userId");
   // ----------- Paging -----------
   const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
@@ -467,19 +468,19 @@ function Dashboard({ setUser }) {
                   setMileageCount((prev) =>
                     prev !== null ? prev + distance : distance
                   );
-                  // Send update to backend, including userId
+                  // Send update to backend
                   fetch(
                     "https://cp-check-submissions-dev-backend.onrender.com/api/mileage/update",
                     {
                       method: "POST",
                       headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
+                        Authorization: `Bearer ${token}`,
                       },
                       body: JSON.stringify({
-                        userId, // CHANGED: pass userId
-                        miles: distance
-                      })
+                        userId, // pass userId
+                        miles: distance,
+                      }),
                     }
                   ).catch((err) => console.error("Mileage update error:", err));
                 }
@@ -494,6 +495,7 @@ function Dashboard({ setUser }) {
     }
     return () => clearInterval(interval);
   }, [mileageTracking, lastLocation, token, userId]);
+  
 
   // Helper to calculate distance
   function calculateDistance(lat1, lon1, lat2, lon2) {
