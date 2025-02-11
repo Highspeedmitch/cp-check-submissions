@@ -391,21 +391,26 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     }
 
     // **Save submission record in DB** (now using uploadResult after it is defined)
-    try {
-      await Submission.create({
-        organizationId: organizationId,
-        property: propertyName,
-        pdfUrl: uploadResult.Location,
-        submittedAt: new Date(),
-        customFields: customFields  // Save any custom fields as well
-      });
+   // Inside your /api/submit-form route in server.js
+// ...
+// Ensure your token middleware has already populated req.user
 
-      console.log('✅ Submission saved in database');
-    } catch (error) {
-      console.error('❌ Database Submission Error:', error);
-      return res.status(500).json({ message: 'Error saving submission to database' });
-    }
+// Save submission record in DB (modified to include userId)
+try {
+  await Submission.create({
+    organizationId: organizationId,           // from req.user.organizationId
+    userId: req.user.userId,                  // <-- NEW: add the userId from the token
+    property: propertyName,
+    pdfUrl: uploadResult.Location,
+    submittedAt: new Date(),
+    customFields: customFields                // if you are storing custom fields
+  });
 
+  console.log('✅ Submission saved in database');
+} catch (error) {
+  console.error('❌ Database Submission Error:', error);
+  return res.status(500).json({ message: 'Error saving submission to database' });
+}
     const submissionTimestamp = moment().format("YYYY-MM-DD");
     // **Generate Email Subject Based on orgType**
     let emailSubject = `Checklist Submission for ${propertyName}`;

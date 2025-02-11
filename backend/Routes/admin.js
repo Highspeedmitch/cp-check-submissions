@@ -6,48 +6,54 @@ const MileageTracking = require("../models/mileageTracking");
 
 // ✅ Get all users & their payment status
 router.get("/users", async (req, res) => {
-  try {
-    const users = await User.find({}, "username _id lastPaidDate");
-
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay()); // Set to Sunday
-
-    users.forEach((user) => {
-      user.status =
-        user.lastPaidDate && new Date(user.lastPaidDate) >= startOfWeek
-          ? "PAID"
-          : "Awaiting Payment";
-    });
-
-    res.json(users);
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    res.status(500).json({ error: "Server error fetching users" });
-  }
-});
+    try {
+      // Get the admin's organization ID
+      const adminOrgId = req.user.organizationId;
+  
+      // Find users from the same organization, but exclude admins
+      const users = await User.find(
+        { organizationId: adminOrgId, role: "user" }, // Filter by org & exclude admins
+        "username _id lastPaidDate"
+      );
+  
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay()); // Set to Sunday
+  
+      users.forEach((user) => {
+        user.status =
+          user.lastPaidDate && new Date(user.lastPaidDate) >= startOfWeek
+            ? "PAID"
+            : "Awaiting Payment";
+      });
+  
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Server error fetching users" });
+    }
+  });  
 
 // ✅ Get user's submissions since last payment
-router.get("/user-submissions/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found." });
+router.get("/user-submissions/:userId", authenticateToken, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ error: "User not found." });
+  
+      // Filter submissions by userId and by created date (if needed)
+      const submissions = await Submission.find({
+        userId: userId,
+        submittedAt: { $gt: user.lastPaidDate || new Date(0) }
+      });
+  
+      res.json({ count: submissions.length });
+    } catch (error) {
+      console.error("Error fetching submissions:", error);
+      res.status(500).json({ error: "Server error fetching submissions" });
     }
-
-    const submissions = await Submission.find({
-      userId,
-      createdAt: { $gt: user.lastPaidDate || new Date(0) }, // Only new submissions
-    });
-
-    res.json({ count: submissions.length });
-  } catch (error) {
-    console.error("Error fetching user submissions:", error);
-    res.status(500).json({ error: "Server error fetching user submissions" });
-  }
-});
+  });
+  
 
 // ✅ Process Payment & Reset Data
 router.post("/process-payment", async (req, res) => {
