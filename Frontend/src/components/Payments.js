@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 function Payments() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+// ...
+const [showSubmissionWarningModal, setShowSubmissionWarningModal] = useState(false);
 
   // Submissions & mileage since last payment
   const [submissions, setSubmissions] = useState(0);
@@ -117,23 +119,25 @@ function Payments() {
   }
 
   // ===== Log Payment & Reset Data =====
-  function logPayment() {
+  // Call this function when the admin clicks the "Log Payment" button
+function logPayment() {
     if (!totalPayment || totalPayment <= 0) {
       alert("Payment total is $0. Cannot log a $0 payment.");
       return;
     }
   
-    // Check if submissions > assignments and prompt confirmation if so
+    // Check if submissions exceed assignments; if so, show the custom modal
     if (submissions > assignmentsCount) {
-      if (
-        !window.confirm(
-          `Warning: The number of submissions (${submissions}) exceeds the number of assignments (${assignmentsCount}). Are you sure you want to proceed?`
-        )
-      ) {
-        return;
-      }
+      setShowSubmissionWarningModal(true);
+      return;
     }
   
+    // Otherwise, proceed directly with logging payment
+    proceedWithPayment();
+  }
+  
+  // This function actually performs the API call to log the payment
+  function proceedWithPayment() {
     fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment", {
       method: "POST",
       headers: {
@@ -152,7 +156,7 @@ function Payments() {
       .then(() => {
         alert("Payment logged!");
   
-        // Mark user as "Paid" locally
+        // Mark that user as "Paid" locally
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
             user._id === selectedUser ? { ...user, status: "PAID" } : user
@@ -164,23 +168,19 @@ function Payments() {
         setMileage(0);
         setTotalPayment(null);
   
-        // Refetch to update any YTD logic
+        // Optionally, refetch data to update any YTD logic
         fetchUserData(selectedUser);
       })
       .catch((err) => console.error("Error logging payment:", err));
   }
-  
 
   return (
     <div className="payments-container">
       <h1 className="payments-header">Payments 💰</h1>
-
       <button className="back-button" onClick={() => navigate("/dashboard")}>
         ← Back to Dashboard
       </button>
-
       <h2 className="payments-subheader">Week: {currentWeek}</h2>
-
       <div className="table-wrapper">
         <table className="payments-table">
           <thead>
@@ -192,35 +192,24 @@ function Payments() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => {
-              // user.ytd -> total dollars from Payment aggregator
-              return (
-                <tr
-                  key={user._id}
-                  onClick={() => fetchUserData(user._id)}
-                  className="clickable-row"
-                >
-                  <td>{user.username}</td>
-                  <td
-                    className={
-                      user.status === "PAID" ? "status-paid" : "status-awaiting"
-                    }
-                  >
-                    {user.status}
-                  </td>
-                  {/* YTD Miles: only show for selected user */}
-                  <td>
-                    {user._id === selectedUser ? ytdMiles.toFixed(2) : "—"}
-                  </td>
-                  {/* YTD $: only show for selected user */}
-                  <td>
-                    {user._id === selectedUser
-                      ? `$${(user.ytd || 0).toFixed(2)}`
-                      : "—"}
-                  </td>
-                </tr>
-              );
-            })}
+            {users.map((user) => (
+              <tr
+                key={user._id}
+                onClick={() => fetchUserData(user._id)}
+                className="clickable-row"
+              >
+                <td>{user.username}</td>
+                <td className={user.status === "PAID" ? "status-paid" : "status-awaiting"}>
+                  {user.status}
+                </td>
+                <td>{user._id === selectedUser ? ytdMiles.toFixed(2) : "—"}</td>
+                <td>
+                  {user._id === selectedUser
+                    ? `$${(user.ytd || 0).toFixed(2)}`
+                    : "—"}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -228,7 +217,6 @@ function Payments() {
       {selectedUser && (
         <div className="payment-card">
           <h3 className="card-title">Payment Details</h3>
-
           <p>
             <strong>Submissions (since last payment):</strong>{" "}
             <span style={{ color: submissions > assignmentsCount ? "red" : "inherit" }}>
@@ -238,7 +226,6 @@ function Payments() {
           <p>
             <strong>Miles Driven (since last payment):</strong> {mileage}
           </p>
-
           <label>
             Per Submission Rate ($):
             <input
@@ -248,7 +235,6 @@ function Payments() {
               className="payments-input"
             />
           </label>
-
           <label>
             Per Mile Rate ($):
             <input
@@ -258,17 +244,12 @@ function Payments() {
               className="payments-input"
             />
           </label>
-
           <button onClick={calculatePayment} className="payments-button">
             Calculate Payment
           </button>
-
           {totalPayment !== null && (
-            <h2 className="total-payment">
-              Total Payment: ${totalPayment.toFixed(2)}
-            </h2>
+            <h2 className="total-payment">Total Payment: ${totalPayment.toFixed(2)}</h2>
           )}
-
           <button
             onClick={logPayment}
             className="payments-button payments-success"
@@ -276,6 +257,50 @@ function Payments() {
           >
             Log Payment
           </button>
+        </div>
+      )}
+
+      {/* Custom Modal for Submission vs. Assignment Warning */}
+      {showSubmissionWarningModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div
+              className="modal-banner"
+              style={{
+                backgroundColor: "#f0f0f0",
+                padding: "10px",
+                borderRadius: "5px",
+                marginBottom: "10px",
+                textAlign: "center",
+                fontSize: "1.2em",
+                fontWeight: "bold",
+              }}
+            >
+              🤔 Hmm... Are you sure?
+            </div>
+            <h2>Submissions Exceed Assignments</h2>
+            <p>
+              The number of submissions ({submissions}) exceeds the number of assignments (
+              {assignmentsCount}) for this user. Are you sure you want to proceed?
+            </p>
+            <div style={{ marginTop: "10px" }}>
+              <button
+                onClick={() => {
+                  setShowSubmissionWarningModal(false);
+                  proceedWithPayment();
+                }}
+                className="payments-button"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setShowSubmissionWarningModal(false)}
+                className="payments-button"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
