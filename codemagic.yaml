@@ -50,11 +50,15 @@ workflows:
 
     artifacts:
       - build/ios/Release/*.ipa
+publishing:
+  app_store_connect:
+    key_id: "$APP_STORE_CONNECT_KEY_ID"
+    issuer_id: "$APP_STORE_CONNECT_ISSUER_ID"
 
-    publishing:
-      app_store_connect:
-        auth:
-          key_id: "$APP_STORE_CONNECT_KEY_ID"
-          issuer_id: "$APP_STORE_CONNECT_ISSUER_ID"
-          private_key: "$APP_STORE_CONNECT_PRIVATE_KEY"
-        submit_to_app_store: true  # Change to true when ready for submission
+    # If your private key is multiline, use the block scalar (|).
+    private_key: |
+      $APP_STORE_CONNECT_PRIVATE_KEY
+
+    # Force this to be a string, rather than a bare boolean
+    submit_to_app_store: "true"
+
