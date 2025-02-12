@@ -27,6 +27,11 @@ workflows:
           npm install
           npx cap sync ios
 
+      - name: Debug env
+        script: |
+          echo "PROVISIONING_PROFILE length: ${#PROVISIONING_PROFILE}"
+          echo "Starts with: ${PROVISIONING_PROFILE:0:100}"
+
       - name: Install provisioning profile
         script: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
@@ -50,6 +55,7 @@ workflows:
 
     artifacts:
       - build/ios/Release/*.ipa
+
 publishing:
   app_store_connect:
     key_id: "$APP_STORE_CONNECT_KEY_ID"
@@ -61,4 +67,3 @@ publishing:
 
     # Force this to be a string, rather than a bare boolean
     submit_to_app_store: "true"
-
