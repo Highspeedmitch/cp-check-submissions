@@ -28,7 +28,7 @@ const { v4: uuidv4 } = require('uuid');
 const bodyParser = require('body-parser');
 //push notifications
 const router = express.Router();
-const PushToken = require("../models/pushToken"); // Model to store tokens
+const PushToken = require("./models/pushToken"); // Model to store tokens
 
 router.post("/register-push-token", async (req, res) => {
   const { userId, token } = req.body;
