@@ -1,0 +1,25 @@
+workflows:
+  ios-workflow:
+    name: iOS Build
+    max_build_duration: 60
+    environment:
+      vars:
+        XCODE_WORKSPACE: "App.xcworkspace"
+        XCODE_SCHEME: "App"
+        APP_STORE_CONNECT_KEY_ID: $APP_STORE_CONNECT_KEY_ID
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+      cocoapods: default
+      xcode: latest
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd frontend
+          npm install
+          npx cap sync ios
+      - name: Build iOS App
+        script: |
+          cd ios
+          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+    artifacts:
+      - build/ios/Release/*.ipa

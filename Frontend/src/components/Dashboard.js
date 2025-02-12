@@ -450,52 +450,58 @@ function Dashboard({ setUser }) {
   }
  
   useEffect(() => {
-    let interval;
+    let watchId;
     if (mileageTracking) {
-      interval = setInterval(() => {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              if (lastLocation) {
-                const distance = calculateDistance(
-                  lastLocation.latitude,
-                  lastLocation.longitude,
-                  latitude,
-                  longitude
+      // Use Capacitor Geolocation's watchPosition for continuous tracking
+      watchId = Geolocation.watchPosition(
+        { enableHighAccuracy: true, background: true, maximumAge: 10000, timeout: 10000 },
+        (position, err) => {
+          if (err) {
+            console.error("GPS error:", err);
+            return;
+          }
+          if (position) {
+            const { latitude, longitude } = position.coords;
+            if (lastLocation) {
+              const distance = calculateDistance(
+                lastLocation.latitude,
+                lastLocation.longitude,
+                latitude,
+                longitude
+              );
+              if (distance > 0.05) {
+                setMileageCount((prev) =>
+                  prev !== null ? prev + distance : distance
                 );
-                if (distance > 0.05) {
-                  setMileageCount((prev) =>
-                    prev !== null ? prev + distance : distance
-                  );
-                  // Send update to backend
-                  fetch(
-                    "https://cp-check-submissions-dev-backend.onrender.com/api/mileage/update",
-                    {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                      },
-                      body: JSON.stringify({
-                        userId, // pass userId
-                        miles: distance,
-                      }),
-                    }
-                  ).catch((err) => console.error("Mileage update error:", err));
-                }
+                fetch(
+                  "https://cp-check-submissions-dev-backend.onrender.com/api/mileage/update",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                      userId,
+                      miles: distance
+                    })
+                  }
+                ).catch((err) =>
+                  console.error("Mileage update error:", err)
+                );
               }
-              setLastLocation({ latitude, longitude });
-            },
-            (error) => console.error("GPS error:", error),
-            { enableHighAccuracy: true, maximumAge: 10000 }
-          );
+            }
+            setLastLocation({ latitude, longitude });
+          }
         }
-      }, 30000);
+      );
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (watchId !== undefined) {
+        Geolocation.clearWatch({ id: watchId });
+      }
+    };
   }, [mileageTracking, lastLocation, token, userId]);
-  
 
   // Helper to calculate distance
   function calculateDistance(lat1, lon1, lat2, lon2) {
