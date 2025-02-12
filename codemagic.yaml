@@ -29,7 +29,8 @@ workflows:
       - name: Debug env
         script: |
           echo "PROVISIONING_PROFILE length: ${#PROVISIONING_PROFILE}"
-          echo "Starts with: ${PROVISIONING_PROFILE:0:100}"
+          echo "First few characters of PROVISIONING_PROFILE:"
+          echo "$PROVISIONING_PROFILE" | head -c 200
 
       - name: Install provisioning profile
         script: |
