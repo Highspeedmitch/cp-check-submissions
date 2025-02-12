@@ -4,11 +4,11 @@ const User = require("../models/user");
 const Submission = require("../models/submission");
 const MileageTracking = require("../models/mileageTracking");
 const Payment = require("../models/Payment");
-const apn = require("apn");
+const apn = require('apn');
 
 const apnProvider = new apn.Provider({
   token: {
-    key: "/keys/AuthKey_APNs.p8", // Update with actual path
+    key: Buffer.from(process.env.APN_PRIVATE_KEY, "base64").toString("utf8"),
     keyId: process.env.APN_KEY_ID,
     teamId: process.env.APN_TEAM_ID,
   },
@@ -20,10 +20,12 @@ function sendPushNotification(deviceToken, message) {
   note.alert = message;
   note.topic = process.env.APN_BUNDLE_ID;
 
-  apnProvider.send(note, deviceToken).then((result) => {
+  apnProvider.send(note, deviceToken).then(result => {
     console.log("APN Response:", result);
   });
 }
+
+module.exports = { sendPushNotification };
 
 // ========================================
 // 1) GET /admin/users
