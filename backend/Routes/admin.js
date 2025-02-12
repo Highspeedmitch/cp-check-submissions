@@ -4,6 +4,26 @@ const User = require("../models/user");
 const Submission = require("../models/submission");
 const MileageTracking = require("../models/mileageTracking");
 const Payment = require("../models/Payment");
+const apn = require("apn");
+
+const apnProvider = new apn.Provider({
+  token: {
+    key: "/keys/AuthKey_APNs.p8", // Update with actual path
+    keyId: process.env.APN_KEY_ID,
+    teamId: process.env.APN_TEAM_ID,
+  },
+  production: false, // Set to true for live deployments
+});
+
+function sendPushNotification(deviceToken, message) {
+  let note = new apn.Notification();
+  note.alert = message;
+  note.topic = process.env.APN_BUNDLE_ID;
+
+  apnProvider.send(note, deviceToken).then((result) => {
+    console.log("APN Response:", result);
+  });
+}
 
 // ========================================
 // 1) GET /admin/users
@@ -106,20 +126,16 @@ router.post("/process-payment", async (req, res) => {
     // 2) Find the existing mileage doc for this user
     const mileageRecord = await MileageTracking.findOne({ userId });
     if (mileageRecord) {
-      // Add an entry to history
       mileageRecord.history.push({
         paidDate: new Date(),
         milesPaid: mileage,
         note: `Paid at $${perMileRate}/mi + $${perSubmissionRate}/submission`,
       });
 
-      // Reset totalMiles
       mileageRecord.totalMiles = 0;
       mileageRecord.lastUpdated = new Date();
       await mileageRecord.save();
     } else {
-      // No mileage record found, optionally create one if needed
-      // (If you want to store the newly paid miles anyway)
       await MileageTracking.create({
         userId,
         organizationId: req.user.organizationId,
@@ -135,16 +151,21 @@ router.post("/process-payment", async (req, res) => {
     }
 
     // 3) Create a new Payment record if totalPayment is positive
-    //    Payment model might optionally store "miles" or "submissions" etc.
     if (totalPayment > 0) {
       await Payment.create({
         userId,
         amount: totalPayment,
         paidAt: new Date(),
-        // Optionally store these details:
         milesPaid: mileage,
         submissionsPaid: submissions,
       });
+    }
+
+    // 4) **Send Push Notification** if the user has a registered device token
+    const user = await User.findById(userId);
+    if (user && user.deviceToken) {
+      const message = `💰 Payment Processed: You’ve been paid $${totalPayment.toFixed(2)} for your work!`;
+      sendPushNotification(user.deviceToken, message);
     }
 
     res.json({ success: true, message: "Payment logged & mileage reset!" });
@@ -153,5 +174,6 @@ router.post("/process-payment", async (req, res) => {
     res.status(500).json({ error: "Server error processing payment" });
   }
 });
+
 
 module.exports = router;

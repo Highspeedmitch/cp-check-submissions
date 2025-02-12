@@ -26,6 +26,31 @@ const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 
 const bodyParser = require('body-parser');
+//push notifications
+const express = require("express");
+const router = express.Router();
+const PushToken = require("../models/pushToken"); // Model to store tokens
+
+router.post("/register-push-token", async (req, res) => {
+  const { userId, token } = req.body;
+  if (!userId || !token) {
+    return res.status(400).json({ error: "Missing userId or token" });
+  }
+
+  try {
+    await PushToken.findOneAndUpdate(
+      { userId },
+      { token },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error storing push token:", err);
+    res.status(500).json({ error: "Failed to store push token" });
+  }
+});
+
+module.exports = router;
 
 // Configure AWS SDK
 AWS.config.update({
@@ -119,6 +144,7 @@ app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
 // ✅ Middleware & Route Usage
 app.use("/api/mileage", authenticateToken, mileageTrackingRoutes);
 app.use("/admin", authenticateToken, adminRoutes);
+
 
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
@@ -695,18 +721,21 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
     console.log("✅ Assignment created successfully:", assignment);
 
     // ✅ Send push notification
-    const assignedUser = await User.findById(userId);
-    if (assignedUser && assignedUser.pushSubscription) {
-      const payload = JSON.stringify({
-        title: 'New Assignment',
-        body: `You have a new assignment for ${propertyName}.`
-      });
+    const admin = require("firebase-admin");
 
-      webpush.sendNotification(assignedUser.pushSubscription, payload)
-        .then(() => console.log('📢 Push notification sent successfully!'))
-        .catch(err => console.error('❌ Error sending push notification:', err));
+async function sendPushNotification(deviceToken, title, body) {
+    const message = {
+        notification: { title, body },
+        token: deviceToken
+    };
+
+    try {
+        const response = await admin.messaging().send(message);
+        console.log("Successfully sent push notification:", response);
+    } catch (error) {
+        console.error("Error sending push notification:", error);
     }
-
+}
     res.json({ success: true, message: "Assignment created successfully", assignment });
 
   } catch (error) {
@@ -940,38 +969,22 @@ app.put("/api/assignments/:id", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/api/send-push-notification", authenticateToken, async (req, res) => {
-  try {
-    const { userId, propertyName } = req.body;
+app.post("/api/register-push-token", authenticateToken, async (req, res) => {
+    try {
+        const { userId, token } = req.body;
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ error: "User not found" });
 
-    console.log("🔍 Looking for user:", userId);
+        user.pushSubscription = token;
+        await user.save();
 
-    // Find the user in the database
-    const user = await User.findById(userId);
-
-    if (!user || !user.pushSubscription) {
-      console.error("❌ No push subscription found for this user.");
-      return res.status(404).json({ error: "User not subscribed to push notifications." });
+        res.json({ success: true, message: "Push token stored" });
+    } catch (error) {
+        console.error("❌ Error storing push token:", error);
+        res.status(500).json({ error: "Server error storing push token" });
     }
-
-    const payload = JSON.stringify({
-      title: "New Assignment",
-      body: `You have a new property inspection assignment for ${propertyName}.`,
-    });
-
-    console.log("📢 Sending push notification...");
-
-    // Send push notification
-    await webpush.sendNotification(user.pushSubscription, payload);
-
-    console.log("✅ Push notification sent successfully!");
-    res.json({ success: true, message: "Push notification sent." });
-
-  } catch (error) {
-    console.error("❌ Error sending push notification:", error);
-    res.status(500).json({ error: "Failed to send push notification." });
-  }
 });
+
 app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => {
   try {
     const org = await Organization.findById(req.user.organizationId);

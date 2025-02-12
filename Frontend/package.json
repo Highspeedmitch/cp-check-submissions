@@ -9,6 +9,7 @@
         "@capacitor/core": "^7.0.1",
         "@capacitor/geolocation": "^7.0.0",
         "@capacitor/ios": "^7.0.1",
+        "@capacitor/push-notifications": "^7.0.0",
         "@mapbox/mapbox-gl-directions": "^4.3.1",
         "@testing-library/jest-dom": "^5.17.0",
         "@testing-library/user-event": "^13.5.0",

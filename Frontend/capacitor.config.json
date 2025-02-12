@@ -1,5 +1,10 @@
 {
-  "appId": "com.inspectorsapps.app",
-  "appName": "Inspector Gadget",
-  "webDir": "build"
+  "appId": "us.iGadget.app",
+  "appName": "iGadget",
+  "webDir": "build",
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
 }
