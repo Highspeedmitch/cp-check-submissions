@@ -8,9 +8,14 @@ workflows:
       vars:
         XCODE_WORKSPACE: "App.xcworkspace"
         XCODE_SCHEME: "App"
-        APP_STORE_CONNECT_KEY_ID: $APP_STORE_CONNECT_KEY_ID
-        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
-        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        BUNDLE_ID: com.yourcompany.appname
+        APN_KEY_ID: $APN_KEY_ID
+        APN_PRIVATE_KEY: $APN_PRIVATE_KEY
+        APN_TEAM_ID: $APN_TEAM_ID
+        # Map APN keys to Codemagic-required App Store Connect variables
+        APP_STORE_CONNECT_KEY_ID: $APN_KEY_ID
+        APP_STORE_CONNECT_ISSUER_ID: $APN_TEAM_ID
+        APP_STORE_CONNECT_PRIVATE_KEY: $APN_PRIVATE_KEY
       cocoapods: default
       xcode: latest
     scripts:
@@ -22,6 +27,13 @@ workflows:
       - name: Build iOS App
         script: |
           cd ios
-          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release build
     artifacts:
       - build/ios/Release/*.ipa
+    publishing:
+      app_store_connect:
+        auth:
+          key_id: $APP_STORE_CONNECT_KEY_ID
+          issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+          private_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        submit_to_app_store: false  # Change to true to auto-submit

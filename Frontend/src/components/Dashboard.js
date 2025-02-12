@@ -563,7 +563,7 @@ function Dashboard({ setUser }) {
                       switch (prop.orgType) {
                         case "COM":
                           navigate(
-                            `/commercial-form/${encodeURIComponent(prop.name)}`
+                            `/form/${encodeURIComponent(prop.name)}`
                           );
                           break;
                         case "RES":
@@ -585,7 +585,7 @@ function Dashboard({ setUser }) {
                           break;
                         default:
                           navigate(
-                            `/commercial-form/${encodeURIComponent(prop.name)}`
+                            `/form/${encodeURIComponent(prop.name)}`
                           );
                       }
                     }
@@ -778,7 +778,7 @@ function Dashboard({ setUser }) {
                           setSelectedProperty(prop.name);
                           setShowModal(true);
                         } else {
-                          let formRoute = "/commercial-form";
+                          let formRoute = "/form";
                           if (orgType === "LTR") formRoute = "/long-term-rental-form";
                           if (orgType === "RES") formRoute = "/residential-form";
                           navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
