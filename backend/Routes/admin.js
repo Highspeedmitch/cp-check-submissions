@@ -8,21 +8,24 @@ const apn = require('apn');
 
 const apnProvider = new apn.Provider({
   token: {
-    key: Buffer.from(process.env.APN_PRIVATE_KEY, "base64").toString("utf8"),
+    key: Buffer.from(process.env.APN_PRIVATE_KEY, 'base64').toString('utf8'),
     keyId: process.env.APN_KEY_ID,
     teamId: process.env.APN_TEAM_ID,
   },
-  production: false, // Set to true for live deployments
+  production: process.env.NODE_ENV === "production", // Toggle prod/dev
 });
 
-function sendPushNotification(deviceToken, message) {
+async function sendPushNotification(deviceToken, message) {
   let note = new apn.Notification();
   note.alert = message;
   note.topic = process.env.APN_BUNDLE_ID;
 
-  apnProvider.send(note, deviceToken).then(result => {
+  try {
+    const result = await apnProvider.send(note, deviceToken);
     console.log("APN Response:", result);
-  });
+  } catch (err) {
+    console.error("APN Error:", err);
+  }
 }
 
 module.exports = { sendPushNotification };
