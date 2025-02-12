@@ -1,7 +1,7 @@
 // Dashboard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
+import { Geolocation } from '@capacitor/geolocation';
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -35,6 +35,7 @@ function Dashboard({ setUser }) {
   const [lastLocation, setLastLocation] = useState(null);
   const organizationId = localStorage.getItem("organizationId");
   const userId = localStorage.getItem("userId");
+
   // ----------- Paging -----------
   const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
