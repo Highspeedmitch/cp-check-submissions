@@ -8,32 +8,53 @@ workflows:
       vars:
         XCODE_WORKSPACE: "App.xcworkspace"
         XCODE_SCHEME: "App"
-        BUNDLE_ID: com.yourcompany.appname
-        APN_KEY_ID: $APN_KEY_ID
-        APN_PRIVATE_KEY: $APN_PRIVATE_KEY
-        APN_TEAM_ID: $APN_TEAM_ID
-        # Map APN keys to Codemagic-required App Store Connect variables
-        APP_STORE_CONNECT_KEY_ID: $APN_KEY_ID
-        APP_STORE_CONNECT_ISSUER_ID: $APN_TEAM_ID
-        APP_STORE_CONNECT_PRIVATE_KEY: $APN_PRIVATE_KEY
+        BUNDLE_ID: "us.iGadget.app"
+        APP_STORE_CONNECT_KEY_ID: $APP_STORE_CONNECT_KEY_ID
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        APPLE_TEAM_ID: $APPLE_TEAM_ID
+        CERTIFICATE_PASSWORD: $CERTIFICATE_PASSWORD
+        PROVISIONING_PROFILE: $MOBILEPROVISION_PROFILE
+        P12_CERTIFICATE: $P12_CERTIFICATE
+
       cocoapods: default
       xcode: latest
+
     scripts:
       - name: Install dependencies
         script: |
           cd frontend
           npm install
           npx cap sync ios
+
+      - name: Install provisioning profile
+        script: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo $PROVISIONING_PROFILE | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
+
+      - name: Install certificate
+        script: |
+          echo $P12_CERTIFICATE | base64 --decode > cert.p12
+          security import cert.p12 -P $CERTIFICATE_PASSWORD -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $CERTIFICATE_PASSWORD login.keychain-db
+
       - name: Build iOS App
         script: |
           cd ios
-          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release build
+          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos \
+          -configuration Release build \
+          -allowProvisioningUpdates \
+          -authenticationKeyPath ~/private_keys/AuthKey.p8 \
+          -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
+          -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID
+
     artifacts:
       - build/ios/Release/*.ipa
+
     publishing:
       app_store_connect:
         auth:
           key_id: $APP_STORE_CONNECT_KEY_ID
           issuer_id: $APP_STORE_CONNECT_ISSUER_ID
           private_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        submit_to_app_store: false  # Change to true to auto-submit
+        submit_to_app_store: true  # Change to true when ready for submission
