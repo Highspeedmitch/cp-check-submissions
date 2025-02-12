@@ -8,7 +8,7 @@ function Payments() {
   // Submissions & mileage since last payment
   const [submissions, setSubmissions] = useState(0);
   const [mileage, setMileage] = useState(0);
-
+  const [assignmentsCount, setAssignmentsCount] = useState(0);
   // YTD data
   const [ytdMiles, setYtdMiles] = useState(0); // YTD miles
   // For YTD dollars, we rely on user.ytd from GET /admin/users
@@ -100,8 +100,16 @@ function Payments() {
         setYtdMiles(data.ytdMiles || 0);
       })
       .catch((err) => console.error("Error fetching mileage:", err));
+     
+    // Fetch assignments count since last payment for the selected user
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/count/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setAssignmentsCount(data.count))
+      .catch((err) => console.error("Error fetching assignment count:", err));    
   }
-
+        
   // ===== Calculate Payment for this Pay Period =====
   function calculatePayment() {
     const total = submissions * perSubmissionRate + mileage * perMileRate;
@@ -114,45 +122,54 @@ function Payments() {
       alert("Payment total is $0. Cannot log a $0 payment.");
       return;
     }
-
-    fetch(
-      "https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId: selectedUser,
-          submissions,
-          mileage,
-          perSubmissionRate,
-          perMileRate,
-          totalPayment,
-        }),
+  
+    // Check if submissions > assignments and prompt confirmation if so
+    if (submissions > assignmentsCount) {
+      if (
+        !window.confirm(
+          `Warning: The number of submissions (${submissions}) exceeds the number of assignments (${assignmentsCount}). Are you sure you want to proceed?`
+        )
+      ) {
+        return;
       }
-    )
+    }
+  
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        userId: selectedUser,
+        submissions,
+        mileage,
+        perSubmissionRate,
+        perMileRate,
+        totalPayment,
+      }),
+    })
       .then(() => {
         alert("Payment logged!");
-
+  
         // Mark user as "Paid" locally
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
             user._id === selectedUser ? { ...user, status: "PAID" } : user
           )
         );
-
+  
         // Clear local states
         setSubmissions(0);
         setMileage(0);
         setTotalPayment(null);
-
-        // Optional: refetch to update any YTD logic
+  
+        // Refetch to update any YTD logic
         fetchUserData(selectedUser);
       })
       .catch((err) => console.error("Error logging payment:", err));
   }
+  
 
   return (
     <div className="payments-container">
@@ -171,12 +188,12 @@ function Payments() {
               <th>User</th>
               <th>Status</th>
               <th>YTD Miles</th>
-              <th>YTD $</th> {/* NEW COLUMN for YTD dollar amount */}
+              <th>YTD $</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => {
-              // user.ytd -> total $$ from Payment aggregator
+              // user.ytd -> total dollars from Payment aggregator
               return (
                 <tr
                   key={user._id}
@@ -186,25 +203,20 @@ function Payments() {
                   <td>{user.username}</td>
                   <td
                     className={
-                      user.status === "PAID"
-                        ? "status-paid"
-                        : "status-awaiting"
+                      user.status === "PAID" ? "status-paid" : "status-awaiting"
                     }
                   >
                     {user.status}
                   </td>
                   {/* YTD Miles: only show for selected user */}
                   <td>
-                    {user._id === selectedUser
-                      ? ytdMiles.toFixed(2)
-                      : "—"}
+                    {user._id === selectedUser ? ytdMiles.toFixed(2) : "—"}
                   </td>
-                  {/* YTD $: always available from user.ytd aggregator */}
+                  {/* YTD $: only show for selected user */}
                   <td>
-                    {/* user.ytd might be 0 or undefined, so safe check */}
-                    {user.ytd !== undefined
-                      ? `$${user.ytd.toFixed(2)}`
-                      : "$0.00"}
+                    {user._id === selectedUser
+                      ? `$${(user.ytd || 0).toFixed(2)}`
+                      : "—"}
                   </td>
                 </tr>
               );
@@ -218,7 +230,10 @@ function Payments() {
           <h3 className="card-title">Payment Details</h3>
 
           <p>
-            <strong>Submissions (since last payment):</strong> {submissions}
+            <strong>Submissions (since last payment):</strong>{" "}
+            <span style={{ color: submissions > assignmentsCount ? "red" : "inherit" }}>
+              {submissions}
+            </span>
           </p>
           <p>
             <strong>Miles Driven (since last payment):</strong> {mileage}
