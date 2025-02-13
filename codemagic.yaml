@@ -51,8 +51,10 @@ workflows:
       - name: Prepare App Store Connect Key
         script: |
           mkdir -p ~/private_keys
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/private_keys/AuthKey.p8
-          echo "AuthKey.p8 stored successfully!"
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" | tr -d '\r' > ~/private_keys/AuthKey.p8
+          chmod 600 ~/private_keys/AuthKey.p8
+          echo "Stored authentication key:"
+          head -n 5 ~/private_keys/AuthKey.p8  # Debugging step
 
 
       - name: Build iOS App
@@ -60,9 +62,10 @@ workflows:
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos \
           -configuration Release build \
           -allowProvisioningUpdates \
-          -authenticationKeyPath ~/private_keys/AuthKey.p8 \
-          -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
-          -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID
+          -authenticationKeyPath "$HOME/private_keys/AuthKey.p8" \
+          -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+          -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+
 
     artifacts:
       - build/ios/Release/*.ipa
