@@ -21,11 +21,19 @@ workflows:
       xcode: latest
 
     scripts:
-      - name: Install dependencies
+      - name: Install CocoaPods & Dependencies
+        script: |
+          sudo gem install cocoapods
+          cd ios/App
+          pod install --repo-update
+
+      - name: Install dependencies & Sync Capacitor
         script: |
           cd frontend
           npm install
           npx cap sync ios
+          cd ../ios/App
+          pod install --repo-update
 
       - name: Debug env
         script: |
@@ -70,16 +78,28 @@ workflows:
           echo "Key ID: '$APP_STORE_CONNECT_KEY_ID'"
           echo "Issuer ID: '$APP_STORE_CONNECT_ISSUER_ID'"
 
+      - name: Debug APNs & Firebase
+        script: |
+          echo "APN_KEY_ID: $APN_KEY_ID"
+          echo "APN_TEAM_ID: $APN_TEAM_ID"
+          echo "Checking APN_PRIVATE_KEY content (first 5 lines):"
+          echo "$APN_PRIVATE_KEY" | head -n 5
+          echo "Fetching Firebase Device Token..."
+          npx cap run ios --target=device --verbose
+
       - name: Archive iOS
         script: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
           xcodebuild -workspace "$XCODE_WORKSPACE" \
             -scheme "$XCODE_SCHEME" \
             -sdk iphoneos \
             -configuration Release \
             -archivePath $PWD/build/App.xcarchive \
-            -destination 'generic/platform=iOS' \  # ✅ Add this
+            -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE="Manual" \
+            PROVISIONING_PROFILE_SPECIFIER="iGadget App Store Profile" \
+            CODE_SIGN_IDENTITY="Apple Distribution: Mitch Furrier (Team ID)" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$HOME/private_keys/AuthKey.p8" \
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
