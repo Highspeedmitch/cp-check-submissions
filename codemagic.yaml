@@ -56,7 +56,7 @@ workflows:
           sudo gem install cocoapods -v 1.11.3
 
           # Now that ios/ exists, we can run pod install
-          cd ../ios/App
+          cd ./ios/App
           pod install --repo-update
 
       - name: Debug env
