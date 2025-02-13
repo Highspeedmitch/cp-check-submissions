@@ -8,11 +8,11 @@ const apn = require('apn');
 
 const apnProvider = new apn.Provider({
   token: {
-    key: Buffer.from(process.env.APN_PRIVATE_KEY, 'base64').toString('utf8'),
-    keyId: process.env.APN_KEY_ID,
-    teamId: process.env.APN_TEAM_ID,
+      key: Buffer.from(process.env.APN_PRIVATE_KEY, 'base64').toString('utf8'), // ❌ Bad practice
+      keyId: process.env.APN_KEY_ID,
+      teamId: process.env.APN_TEAM_ID,
   },
-  production: process.env.NODE_ENV === "production", // Toggle prod/dev
+  production: process.env.NODE_ENV === "production",
 });
 
 async function sendPushNotification(deviceToken, message) {

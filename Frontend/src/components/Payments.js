@@ -151,10 +151,15 @@ function logPayment() {
         perSubmissionRate,
         perMileRate,
         totalPayment,
+        adminId: localStorage.getItem("userId"), // ✅ Log the admin making the payment
+        paymentDate: new Date().toISOString(),  // ✅ Log payment timestamp
       }),
     })
       .then(() => {
         alert("Payment logged!");
+  
+        // ✅ Log the transaction for admin reference
+        console.log(`🚀 Payment logged for User ${selectedUser}: $${totalPayment}`);
   
         // Mark that user as "Paid" locally
         setUsers((prevUsers) =>
@@ -168,11 +173,11 @@ function logPayment() {
         setMileage(0);
         setTotalPayment(null);
   
-        // Optionally, refetch data to update any YTD logic
+        // ✅ Fetch user data again to refresh YTD values
         fetchUserData(selectedUser);
       })
       .catch((err) => console.error("Error logging payment:", err));
-  }
+  }  
 
   return (
     <div className="payments-container">

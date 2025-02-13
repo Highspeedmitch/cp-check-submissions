@@ -16,6 +16,9 @@ import STReditProperty from "./components/STReditProperty"; // ✅ New STR Admin
 import AccessInstructions from "./components/AccessInstructions";
 import Payments from "./components/Payments"; // ✅ Import Payments Page
 
+// ✅ Import Firebase Messaging
+import { FirebaseMessaging } from "@capacitor-firebase/messaging";
+
 function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
@@ -26,6 +29,18 @@ function App() {
       setUser(true);
       setRole(localStorage.getItem("role")); // ✅ Fetch user role
     }
+
+    // ✅ Request Push Notification Permissions
+    async function requestPermission() {
+      try {
+        const result = await FirebaseMessaging.requestPermissions();
+        console.log("Push Permission:", result);
+      } catch (error) {
+        console.error("Push Permission Error:", error);
+      }
+    }
+
+    requestPermission();
   }, []);
 
   return (

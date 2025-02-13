@@ -48,15 +48,19 @@ function PushNotificationsComponent() {
 
         await PushNotifications.register();
 
-        PushNotifications.addListener("registration", (token) => {
-          console.log("Push registration success:", token.value);
-          // Send token to backend
-          fetch("https://cp-check-submissions-dev-backend.onrender.com/api/save-token", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: token.value }),
+        useEffect(() => {
+          const userId = localStorage.getItem("userId");
+          if (!userId) return;
+      
+          PushNotifications.addListener('registration', (token) => {
+              console.log("🔥 Push token received:", token.value);
+              fetch("https://backend-url.com/api/register-push-token", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ userId, token: token.value })
+              });
           });
-        });
+      }, []);
 
         PushNotifications.addListener("registrationError", (error) => {
           console.error("Push registration error:", error);
