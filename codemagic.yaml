@@ -55,8 +55,14 @@ workflows:
           sudo gem install securerandom -v 0.3.2
           sudo gem install cocoapods -v 1.11.3
 
-          # Now that ios/ exists, we can run pod install
-          cd ./ios/App
+          if [ -d "Frontend/ios/App" ]; then
+            cd Frontend/ios/App
+          else
+            echo "❌ ERROR: iOS directory not found!"
+            exit 1
+          fi
+
+          # Run pod install in the correct location
           pod install --repo-update
 
       - name: Debug env
