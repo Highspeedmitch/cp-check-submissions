@@ -51,10 +51,11 @@ workflows:
       - name: Prepare App Store Connect Key
         script: |
           mkdir -p ~/private_keys
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" | tr -d '\r' > ~/private_keys/AuthKey.p8
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" | awk 'NF {sub(/\r/, ""); print}' > ~/private_keys/AuthKey.p8
           chmod 600 ~/private_keys/AuthKey.p8
           echo "Stored authentication key content:"
-          head -n 5 ~/private_keys/AuthKey.p8  # Debugging step
+          cat ~/private_keys/AuthKey.p8
+          echo "End of AuthKey.p8 content"
 
       - name: Check Private Key Readability
         script: |
