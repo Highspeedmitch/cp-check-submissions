@@ -25,18 +25,21 @@ workflows:
       cocoapods: default
       xcode: latest
 
-    scripts:
-      - name: Install CocoaPods & Dependencies
-        script: |
-          sudo gem install cocoapods
-          cd ios/App
-          pod install --repo-update
-
-      - name: Install dependencies & Sync Capacitor
+    - name: Install dependencies & Sync Capacitor
         script: |
           cd frontend
           npm install
           npx cap sync ios
+          cd ../ios/App
+          pod install --repo-update
+    
+    - name: Install CocoaPods & Dependencies
+        script: |
+          # Pin CocoaPods to avoid Ruby mismatch issues
+          sudo gem install securerandom -v 0.3.2
+          sudo gem install cocoapods -v 1.11.3
+
+          # Now that ios/ exists, we can run pod install
           cd ../ios/App
           pod install --repo-update
 
