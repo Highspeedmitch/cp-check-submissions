@@ -51,10 +51,10 @@ workflows:
       - name: Prepare App Store Connect Key
         script: |
           mkdir -p ~/private_keys
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" | awk 'NF {sub(/\r/, ""); print}' > ~/private_keys/AuthKey.p8
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" | awk '{gsub(/\r/, ""); print}' > ~/private_keys/AuthKey.p8
           chmod 600 ~/private_keys/AuthKey.p8
-          echo "Stored authentication key content:"
-          cat ~/private_keys/AuthKey.p8
+          echo "Stored authentication key content (first 10 lines):"
+          head -n 10 ~/private_keys/AuthKey.p8
           echo "End of AuthKey.p8 content"
 
       - name: Check Private Key Readability
@@ -66,11 +66,6 @@ workflows:
         script: |
           echo "Key ID: '$APP_STORE_CONNECT_KEY_ID'"
           echo "Issuer ID: '$APP_STORE_CONNECT_ISSUER_ID'"
-
-      - name: Fix Line Endings
-        script: |
-          sed -i '' 's/\r$//' "$HOME/private_keys/AuthKey.p8"
-          cat "$HOME/private_keys/AuthKey.p8" | head -n 10  # Debugging step
 
       - name: Build iOS App
         script: |
