@@ -68,8 +68,8 @@ workflows:
 
       - name: Fix Line Endings
         script: |
-          sed -i 's/\r$//' ~/private_keys/AuthKey.p8
-          cat -A ~/private_keys/AuthKey.p8  # Debugging step
+          sed -i '' 's/\r$//' "$HOME/private_keys/AuthKey.p8"
+          cat "$HOME/private_keys/AuthKey.p8" | head -n 10  # Debugging step
 
       - name: Build iOS App
         script: |
