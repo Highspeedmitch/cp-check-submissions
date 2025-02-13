@@ -32,6 +32,7 @@ workflows:
           # Optionally pin CocoaPods here (or do it in the next step)
           # sudo gem install securerandom -v 0.3.2
           # sudo gem install cocoapods -v 1.11.3
+          # sudo gem install zeitwerk -v 2.6.18
 
           cd frontend
           npm install
