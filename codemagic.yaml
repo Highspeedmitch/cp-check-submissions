@@ -2,7 +2,6 @@ workflows:
   ios-workflow:
     name: iOS Build
     max_build_duration: 60
-    
     environment:
       groups:
         - "app variables"
@@ -26,18 +25,22 @@ workflows:
       cocoapods: default
       xcode: latest
 
-    scripts:
-      - name: Install dependencies & Sync Capacitor
+      - name: Install Ruby 3.2.2 & Set as Default
         script: |
-          # Optionally pin CocoaPods here (or do it in the next step)
-          # sudo gem install zeitwerk -v 2.6.18
-          # sudo gem install securerandom -v 0.3.2
-          # sudo gem install cocoapods -v 1.10.2
+          # Install rbenv and ruby-build
+          brew install rbenv ruby-build
 
-          cd frontend
-          npm install
-          npx cap sync ios
-          # Now the ios/ folder should exist
+          # Initialize rbenv
+          eval "$(rbenv init -)"
+
+          # Install Ruby 3.2.2
+          rbenv install 3.2.2
+
+          # Set Ruby 3.2.2 as the default version for this session
+          rbenv global 3.2.2
+
+          # Verify the installed version
+          ruby -v
 
       - name: Install CocoaPods & Dependencies
         script: |
@@ -45,9 +48,15 @@ workflows:
           sudo gem install securerandom -v 0.3.2
           sudo gem install cocoapods -v 1.11.3
 
-          # Now run pod install in ios/App
+          # Now that ios/ exists, we can run pod install
           cd ../ios/App
           pod install --repo-update
+
+      - name: Install dependencies & Sync Capacitor
+        script: |
+          cd frontend
+          npm install
+          npx cap sync ios
 
       - name: Debug env
         script: |
@@ -123,7 +132,7 @@ workflows:
 
       - name: Export IPA
         script: |
-          # Create an ExportOptions.plist on the fly
+          # Create an ExportOptions.plist on the fly (or reference one from your repo)
           cat <<EOF > ExportOptions.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" \
@@ -138,7 +147,8 @@ workflows:
             <string>manual</string>
             <key>provisioningProfiles</key>
             <dict>
-              <!-- Must match your Bundle ID and profile name exactly -->
+              <!-- This must match your Bundle ID and the *Name* of the provisioning profile 
+                  exactly as it appears in the Apple Developer portal. -->
               <key>us.iGadget.app</key>
               <string>iGadget App Store Profile</string>
             </dict>
@@ -163,6 +173,10 @@ publishing:
   app_store_connect:
     key_id: "$APP_STORE_CONNECT_KEY_ID"
     issuer_id: "$APP_STORE_CONNECT_ISSUER_ID"
+
+    # If your private key is multiline, use the block scalar (|).
     private_key: |
       $APP_STORE_CONNECT_PRIVATE_KEY
+
+    # Force this to be a string, rather than a bare boolean
     submit_to_app_store: "true"
