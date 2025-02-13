@@ -51,9 +51,9 @@ workflows:
       - name: Prepare App Store Connect Key
         script: |
           mkdir -p ~/private_keys
-          echo $APP_STORE_CONNECT_PRIVATE_KEY | base64 --decode > ~/private_keys/AuthKey.p8
-          ls -la ~/private_keys  # Debugging step to confirm file exists
-          cat ~/private_keys/AuthKey.p8  # Debugging step to inspect file content
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/private_keys/AuthKey.p8
+          echo "AuthKey.p8 stored successfully!"
+
 
       - name: Build iOS App
         script: |
