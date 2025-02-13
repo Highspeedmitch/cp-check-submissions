@@ -48,9 +48,14 @@ workflows:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $CERTIFICATE_PASSWORD login.keychain-db
           security find-identity -v -p codesigning
 
+      - name: Prepare App Store Connect Key
+        script: |
+          mkdir -p ~/private_keys
+          echo $APP_STORE_CONNECT_PRIVATE_KEY | base64 --decode > ~/private_keys/AuthKey.p8
+          ls -la ~/private_keys  # Debugging step to confirm file exists
+
       - name: Build iOS App
         script: |
-          cd ios
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos \
           -configuration Release build \
           -allowProvisioningUpdates \
