@@ -25,7 +25,7 @@ workflows:
       cocoapods: default
       xcode: latest
       
-scripts: 
+    scripts: 
       - name: Install Ruby 3.2.2 & Set as Default
         script: |
           # Install rbenv and ruby-build
@@ -167,7 +167,7 @@ scripts:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             -verbose
             
-artifacts:
+    artifacts:
       - build/*.ipa
 
 publishing:
