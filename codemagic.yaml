@@ -118,7 +118,7 @@ workflows:
             -archivePath $PWD/build/App.xcarchive \
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE="Manual" \
+            CODE_SIGN_STYLE="Automatic" \
             PROVISIONING_PROFILE_SPECIFIER="iGadget App Store Profile" \
             CODE_SIGN_IDENTITY="Apple Distribution: Mitch Furrier (4LV28H7542)" \
             -allowProvisioningUpdates \
