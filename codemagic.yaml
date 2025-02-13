@@ -53,16 +53,15 @@ workflows:
           mkdir -p ~/private_keys
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" | tr -d '\r' > ~/private_keys/AuthKey.p8
           chmod 600 ~/private_keys/AuthKey.p8
-          echo "Stored authentication key:"
-          head -n 5 ~/private_keys/AuthKey.p8  # Debugging step
-
+          echo "Stored authentication key content:"
+          cat ~/private_keys/AuthKey.p8
 
       - name: Build iOS App
         script: |
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos \
           -configuration Release build \
           -allowProvisioningUpdates \
-          -authenticationKeyPath "$HOME/private_keys/AuthKey.p8" \
+          -authenticationKeyPath "/Users/builder/private_keys/AuthKey.p8" \
           -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
           -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
 
