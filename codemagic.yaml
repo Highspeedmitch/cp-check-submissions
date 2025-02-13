@@ -67,18 +67,60 @@ workflows:
           echo "Key ID: '$APP_STORE_CONNECT_KEY_ID'"
           echo "Issuer ID: '$APP_STORE_CONNECT_ISSUER_ID'"
 
-      - name: Build iOS App
+      - name: Archive iOS
         script: |
-          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos \
-          -configuration Release build \
-          -allowProvisioningUpdates \
-          -authenticationKeyPath "$HOME/private_keys/AuthKey.p8" \
-          -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-          -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-          -verbose
+          xcodebuild -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath $PWD/build/App.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE="Manual" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey.p8" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            -verbose \
+            clean archive
+
+      - name: Export IPA
+        script: |
+          # Create an ExportOptions.plist on the fly (or reference one from your repo)
+          cat <<EOF > ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" \
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <!-- This must match your Bundle ID and the *Name* of the provisioning profile 
+                  exactly as it appears in the Apple Developer portal. -->
+              <key>us.iGadget.app</key>
+              <string>YOUR_DISTRIBUTION_PROFILE_NAME</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath $PWD/build/App.xcarchive \
+            -exportPath $PWD/build \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey.p8" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            -verbose
 
     artifacts:
-      - build/ios/Release/*.ipa
+      - build/*.ipa
 
 publishing:
   app_store_connect:
