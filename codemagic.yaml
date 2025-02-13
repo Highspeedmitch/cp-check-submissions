@@ -54,16 +54,32 @@ workflows:
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" | tr -d '\r' > ~/private_keys/AuthKey.p8
           chmod 600 ~/private_keys/AuthKey.p8
           echo "Stored authentication key content:"
-          cat ~/private_keys/AuthKey.p8
+          head -n 5 ~/private_keys/AuthKey.p8  # Debugging step
+
+      - name: Check Private Key Readability
+        script: |
+          ls -l ~/private_keys/AuthKey.p8
+          cat ~/private_keys/AuthKey.p8 | head -n 10
+
+      - name: Debug Environment Variables
+        script: |
+          echo "Key ID: '$APP_STORE_CONNECT_KEY_ID'"
+          echo "Issuer ID: '$APP_STORE_CONNECT_ISSUER_ID'"
+
+      - name: Fix Line Endings
+        script: |
+          sed -i 's/\r$//' ~/private_keys/AuthKey.p8
+          cat -A ~/private_keys/AuthKey.p8  # Debugging step
 
       - name: Build iOS App
         script: |
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos \
           -configuration Release build \
           -allowProvisioningUpdates \
-          -authenticationKeyPath "/Users/builder/private_keys/AuthKey.p8" \
+          -authenticationKeyPath "$HOME/private_keys/AuthKey.p8" \
           -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-          -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+          -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+          -verbose
 
     artifacts:
       - build/ios/Release/*.ipa
