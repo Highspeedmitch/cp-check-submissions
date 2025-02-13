@@ -43,6 +43,12 @@ workflows:
           # Verify the installed version
           ruby -v
 
+      - name: Install dependencies & Sync Capacitor
+        script: |
+          cd frontend
+          npm install
+          npx cap sync ios
+
       - name: Install CocoaPods & Dependencies
         script: |
           # Pin CocoaPods to avoid Ruby mismatch issues
@@ -52,12 +58,6 @@ workflows:
           # Now that ios/ exists, we can run pod install
           cd ../ios/App
           pod install --repo-update
-
-      - name: Install dependencies & Sync Capacitor
-        script: |
-          cd frontend
-          npm install
-          npx cap sync ios
 
       - name: Debug env
         script: |
