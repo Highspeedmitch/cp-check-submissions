@@ -24,7 +24,7 @@ const orgPropertyMap = require('./models/orgPropertyMap');
 // AWS S3 and UUID Integration
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
-
+const admin = require("firebase-admin");
 const bodyParser = require('body-parser');
 //push notifications
 const router = express.Router();
@@ -729,7 +729,6 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
     console.log("✅ Assignment created successfully:", assignment);
 
     // ✅ Send push notification
-    const admin = require("firebase-admin");
 
 async function sendPushNotification(deviceToken, title, body) {
     const message = {
