@@ -2,6 +2,7 @@ workflows:
   ios-workflow:
     name: iOS Build
     max_build_duration: 60
+    
     environment:
       groups:
         - "app variables"
@@ -25,21 +26,25 @@ workflows:
       cocoapods: default
       xcode: latest
 
-    - name: Install dependencies & Sync Capacitor
+    scripts:
+      - name: Install dependencies & Sync Capacitor
         script: |
+          # Optionally pin CocoaPods here (or do it in the next step)
+          # sudo gem install securerandom -v 0.3.2
+          # sudo gem install cocoapods -v 1.11.3
+
           cd frontend
           npm install
           npx cap sync ios
-          cd ../ios/App
-          pod install --repo-update
-    
-    - name: Install CocoaPods & Dependencies
+          # Now the ios/ folder should exist
+
+      - name: Install CocoaPods & Dependencies
         script: |
           # Pin CocoaPods to avoid Ruby mismatch issues
           sudo gem install securerandom -v 0.3.2
           sudo gem install cocoapods -v 1.11.3
 
-          # Now that ios/ exists, we can run pod install
+          # Now run pod install in ios/App
           cd ../ios/App
           pod install --repo-update
 
@@ -117,7 +122,7 @@ workflows:
 
       - name: Export IPA
         script: |
-          # Create an ExportOptions.plist on the fly (or reference one from your repo)
+          # Create an ExportOptions.plist on the fly
           cat <<EOF > ExportOptions.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" \
@@ -132,8 +137,7 @@ workflows:
             <string>manual</string>
             <key>provisioningProfiles</key>
             <dict>
-              <!-- This must match your Bundle ID and the *Name* of the provisioning profile 
-                  exactly as it appears in the Apple Developer portal. -->
+              <!-- Must match your Bundle ID and profile name exactly -->
               <key>us.iGadget.app</key>
               <string>iGadget App Store Profile</string>
             </dict>
@@ -158,10 +162,6 @@ publishing:
   app_store_connect:
     key_id: "$APP_STORE_CONNECT_KEY_ID"
     issuer_id: "$APP_STORE_CONNECT_ISSUER_ID"
-
-    # If your private key is multiline, use the block scalar (|).
     private_key: |
       $APP_STORE_CONNECT_PRIVATE_KEY
-
-    # Force this to be a string, rather than a bare boolean
     submit_to_app_store: "true"
