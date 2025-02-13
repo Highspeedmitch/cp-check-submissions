@@ -44,8 +44,9 @@ workflows:
       - name: Install certificate
         script: |
           echo $P12_CERTIFICATE | base64 --decode > cert.p12
-          security import cert.p12 -P $CERTIFICATE_PASSWORD -A -t cert -f pkcs12
+          security import cert.p12 -P $CERTIFICATE_PASSWORD -A -t cert -f pkcs12 -k login.keychain-db
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $CERTIFICATE_PASSWORD login.keychain-db
+          security find-identity -v -p codesigning
 
       - name: Build iOS App
         script: |
