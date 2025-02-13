@@ -108,25 +108,6 @@ workflows:
           echo "Key ID: '$APP_STORE_CONNECT_KEY_ID'"
           echo "Issuer ID: '$APP_STORE_CONNECT_ISSUER_ID'"
 
-      - name: Debug APNs & Firebase
-        script: |
-          echo "APN_KEY_ID: $APN_KEY_ID"
-          echo "APN_TEAM_ID: $APN_TEAM_ID"
-          echo "Checking APN_PRIVATE_KEY content (first 5 lines):"
-          echo "$APN_PRIVATE_KEY" | head -n 5
-
-          echo "Fetching Firebase Device Token..."
-          
-          # Ensure Node.js and npm are installed
-          node -v || echo "❌ Node.js not found!"
-          npm -v || echo "❌ npm not found!"
-
-          # Ensure npx is available
-          npx --version || echo "❌ npx not found!"
-
-          # Run Capacitor command
-          npx cap run ios --target=device --verbose
-
       - name: Archive iOS
         script: |
           sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
