@@ -35,6 +35,12 @@ workflows:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo $PROVISIONING_PROFILE | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
 
+      - name: Debug P12 Certificate
+        script: |
+          echo "P12_CERTIFICATE length: ${#P12_CERTIFICATE}"
+          echo "First few characters of P12_CERTIFICATE:"
+          echo "$P12_CERTIFICATE" | head -c 200
+
       - name: Install certificate
         script: |
           echo $P12_CERTIFICATE | base64 --decode > cert.p12
