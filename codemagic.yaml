@@ -24,7 +24,8 @@ workflows:
         FIREBASE_APP_ID: $FIREBASE_APP_ID
       cocoapods: default
       xcode: latest
-
+      
+scripts: 
       - name: Install Ruby 3.2.2 & Set as Default
         script: |
           # Install rbenv and ruby-build
@@ -165,8 +166,8 @@ workflows:
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             -verbose
-
-    artifacts:
+            
+artifacts:
       - build/*.ipa
 
 publishing:
