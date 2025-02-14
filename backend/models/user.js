@@ -1,5 +1,4 @@
 // models/user.js
-
 const mongoose = require("mongoose");
 
 const UserSchema = new mongoose.Schema({
@@ -7,17 +6,9 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization" },
-  role: { type: String, enum: ["admin", "user"], default: "user" },
-
-  // Optionally keep these if you want to track payments at the User level:
+  userType: { type: String, enum: ["admin", "user", "client", "contractor"], default: "user" },
   lastPaidDate: { type: Date, default: null },
-  paymentStatus: {
-    type: String,
-    enum: ["Awaiting Payment", "Paid"],
-    default: "Awaiting Payment",
-  },
-
-  // For password resets:
+  paymentStatus: { type: String, enum: ["Awaiting Payment", "Paid"], default: "Awaiting Payment" },
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },
 });

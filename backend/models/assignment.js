@@ -4,8 +4,10 @@ const assignmentSchema = new mongoose.Schema({
   propertyName: { type: String, required: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // The assigned user
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true }, // 🔹 Ensure assignments belong to an organization
+  contractorId: { type: mongoose.Schema.Types.ObjectId, ref: "Contractor", default: null }, // Only for Maintenance
   startDate: { type: Date, required: true, index: true }, // 🔹 Indexed for faster queries
   endDate: { type: Date, required: true },
+  eventType: { type: String, enum: ["Regular Check", "Maintenance"], required: true },
   status: {
     type: String,
     enum: ['scheduled', 'completed', 'canceled'], // 🔹 Defined status options

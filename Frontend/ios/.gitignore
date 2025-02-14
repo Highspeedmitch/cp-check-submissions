@@ -1,9 +1,12 @@
 App/build
-App/Pods
 App/output
 App/App/public
 DerivedData
 xcuserdata
+
+# ALLOW critical CocoaPods files
+!App/Podfile.lock
+!App/Pods/Manifest.lock
 
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins

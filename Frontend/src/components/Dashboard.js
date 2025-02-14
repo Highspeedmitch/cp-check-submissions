@@ -538,6 +538,42 @@ function Dashboard({ setUser }) {
         {!sidebarCollapsed && (
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+            <>
+              <div className="search-section">
+                <input
+                  type="text"
+                  placeholder="Search properties..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <button onClick={handleSearch}>Search</button>
+              </div>
+
+              <div className="region-section">
+                <input
+                  type="text"
+                  placeholder="Filter by region..."
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                />
+                <button onClick={() => handleRegionFilter(region)}>Filter</button>
+              </div>
+
+              {error && <p className="error">{error}</p>}
+
+              <ul>
+                {properties.length === 0 ? (
+                  <p>No properties found.</p>
+                ) : (
+                  properties.map((prop) => (
+                    <li key={prop._id}>
+                      <strong>{prop.name}</strong>
+                      {prop.region && <> - Region: {prop.region}</>}
+                    </li>
+                  ))
+                )}
+              </ul>
+            </>
             <ul>
               {displayedProperties.map((prop) => (
                 <li

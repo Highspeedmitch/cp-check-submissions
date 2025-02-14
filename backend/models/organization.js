@@ -7,12 +7,19 @@ const PropertySchema = new mongoose.Schema({
     lng: { type: Number },
     emails: { type: [String], default: [] },
     accessInstructions: { type: String, default: "" },
+    region: { type: String, default: "Uncategorized" }, // ✅ New field for property region
     customFields: [
         {
             name: { type: String, required: true }, // Field name
             type: { type: String, enum: ["text", "yesno"], required: true } // Field type
         }
-    ]
+    ],
+    // ✅ New Maintenance Fields (for STR organizations)
+    maintenanceData: {
+        breakerBoxLocation: { type: String, default: "" },
+        airFilterSize: { type: String, default: "" },
+        additionalNotes: { type: String, default: "" }
+    }
 });
 
 const OrganizationSchema = new mongoose.Schema({

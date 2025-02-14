@@ -1,0 +1,107 @@
+
+// routes/profits.js
+const express = require("express");
+const router = express.Router();
+const multer = require("multer");
+const Profit = require("../models/profit");
+const authenticateToken = require("../middleware/authenticateToken");
+const Organization = require("../models/organization"); // Import organization model
+const AWS = require("aws-sdk");
+const { v4: uuidv4 } = require("uuid");
+
+// AWS S3 Configuration
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
+
+const s3 = new AWS.S3();
+
+// Multer configuration for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage, 
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype !== "application/pdf") {
+      return cb(new Error("Only PDFs are allowed."));
+    }
+    cb(null, true);
+  }
+});
+
+// ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
+router.post("/", authenticateToken, upload.single("profitPdf"), async (req, res) => {
+  try {
+    const { propertyId, profitValue } = req.body;
+    if (!req.file) {
+      return res.status(400).json({ error: "PDF file is required." });
+    }
+
+    // Ensure user is an admin
+    if (req.user.userType !== "admin") {
+      return res.status(403).json({ error: "Only admins can upload profit statements." });
+    }
+
+    // Fetch the organization
+    const organization = await Organization.findById(req.user.organizationId);
+    if (!organization || organization.name !== "AzRoots") {
+      return res.status(403).json({ error: "Only AzRoots admins can upload profit statements." });
+    }
+
+    // Upload PDF to S3
+    const fileName = `profits/${uuidv4()}-${req.file.originalname}`;
+    const params = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: fileName,
+      Body: req.file.buffer,
+      ContentType: "application/pdf",
+      ACL: "private",
+    };
+
+    const uploadResult = await s3.upload(params).promise();
+
+    // Save profit record in DB
+    const profit = new Profit({
+      propertyId,
+      organizationId: req.user.organizationId,
+      profitValue,
+      pdfUrl: uploadResult.Location,
+    });
+
+    await profit.save();
+    res.status(201).json({ message: "Profit data uploaded successfully.", profit });
+
+  } catch (error) {
+    console.error("Error uploading profit data:", error);
+    res.status(500).json({ error: "Server error uploading profit data" });
+  }
+});
+
+// ✅ Clients retrieve profit data (Restricted to AzRoots Clients)
+router.get("/:propertyId", authenticateToken, async (req, res) => {
+  try {
+    if (req.user.userType !== "client") {
+      return res.status(403).json({ error: "Only clients can view profit statements." });
+    }
+
+    // Fetch the organization
+    const organization = await Organization.findById(req.user.organizationId);
+    if (!organization || organization.name !== "AzRoots") {
+      return res.status(403).json({ error: "Only AzRoots clients can view profit statements." });
+    }
+
+    const profit = await Profit.findOne({ propertyId: req.params.propertyId });
+    if (!profit) {
+      return res.status(404).json({ error: "No profit data found for this property." });
+    }
+
+    res.json(profit);
+
+  } catch (error) {
+    console.error("Error fetching profit data:", error);
+    res.status(500).json({ error: "Server error fetching profit data" });
+  }
+});
+
+module.exports = router;
