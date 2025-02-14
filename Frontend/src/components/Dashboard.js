@@ -606,7 +606,7 @@ function Dashboard({ setUser }) {
 
           {error && <p className="error">{error}</p>}
 
-          {/* 🔍 Only Show Properties After Search or Filter */}
+          {/* 🔍 Show Properties ONLY AFTER Search or Filter */}
           {properties.length > 0 ? (
             <ul>
               {properties.map((prop) => (
@@ -617,13 +617,14 @@ function Dashboard({ setUser }) {
               ))}
             </ul>
           ) : (
-            <p>🔍 Use search or filter to find properties.</p>
+            <p style={{ fontStyle: "italic", color: "#888" }}>
+              🔍 Search or filter to display properties.
+            </p>
           )}
         </>
       )}
 
-      {/* ✅ Existing Property List (Unchanged) */}
-      {/* ✅ Prevent Duplicate Display: Only Show Regular Property List for Non-Admin Users */}
+      {/* ✅ Checklist Section for Non-Admins */}
       {role !== "admin" && (
         <ul>
           {displayedProperties.map((prop) => (
