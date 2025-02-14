@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
+import axios from "axios";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -36,6 +37,41 @@ function Dashboard({ setUser }) {
   const organizationId = localStorage.getItem("organizationId");
   const userId = localStorage.getItem("userId");
 
+  //search queries
+  const [region, setRegion] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const handleSearch = async () => {
+    if (!searchQuery) return;
+    setProperties([]); // Clear previous properties before fetching
+    try {
+      const res = await axios.get(
+        `/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
+        getAuthConfig()
+      );
+      setProperties(res.data);
+      setError(null);
+    } catch (err) {
+      console.error("Error searching properties:", err);
+      setError(err.response?.data?.error || "Error searching properties");
+    }
+  };
+  
+  const handleRegionFilter = async () => {
+    if (!region) return;
+    setProperties([]); // Clear previous properties before fetching
+    try {
+      const res = await axios.get(
+        `/api/properties/region/${encodeURIComponent(region)}`,
+        getAuthConfig()
+      );
+      setProperties(res.data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching properties by region:", err);
+      setError(err.response?.data?.error || "Error fetching properties by region");
+    }
+  };
+  
   // ----------- Paging -----------
   const PAGE_SIZE = 3;
   const [pageIndex, setPageIndex] = useState(0);
