@@ -40,6 +40,9 @@ function Dashboard({ setUser }) {
   //search queries
   const [region, setRegion] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const getAuthConfig = () => ({
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
   const handleSearch = async () => {
     if (!searchQuery) return;
     setProperties([]); // Clear previous properties before fetching
