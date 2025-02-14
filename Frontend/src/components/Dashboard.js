@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
+import axios from "axios";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -25,17 +26,16 @@ function openNativeMaps(lat, lng) {
     );
   }
 }
-// Add these inside the Dashboard function, at the top with other state variables
-const [searchQuery, setSearchQuery] = useState("");
-const [region, setRegion] = useState("");
-const [properties, setProperties] = useState([]);
-const [error, setError] = useState(null);
 
-const getAuthConfig = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-});
-
-// Fetch properties by search query
+function Dashboard({ setUser }) {
+  const navigate = useNavigate();
+  // Search queries
+  const [searchQuery, setSearchQuery] = useState("");
+  const [region, setRegion] = useState("");
+  const getAuthConfig = () => ({
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  // Fetch properties by search query
 const handleSearch = async () => {
   if (!searchQuery) return;
   try {
@@ -68,11 +68,6 @@ const handleRegionFilter = async () => {
     setProperties([]);
   }
 };
-
-function Dashboard({ setUser }) {
-  const navigate = useNavigate();
-  // Search queries
-  
   // 🚗 Mileage states
   const [mileageTracking, setMileageTracking] = useState(false);
   const [mileageCount, setMileageCount] = useState(null);
