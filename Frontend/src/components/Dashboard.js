@@ -25,10 +25,54 @@ function openNativeMaps(lat, lng) {
     );
   }
 }
+// Add these inside the Dashboard function, at the top with other state variables
+const [searchQuery, setSearchQuery] = useState("");
+const [region, setRegion] = useState("");
+const [properties, setProperties] = useState([]);
+const [error, setError] = useState(null);
+
+const getAuthConfig = () => ({
+  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+});
+
+// Fetch properties by search query
+const handleSearch = async () => {
+  if (!searchQuery) return;
+  try {
+    const res = await axios.get(
+      `/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
+      getAuthConfig()
+    );
+    setProperties(res.data);
+    setError(null);
+  } catch (err) {
+    console.error("Error searching properties:", err);
+    setError(err.response?.data?.error || "Error searching properties");
+    setProperties([]);
+  }
+};
+
+// Fetch properties by region
+const handleRegionFilter = async () => {
+  if (!region) return;
+  try {
+    const res = await axios.get(
+      `/api/properties/region/${encodeURIComponent(region)}`,
+      getAuthConfig()
+    );
+    setProperties(res.data);
+    setError(null);
+  } catch (err) {
+    console.error("Error fetching properties by region:", err);
+    setError(err.response?.data?.error || "Error fetching properties by region");
+    setProperties([]);
+  }
+};
 
 function Dashboard({ setUser }) {
   const navigate = useNavigate();
-
+  // Search queries
+  
   // 🚗 Mileage states
   const [mileageTracking, setMileageTracking] = useState(false);
   const [mileageCount, setMileageCount] = useState(null);
