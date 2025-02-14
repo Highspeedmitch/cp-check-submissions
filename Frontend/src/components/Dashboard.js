@@ -40,40 +40,45 @@ function Dashboard({ setUser }) {
   //search queries
   const [region, setRegion] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sidebarProperties, setSidebarProperties] = useState([]); // ✅ Separate from property cards
   const getAuthConfig = () => ({
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
-  const handleSearch = async () => {
-    if (!searchQuery) return;
-    setProperties([]); // Clear previous properties before fetching
-    try {
-      const res = await axios.get(
-        `/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
-        getAuthConfig()
-      );
-      setProperties(res.data);
-      setError(null);
-    } catch (err) {
-      console.error("Error searching properties:", err);
-      setError(err.response?.data?.error || "Error searching properties");
-    }
-  };
+  // Fetch properties by search query (only for sidebar)
+const handleSearch = async () => {
+  if (!searchQuery.trim()) return;
   
-  const handleRegionFilter = async () => {
-    if (!region) return;
-    setProperties([]); // Clear previous properties before fetching
-    try {
-      const res = await axios.get(
-        `/api/properties/region/${encodeURIComponent(region)}`,
-        getAuthConfig()
-      );
-      setProperties(res.data);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching properties by region:", err);
-      setError(err.response?.data?.error || "Error fetching properties by region");
-    }
-  };
+  try {
+    setSidebarProperties([]); // ✅ Clear previous results before fetching
+    const res = await axios.get(
+      `/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
+      getAuthConfig()
+    );
+    setSidebarProperties(res.data); // ✅ Updates sidebar list ONLY
+    setError(null);
+  } catch (err) {
+    console.error("Error searching properties:", err);
+    setError(err.response?.data?.error || "Error searching properties");
+  }
+};
+
+// Fetch properties by region (only for sidebar)
+const handleRegionFilter = async () => {
+  if (!region.trim()) return;
+  
+  try {
+    setSidebarProperties([]); // ✅ Clear previous results before fetching
+    const res = await axios.get(
+      `/api/properties/region/${encodeURIComponent(region)}`,
+      getAuthConfig()
+    );
+    setSidebarProperties(res.data); // ✅ Updates sidebar list ONLY
+    setError(null);
+  } catch (err) {
+    console.error("Error fetching properties by region:", err);
+    setError(err.response?.data?.error || "Error fetching properties by region");
+  }
+};
   
   // ----------- Paging -----------
   const PAGE_SIZE = 3;
@@ -140,31 +145,18 @@ function Dashboard({ setUser }) {
   // ======================
   // 2) Fetch properties & submissions
   // ======================
-  useEffect(() => {
-    if (!token || isTokenExpired(token)) {
-      localStorage.clear();
-      if (setUser) setUser(false);
-      navigate("/login");
-      return;
-    }
-    fetchProperties();
-  }, [navigate, token, loginTime, role, setUser]);
-
   function fetchProperties() {
     setLoading(true);
-    fetch(
-      "https://cp-check-submissions-dev-backend.onrender.com/api/properties",
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    )
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
           setError(data.error);
         } else {
-          setProperties(data);
+          setProperties(data); // ✅ Loads properties for property cards
         }
         setLoading(false);
       })
@@ -173,7 +165,7 @@ function Dashboard({ setUser }) {
         setError("Failed to load properties");
         setLoading(false);
       });
-  }
+  }  
 
   // Fetch user assignments for non-admin users
   useEffect(() => {
@@ -606,21 +598,21 @@ function Dashboard({ setUser }) {
 
           {error && <p className="error">{error}</p>}
 
-          {/* 🔍 Show Properties ONLY AFTER Search or Filter */}
-          {properties.length > 0 ? (
-            <ul>
-              {properties.map((prop) => (
-                <li key={prop._id}>
-                  <strong>{prop.name}</strong>
-                  {prop.region && <> - Region: {prop.region}</>}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p style={{ fontStyle: "italic", color: "#888" }}>
-              🔍 Search or filter to display properties.
-            </p>
-          )}
+         {/* ✅ Show Sidebar List ONLY AFTER Search */}
+{role === "admin" && sidebarProperties.length > 0 ? (
+  <ul>
+    {sidebarProperties.map((prop) => (
+      <li key={prop._id}>
+        <strong>{prop.name}</strong>
+        {prop.region && <> - Region: {prop.region}</>}
+      </li>
+    ))}
+  </ul>
+) : (
+  <p style={{ fontStyle: "italic", color: "#888" }}>
+    🔍 Search or filter to display properties.
+  </p>
+)}
         </>
       )}
 
