@@ -537,7 +537,7 @@ function Dashboard({ setUser }) {
 
         {!sidebarCollapsed && (
           <>
-            <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+            <h2>{localStorage.getItem("role") === "admin" ? "Managed Properties" : "Checklist"}</h2>
             <ul>
               {displayedProperties.map((prop) => (
                 <li
