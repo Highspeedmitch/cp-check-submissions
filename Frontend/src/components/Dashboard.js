@@ -531,13 +531,59 @@ function Dashboard({ setUser }) {
     <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <button className="sidebar-toggle" onClick={toggleSidebar}>
-          {sidebarCollapsed ? "☰" : "×"}
-        </button>
+  <button className="sidebar-toggle" onClick={toggleSidebar}>
+    {sidebarCollapsed ? "☰" : "×"}
+  </button>
+  {!sidebarCollapsed && (
+    <>
+      <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
 
-        {!sidebarCollapsed && (
-          <>
-            <h2>{localStorage.getItem("role") === "admin" ? "Managed Properties" : "Checklist"}</h2>
+      {/* ✅ Managed Properties Section (Admins Only) */}
+      {role === "admin" && (
+        <>
+          <div className="search-section">
+            <input
+              type="text"
+              placeholder="Search properties..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button className="Admin-tools-adtl" onClick={handleSearch}>
+              Search
+            </button>
+          </div>
+
+          <div className="region-section">
+            <input
+              type="text"
+              placeholder="Filter by region..."
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+            />
+            <button className="Admin-tools-adtl" onClick={handleRegionFilter}>
+              Filter
+            </button>
+          </div>
+
+          {error && <p className="error">{error}</p>}
+
+          {/* 🔍 Only Show Properties After Search or Filter */}
+          {properties.length > 0 ? (
+            <ul>
+              {properties.map((prop) => (
+                <li key={prop._id}>
+                  <strong>{prop.name}</strong>
+                  {prop.region && <> - Region: {prop.region}</>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>🔍 Use search or filter to find properties.</p>
+          )}
+        </>
+      )}
+
+      {/* ✅ Existing Property List (Unchanged) */}
             <ul>
               {displayedProperties.map((prop) => (
                 <li
