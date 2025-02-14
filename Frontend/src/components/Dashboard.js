@@ -623,63 +623,46 @@ function Dashboard({ setUser }) {
       )}
 
       {/* ✅ Existing Property List (Unchanged) */}
-            <ul>
-              {displayedProperties.map((prop) => (
-                <li
-                  key={prop.name}
-                  className={
-                    completedProperties.includes(prop.name) ? "completed" : ""
+      {/* ✅ Prevent Duplicate Display: Only Show Regular Property List for Non-Admin Users */}
+      {role !== "admin" && (
+        <ul>
+          {displayedProperties.map((prop) => (
+            <li
+              key={prop.name}
+              className={completedProperties.includes(prop.name) ? "completed" : ""}
+              onClick={() => {
+                if (role === "admin") {
+                  if (adminOrgType === "STR") {
+                    navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
+                  } else {
+                    navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                   }
-                  onClick={() => {
-                    if (role === "admin") {
-                      // For STR admin => Access Instructions
-                      // For non-STR => Submissions
-                      if (adminOrgType === "STR") {
-                        navigate(
-                          `/access-instructions/${encodeURIComponent(prop.name)}`
-                        );
-                      } else {
-                        navigate(
-                          `/admin/submissions/${encodeURIComponent(prop.name)}`
-                        );
-                      }
-                    } else {
-                      // For non-admin user => forms or STR modal
-                      switch (prop.orgType) {
-                        case "COM":
-                          navigate(
-                            `/form/${encodeURIComponent(prop.name)}`
-                          );
-                          break;
-                        case "RES":
-                          navigate(
-                            `/residential-form/${encodeURIComponent(prop.name)}`
-                          );
-                          break;
-                        case "LTR":
-                          navigate(
-                            `/long-term-rental-form/${encodeURIComponent(
-                              prop.name
-                            )}`
-                          );
-                          break;
-                        case "STR":
-                          // Show the STR modal (with read-only Access Instructions)
-                          setSelectedProperty(prop.name);
-                          setShowModal(true);
-                          break;
-                        default:
-                          navigate(
-                            `/form/${encodeURIComponent(prop.name)}`
-                          );
-                      }
-                    }
-                  }}
-                >
-                  {prop.name}
-                </li>
-              ))}
-            </ul>
+                } else {
+                  switch (prop.orgType) {
+                    case "COM":
+                      navigate(`/form/${encodeURIComponent(prop.name)}`);
+                      break;
+                    case "RES":
+                      navigate(`/residential-form/${encodeURIComponent(prop.name)}`);
+                      break;
+                    case "LTR":
+                      navigate(`/long-term-rental-form/${encodeURIComponent(prop.name)}`);
+                      break;
+                    case "STR":
+                      setSelectedProperty(prop.name);
+                      setShowModal(true);
+                      break;
+                    default:
+                      navigate(`/form/${encodeURIComponent(prop.name)}`);
+                  }
+                }
+              }}
+            >
+              {prop.name}
+            </li>
+          ))}
+        </ul>
+      )}
 
             {/* My assignments (non-admin users) */}
             {role !== "admin" && (
