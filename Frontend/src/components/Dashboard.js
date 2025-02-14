@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
-import axios from "axios";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -29,45 +28,7 @@ function openNativeMaps(lat, lng) {
 
 function Dashboard({ setUser }) {
   const navigate = useNavigate();
-  // Search queries
-  const [searchQuery, setSearchQuery] = useState("");
-  const [region, setRegion] = useState("");
-  const getAuthConfig = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-  });
-  // Fetch properties by search query
-const handleSearch = async () => {
-  if (!searchQuery) return;
-  try {
-    const res = await axios.get(
-      `/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
-      getAuthConfig()
-    );
-    setProperties(res.data);
-    setError(null);
-  } catch (err) {
-    console.error("Error searching properties:", err);
-    setError(err.response?.data?.error || "Error searching properties");
-    setProperties([]);
-  }
-};
 
-// Fetch properties by region
-const handleRegionFilter = async () => {
-  if (!region) return;
-  try {
-    const res = await axios.get(
-      `/api/properties/region/${encodeURIComponent(region)}`,
-      getAuthConfig()
-    );
-    setProperties(res.data);
-    setError(null);
-  } catch (err) {
-    console.error("Error fetching properties by region:", err);
-    setError(err.response?.data?.error || "Error fetching properties by region");
-    setProperties([]);
-  }
-};
   // 🚗 Mileage states
   const [mileageTracking, setMileageTracking] = useState(false);
   const [mileageCount, setMileageCount] = useState(null);
@@ -577,42 +538,6 @@ const handleRegionFilter = async () => {
         {!sidebarCollapsed && (
           <>
             <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
-            <>
-              <div className="search-section">
-                <input
-                  type="text"
-                  placeholder="Search properties..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button onClick={handleSearch}>Search</button>
-              </div>
-
-              <div className="region-section">
-                <input
-                  type="text"
-                  placeholder="Filter by region..."
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                />
-                <button onClick={() => handleRegionFilter(region)}>Filter</button>
-              </div>
-
-              {error && <p className="error">{error}</p>}
-
-              <ul>
-                {properties.length === 0 ? (
-                  <p>No properties found.</p>
-                ) : (
-                  properties.map((prop) => (
-                    <li key={prop._id}>
-                      <strong>{prop.name}</strong>
-                      {prop.region && <> - Region: {prop.region}</>}
-                    </li>
-                  ))
-                )}
-              </ul>
-            </>
             <ul>
               {displayedProperties.map((prop) => (
                 <li
