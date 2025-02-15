@@ -41,6 +41,8 @@ function Dashboard({ setUser }) {
   const [region, setRegion] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarProperties, setSidebarProperties] = useState([]); // ✅ Separate from property cards
+  const [filteredProperties, setFilteredProperties] = useState([]);
+
   const getAuthConfig = () => ({
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
@@ -72,29 +74,22 @@ function Dashboard({ setUser }) {
   };  
 
 // Fetch properties by region (only for sidebar)
-const handleRegionFilter = async () => {
-  if (!region.trim()) return;
-
+const handleFilterByRegion = async () => {
   try {
-    setSidebarProperties([]); // ✅ Clear previous results before fetching
+    if (!selectedRegion) {
+      setSidebarProperties([]); // ✅ Clear results if no selection
+      return;
+    }
+
     const res = await axios.get(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/properties/region/${encodeURIComponent(region)}`,
+      `https://cp-check-submissions-dev-backend.onrender.com/api/properties/region/${encodeURIComponent(selectedRegion)}`,
       getAuthConfig()
     );
 
-    console.log("📍 Region filter response:", res.data); // ✅ Debugging log
-
-    if (Array.isArray(res.data)) {
-      setSidebarProperties(res.data); // ✅ Only set if it's an array
-    } else {
-      console.error("❌ Unexpected response format:", res.data);
-      setSidebarProperties([]); // ✅ Prevent crashes
-    }
-
-    setError(null);
+    setSidebarProperties(res.data);
   } catch (err) {
-    console.error("Error fetching properties by region:", err);
-    setError(err.response?.data?.error || "Error fetching properties by region");
+    console.error("Error filtering properties:", err);
+    setError(err.response?.data?.error || "Error filtering properties");
   }
 };
   
@@ -195,6 +190,24 @@ const handleRegionFilter = async () => {
         setLoading(false);
       });
   }  
+
+   // 🔹 Fetch available regions on mount
+   useEffect(() => {
+    const fetchRegions = async () => {
+      try {
+        const res = await axios.get(
+          "https://cp-check-submissions-dev-onrender.com/api/properties/regions",
+          getAuthConfig()
+        );
+        setRegions(res.data); // Store unique regions
+      } catch (err) {
+        console.error("Error fetching regions:", err);
+        setError("Error fetching regions");
+      }
+    };
+
+    fetchRegions();
+  }, []);
 
   // Fetch user assignments for non-admin users
   useEffect(() => {
@@ -614,15 +627,16 @@ const handleRegionFilter = async () => {
           </div>
 
           <div className="region-section">
-            <input
-              type="text"
-              placeholder="Filter by region..."
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-            />
-            <button className="Admin-tools-adtl" onClick={handleRegionFilter}>
-              Filter
-            </button>
+          <label>Filter by Region:</label>
+    <select value={selectedRegion} onChange={(e) => setSelectedRegion(e.target.value)}>
+      <option value="">Select a Region</option> {/* Default Option */}
+      {regions.map((region) => (
+        <option key={region} value={region}>
+          {region}
+        </option>
+      ))}
+    </select>
+    <button onClick={handleFilterByRegion}>Filter</button>
           </div>
 
           {error && <p className="error">{error}</p>}
