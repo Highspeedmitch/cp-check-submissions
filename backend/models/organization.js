@@ -7,6 +7,8 @@ const PropertySchema = new mongoose.Schema({
     lng: { type: Number },
     emails: { type: [String], default: [] },
     accessInstructions: { type: String, default: "" },
+    maintenanceInfo: { type: String, default: "" },  // <-- New field for maintenance info
+    generalInfo: { type: String, default: "" },        // <-- New field for general info
     region: { type: String, default: "Uncategorized" }, // ✅ New field for property region
     customFields: [
         {

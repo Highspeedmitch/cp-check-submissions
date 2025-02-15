@@ -804,7 +804,7 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     }
 
     // 4) Extract property details (including accessInstructions and customFields for STR)
-    const { name, lat, lng, emails, accessInstructions, customFields } = req.body;
+    const { name, lat, lng, emails, region, accessInstructions, customFields, maintenanceInfo, generalInfo } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Property name is required" });
     }
@@ -818,14 +818,16 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
       lat,
       lng,
       emails: emails || [],
+      region,
       orgType: org.orgType, // ✅ Ensure orgType is explicitly stored in each property
       ...(isSTR && { 
         accessInstructions: accessInstructions || "No instructions provided.",
+        maintenanceInfo: maintenanceInfo || "",      // New field
+        generalInfo: generalInfo || "",              // New field
         customFields: Array.isArray(customFields) ? customFields : []
       })
     };
-    
-    
+     
     org.properties.push(newProperty);
     await org.save();
     
@@ -869,7 +871,9 @@ app.put("/api/admin/edit-property/:propertyName", authenticateToken, async (req,
 
     property.accessInstructions = req.body.accessInstructions || property.accessInstructions;
     property.customFields = Array.isArray(req.body.customFields) ? req.body.customFields : property.customFields;
-
+    property.maintenanceInfo = req.body.maintenanceInfo || property.maintenanceInfo; // New field update
+    property.generalInfo = req.body.generalInfo || property.generalInfo;
+    property.region = req.body.region || property.region;  
     await org.save();
 
     res.json({ success: true, message: "Property updated successfully" });
@@ -1045,7 +1049,11 @@ app.get('/api/access-instructions/:propertyName', authenticateToken, async (req,
     }
 
     // 4) Return the instructions (or empty string if not set)
-    return res.json({ instructions: property.accessInstructions || "" });
+    return res.json({
+      instructions: property.accessInstructions || "",
+      maintenanceInfo: property.maintenanceInfo || "",
+      generalInfo: property.generalInfo || ""
+    });
   } catch (error) {
     console.error("Error in GET access-instructions:", error);
     return res.status(500).json({ error: "Server error fetching instructions." });
