@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const Organization = require("../models/organization");
-const authenticateToken = require("../middleware/authenticateToken");
 
 // ✅ Global Search for Properties (Admins Only)
 router.get("/search", authenticateToken, async (req, res) => {
