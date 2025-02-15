@@ -629,7 +629,7 @@ useEffect(() => {
           </div>
 
           <div className="region-section">
-          <label>Filter by Region:</label>
+          <label>Filter by</label>
             <select
               value={selectedRegion}
               onChange={(e) => setSelectedRegion(e.target.value)}
@@ -828,7 +828,7 @@ useEffect(() => {
                   setShowModal(false);
                 }}
               >
-                Access Instructions
+                Access / Info
               </button>
               <button
                 className="modal-btn"
@@ -918,7 +918,7 @@ useEffect(() => {
                           );
                         }}
                       >
-                        Access Instructions
+                        Access / Info
                       </button>
                     )}
 
