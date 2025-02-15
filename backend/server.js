@@ -105,6 +105,13 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
+// ✅ CORS configuration
+app.use(cors({
+  origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
+  methods: "GET,POST,PUT,DELETE",
+  allowedHeaders: "Content-Type,Authorization",
+}));
+
 //search query
 const propertyRoutes = require("./Routes/properties");
 app.use("/api/properties", propertyRoutes);
@@ -121,13 +128,6 @@ function requireAdmin(req, res, next) {
   }
   next();
 }
-
-// ✅ CORS configuration
-app.use(cors({
-    origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
-    methods: "GET,POST,PUT,DELETE",
-    allowedHeaders: "Content-Type,Authorization",
-}));
 
 app.use(express.json());
 app.set("trust proxy", 1);
