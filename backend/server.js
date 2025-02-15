@@ -1086,5 +1086,20 @@ app.put('/api/access-instructions/:propertyName', authenticateToken, async (req,
   }
 });
 
+app.get('/api/properties/search', async (req, res) => {
+  const { q } = req.query;
+  if (!q) {
+      return res.status(400).json({ error: "Missing search query" });
+  }
+
+  try {
+      const properties = await Property.find({ name: { $regex: q, $options: "i" } }); // Case-insensitive search
+      res.json(properties);
+  } catch (err) {
+      console.error("Database search error:", err);
+      res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
