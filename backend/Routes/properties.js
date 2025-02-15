@@ -35,18 +35,20 @@ router.get("/search", async (req, res) => {
 // ✅ Get Properties by Region (Admins Only)
 router.get("/region/:region", async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "Only admins can filter properties by region." });
-    }
-
     const { region } = req.params;
 
-    // Fetch properties within the admin's organization that match the region
+    // Fetch properties within the user's organization
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found." });
     }
 
+    // If the user is not an admin, return an empty array (instead of a 403 error)
+    if (req.user.role !== "admin") {
+      return res.json([]);
+    }
+
+    // For admins, filter properties by region (case-insensitive)
     const propertiesByRegion = organization.properties.filter(property =>
       property.region.toLowerCase() === region.toLowerCase()
     );
