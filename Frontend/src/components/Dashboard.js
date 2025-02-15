@@ -45,34 +45,52 @@ function Dashboard({ setUser }) {
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
   // Fetch properties by search query (only for sidebar)
-const handleSearch = async () => {
-  if (!searchQuery.trim()) return;
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
   
-  try {
-    setSidebarProperties([]); // ✅ Clear previous results before fetching
-    const res = await axios.get(
-      `/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
-      getAuthConfig()
-    );
-    setSidebarProperties(res.data); // ✅ Updates sidebar list ONLY
-    setError(null);
-  } catch (err) {
-    console.error("Error searching properties:", err);
-    setError(err.response?.data?.error || "Error searching properties");
-  }
-};
+    try {
+      setSidebarProperties([]); // ✅ Clear previous results before fetching
+      const res = await axios.get(
+        `/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
+        getAuthConfig()
+      );
+  
+      console.log("🔍 Search response:", res.data); // ✅ Debugging log
+  
+      if (Array.isArray(res.data)) {
+        setSidebarProperties(res.data); // ✅ Only set if it's an array
+      } else {
+        console.error("❌ Unexpected response format:", res.data);
+        setSidebarProperties([]); // ✅ Prevent crashes
+      }
+  
+      setError(null);
+    } catch (err) {
+      console.error("Error searching properties:", err);
+      setError(err.response?.data?.error || "Error searching properties");
+    }
+  };  
 
 // Fetch properties by region (only for sidebar)
 const handleRegionFilter = async () => {
   if (!region.trim()) return;
-  
+
   try {
     setSidebarProperties([]); // ✅ Clear previous results before fetching
     const res = await axios.get(
       `/api/properties/region/${encodeURIComponent(region)}`,
       getAuthConfig()
     );
-    setSidebarProperties(res.data); // ✅ Updates sidebar list ONLY
+
+    console.log("📍 Region filter response:", res.data); // ✅ Debugging log
+
+    if (Array.isArray(res.data)) {
+      setSidebarProperties(res.data); // ✅ Only set if it's an array
+    } else {
+      console.error("❌ Unexpected response format:", res.data);
+      setSidebarProperties([]); // ✅ Prevent crashes
+    }
+
     setError(null);
   } catch (err) {
     console.error("Error fetching properties by region:", err);
