@@ -1,4 +1,3 @@
-// AccessInstructions.js
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -9,27 +8,28 @@ function AccessInstructions() {
   // Role from localStorage to decide if user can edit
   const role = localStorage.getItem("role") || "user";
 
-  // State for instructions and new fields
+  // The fields we want to display, whether admin or not
   const [instructions, setInstructions] = useState("");
-  const [maintenanceInterval, setMaintenanceInterval] = useState("");
+  const [maintenanceInfo, setMaintenanceInfo] = useState("");
   const [generalInfo, setGeneralInfo] = useState("");
 
-  // State to show/hide the edit interface (admin only)
+  // Admin‐only: local states for editing
   const [isEditing, setIsEditing] = useState(false);
-  // For admin's local edits
   const [editedInstructions, setEditedInstructions] = useState("");
   const [editedMaintenance, setEditedMaintenance] = useState("");
   const [editedGeneral, setEditedGeneral] = useState("");
 
   useEffect(() => {
-    // Fetch existing instructions and extra info from your backend API
-    // e.g. GET /api/access-instructions/:propertyName
+    // 1) Fetch from your backend GET /api/access-instructions/:propertyName
+    //    which returns { instructions, maintenanceInfo, generalInfo }
     fetch(
       `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(
         propertyName
       )}`,
       {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
       }
     )
       .then((res) => res.json())
@@ -37,26 +37,24 @@ function AccessInstructions() {
         if (data.error) {
           console.error("Error fetching instructions:", data.error);
         } else {
-          // Expect data.instructions, data.maintenanceInterval, and data.generalInfo from the backend
           setInstructions(data.instructions || "");
-          setMaintenanceInterval(data.maintenanceInterval || "");
+          setMaintenanceInfo(data.maintenanceInfo || "");
           setGeneralInfo(data.generalInfo || "");
         }
       })
       .catch((err) => console.error("Server error fetching instructions:", err));
   }, [propertyName]);
 
-  // Handler for admin to toggle edit mode
+  // 2) For admin: let them switch to “edit” mode
   const handleEditClick = () => {
     setEditedInstructions(instructions);
-    setEditedMaintenance(maintenanceInterval);
+    setEditedMaintenance(maintenanceInfo);
     setEditedGeneral(generalInfo);
     setIsEditing(true);
   };
 
-  // Handler for admin to save changes
+  // 3) For admin: Save updates
   const handleSaveClick = () => {
-    // PUT or PATCH to your backend including the extra fields
     fetch(
       `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(
         propertyName
@@ -69,7 +67,7 @@ function AccessInstructions() {
         },
         body: JSON.stringify({
           instructions: editedInstructions,
-          maintenanceInterval: editedMaintenance,
+          maintenanceInfo: editedMaintenance,
           generalInfo: editedGeneral,
         }),
       }
@@ -81,7 +79,7 @@ function AccessInstructions() {
         } else {
           alert("Instructions updated successfully!");
           setInstructions(editedInstructions);
-          setMaintenanceInterval(editedMaintenance);
+          setMaintenanceInfo(editedMaintenance);
           setGeneralInfo(editedGeneral);
           setIsEditing(false);
         }
@@ -98,84 +96,97 @@ function AccessInstructions() {
         🔑 Access Instructions for {propertyName}
       </h1>
 
-      {role === "admin" ? (
+      {/** If admin is editing, show textareas for all fields */}
+      {role === "admin" && isEditing ? (
         <>
-          {isEditing ? (
-            <>
-              <textarea
-                value={editedInstructions}
-                onChange={(e) => setEditedInstructions(e.target.value)}
-                placeholder="Edit access instructions..."
-                style={{ width: "100%", minHeight: "100px", marginBottom: "1rem" }}
-              />
-              <input
-                type="text"
-                value={editedMaintenance}
-                onChange={(e) => setEditedMaintenance(e.target.value)}
-                placeholder="Maintenance Interval (e.g., every 6 months)"
-                style={{ width: "100%", marginBottom: "1rem" }}
-              />
-              <textarea
-                value={editedGeneral}
-                onChange={(e) => setEditedGeneral(e.target.value)}
-                placeholder="General Information (e.g., breaker box location, notes)"
-                style={{ width: "100%", minHeight: "80px", marginBottom: "1rem" }}
-              />
-              <button
-                className="primary-button"
-                onClick={handleSaveClick}
-                style={{ marginRight: "10px" }}
-              >
-                Save
-              </button>
-              <button
-                className="secondary-button"
-                onClick={() => setIsEditing(false)}
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              <p
-                style={{
-                  fontSize: "1.1rem",
-                  marginBottom: "2rem",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {instructions || "No instructions provided yet."}
-              </p>
-              <h3>Maintenance Interval</h3>
-              <p>{maintenanceInterval || "Not specified"}</p>
-              <h3>General Information</h3>
-              <p>{generalInfo || "Not specified"}</p>
-              <button
-                className="primary-button"
-                onClick={handleEditClick}
-                style={{ marginBottom: "1rem" }}
-              >
-                Edit Instructions
-              </button>
-            </>
-          )}
+          <label style={{ fontWeight: "bold" }}>Access Instructions:</label>
+          <textarea
+            value={editedInstructions}
+            onChange={(e) => setEditedInstructions(e.target.value)}
+            style={{ width: "100%", minHeight: "80px", marginBottom: "1rem" }}
+          />
+
+          <label style={{ fontWeight: "bold" }}>Maintenance Info:</label>
+          <textarea
+            value={editedMaintenance}
+            onChange={(e) => setEditedMaintenance(e.target.value)}
+            style={{ width: "100%", minHeight: "80px", marginBottom: "1rem" }}
+          />
+
+          <label style={{ fontWeight: "bold" }}>General Information:</label>
+          <textarea
+            value={editedGeneral}
+            onChange={(e) => setEditedGeneral(e.target.value)}
+            style={{ width: "100%", minHeight: "80px", marginBottom: "1rem" }}
+          />
+
+          <button
+            className="primary-button"
+            onClick={handleSaveClick}
+            style={{ marginRight: "10px" }}
+          >
+            Save
+          </button>
+          <button
+            className="secondary-button"
+            onClick={() => setIsEditing(false)}
+          >
+            Cancel
+          </button>
         </>
       ) : (
-        // For non-admin users, show view-only access instructions.
-        <p
-          style={{
-            fontSize: "1.1rem",
-            marginBottom: "2rem",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {instructions || "No instructions provided yet."}
-        </p>
+        <>
+          {/** Otherwise, show them read‐only. Everyone sees these. */}
+          <p
+            style={{
+              fontSize: "1.1rem",
+              marginBottom: "1rem",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <strong>Lockbox / Instructions:</strong>{" "}
+            {instructions || "No instructions yet."}
+          </p>
+
+          <p
+            style={{
+              fontSize: "1.1rem",
+              marginBottom: "1rem",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <strong>Maintenance Info:</strong>{" "}
+            {maintenanceInfo || "Not specified"}
+          </p>
+
+          <p
+            style={{
+              fontSize: "1.1rem",
+              marginBottom: "2rem",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <strong>General Information:</strong>{" "}
+            {generalInfo || "Not specified"}
+          </p>
+
+          {/** Admin sees an Edit button if not in editing mode */}
+          {role === "admin" && (
+            <button
+              className="primary-button"
+              onClick={handleEditClick}
+              style={{ marginBottom: "1rem" }}
+            >
+              Edit Instructions
+            </button>
+          )}
+        </>
       )}
 
       <button
         className="secondary-button"
         onClick={() => navigate("/dashboard")}
+        style={{ marginTop: "1rem" }}
       >
         Back to Dashboard
       </button>
