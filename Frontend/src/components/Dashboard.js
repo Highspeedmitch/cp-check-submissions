@@ -79,19 +79,18 @@ const handleRegionFilter = async () => {
   if (!selectedRegion.trim()) return;
   
   try {
-    setSidebarProperties([]); // Clear previous results before fetching
+    // Update the main property-cards state rather than sidebar results
     const res = await axios.get(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/properties/region/${encodeURIComponent(selectedRegion)}`,
+      `https://cp-check-submissions-dev-onrender.com/api/properties/region/${encodeURIComponent(selectedRegion)}`,
       getAuthConfig()
     );
-    setSidebarProperties(res.data);
+    setProperties(res.data);
     setError(null);
   } catch (err) {
     console.error("Error fetching properties by region:", err);
     setError(err.response?.data?.error || "Error fetching properties by region");
   }
 };
-
   
   // ----------- Paging -----------
   const PAGE_SIZE = 3;
