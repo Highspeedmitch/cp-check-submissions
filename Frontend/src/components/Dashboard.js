@@ -828,7 +828,7 @@ useEffect(() => {
                   setShowModal(false);
                 }}
               >
-                Access & Info
+                Access / Info
               </button>
               <button
                 className="modal-btn"
@@ -918,7 +918,7 @@ useEffect(() => {
                           );
                         }}
                       >
-                        Access & Info
+                        Access / Info
                       </button>
                     )}
 
