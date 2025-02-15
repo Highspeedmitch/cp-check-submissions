@@ -51,7 +51,7 @@ function Dashboard({ setUser }) {
     try {
       setSidebarProperties([]); // ✅ Clear previous results before fetching
       const res = await axios.get(
-        `/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
+        `https://cp-check-submissions-dev-backend.onrender.com/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
         getAuthConfig()
       );
   
@@ -78,7 +78,7 @@ const handleRegionFilter = async () => {
   try {
     setSidebarProperties([]); // ✅ Clear previous results before fetching
     const res = await axios.get(
-      `/api/properties/region/${encodeURIComponent(region)}`,
+      `https://cp-check-submissions-dev-backend.onrender.com/api/properties/region/${encodeURIComponent(region)}`,
       getAuthConfig()
     );
 
