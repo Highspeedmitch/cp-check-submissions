@@ -41,7 +41,8 @@ function Dashboard({ setUser }) {
   const [region, setRegion] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarProperties, setSidebarProperties] = useState([]); // ✅ Separate from property cards
-  const [filteredProperties, setFilteredProperties] = useState([]);
+  const [regions, setRegions] = useState([]);         // Holds the list of available regions
+  const [selectedRegion, setSelectedRegion] = useState(""); // Holds the currently selected region from the dropdown
 
   const getAuthConfig = () => ({
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
