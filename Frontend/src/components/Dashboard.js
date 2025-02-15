@@ -81,7 +81,7 @@ const handleRegionFilter = async () => {
   try {
     // Update the main property-cards state rather than sidebar results
     const res = await axios.get(
-      `https://cp-check-submissions-dev-onrender.com/api/properties/region/${encodeURIComponent(selectedRegion)}`,
+      `https://cp-check-submissions-dev-backend.onrender.com/api/properties/region/${encodeURIComponent(selectedRegion)}`,
       getAuthConfig()
     );
     setProperties(res.data);
