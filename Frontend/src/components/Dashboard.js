@@ -191,22 +191,25 @@ const handleRegionFilter = async () => {
   }  
 
    // 🔹 Fetch available regions on mount
-   useEffect(() => {
-    const fetchRegions = async () => {
+useEffect(() => {
+  const fetchRegions = async () => {
+    // Only admins should fetch regions
+    if (role === "admin") {
       try {
         const res = await axios.get(
           "https://cp-check-submissions-dev-backend.onrender.com/api/properties/regions",
           getAuthConfig()
         );
-        setRegions(res.data); // Store unique regions
+        setRegions(res.data); // store the unique regions
       } catch (err) {
         console.error("Error fetching regions:", err);
         setError("Error fetching regions");
       }
-    };
+    }
+  };
 
-    fetchRegions();
-  }, []);
+  fetchRegions();
+}, [role]);
 
   // Fetch user assignments for non-admin users
   useEffect(() => {
