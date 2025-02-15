@@ -145,6 +145,17 @@ const handleRegionFilter = async () => {
   // ======================
   // 2) Fetch properties & submissions
   // ======================
+  useEffect(() => {
+    if (!token || isTokenExpired(token)) {
+      localStorage.clear();
+      if (setUser) setUser(false);
+      navigate("/login");
+      return;
+    }
+  
+    fetchProperties(); // ✅ This ensures properties load into main-content
+  
+  }, [token]); // Depend on `token`  
   function fetchProperties() {
     setLoading(true);
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
