@@ -89,21 +89,36 @@ router.put("/:propertyId/region", async (req, res) => {
   }
 });
 
-router.get("/regions", async (req, res) => {
-  try {
-    const org = await Organization.findById(req.user.organizationId);
-    if (!org) {
-      return res.status(404).json({ error: "Organization not found" });
+// GET /api/properties/regions
+router.get(
+  "/regions", 
+  async (req, res) => {
+    try {
+      // 2) check role
+      if (req.user.role !== "admin") {
+        return res
+          .status(403)
+          .json({ error: "Only admins can view regions." });
+      }
+
+      // 3) find the org
+      const org = await Organization.findById(req.user.organizationId);
+      if (!org) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+
+      // 4) extract unique regions
+      const uniqueRegions = [
+        ...new Set(org.properties.map((p) => p.region).filter(Boolean))
+      ];
+
+      res.json(uniqueRegions);
+    } catch (error) {
+      console.error("Error fetching regions:", error);
+      res.status(500).json({ error: "Server error fetching regions" });
     }
-
-    // Extract unique regions
-    const uniqueRegions = [...new Set(org.properties.map((p) => p.region).filter(Boolean))];
-
-    res.json(uniqueRegions);
-  } catch (error) {
-    console.error("Error fetching regions:", error);
-    res.status(500).json({ error: "Server error fetching regions" });
   }
-});
+);
 
 module.exports = router;
+
