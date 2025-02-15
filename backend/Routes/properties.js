@@ -5,7 +5,7 @@ const Organization = require("../models/organization");
 // ✅ Global Search for Properties (Admins Only)
 router.get("/search", async (req, res) => {
   try {
-    if (req.user.userType !== "admin") {
+    if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can search properties." });
     }
 
@@ -35,7 +35,7 @@ router.get("/search", async (req, res) => {
 // ✅ Get Properties by Region (Admins Only)
 router.get("/region/:region", async (req, res) => {
   try {
-    if (req.user.userType !== "admin") {
+    if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can filter properties by region." });
     }
 
@@ -61,7 +61,7 @@ router.get("/region/:region", async (req, res) => {
 // ✅ Update Property Region (Admins Only)
 router.put("/:propertyId/region", async (req, res) => {
   try {
-    if (req.user.userType !== "admin") {
+    if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can update property regions." });
     }
 
