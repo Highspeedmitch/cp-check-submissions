@@ -196,7 +196,7 @@ const handleRegionFilter = async () => {
     const fetchRegions = async () => {
       try {
         const res = await axios.get(
-          "https://cp-check-submissions-dev-backend-onrender.com/api/properties/regions",
+          "https://cp-check-submissions-dev-backend.onrender.com/api/properties/regions",
           getAuthConfig()
         );
         setRegions(res.data); // Store unique regions
