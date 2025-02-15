@@ -12,7 +12,7 @@ function STReditProperty() {
     name: "",
     accessInstructions: "",
     customFields: [],
-    maintenanceInterval: "", // new field
+    maintenanceInfo: "", // new field
     generalInfo: "",         // new field
   });
 
@@ -62,7 +62,7 @@ function STReditProperty() {
             name: data.name || "",
             accessInstructions: data.accessInstructions || "",
             customFields: data.customFields || [],
-            maintenanceInterval: data.maintenanceInterval || "", // load if exists
+            maintenanceInfo: data.maintenanceInfo || "", // load if exists
             generalInfo: data.generalInfo || "",                 // load if exists
           });
         } else {
@@ -108,7 +108,7 @@ function STReditProperty() {
           body: JSON.stringify({
             accessInstructions: propertyData.accessInstructions,
             customFields: propertyData.customFields,
-            maintenanceInterval: propertyData.maintenanceInterval,
+            maintenanceInfo: propertyData.maintenanceInfo,
             generalInfo: propertyData.generalInfo,
             region: regionToSend, // include region here
           }),
@@ -143,15 +143,15 @@ function STReditProperty() {
         placeholder="Enter access instructions..."
       />
 
-      {/* NEW: Maintenance Interval */}
-      <label>Maintenance Interval:</label>
+      {/* NEW: Maintenance Info */}
+      <label>Maintenance Info:</label>
       <input
         type="text"
-        value={propertyData.maintenanceInterval}
+        value={propertyData.maintenanceInfo}
         onChange={(e) =>
           setPropertyData((prev) => ({
             ...prev,
-            maintenanceInterval: e.target.value,
+            maintenanceInfo: e.target.value,
           }))
         }
         placeholder="e.g., every 6 months, filter size 16x16"
