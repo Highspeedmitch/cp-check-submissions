@@ -112,10 +112,6 @@ app.use(cors({
   allowedHeaders: "Content-Type,Authorization",
 }));
 
-//search query
-const propertyRoutes = require("./Routes/properties");
-app.use("/api/properties", propertyRoutes);
-
 // Increase size limits for JSON and URL-encoded data
 app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
@@ -157,6 +153,9 @@ app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
 app.use("/api/mileage", authenticateToken, mileageTrackingRoutes);
 app.use("/admin", authenticateToken, adminRoutes);
 
+//search query
+const propertyRoutes = require("./Routes/properties");
+app.use("/api/properties", propertyRoutes);
 
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
