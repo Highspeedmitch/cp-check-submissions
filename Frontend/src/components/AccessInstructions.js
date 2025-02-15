@@ -25,7 +25,7 @@ function AccessInstructions() {
     // Fetch existing instructions and extra info from your backend API
     // e.g. GET /api/access-instructions/:propertyName
     fetch(
-      `https://cp-check-submissions-dev-onrender.com/api/access-instructions/${encodeURIComponent(
+      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(
         propertyName
       )}`,
       {
@@ -58,7 +58,7 @@ function AccessInstructions() {
   const handleSaveClick = () => {
     // PUT or PATCH to your backend including the extra fields
     fetch(
-      `https://cp-check-submissions-dev-onrender.com/api/access-instructions/${encodeURIComponent(
+      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(
         propertyName
       )}`,
       {
