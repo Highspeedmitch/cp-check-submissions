@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 
 function STReditProperty() {
   const { propertyName } = useParams();
@@ -18,9 +19,14 @@ function STReditProperty() {
   // Existing custom field handling...
   const [newFieldName, setNewFieldName] = useState("");
   const [newFieldType, setNewFieldType] = useState("text"); // Default type
+
+  // Region-related states
   const [regionOption, setRegionOption] = useState("existing"); // "existing" or "new"
   const [newRegion, setNewRegion] = useState("");
   const [existingRegions, setExistingRegions] = useState([]);
+  const [selectedExistingRegion, setSelectedExistingRegion] = useState("");
+
+  // Fetch existing regions on mount
   useEffect(() => {
     const fetchRegions = async () => {
       try {
@@ -36,6 +42,7 @@ function STReditProperty() {
     fetchRegions();
   }, [token]);
 
+  // Fetch property details if propertyName is defined
   useEffect(() => {
     if (!propertyName) {
       console.warn("⚠️ propertyName is undefined, skipping fetch...");
@@ -74,7 +81,10 @@ function STReditProperty() {
     if (newFieldName.trim()) {
       setPropertyData((prev) => ({
         ...prev,
-        customFields: [...prev.customFields, { name: newFieldName.trim(), type: newFieldType }],
+        customFields: [
+          ...prev.customFields,
+          { name: newFieldName.trim(), type: newFieldType },
+        ],
       }));
       setNewFieldName("");
       setNewFieldType("text");
@@ -83,25 +93,27 @@ function STReditProperty() {
 
   // Handler for saving changes – include the new fields in the payload
   const handleSaveChanges = async () => {
-  const regionToSend = regionOption === "new" ? newRegion : selectedExistingRegion;
-  try {
-    const response = await fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/admin/edit-property/${encodeURIComponent(propertyName)}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          accessInstructions: propertyData.accessInstructions,
-          customFields: propertyData.customFields,
-          maintenanceInterval: propertyData.maintenanceInterval,
-          generalInfo: propertyData.generalInfo,
-          region: regionToSend, // include region here
-        }),
-      }
-    );;
+    // If admin selected "new" region, use newRegion; otherwise use selectedExistingRegion
+    const regionToSend = regionOption === "new" ? newRegion : selectedExistingRegion;
+
+    try {
+      const response = await fetch(
+        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/edit-property/${encodeURIComponent(propertyName)}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            accessInstructions: propertyData.accessInstructions,
+            customFields: propertyData.customFields,
+            maintenanceInterval: propertyData.maintenanceInterval,
+            generalInfo: propertyData.generalInfo,
+            region: regionToSend, // include region here
+          }),
+        }
+      );
 
       if (response.ok) {
         alert("Property updated successfully!");
@@ -117,7 +129,7 @@ function STReditProperty() {
   return (
     <div className="container">
       <h1>Edit Property: {propertyData.name}</h1>
-      
+
       {/* Access Instructions */}
       <label>Access Instructions:</label>
       <textarea
@@ -158,7 +170,59 @@ function STReditProperty() {
         placeholder="e.g., location of breaker box, additional notes..."
       />
 
-      {/* Existing custom fields section remains unchanged */}
+      {/* --- REGION SELECTION --- */}
+      <h3>Property Region</h3>
+      <div style={{ marginBottom: "1rem" }}>
+        <label style={{ marginRight: "10px" }}>
+          <input
+            type="radio"
+            name="regionOption"
+            value="existing"
+            checked={regionOption === "existing"}
+            onChange={() => setRegionOption("existing")}
+          />
+          Use Existing Region
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="regionOption"
+            value="new"
+            checked={regionOption === "new"}
+            onChange={() => setRegionOption("new")}
+          />
+          Create New Region
+        </label>
+      </div>
+
+      {/* If choosing an existing region, show a dropdown */}
+      {regionOption === "existing" && (
+        <select
+          value={selectedExistingRegion}
+          onChange={(e) => setSelectedExistingRegion(e.target.value)}
+          style={{ marginBottom: "1rem" }}
+        >
+          <option value="">-- Select Region --</option>
+          {existingRegions.map((reg) => (
+            <option key={reg} value={reg}>
+              {reg}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {/* If creating a new region, show a text input */}
+      {regionOption === "new" && (
+        <input
+          type="text"
+          placeholder="Enter new region name"
+          value={newRegion}
+          onChange={(e) => setNewRegion(e.target.value)}
+          style={{ marginBottom: "1rem" }}
+        />
+      )}
+      {/* --- END REGION SELECTION --- */}
+
       <h2>Add New Custom Field</h2>
       <input
         type="text"
@@ -166,7 +230,10 @@ function STReditProperty() {
         onChange={(e) => setNewFieldName(e.target.value)}
         placeholder="Enter field name"
       />
-      <select value={newFieldType} onChange={(e) => setNewFieldType(e.target.value)}>
+      <select
+        value={newFieldType}
+        onChange={(e) => setNewFieldType(e.target.value)}
+      >
         <option value="text">Text Input</option>
         <option value="yesno">Yes/No with Picture</option>
       </select>
