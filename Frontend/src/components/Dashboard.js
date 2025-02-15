@@ -75,24 +75,23 @@ function Dashboard({ setUser }) {
   };  
 
 // Fetch properties by region (only for sidebar)
-const handleFilterByRegion = async () => {
+const handleRegionFilter = async () => {
+  if (!selectedRegion.trim()) return;
+  
   try {
-    if (!selectedRegion) {
-      setSidebarProperties([]); // ✅ Clear results if no selection
-      return;
-    }
-
+    setSidebarProperties([]); // Clear previous results before fetching
     const res = await axios.get(
       `https://cp-check-submissions-dev-backend.onrender.com/api/properties/region/${encodeURIComponent(selectedRegion)}`,
       getAuthConfig()
     );
-
     setSidebarProperties(res.data);
+    setError(null);
   } catch (err) {
-    console.error("Error filtering properties:", err);
-    setError(err.response?.data?.error || "Error filtering properties");
+    console.error("Error fetching properties by region:", err);
+    setError(err.response?.data?.error || "Error fetching properties by region");
   }
 };
+
   
   // ----------- Paging -----------
   const PAGE_SIZE = 3;
@@ -197,7 +196,7 @@ const handleFilterByRegion = async () => {
     const fetchRegions = async () => {
       try {
         const res = await axios.get(
-          "https://cp-check-submissions-dev-onrender.com/api/properties/regions",
+          "https://cp-check-submissions-dev-backend-onrender.com/api/properties/regions",
           getAuthConfig()
         );
         setRegions(res.data); // Store unique regions
@@ -629,15 +628,20 @@ const handleFilterByRegion = async () => {
 
           <div className="region-section">
           <label>Filter by Region:</label>
-    <select value={selectedRegion} onChange={(e) => setSelectedRegion(e.target.value)}>
-      <option value="">Select a Region</option> {/* Default Option */}
-      {regions.map((region) => (
-        <option key={region} value={region}>
-          {region}
-        </option>
-      ))}
-    </select>
-    <button onClick={handleFilterByRegion}>Filter</button>
+            <select
+              value={selectedRegion}
+              onChange={(e) => setSelectedRegion(e.target.value)}
+            >
+              <option value="">Select a region</option>
+              {regions.map((reg) => (
+                <option key={reg} value={reg}>
+                  {reg}
+                </option>
+              ))}
+            </select>
+            <button className="Admin-tools-adtl" onClick={handleRegionFilter}>
+              Filter
+            </button>
           </div>
 
           {error && <p className="error">{error}</p>}
