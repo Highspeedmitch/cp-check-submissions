@@ -155,7 +155,7 @@ app.use("/admin", authenticateToken, adminRoutes);
 
 //search query
 const propertyRoutes = require("./Routes/properties");
-app.use("/api/properties", propertyRoutes);
+app.use("/api/properties", authenticateToken, propertyRoutes);
 
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
