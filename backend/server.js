@@ -1080,15 +1080,17 @@ app.put('/api/access-instructions/:propertyName', authenticateToken, async (req,
       return res.status(404).json({ error: "Property not found" });
     }
 
-    // 4) If not STR, maybe block
+    // 4) If not STR, block the update
     if (org.orgType !== "STR") {
       return res.status(403).json({ error: "Only STR orgs can have access instructions." });
     }
 
-    // 5) Update instructions
+    // 5) Update instructions, maintenance info, and general info
     property.accessInstructions = req.body.instructions || property.accessInstructions;
-    
-    // 6) Save
+    property.maintenanceInfo = req.body.maintenanceInfo || property.maintenanceInfo;  // ✅ Fix here
+    property.generalInfo = req.body.generalInfo || property.generalInfo;  // ✅ Fix here
+
+    // 6) Save the changes
     await org.save();
     return res.json({ message: "Instructions updated successfully!" });
   } catch (error) {
