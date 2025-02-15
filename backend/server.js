@@ -1086,15 +1086,25 @@ app.put('/api/access-instructions/:propertyName', authenticateToken, async (req,
   }
 });
 
-app.get('/api/properties/search', async (req, res) => {
+app.get('/api/properties/search', authenticateToken, async (req, res) => {
   const { q } = req.query;
   if (!q) {
       return res.status(400).json({ error: "Missing search query" });
   }
 
   try {
-      const properties = await Property.find({ name: { $regex: q, $options: "i" } }); // Case-insensitive search
-      res.json(properties);
+      // Find the organization that the user belongs to
+      const org = await Organization.findById(req.user.organizationId);
+      if (!org) {
+          return res.status(404).json({ error: "Organization not found" });
+      }
+
+      // Filter properties by name inside the organization's properties array
+      const matchedProperties = org.properties.filter(property =>
+          property.name.toLowerCase().includes(q.toLowerCase())
+      );
+
+      res.json(matchedProperties);
   } catch (err) {
       console.error("Database search error:", err);
       res.status(500).json({ error: "Internal server error" });
