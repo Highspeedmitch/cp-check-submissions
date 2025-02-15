@@ -105,6 +105,10 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
+//search query
+const propertyRoutes = require("./Routes/properties");
+app.use("/api/properties", propertyRoutes);
+
 // Increase size limits for JSON and URL-encoded data
 app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
@@ -1085,31 +1089,5 @@ app.put('/api/access-instructions/:propertyName', authenticateToken, async (req,
     return res.status(500).json({ error: "Server error saving instructions." });
   }
 });
-
-app.get('/api/properties/search', authenticateToken, async (req, res) => {
-  const { q } = req.query;
-  if (!q) {
-      return res.status(400).json({ error: "Missing search query" });
-  }
-
-  try {
-      // Find the organization that the user belongs to
-      const org = await Organization.findById(req.user.organizationId);
-      if (!org) {
-          return res.status(404).json({ error: "Organization not found" });
-      }
-
-      // Filter properties by name inside the organization's properties array
-      const matchedProperties = org.properties.filter(property =>
-          property.name.toLowerCase().includes(q.toLowerCase())
-      );
-
-      res.json(matchedProperties);
-  } catch (err) {
-      console.error("Database search error:", err);
-      res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
