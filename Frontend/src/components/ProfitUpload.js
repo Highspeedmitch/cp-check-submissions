@@ -5,12 +5,11 @@ function ProfitUpload() {
   const navigate = useNavigate();
   const [propertyId, setPropertyId] = useState('');
   const [monthlyProfit, setMonthlyProfit] = useState('');
-  const [ytdProfit, setYtdProfit] = useState('');
   const [profitPdf, setProfitPdf] = useState(null);
   const [properties, setProperties] = useState([]);
   const [message, setMessage] = useState('');
 
-  // Fetch properties for the current organization (you can further filter for AzRoots if needed)
+  // Fetch properties for the current organization
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('https://cp-check-submissions-dev-backend.onrender.com/api/properties', {
@@ -23,15 +22,14 @@ function ProfitUpload() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!propertyId || !profitPdf || !monthlyProfit || !ytdProfit) {
-      setMessage("Please fill in all fields.");
+    // Removed ytdProfit check since YTD is calculated automatically
+    if (!propertyId || !profitPdf || !monthlyProfit) {
+      setMessage("Please fill in all required fields.");
       return;
     }
     const formData = new FormData();
     formData.append('propertyId', propertyId);
-    // For backward compatibility, you might rename these fields
     formData.append('monthlyProfit', monthlyProfit);
-    formData.append('ytdProfit', ytdProfit);
     formData.append('profitPdf', profitPdf);
 
     const token = localStorage.getItem('token');
@@ -44,7 +42,7 @@ function ProfitUpload() {
       const data = await response.json();
       if (response.ok) {
         setMessage("Profit data uploaded successfully!");
-        // Optionally, navigate away or refresh the page.
+        // Optionally, you might navigate or reset the form here.
       } else {
         setMessage(data.error || "Upload failed");
       }

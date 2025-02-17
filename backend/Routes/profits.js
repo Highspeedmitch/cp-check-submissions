@@ -38,7 +38,7 @@ router.post("/", authenticateToken, upload.single("profitPdf"), async (req, res)
     }
 
     // Ensure user is an admin
-    if (req.user.userType !== "admin") {
+    if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can upload profit statements." });
     }
 
@@ -91,7 +91,7 @@ router.post("/", authenticateToken, upload.single("profitPdf"), async (req, res)
 // Clients retrieve profit data (Restricted to AzRoots Clients)
 router.get("/:propertyId", authenticateToken, async (req, res) => {
   try {
-    if (req.user.userType !== "client") {
+    if (req.user.role !== "client") {
       return res.status(403).json({ error: "Only clients can view profit statements." });
     }
 
