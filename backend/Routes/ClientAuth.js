@@ -1,11 +1,9 @@
 // routes/ClientAuth.js
-const adminUser = await User.findOne({ email: adminEmail.trim().toLowerCase(), role: "admin" });
-
 router.post("/register-client", async (req, res) => {
     try {
       const { firstName, lastName, email, adminEmail, password } = req.body;
       // 1) Find the admin by adminEmail
-      const adminUser = await User.findOne({ email: adminEmail, role: "admin" });
+      const adminUser = await User.findOne({ email: adminEmail.trim().toLowerCase(), role: "admin" });
       if (!adminUser) {
         return res.status(400).json({ message: "Invalid admin email." });
       }
