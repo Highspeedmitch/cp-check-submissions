@@ -15,7 +15,9 @@ import ShortTermRental from "./components/ShortTermRental";
 import STReditProperty from "./components/STReditProperty"; // ✅ New STR Admin Edit Page
 import AccessInstructions from "./components/AccessInstructions";
 import Payments from "./components/Payments"; // ✅ Import Payments Page
-
+import ProfitUpload from "./components/ProfitUpload";
+import ClientDashboard from "./components/ClientDashboard";
+import ClientRegistration from "./components/ClientRegistration";
 // ✅ Import Firebase Messaging
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 
