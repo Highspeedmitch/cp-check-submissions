@@ -183,14 +183,6 @@ function AccessInstructions() {
           )}
         </>
       )}
-
-      <button
-        className="secondary-button"
-        onClick={() => navigate("/dashboard")}
-        style={{ marginTop: "1rem" }}
-      >
-        Back to Dashboard
-      </button>
       {/* Conditionally render the Profit Statements button for AzRoots Admins */}
       {role === "admin" && orgName === "AzRoots" && (
               <button
@@ -199,10 +191,14 @@ function AccessInstructions() {
                 style={{ marginTop: "1rem" }}
               >
                 Profit Statements
-              </button>
-            )}
-
-            <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+              </button>)}
+      <button
+        className="secondary-button"
+        onClick={() => navigate("/dashboard")}
+        style={{ marginTop: "1rem" }}
+      >
+        Back to Dashboard
+      </button>
     </div>
   );
 }
