@@ -7,6 +7,7 @@ function AccessInstructions() {
 
   // Role from localStorage to decide if user can edit
   const role = localStorage.getItem("role") || "user";
+  const orgName = localStorage.getItem("orgName") || "";
 
   // The fields we want to display, whether admin or not
   const [instructions, setInstructions] = useState("");
@@ -190,6 +191,18 @@ function AccessInstructions() {
       >
         Back to Dashboard
       </button>
+      {/* Conditionally render the Profit Statements button for AzRoots Admins */}
+      {role === "admin" && orgName === "AzRoots" && (
+              <button
+                className="primary-button"
+                onClick={() => navigate("/profit-uploads")}
+                style={{ marginTop: "1rem" }}
+              >
+                Profit Statements
+              </button>
+            )}
+
+            <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
     </div>
   );
 }
