@@ -19,6 +19,7 @@ const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 const adminRoutes = require("./Routes/admin");
+const clientAuth = require("./Routes/ClientAuth");
 // ✅ Import your orgPropertyMap
 const orgPropertyMap = require('./models/orgPropertyMap');
 // AWS S3 and UUID Integration
@@ -167,7 +168,7 @@ const limiter = rateLimit({
 });
 
 app.use(limiter);
-
+app.use("/api", clientAuth);
 /**
  * 🔹 Register a New Organization & Admin User & Check admin passkey
  */
