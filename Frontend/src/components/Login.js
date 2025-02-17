@@ -16,8 +16,12 @@ function Login({ setUser }) {
         const currentTime = Date.now() / 1000;
 
         if (decoded.exp && decoded.exp > currentTime) {
-          navigate("/dashboard");
-        } else {
+          if (decoded.role === "client") {
+            navigate("/client/dashboard");
+          } else {
+            navigate("/dashboard");
+          }
+        } else {        
           console.warn("🔹 Token expired. Logging out.");
           localStorage.removeItem("token");
           localStorage.removeItem("role");
@@ -49,11 +53,10 @@ function Login({ setUser }) {
           localStorage.setItem("token", data.token);
           localStorage.setItem("orgName", data.orgName || "Your Organization");
           localStorage.setItem("organizationId", data.organizationId);
-          localStorage.setItem("orgType", data.orgType);  // ✅ Store orgType
+          localStorage.setItem("orgType", data.orgType);  
           localStorage.setItem("role", data.role || "user");
           localStorage.setItem("loginTime", new Date().toISOString());
   
-          // ✅ Store organizationId (Ensure backend sends this)
           if (data.organizationId) {
             localStorage.setItem("organizationId", data.organizationId);
             console.log("✅ organizationId stored:", data.organizationId);
@@ -61,7 +64,7 @@ function Login({ setUser }) {
             console.warn("❌ organizationId missing in response.");
           }
   
-          // Extract and store userId from the token payload
+          // Decode token to store userId
           try {
             const decoded = JSON.parse(atob(data.token.split(".")[1]));
             if (decoded.userId) {
@@ -73,8 +76,15 @@ function Login({ setUser }) {
             console.error("Error decoding token for userId:", decodeError);
           }
   
+          // ✅ Set user to logged in
           setUser(true);
-          navigate("/dashboard");
+  
+          // ✅ Navigate based on role
+          if (data.role === "client") {
+            navigate("/client/dashboard");
+          } else {
+            navigate("/dashboard");
+          }
         } else {
           alert(data.message);
         }
@@ -86,7 +96,8 @@ function Login({ setUser }) {
       console.error("❌ Login error:", error);
       alert("Server error. Please try again.");
     }
-  };  
+  };
+  
 
   return (
     <div className="login-container">
