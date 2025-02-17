@@ -145,7 +145,11 @@ function Login({ setUser }) {
               Register
             </button>
             </Link>
-            <Link to="/client-registration">Property Owner? Click Here!</Link>
+            <div className="link-container">
+          <Link to="/client-registration" className="link">
+            Property Owner?
+          </Link>
+        </div>
         </div>
       </div>
     </div>
