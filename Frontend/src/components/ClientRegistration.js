@@ -22,7 +22,7 @@ function ClientRegistration() {
 
     // Send this data to a new route, e.g. POST /api/register-client
     try {
-      const response = await fetch("https://your-backend/api/register-client", {
+      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/register-client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
