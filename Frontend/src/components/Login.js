@@ -133,7 +133,8 @@ function Login({ setUser }) {
             <button type="button" className="register-btn">
               Register
             </button>
-          </Link>
+            </Link>
+            <Link to="/client-registration">Property Owner? Click Here!</Link>
         </div>
       </div>
     </div>

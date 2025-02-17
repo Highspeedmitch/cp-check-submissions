@@ -180,5 +180,64 @@ router.post("/process-payment", async (req, res) => {
   }
 });
 
+// routes/admin.js (or a dedicated route file)
+router.post("/assign-client-to-property", async (req, res) => {
+  try {
+    // Ensure only admins can do this
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only admins can assign clients to properties." });
+    }
+
+    const { propertyName, clientEmail } = req.body;
+    if (!propertyName || !clientEmail) {
+      return res.status(400).json({ error: "propertyName and clientEmail are required." });
+    }
+
+    // Convert email to lowercase
+    const lowerEmail = clientEmail.trim().toLowerCase();
+
+    // Find the client user
+    const clientUser = await User.findOne({
+      email: lowerEmail,
+      role: "client",
+      organizationId: req.user.organizationId,
+    });
+    if (!clientUser) {
+      return res.status(404).json({ error: "Client user not found in this organization." });
+    }
+
+    // Find the organization & property
+    const org = await Organization.findById(req.user.organizationId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found." });
+    }
+
+    // Find the property by name (or ID if you prefer)
+    const property = org.properties.find(p => p.name === propertyName);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found." });
+    }
+
+    // Initialize clientOwners if needed
+    if (!property.clientOwners) {
+      property.clientOwners = [];
+    }
+
+    // Check if this client is already assigned
+    const alreadyAssigned = property.clientOwners.some(ownerId => ownerId.equals(clientUser._id));
+    if (alreadyAssigned) {
+      return res.status(400).json({ error: "This client is already assigned to the property." });
+    }
+
+    // Assign the client to the property
+    property.clientOwners.push(clientUser._id);
+    await org.save();
+
+    res.json({ success: true, message: "Client assigned successfully!" });
+  } catch (error) {
+    console.error("Error assigning client:", error);
+    res.status(500).json({ error: "Server error assigning client." });
+  }
+});
 
 module.exports = router;

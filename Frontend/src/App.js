@@ -61,11 +61,14 @@ function App() {
       <Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />
       {/* ✅ New STR Admin Edit Property Route */}
       <Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />
-
       {/* ✅ Payments Page - Only Admins Can Access */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
-
+      {/* ✅ New Route for Profit Uploads (AzRoots Admin Only) */}
+      <Route path="/profit-uploads" element={user && role === "admin" ? <ProfitUpload /> : <Navigate to="/" />} />
+      {/* ✅ New Route for Client Dashboard (AzRoots Clients Only) */}
+      <Route path="/client/dashboard" element={user && role === "client" ? <ClientDashboard /> : <Navigate to="/" />} />
       {/* 404 Redirect */}
+      <Route path="/client-registration" element={<ClientRegistration />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
