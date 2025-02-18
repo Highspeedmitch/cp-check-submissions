@@ -30,9 +30,10 @@ const upload = multer({
 });
 
 // ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
-router.post("/:propertyId", authenticateToken, upload.single("profitPdf"), async (req, res) => {
+// ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
+router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), async (req, res) => {
   try {
-    const { propertyId } = req.params; // Property is now enforced from the URL
+    const { propertyName } = req.params; // PropertyName instead of propertyId
     const { monthlyProfit } = req.body;
 
     if (!req.file) {
@@ -50,11 +51,14 @@ router.post("/:propertyId", authenticateToken, upload.single("profitPdf"), async
       return res.status(403).json({ error: "Only AzRoots admins can upload profit statements." });
     }
 
-    // ✅ Ensure the property belongs to this admin's organization
-    const property = organization.properties.find(p => p._id.toString() === propertyId);
+    // ✅ Find the property using `propertyName`
+    const property = organization.properties.find(p => p.name === propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
     }
+
+    // ✅ Use `_id` as propertyId internally
+    const propertyId = property._id.toString();
 
     // ✅ Upload PDF to S3
     const fileName = `profits/${uuidv4()}-${req.file.originalname}`;
@@ -68,7 +72,7 @@ router.post("/:propertyId", authenticateToken, upload.single("profitPdf"), async
 
     const uploadResult = await s3.upload(params).promise();
 
-    // ✅ Calculate running YTD total:
+    // ✅ Calculate running YTD total
     const startOfYear = new Date(new Date().getFullYear(), 0, 1);
     const existingProfits = await Profit.find({
       organizationId: req.user.organizationId,
@@ -90,12 +94,13 @@ router.post("/:propertyId", authenticateToken, upload.single("profitPdf"), async
     });
 
     await profit.save();
-    res.status(201).json({ message: `Profit data uploaded for ${propertyId}`, profit });
+    res.status(201).json({ message: `Profit data uploaded for ${propertyName}`, profit });
   } catch (error) {
     console.error("Error uploading profit data:", error);
     res.status(500).json({ error: "Server error uploading profit data" });
   }
 });
+
 
 // ✅ Clients retrieve profit data (Restricted to AzRoots Clients)
 router.get("/:propertyId", authenticateToken, async (req, res) => {
