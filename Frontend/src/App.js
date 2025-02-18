@@ -48,9 +48,9 @@ function App() {
   }, [user]); // Re-run when `user` updates
 
   // 🛠 Prevent rendering until role is loaded
-  if (user === null || role === null) {
+ /* if (user === null || role === null) {
     return <div>Loading...</div>;
-  }
+  }*/
 
   console.log("🔹 Final User State:", user);
   console.log("🔹 Final Role State:", role);
