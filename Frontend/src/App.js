@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
-import FormPage from "./components/FormPage"; // Commercial form
+import ClientDashboard from "./components/ClientDashboard";
+import ClientRegistration from "./components/ClientRegistration";
+import FormPage from "./components/FormPage";
 import Register from "./components/Register";
 import PropertySelector from "./components/PropertySelector";
 import AdminSubmissions from "./components/AdminSubmissions";
@@ -12,13 +14,10 @@ import Scheduler from "./components/Scheduler";
 import ResidentialForm from "./components/ResidentialForm";
 import LongTermRental from "./components/LongTermRental";
 import ShortTermRental from "./components/ShortTermRental";
-import STReditProperty from "./components/STReditProperty"; // New STR Admin Edit Page
+import STReditProperty from "./components/STReditProperty";
 import AccessInstructions from "./components/AccessInstructions";
-import Payments from "./components/Payments"; // Payments Page
+import Payments from "./components/Payments";
 import ProfitUpload from "./components/ProfitUpload";
-import ClientDashboard from "./components/ClientDashboard";
-import ClientRegistration from "./components/ClientRegistration";
-// Import Firebase Messaging
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 
 function App() {
@@ -27,9 +26,11 @@ function App() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    const storedRole = localStorage.getItem("role");
+
     if (token) {
       setUser(true);
-      setRole(localStorage.getItem("role")); // Fetch user role
+      setRole(storedRole); // Ensure role is set
     }
 
     async function requestPermission() {
@@ -40,17 +41,25 @@ function App() {
         console.error("Push Permission Error:", error);
       }
     }
-
+    
     requestPermission();
   }, []);
+
+  // 🛠 Prevent rendering until role is loaded
+  if (user === null || role === null) {
+    return <div>Loading...</div>; 
+  }
+
+  console.log("🔹 Final Role:", role);
+  console.log("🔹 Final User:", user);
 
   return (
     <Routes>
       <Route path="/" element={!user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
-      
-      {/* Force clients away from the standard dashboard */}
+
+      {/* ✅ Ensure Clients Redirect Correctly */}
       <Route
         path="/dashboard"
         element={
@@ -61,7 +70,7 @@ function App() {
             : <Navigate to="/" />
         }
       />
-      
+
       <Route path="/property-selector" element={user ? <PropertySelector /> : <Navigate to="/" />} />
       <Route path="/form/:property" element={user ? <FormPage /> : <Navigate to="/" />} />
       <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />
@@ -72,16 +81,22 @@ function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<Scheduler />} />
       <Route path="/access-instructions/:property" element={<AccessInstructions />} />
+
       {/* New STR Admin Edit Property Route */}
       <Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />
+
       {/* Payments Page - Only Admins */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
+
       {/* Profit Uploads - Only for AzRoots Admins */}
       <Route path="/profit-uploads" element={user && role === "admin" ? <ProfitUpload /> : <Navigate to="/" />} />
+
       {/* Client Dashboard - Only for Clients */}
       <Route path="/client/dashboard" element={user && role === "client" ? <ClientDashboard /> : <Navigate to="/" />} />
+
       {/* Client Registration */}
       <Route path="/client-registration" element={<ClientRegistration />} />
+
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />
       <Route path="/client-dashboard/:property" element={<ClientDashboard />} />
