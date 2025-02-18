@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Communication = require("../models/Communication");
 const Organization = require("../models/organization");
+const User = require("../models/user"); // ✅ Add this line
 
 // ✅ Protect all routes with authentication middleware
 
