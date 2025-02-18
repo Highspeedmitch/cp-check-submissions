@@ -21,17 +21,20 @@ import ProfitUpload from "./components/ProfitUpload";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 
 function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(false);
   const [role, setRole] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const storedRole = localStorage.getItem("role");
 
-    if (token) {
-      setUser(true);
-      setRole(storedRole); // Ensure role is set
+    if (!token) {
+      setUser(false); // No token? Ensure user is treated as not logged in
+      return;
     }
+
+    const storedRole = localStorage.getItem("role") || "user"; // Default to "user" if missing
+    setUser(true);
+    setRole(storedRole);
 
     async function requestPermission() {
       try {
@@ -41,17 +44,12 @@ function App() {
         console.error("Push Permission Error:", error);
       }
     }
-    
+
     requestPermission();
   }, []);
 
-  // 🛠 Prevent rendering until role is loaded
-  if (user === null || role === null) {
-    return <div>Loading...</div>; 
-  }
-
-  console.log("🔹 Final Role:", role);
-  console.log("🔹 Final User:", user);
+  console.log("🔹 User State:", user);
+  console.log("🔹 Role State:", role);
 
   return (
     <Routes>
