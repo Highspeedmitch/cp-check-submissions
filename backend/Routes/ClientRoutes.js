@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const Communication = require("./models/communication");
-const Organization = require("./models/organization");
+const Communication = require("../models/Communication");
+const Organization = require("../models/organization");
+
+// ✅ Protect all routes with authentication middleware
 
 // ✅ Admin Creates a New Communication
 router.post("/communications", async (req, res) => {
@@ -12,7 +14,6 @@ router.post("/communications", async (req, res) => {
 
     const { propertyId, message } = req.body;
 
-    // Ensure the admin's organization owns the property
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found." });
@@ -50,13 +51,11 @@ router.get("/communications/:propertyId", async (req, res) => {
       return res.status(404).json({ error: "Organization not found." });
     }
 
-    // Ensure the property is part of this client's organization
     const property = organization.properties.find(p => p._id.toString() === propertyId);
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
     }
 
-    // Fetch communications for the property
     const communications = await Communication.find({ propertyId }).sort({ date: -1 });
     res.json(communications);
   } catch (error) {
