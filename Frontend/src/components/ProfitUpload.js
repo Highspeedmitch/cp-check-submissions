@@ -1,48 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 function ProfitUpload() {
   const navigate = useNavigate();
-  const [propertyId, setPropertyId] = useState('');
-  const [monthlyProfit, setMonthlyProfit] = useState('');
+  const { propertyId } = useParams(); // ✅ Get propertyId from URL instead of dropdown
+  const [monthlyProfit, setMonthlyProfit] = useState("");
   const [profitPdf, setProfitPdf] = useState(null);
-  const [properties, setProperties] = useState([]);
-  const [message, setMessage] = useState('');
-
-  // Fetch properties for the current organization
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    fetch('https://cp-check-submissions-dev-backend.onrender.com/api/properties', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setProperties(data))
-      .catch(err => console.error("Error fetching properties:", err));
-  }, []);
+  const [message, setMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Removed ytdProfit check since YTD is calculated automatically
-    if (!propertyId || !profitPdf || !monthlyProfit) {
-      setMessage("Please fill in all required fields.");
-      return;
-    }
-    const formData = new FormData();
-    formData.append('propertyId', propertyId);
-    formData.append('monthlyProfit', monthlyProfit);
-    formData.append('profitPdf', profitPdf);
 
-    const token = localStorage.getItem('token');
+    if (!profitPdf || !monthlyProfit || !propertyId) {
+      setMessage("Missing required data. Please try again.");
+      return;
+    }    
+
+    const formData = new FormData();
+    formData.append("monthlyProfit", monthlyProfit);
+    formData.append("profitPdf", profitPdf);
+
+    const token = localStorage.getItem("token");
+
     try {
-      const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/profits', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
-      });
+      const response = await fetch(
+        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyId}`, // ✅ Uses URL param
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        }
+      );
+
       const data = await response.json();
       if (response.ok) {
         setMessage("Profit data uploaded successfully!");
-        // Optionally, you might navigate or reset the form here.
       } else {
         setMessage(data.error || "Upload failed");
       }
@@ -53,21 +45,11 @@ function ProfitUpload() {
   };
 
   return (
-    <div className="profit-upload">
-      <h2>Upload Profit Statement</h2>
-      {message && <p>{message}</p>}
-      <form onSubmit={handleSubmit}>
-        <label>
-          Select Property:
-          <select value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
-            <option value="">-- Select --</option>
-            {properties.map((prop) => (
-              <option key={prop._id} value={prop._id}>
-                {prop.name}
-              </option>
-            ))}
-          </select>
-        </label>
+    <div className="profit-upload-container">
+      <h2>Upload Profit Statement for {propertyId}</h2>
+      {message && <p className="upload-message">{message}</p>}
+
+      <form onSubmit={handleSubmit} className="profit-upload-form">
         <label>
           This Month's Profit:
           <input
@@ -77,6 +59,7 @@ function ProfitUpload() {
             required
           />
         </label>
+
         <label>
           Profit PDF:
           <input
@@ -86,9 +69,13 @@ function ProfitUpload() {
             required
           />
         </label>
+
         <button type="submit">Upload Profit Data</button>
       </form>
-      <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+
+      <button className="back-button" onClick={() => navigate("/dashboard")}>
+        Back to Dashboard
+      </button>
     </div>
   );
 }

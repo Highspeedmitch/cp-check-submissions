@@ -1083,3 +1083,56 @@ button:hover {
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+.profit-upload-container {
+  max-width: 500px;
+  margin: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profit-upload-button {
+  width: 100%;
+  padding: 10px;
+  font-size: 1.2rem;
+  margin-top: 1rem;
+}
+.profit-upload-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.profit-upload-form label {
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.profit-upload-form input {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 15px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.upload-message {
+  color: green;
+  font-weight: bold;
+}
+
+.back-button {
+  background-color: #ccc;
+}
+@media (max-width: 600px) {
+  .profit-upload-container {
+      width: 90%;
+  }
+}

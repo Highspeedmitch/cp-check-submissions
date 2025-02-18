@@ -1,4 +1,4 @@
-//Routes/profits.js
+// Routes/profits.js
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
@@ -29,26 +29,34 @@ const upload = multer({
   }
 });
 
-// Admin uploads profit statement (Restricted to AzRoots Admins)
-router.post("/", authenticateToken, upload.single("profitPdf"), async (req, res) => {
+// ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
+router.post("/:propertyId", authenticateToken, upload.single("profitPdf"), async (req, res) => {
   try {
-    const { propertyId, monthlyProfit } = req.body;
+    const { propertyId } = req.params; // Property is now enforced from the URL
+    const { monthlyProfit } = req.body;
+
     if (!req.file) {
       return res.status(400).json({ error: "PDF file is required." });
     }
 
-    // Ensure user is an admin
+    // ✅ Ensure user is an admin
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can upload profit statements." });
     }
 
-    // Fetch the organization
+    // ✅ Fetch the organization
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization || organization.name !== "AzRoots") {
       return res.status(403).json({ error: "Only AzRoots admins can upload profit statements." });
     }
 
-    // Upload PDF to S3
+    // ✅ Ensure the property belongs to this admin's organization
+    const property = organization.properties.find(p => p.name === propertyId);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found in your organization." });
+    }
+
+    // ✅ Upload PDF to S3
     const fileName = `profits/${uuidv4()}-${req.file.originalname}`;
     const params = {
       Bucket: process.env.S3_BUCKET_NAME,
@@ -60,18 +68,19 @@ router.post("/", authenticateToken, upload.single("profitPdf"), async (req, res)
 
     const uploadResult = await s3.upload(params).promise();
 
-    // Calculate running YTD total:
+    // ✅ Calculate running YTD total:
     const startOfYear = new Date(new Date().getFullYear(), 0, 1);
     const existingProfits = await Profit.find({
       organizationId: req.user.organizationId,
       propertyId: propertyId,
       uploadedAt: { $gte: startOfYear }
     });
+
     const previousYTD = existingProfits.reduce((acc, record) => acc + record.monthlyProfit, 0);
     const newMonthlyProfit = Number(monthlyProfit);
     const newYTDTotal = previousYTD + newMonthlyProfit;
 
-    // Save profit record in DB using the calculated values
+    // ✅ Save profit record in DB using the calculated values
     const profit = new Profit({
       propertyId,
       organizationId: req.user.organizationId,
@@ -81,27 +90,29 @@ router.post("/", authenticateToken, upload.single("profitPdf"), async (req, res)
     });
 
     await profit.save();
-    res.status(201).json({ message: "Profit data uploaded successfully.", profit });
+    res.status(201).json({ message: `Profit data uploaded for ${propertyId}`, profit });
   } catch (error) {
     console.error("Error uploading profit data:", error);
     res.status(500).json({ error: "Server error uploading profit data" });
   }
 });
 
-// Clients retrieve profit data (Restricted to AzRoots Clients)
+// ✅ Clients retrieve profit data (Restricted to AzRoots Clients)
 router.get("/:propertyId", authenticateToken, async (req, res) => {
   try {
+    const { propertyId } = req.params;
+
     if (req.user.role !== "client") {
       return res.status(403).json({ error: "Only clients can view profit statements." });
     }
 
-    // Fetch the organization
+    // ✅ Fetch the organization
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization || organization.name !== "AzRoots") {
       return res.status(403).json({ error: "Only AzRoots clients can view profit statements." });
     }
 
-    const profit = await Profit.findOne({ propertyId: req.params.propertyId });
+    const profit = await Profit.findOne({ propertyId });
     if (!profit) {
       return res.status(404).json({ error: "No profit data found for this property." });
     }

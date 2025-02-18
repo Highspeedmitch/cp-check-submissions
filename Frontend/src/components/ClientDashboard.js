@@ -29,7 +29,8 @@ function ClientDashboard() {
   const fetchProfitStatement = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/profits", {
+      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyId}`,
+        {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
