@@ -953,6 +953,25 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error fetching users" });
   }
 });
+//Get admins from a clients org
+app.get('/api/org-admins', authenticateToken, async (req, res) => {
+  try {
+    // Ensure the user is a client
+    if (req.user.role !== 'client') {
+      return res.status(403).json({ error: "Forbidden - Clients only" });
+    }
+
+    // Fetch only users with role "admin" in the same organization
+    const admins = await User.find({ organizationId: req.user.organizationId, role: "admin" })
+      .select("_id email");
+
+    res.json(admins);
+  } catch (error) {
+    console.error("❌ Error fetching organization admins:", error);
+    res.status(500).json({ error: "Server error fetching organization admins" });
+  }
+});
+
 app.delete("/api/assignments/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;

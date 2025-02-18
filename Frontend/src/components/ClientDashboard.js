@@ -51,16 +51,28 @@ function ClientDashboard() {
   const fetchOrgAdmins = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/users", {
+      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/org-admins", {
         headers: { Authorization: `Bearer ${token}` },
       });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+      }
+  
       const data = await response.json();
-      const admins = data.filter((user) => user.role === "admin");
-      setOrgAdmins(admins);
+  
+      // ✅ Ensure we only process an array
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid response format: Expected an array");
+      }
+  
+      setOrgAdmins(data);
     } catch (err) {
       console.error("Error fetching organization admins:", err);
+      setOrgAdmins([]); // Avoid breaking the UI if this fails
     }
   };
+  
 
   // Logout Function
   const handleLogout = () => {
