@@ -47,6 +47,7 @@ function Login({ setUser }) {
       );
   
       const text = await response.text();
+      console.log("🔹 Raw API response:", text); // Debugging
       try {
         const data = JSON.parse(text);
         if (response.ok) {
@@ -81,10 +82,12 @@ function Login({ setUser }) {
   
           // ✅ Navigate based on role
           if (data.role === "client") {
+            localStorage.setItem("role", "client");
             navigate("/client/dashboard");
           } else {
+            localStorage.setItem("role", data.role || "user");
             navigate("/dashboard");
-          }
+          }          
         } else {
           alert(data.message);
         }
