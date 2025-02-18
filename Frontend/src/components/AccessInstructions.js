@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 function AccessInstructions() {
   const { property } = useParams(); // ✅ Use "property" for consistency
   const navigate = useNavigate();
-
+  const { propertyName } = useParams();
   // Role from localStorage to decide if user can edit
   const role = localStorage.getItem("role") || "user";
   const orgName = localStorage.getItem("orgName") || "";

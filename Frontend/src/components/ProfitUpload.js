@@ -11,7 +11,7 @@ function ProfitUpload() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!profitPdf || !monthlyProfit || !propertyId) {
+    if (!profitPdf || !monthlyProfit || !property) {
       setMessage("Missing required data. Please try again.");
       return;
     }    
@@ -46,7 +46,7 @@ function ProfitUpload() {
 
   return (
     <div className="profit-upload-container">
-      <h2>Upload Profit Statement for {propertyId}</h2>
+      <h2>Upload Profit Statement for {property}</h2>
       {message && <p className="upload-message">{message}</p>}
 
       <form onSubmit={handleSubmit} className="profit-upload-form">
