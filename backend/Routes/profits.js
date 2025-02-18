@@ -52,7 +52,8 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
     }
 
     // ✅ Find the property using `propertyName`
-    const property = organization.properties.find(p => p.name === propertyName);
+    const decodedPropertyName = decodeURIComponent(propertyName);
+    const property = organization.properties.find(p => p.name.trim().toLowerCase() === decodedPropertyName.trim().toLowerCase());
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
     }
