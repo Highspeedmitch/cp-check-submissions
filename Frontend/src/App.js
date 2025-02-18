@@ -21,35 +21,39 @@ import ProfitUpload from "./components/ProfitUpload";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 
 function App() {
-  const [user, setUser] = useState(false);
+  const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      setUser(false); // No token? Ensure user is treated as not logged in
+      setUser(false);
+      setRole(null);
       return;
     }
 
-    const storedRole = localStorage.getItem("role") || "user"; // Default to "user" if missing
     setUser(true);
-    setRole(storedRole);
+    
+    // Fetch role AFTER user is confirmed logged in
+    const storedRole = localStorage.getItem("role");
+    console.log("🔹 Retrieved role from localStorage:", storedRole);
 
-    async function requestPermission() {
-      try {
-        const result = await FirebaseMessaging.requestPermissions();
-        console.log("Push Permission:", result);
-      } catch (error) {
-        console.error("Push Permission Error:", error);
-      }
+    if (storedRole) {
+      setRole(storedRole);
+    } else {
+      console.warn("⚠️ Role is missing in localStorage, defaulting to 'user'");
+      setRole("user");
     }
+  }, [user]); // Re-run when `user` updates
 
-    requestPermission();
-  }, []);
+  // 🛠 Prevent rendering until role is loaded
+  if (user === null || role === null) {
+    return <div>Loading...</div>;
+  }
 
-  console.log("🔹 User State:", user);
-  console.log("🔹 Role State:", role);
+  console.log("🔹 Final User State:", user);
+  console.log("🔹 Final Role State:", role);
 
   return (
     <Routes>
