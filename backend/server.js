@@ -163,7 +163,7 @@ app.use("/api/profits", require("./Routes/profits"));
 
 //client routes
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file
-app.use("/api/client", authenticateToken, clientRoutes); // Mount under /api/client
+app.use("/api", authenticateToken, clientRoutes); // Mount under /api/client
 
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
