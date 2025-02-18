@@ -187,7 +187,7 @@ function AccessInstructions() {
       {role === "admin" && orgName === "AzRoots" && (
               <button
                 className="primary-button"
-                onClick={() => navigate(`/profit-upload/${encodeURIComponent(currentPropertyName)}`)}
+                onClick={() => navigate(`/profit-upload/${encodeURIComponent(propertyName)}`)}
                 style={{ marginTop: "1rem" }}
               >
                 Profit Statements

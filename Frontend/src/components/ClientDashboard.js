@@ -52,16 +52,24 @@ function ClientDashboard() {
       const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/client/communications", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await response.json();
-      if (response.ok) {
-        setCommunications(data);
-      } else {
-        console.error(data.message);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} - ${response.statusText}`);
       }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        throw new Error("Invalid JSON response from server.");
+      }
+
+      setCommunications(Array.isArray(data) ? data : []); // ✅ Always set an array
     } catch (err) {
-      console.error("Error fetching communications", err);
+      console.error("Error fetching communications:", err);
+      setCommunications([]); // ✅ Prevent UI crash by ensuring it's always an array
     }
-  };
+};
 
   const handleScheduleConsultation = () => {
     // Navigate to a consultation scheduling page or open a scheduling modal
