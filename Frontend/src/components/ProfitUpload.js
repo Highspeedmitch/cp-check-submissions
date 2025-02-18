@@ -11,7 +11,7 @@ function ProfitUpload() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!profitPdf || !monthlyProfit || !property) {
+    if (!profitPdf || !monthlyProfit || !propertyName) {
       setMessage("Missing required data. Please try again.");
       return;
     }    
