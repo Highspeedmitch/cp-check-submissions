@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 function ProfitUpload() {
   const navigate = useNavigate();
   const { propertyName } = useParams(); // ✅ Get propertyName from URL
-  const decodedPropertyName = decodeURIComponent(propertyName).trim().toLowerCase(); // ✅ Ensure it's properly decoded
+  const decodedPropertyName = decodeURIComponent(propertyName).trim(); // ✅ Ensure it's properly decoded
 
   const [monthlyProfit, setMonthlyProfit] = useState("");
   const [profitPdf, setProfitPdf] = useState(null);
@@ -30,13 +30,13 @@ function ProfitUpload() {
 
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(decodedPropertyName)}`, // ✅ Ensures consistency
+        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(decodedPropertyName)}`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         }
-      );
+      );      
 
       const data = await response.json();
       if (response.ok) {

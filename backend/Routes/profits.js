@@ -48,8 +48,8 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
       return res.status(403).json({ error: "Only AzRoots admins can upload profit statements." });
     }
 
-    // ✅ Decode and normalize `propertyName`
-    propertyName = propertyName.replace(/%20/g, " ").trim().toLowerCase();
+    // ✅ Decode propertyName & normalize for comparison
+    propertyName = decodeURIComponent(propertyName).trim(); // ✅ Preserve case
 
     console.log("🔹 Backend received propertyName:", propertyName);
     console.log("🔹 Available properties:", organization.properties.map(p => `"${p.name}"`));
@@ -57,10 +57,8 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
     // ✅ Ensure `properties` exists before searching
     const propertyList = organization.properties || [];
 
-    // ✅ Find property by case-insensitive matching
-    const property = propertyList.find(
-      p => p.name.trim().toLowerCase() === propertyName
-    );
+    // ✅ Use case-insensitive matching
+    const property = propertyList.find(p => p.name.trim().toLowerCase() === propertyName.toLowerCase());
 
     if (!property) {
       console.log("❌ Property not found:", propertyName);
