@@ -157,6 +157,10 @@ app.use("/admin", authenticateToken, adminRoutes);
 //search query
 const propertyRoutes = require("./Routes/properties");
 app.use("/api/properties", authenticateToken, propertyRoutes);
+
+//profits
+app.use("/api/profits", require("./Routes/profits"));
+
 //client routes
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file
 app.use("/api/client", authenticateToken, clientRoutes); // Mount under /api/client
