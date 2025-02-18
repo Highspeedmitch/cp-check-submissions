@@ -91,7 +91,7 @@ function App() {
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
 
       {/* Profit Uploads - Only for AzRoots Admins */}
-      <Route path="/profit-uploads" element={user && role === "admin" ? <ProfitUpload /> : <Navigate to="/" />} />
+      <Route path="/profit-uploads/:propertyName" element={user && role === "admin" ? <ProfitUpload /> : <Navigate to="/" />} />
 
       {/* Client Dashboard - Only for Clients */}
       <Route path="/client/dashboard" element={user && role === "client" ? <ClientDashboard /> : <Navigate to="/" />} />

@@ -24,7 +24,7 @@ function AccessInstructions() {
     // 1) Fetch from your backend GET /api/access-instructions/:propertyName
     //    which returns { instructions, maintenanceInfo, generalInfo }
     fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(property)}`,
+      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(propertyName)}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -55,7 +55,7 @@ function AccessInstructions() {
   // 3) For admin: Save updates
   const handleSaveClick = () => {
     fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(property)}`,
+      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(propertyName)}`,
       {
         method: "PUT",
         headers: {
@@ -183,7 +183,7 @@ function AccessInstructions() {
       {role === "admin" && orgName === "AzRoots" && (
               <button
                 className="primary-button"
-                onClick={() => navigate(`/profit-upload/${encodeURIComponent(property)}`)}
+                onClick={() => navigate(`/profit-uploads/${encodeURIComponent(propertyName)}`)}
                 style={{ marginTop: "1rem" }}
               >
                 Profit Statements
