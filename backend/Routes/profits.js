@@ -51,7 +51,7 @@ router.post("/:propertyId", authenticateToken, upload.single("profitPdf"), async
     }
 
     // ✅ Ensure the property belongs to this admin's organization
-    const property = organization.properties.find(p => p.name === propertyId);
+    const property = organization.properties.find(p => p._id.toString() === propertyId);
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
     }
