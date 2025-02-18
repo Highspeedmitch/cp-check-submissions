@@ -84,6 +84,7 @@ function App() {
       <Route path="/client-registration" element={<ClientRegistration />} />
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />
+      <Route path="/client-dashboard/:propertyId" element={<ClientDashboard />} />
     </Routes>
   );
 }
