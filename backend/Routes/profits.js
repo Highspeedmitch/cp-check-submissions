@@ -33,28 +33,33 @@ const upload = multer({
 // ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
 router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), async (req, res) => {
   try {
-    const { propertyName } = req.params; // PropertyName instead of propertyId
+    let { propertyName } = req.params;
     const { monthlyProfit } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: "PDF file is required." });
     }
 
-    // ✅ Ensure user is an admin
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can upload profit statements." });
     }
 
-    // ✅ Fetch the organization
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization || organization.name !== "AzRoots") {
       return res.status(403).json({ error: "Only AzRoots admins can upload profit statements." });
     }
 
-    // ✅ Find the property using `propertyName`
-    const decodedPropertyName = decodeURIComponent(propertyName);
-    const property = organization.properties.find(p => p.name.trim().toLowerCase() === decodedPropertyName.trim().toLowerCase());
+    // ✅ Decode and normalize `propertyName`
+    propertyName = decodeURIComponent(propertyName).trim().toLowerCase();
+
+    console.log("🔹 Received propertyName:", propertyName);
+    console.log("🔹 Available properties:", organization.properties.map(p => p.name));
+
+    // ✅ Find property by case-insensitive matching
+    const property = organization.properties.find(p => p.name.trim().toLowerCase() === propertyName);
+    
     if (!property) {
+      console.log("❌ Property not found:", propertyName);
       return res.status(404).json({ error: "Property not found in your organization." });
     }
 
@@ -85,7 +90,7 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
     const newMonthlyProfit = Number(monthlyProfit);
     const newYTDTotal = previousYTD + newMonthlyProfit;
 
-    // ✅ Save profit record in DB using the calculated values
+    // ✅ Save profit record in DB
     const profit = new Profit({
       propertyId,
       organizationId: req.user.organizationId,
@@ -95,10 +100,10 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
     });
 
     await profit.save();
-    res.status(201).json({ message: `Profit data uploaded for ${propertyName}`, profit });
+    res.status(201).json({ message: `Profit data uploaded for ${property.name}`, profit });
   } catch (error) {
-    console.error("Error uploading profit data:", error);
-    res.status(500).json({ error: "Server error uploading profit data" });
+    console.error("❌ Server error in profits.js:", error);
+    return res.status(500).json({ error: "Server error uploading profit data" });
   }
 });
 
