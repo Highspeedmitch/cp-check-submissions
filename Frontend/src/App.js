@@ -71,7 +71,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<Scheduler />} />
-      <Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />
+      <Route path="/access-instructions/:property" element={<AccessInstructions />} />
       {/* New STR Admin Edit Property Route */}
       <Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />
       {/* Payments Page - Only Admins */}
@@ -84,7 +84,7 @@ function App() {
       <Route path="/client-registration" element={<ClientRegistration />} />
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />
-      <Route path="/client-dashboard/:propertyId" element={<ClientDashboard />} />
+      <Route path="/client-dashboard/:property" element={<ClientDashboard />} />
     </Routes>
   );
 }

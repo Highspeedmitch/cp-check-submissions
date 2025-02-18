@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 function ProfitUpload() {
   const navigate = useNavigate();
-  const { propertyId } = useParams(); // ✅ Get propertyId from URL instead of dropdown
+  const { property } = useParams(); // ✅ Get propertyId from URL instead of dropdown
   const [monthlyProfit, setMonthlyProfit] = useState("");
   const [profitPdf, setProfitPdf] = useState(null);
   const [message, setMessage] = useState("");
@@ -24,7 +24,7 @@ function ProfitUpload() {
 
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyId}`, // ✅ Uses URL param
+        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${property}`, // ✅ Uses URL param
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 function AccessInstructions() {
-  const { propertyName } = useParams();
+  const { property } = useParams(); // ✅ Use "property" for consistency
   const navigate = useNavigate();
 
   // Role from localStorage to decide if user can edit
@@ -24,9 +24,7 @@ function AccessInstructions() {
     // 1) Fetch from your backend GET /api/access-instructions/:propertyName
     //    which returns { instructions, maintenanceInfo, generalInfo }
     fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(
-        propertyName
-      )}`,
+      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(property)}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -57,9 +55,7 @@ function AccessInstructions() {
   // 3) For admin: Save updates
   const handleSaveClick = () => {
     fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(
-        propertyName
-      )}`,
+      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(property)}`,
       {
         method: "PUT",
         headers: {
@@ -187,7 +183,7 @@ function AccessInstructions() {
       {role === "admin" && orgName === "AzRoots" && (
               <button
                 className="primary-button"
-                onClick={() => navigate(`/profit-upload/${encodeURIComponent(propertyName)}`)}
+                onClick={() => navigate(`/profit-upload/${encodeURIComponent(property)}`)}
                 style={{ marginTop: "1rem" }}
               >
                 Profit Statements

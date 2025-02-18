@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const Communication = require("../models/communication");
+const Communication = require("../models/Communication");
 const Organization = require("../models/organization");
 
 // ✅ Protect all routes with authentication middleware
@@ -11,7 +11,6 @@ router.post("/communications", async (req, res) => {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can create communications." });
     }
-
     const { propertyId, message } = req.body;
 
     const organization = await Organization.findById(req.user.organizationId);

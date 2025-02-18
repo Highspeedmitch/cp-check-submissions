@@ -7,7 +7,7 @@ function ClientDashboard() {
   const [communications, setCommunications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { propertyId } =  useParams();
+  const { property } =  useParams();
 
   // Retrieve essential details from localStorage
   const role = localStorage.getItem("role");
@@ -30,7 +30,7 @@ function ClientDashboard() {
   const fetchProfitStatement = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyId}`,
+      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/profits/${property}`,
         {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -50,7 +50,7 @@ function ClientDashboard() {
   const fetchCommunications = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/client/communications/${propertyId}`, {
+      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/client/communications/${property}`,{
         headers: { Authorization: `Bearer ${token}` }
       });
 
