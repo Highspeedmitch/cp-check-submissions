@@ -19,17 +19,16 @@ const s3 = new AWS.S3();
 
 // Multer configuration for file uploads
 const storage = multer.memoryStorage();
-const upload = multer({ 
-  storage, 
+const upload = multer({
+  storage,
   fileFilter: (req, file, cb) => {
     if (file.mimetype !== "application/pdf") {
       return cb(new Error("Only PDFs are allowed."));
     }
     cb(null, true);
-  }
+  },
 });
 
-// ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
 // ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
 router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), async (req, res) => {
   try {
@@ -53,11 +52,16 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
     propertyName = decodeURIComponent(propertyName).trim().toLowerCase();
 
     console.log("🔹 Received propertyName:", propertyName);
-    console.log("🔹 Available properties:", organization.properties.map(p => p.name));
+    console.log("🔹 Available properties:", organization.properties.map(p => encodeURIComponent(p.name)));
+
+    // ✅ Ensure `properties` exists before searching
+    const propertyList = organization.properties || [];
 
     // ✅ Find property by case-insensitive matching
-    const property = organization.properties.find(p => p.name.trim().toLowerCase() === propertyName);
-    
+    const property = propertyList.find(
+      p => p.name.trim().toLowerCase() === propertyName
+    );
+
     if (!property) {
       console.log("❌ Property not found:", propertyName);
       return res.status(404).json({ error: "Property not found in your organization." });
@@ -83,7 +87,7 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
     const existingProfits = await Profit.find({
       organizationId: req.user.organizationId,
       propertyId: propertyId,
-      uploadedAt: { $gte: startOfYear }
+      uploadedAt: { $gte: startOfYear },
     });
 
     const previousYTD = existingProfits.reduce((acc, record) => acc + record.monthlyProfit, 0);
@@ -106,7 +110,6 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
     return res.status(500).json({ error: "Server error uploading profit data" });
   }
 });
-
 
 // ✅ Clients retrieve profit data (Restricted to AzRoots Clients)
 router.get("/:propertyId", authenticateToken, async (req, res) => {

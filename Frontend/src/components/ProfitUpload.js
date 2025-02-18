@@ -3,7 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 
 function ProfitUpload() {
   const navigate = useNavigate();
-  const { propertyName } = useParams(); // ✅ Get propertyId from URL instead of dropdown
+  const { propertyName } = useParams(); // ✅ Get propertyName from URL
+  const decodedPropertyName = decodeURIComponent(propertyName); // ✅ Ensure it's properly decoded
+
   const [monthlyProfit, setMonthlyProfit] = useState("");
   const [profitPdf, setProfitPdf] = useState(null);
   const [message, setMessage] = useState("");
@@ -11,10 +13,10 @@ function ProfitUpload() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!profitPdf || !monthlyProfit || !propertyName) {
+    if (!profitPdf || !monthlyProfit || !decodedPropertyName) {
       setMessage("Missing required data. Please try again.");
       return;
-    }    
+    }
 
     const formData = new FormData();
     formData.append("monthlyProfit", monthlyProfit);
@@ -22,9 +24,13 @@ function ProfitUpload() {
 
     const token = localStorage.getItem("token");
 
+    console.log("🔹 Uploading profit for:", decodedPropertyName);
+    console.log("🔹 Monthly Profit:", monthlyProfit);
+    console.log("🔹 Selected File:", profitPdf?.name);
+
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyName}`, // ✅ Uses URL param
+        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(decodedPropertyName)}`, // ✅ Ensures consistency
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -46,7 +52,7 @@ function ProfitUpload() {
 
   return (
     <div className="profit-upload-container">
-      <h2>Upload Profit Statement for {propertyName}</h2>
+      <h2>Upload Profit Statement for {decodedPropertyName}</h2>
       {message && <p className="upload-message">{message}</p>}
 
       <form onSubmit={handleSubmit} className="profit-upload-form">
