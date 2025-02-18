@@ -62,7 +62,7 @@ router.get("/communications/:propertyId", async (req, res) => {
     res.status(500).json({ error: "Server error fetching communications." });
   }
 });
-router.post("/api/assign-client", authenticateToken, async (req, res) => {
+router.post("/api/assign-client", async (req, res) => {
   try {
     const { propertyName, clientEmail } = req.body;
 
