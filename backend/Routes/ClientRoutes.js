@@ -94,13 +94,14 @@ router.post("/assign-client", async (req, res) => {
       return res.status(404).json({ error: "Property not found in this organization." });
     }
 
-    // Assign client to property
-    if (!property.clientOwners) {
+    // Ensure `clientOwners` is an array
+    if (!Array.isArray(property.clientOwners)) {
       property.clientOwners = [];
     }
 
-    if (!property.clientOwners.includes(clientEmail)) {
-      property.clientOwners.push(clientEmail);
+    // ✅ Store the Client’s `_id` (MongoDB ObjectId) instead of Email
+    if (!property.clientOwners.includes(client._id.toString())) {
+      property.clientOwners.push(client._id); // ✅ Push the ObjectId
     }
 
     await organization.save();
@@ -110,5 +111,6 @@ router.post("/assign-client", async (req, res) => {
     res.status(500).json({ error: "Server error assigning client." });
   }
 });
+
 
 module.exports = router;
