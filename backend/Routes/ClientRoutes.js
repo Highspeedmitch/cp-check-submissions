@@ -62,5 +62,52 @@ router.get("/communications/:propertyId", async (req, res) => {
     res.status(500).json({ error: "Server error fetching communications." });
   }
 });
+app.post("/api/assign-client", authenticateToken, async (req, res) => {
+  try {
+    const { propertyName, clientEmail } = req.body;
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only admins can assign clients." });
+    }
+
+    // Find the organization
+    const organization = await Organization.findById(req.user.organizationId);
+    if (!organization) {
+      return res.status(404).json({ error: "Organization not found." });
+    }
+
+    // Find the client in the organization
+    const client = await User.findOne({
+      email: clientEmail,
+      organizationId: req.user.organizationId,
+      role: "client",
+    });
+
+    if (!client) {
+      return res.status(404).json({ error: "No registered client with this email." });
+    }
+
+    // Find the property
+    const property = organization.properties.find((p) => p.name === propertyName);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found in this organization." });
+    }
+
+    // Assign client to property
+    if (!property.clientOwners) {
+      property.clientOwners = [];
+    }
+
+    if (!property.clientOwners.includes(clientEmail)) {
+      property.clientOwners.push(clientEmail);
+    }
+
+    await organization.save();
+    res.json({ message: `Client ${clientEmail} assigned to ${propertyName}` });
+  } catch (error) {
+    console.error("Error assigning client:", error);
+    res.status(500).json({ error: "Server error assigning client." });
+  }
+});
 
 module.exports = router;

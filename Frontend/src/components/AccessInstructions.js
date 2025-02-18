@@ -2,10 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 function AccessInstructions() {
-  const { property } = useParams(); // ✅ Use "property" for consistency
-  const navigate = useNavigate();
   const { propertyName } = useParams();
-  // Role from localStorage to decide if user can edit
+  const navigate = useNavigate();
   const role = localStorage.getItem("role") || "user";
   const orgName = localStorage.getItem("orgName") || "";
 
@@ -20,9 +18,12 @@ function AccessInstructions() {
   const [editedMaintenance, setEditedMaintenance] = useState("");
   const [editedGeneral, setEditedGeneral] = useState("");
 
+  // Admin‐only: Client assignment
+  const [clientEmail, setClientEmail] = useState("");
+  const [assignmentMessage, setAssignmentMessage] = useState("");
+
   useEffect(() => {
-    // 1) Fetch from your backend GET /api/access-instructions/:propertyName
-    //    which returns { instructions, maintenanceInfo, generalInfo }
+    // Fetch property details
     fetch(
       `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(propertyName)}`,
       {
@@ -44,7 +45,6 @@ function AccessInstructions() {
       .catch((err) => console.error("Server error fetching instructions:", err));
   }, [propertyName]);
 
-  // 2) For admin: let them switch to “edit” mode
   const handleEditClick = () => {
     setEditedInstructions(instructions);
     setEditedMaintenance(maintenanceInfo);
@@ -52,7 +52,6 @@ function AccessInstructions() {
     setIsEditing(true);
   };
 
-  // 3) For admin: Save updates
   const handleSaveClick = () => {
     fetch(
       `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(propertyName)}`,
@@ -87,13 +86,55 @@ function AccessInstructions() {
       });
   };
 
+  // ✅ Assign Client to Property (Admin Only)
+  const handleAssignClient = () => {
+    setAssignmentMessage(""); // Reset message
+
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assign-client", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ propertyName, clientEmail }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setAssignmentMessage(data.error);
+        } else {
+          setAssignmentMessage(`✅ Successfully assigned ${clientEmail} to ${propertyName}`);
+          setClientEmail(""); // Clear input
+        }
+      })
+      .catch((err) => {
+        console.error("Error assigning client:", err);
+        setAssignmentMessage("❌ Server error assigning client.");
+      });
+  };
+
   return (
     <div className="access-instructions-container" style={{ padding: "1rem" }}>
-      <h1 style={{ marginBottom: "1.5rem" }}>
-        🔑 Access Instructions for {propertyName}
-      </h1>
+      <h1 style={{ marginBottom: "1.5rem" }}>🔑 Access Instructions for {propertyName}</h1>
 
-      {/** If admin is editing, show textareas for all fields */}
+      {/* Show assignment input ONLY if the user is an admin */}
+      {role === "admin" && (
+        <div style={{ marginBottom: "1rem" }}>
+          <h3>Assign Property to Client</h3>
+          <input
+            type="email"
+            value={clientEmail}
+            onChange={(e) => setClientEmail(e.target.value)}
+            placeholder="Enter client's email..."
+            style={{ width: "100%", padding: "8px", marginBottom: "8px" }}
+          />
+          <button className="primary-button" onClick={handleAssignClient}>
+            Assign Client
+          </button>
+          {assignmentMessage && <p style={{ marginTop: "8px", color: "red" }}>{assignmentMessage}</p>}
+        </div>
+      )}
+
       {role === "admin" && isEditing ? (
         <>
           <label style={{ fontWeight: "bold" }}>Access Instructions:</label>
@@ -117,82 +158,28 @@ function AccessInstructions() {
             style={{ width: "100%", minHeight: "80px", marginBottom: "1rem" }}
           />
 
-          <button
-            className="primary-button"
-            onClick={handleSaveClick}
-            style={{ marginRight: "10px" }}
-          >
+          <button className="primary-button" onClick={handleSaveClick} style={{ marginRight: "10px" }}>
             Save
           </button>
-          <button
-            className="secondary-button"
-            onClick={() => setIsEditing(false)}
-          >
+          <button className="secondary-button" onClick={() => setIsEditing(false)}>
             Cancel
           </button>
         </>
       ) : (
         <>
-          {/** Otherwise, show them read‐only. Everyone sees these. */}
-          <p
-            style={{
-              fontSize: "1.1rem",
-              marginBottom: "1rem",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            <strong>Lockbox / Instructions:</strong>{" "}
-            {instructions || "No instructions yet."}
-          </p>
+          <p><strong>Lockbox / Instructions:</strong> {instructions || "No instructions yet."}</p>
+          <p><strong>Maintenance Info:</strong> {maintenanceInfo || "Not specified"}</p>
+          <p><strong>General Information:</strong> {generalInfo || "Not specified"}</p>
 
-          <p
-            style={{
-              fontSize: "1.1rem",
-              marginBottom: "1rem",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            <strong>Maintenance Info:</strong>{" "}
-            {maintenanceInfo || "Not specified"}
-          </p>
-
-          <p
-            style={{
-              fontSize: "1.1rem",
-              marginBottom: "2rem",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            <strong>General Information:</strong>{" "}
-            {generalInfo || "Not specified"}
-          </p>
-
-          {/** Admin sees an Edit button if not in editing mode */}
           {role === "admin" && (
-            <button
-              className="primary-button"
-              onClick={handleEditClick}
-              style={{ marginBottom: "1rem" }}
-            >
+            <button className="primary-button" onClick={handleEditClick} style={{ marginBottom: "1rem" }}>
               Edit Instructions
             </button>
           )}
         </>
       )}
-      {/* Conditionally render the Profit Statements button for AzRoots Admins */}
-      {role === "admin" && orgName === "AzRoots" && (
-              <button
-                className="primary-button"
-                onClick={() => navigate(`/profit-uploads/${encodeURIComponent(propertyName)}`)}
-                style={{ marginTop: "1rem" }}
-              >
-                Profit Statements
-              </button>)}
-      <button
-        className="secondary-button"
-        onClick={() => navigate("/dashboard")}
-        style={{ marginTop: "1rem" }}
-      >
+
+      <button className="secondary-button" onClick={() => navigate("/dashboard")} style={{ marginTop: "1rem" }}>
         Back to Dashboard
       </button>
     </div>
