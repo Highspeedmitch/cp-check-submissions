@@ -146,7 +146,7 @@ function ClientDashboard() {
       <main className="main-content">
         <header className="dashboard-header">
           <div className="subtext">Working with {orgName}</div>
-          <h1>Client Dashboard</h1>
+          <h1>Dashboard</h1>
         </header>
 
         {selectedProperty ? (
