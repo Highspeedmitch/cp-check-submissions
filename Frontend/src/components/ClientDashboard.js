@@ -1,79 +1,91 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 function ClientDashboard() {
   const navigate = useNavigate();
-  const [profitStatement, setProfitStatement] = useState(null);
-  const [communications, setCommunications] = useState([]);
+  const [properties, setProperties] = useState([]);
+  const [selectedProperty, setSelectedProperty] = useState(null);
+  const [orgAdmins, setOrgAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { propertyName } =  useParams();
-
+  
   // Retrieve essential details from localStorage
   const role = localStorage.getItem("role");
   const orgType = localStorage.getItem("orgType");
   const orgName = localStorage.getItem("orgName");
+  const clientId = localStorage.getItem("userId"); // Current client ID
 
   // On mount, validate user type and fetch data
   useEffect(() => {
-    // Ensure only "client" users for AzRoots STR organization can access this dashboard
     if (role !== "client" || orgType !== "STR" || orgName !== "AzRoots") {
-      // Redirect or show an error if the user isn’t allowed here
+      // Redirect if not allowed
       navigate("/dashboard");
       return;
     }
-    // Fetch profit statement and communications
-    fetchProfitStatement();
-    fetchCommunications();
+    fetchClientProperties();
+    fetchOrgAdmins();
   }, [role, orgType, orgName, navigate]);
 
-  const fetchProfitStatement = async () => {
+  // Fetch properties and filter for the current client only
+  const fetchClientProperties = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyName}`,
-        {
+      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
-      if (response.ok) {
-        setProfitStatement(data);
-      } else {
-        setError(data.message || "Error fetching profit statement");
-      }
+      
+      // Filter properties to only those where the client is an owner.
+      // Adjust this logic if your clientOwners are stored differently.
+      const clientProps = data.filter(p => 
+        p.clientOwners && p.clientOwners.map(String).includes(clientId)
+      );
+      
+      setProperties(clientProps);
+      if (clientProps.length > 0) setSelectedProperty(clientProps[0]);
     } catch (err) {
-      setError("Error fetching profit statement");
+      setError("Error fetching properties.");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCommunications = async () => {
+  // Fetch organization admin emails
+  const fetchOrgAdmins = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/client/communications/${propertyName}`,{
+      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/users", {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} - ${response.statusText}`);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        throw new Error("Invalid JSON response from server.");
-      }
-
-      setCommunications(Array.isArray(data) ? data : []); // ✅ Always set an array
+      const data = await response.json();
+      const admins = data.filter(user => user.role === "admin");
+      setOrgAdmins(admins);
     } catch (err) {
-      console.error("Error fetching communications:", err);
-      setCommunications([]); // ✅ Prevent UI crash by ensuring it's always an array
+      console.error("Error fetching organization admins:", err);
     }
-};
+  };
 
-  const handleScheduleConsultation = () => {
-    // Navigate to a consultation scheduling page or open a scheduling modal
+  const handlePropertyClick = (property) => {
+    setSelectedProperty(property);
+  };
+
+  const handleViewInfo = () => {
+    // Open the access instructions page (read-only) for the selected property.
+    if (selectedProperty) {
+      navigate(`/access-instructions/${encodeURIComponent(selectedProperty.name)}`);
+    }
+  };
+
+  const handleProfitStatement = () => {
+    // Navigate to a profit statement page for the selected property.
+    // Make sure you have a route defined like: /client/profit-statement/:propertyName
+    if (selectedProperty) {
+      navigate(`/client/profit-statement/${encodeURIComponent(selectedProperty.name)}`);
+    }
+  };
+
+  const handleConsult = () => {
+    // Navigate to a consultation scheduling page or open a scheduling modal.
     navigate("/client/schedule-consultation");
   };
 
@@ -86,48 +98,53 @@ function ClientDashboard() {
 
   return (
     <div className="client-dashboard">
-      <header>
-        <h1>Client Dashboard</h1>
-        <p>Welcome, Property Owner</p>
-      </header>
-
-      <section className="profit-statement">
-        <h2>Profit Statement</h2>
-        {profitStatement ? (
-          <div>
-            <p>Total Profit: ${profitStatement.profitValue.toFixed(2)}</p>
-            <p>Uploaded at: {new Date(profitStatement.uploadedAt).toLocaleString()}</p>
-            {profitStatement.pdfUrl && (
-              <a href={profitStatement.pdfUrl} target="_blank" rel="noopener noreferrer">
-                View PDF
-              </a>
-            )}
-          </div>
-        ) : (
-          <p>No profit statement available.</p>
-        )}
-      </section>
-
-      <section className="communications">
-        <h2>Communications from Property Managers</h2>
-        {communications.length > 0 ? (
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <h2>My Properties</h2>
+        {properties.length ? (
           <ul>
-            {communications.map((comm, index) => (
-              <li key={index}>
-                <p>{comm.message}</p>
-                <small>{new Date(comm.date).toLocaleString()}</small>
+            {properties.map((prop, index) => (
+              <li
+                key={index}
+                onClick={() => handlePropertyClick(prop)}
+                style={{
+                  cursor: "pointer",
+                  fontWeight: selectedProperty?.name === prop.name ? "bold" : "normal"
+                }}
+              >
+                {prop.name}
               </li>
             ))}
           </ul>
         ) : (
-          <p>No communications available.</p>
+          <p>No properties assigned to you.</p>
         )}
-      </section>
+        <h2>Property Managers</h2>
+        {orgAdmins.length ? (
+          <ul>
+            {orgAdmins.map((admin, index) => (
+              <li key={index}>{admin.email}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>No admins found.</p>
+        )}
+        <button onClick={handleConsult}>Consult</button>
+      </aside>
 
-      <section className="schedule-consultation">
-        <h2>Schedule a Consultation</h2>
-        <button onClick={handleScheduleConsultation}>Schedule Now</button>
-      </section>
+      {/* Main Content */}
+      <main className="main-content">
+        {selectedProperty ? (
+          <div className="property-card">
+            <h2>{selectedProperty.name}</h2>
+            <p>Click below to view info about this property.</p>
+            <button onClick={handleViewInfo}>View Info</button>
+            <button onClick={handleProfitStatement}>Profit Statement</button>
+          </div>
+        ) : (
+          <p>Please select a property.</p>
+        )}
+      </main>
     </div>
   );
 }

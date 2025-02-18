@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import ClientDashboard from "./components/ClientDashboard";
+import ClientProfitStatement from "./components/ClientProfitStatement"; // New component for profit statement view
+import ScheduleConsultation from "./components/ScheduleConsultation";   // New component for consultation scheduling
 import ClientRegistration from "./components/ClientRegistration";
 import FormPage from "./components/FormPage";
 import Register from "./components/Register";
@@ -47,11 +49,6 @@ function App() {
     }
   }, [user]); // Re-run when `user` updates
 
-  // 🛠 Prevent rendering until role is loaded
- /* if (user === null || role === null) {
-    return <div>Loading...</div>;
-  }*/
-
   console.log("🔹 Final User State:", user);
   console.log("🔹 Final Role State:", role);
 
@@ -95,13 +92,18 @@ function App() {
 
       {/* Client Dashboard - Only for Clients */}
       <Route path="/client/dashboard" element={user && role === "client" ? <ClientDashboard /> : <Navigate to="/" />} />
+      
+      {/* New: Client Profit Statement Route */}
+      <Route path="/client/profit-statement/:propertyName" element={user && role === "client" ? <ClientProfitStatement /> : <Navigate to="/" />} />
+
+      {/* New: Client Consultation Scheduling Route */}
+      <Route path="/client/schedule-consultation" element={user && role === "client" ? <ScheduleConsultation /> : <Navigate to="/" />} />
 
       {/* Client Registration */}
       <Route path="/client-registration" element={<ClientRegistration />} />
 
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />
-      <Route path="/client-dashboard/:property" element={<ClientDashboard />} />
     </Routes>
   );
 }
