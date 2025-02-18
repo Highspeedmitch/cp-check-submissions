@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const Communication = require("../models/communication");
-const Organization = require("../models/organization");
+const Communication = require("./models/communication");
+const Organization = require("./models/organization");
 
 // ✅ Admin Creates a New Communication
 router.post("/communications", async (req, res) => {
