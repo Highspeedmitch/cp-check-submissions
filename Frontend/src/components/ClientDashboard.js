@@ -50,7 +50,7 @@ function ClientDashboard() {
   const fetchCommunications = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/client/communications", {
+      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/client/communications/${propertyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

@@ -30,12 +30,6 @@ function openNativeMaps(lat, lng) {
 function Dashboard({ setUser }) {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (role === "client") {
-      navigate("/client-dashboard");  // Redirect clients to their dedicated dashboard
-    }
-  }, [role, navigate]);
-
   // 🚗 Mileage states
   const [mileageTracking, setMileageTracking] = useState(false);
   const [mileageCount, setMileageCount] = useState(null);
