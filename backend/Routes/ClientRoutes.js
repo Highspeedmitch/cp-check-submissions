@@ -1,11 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const authenticateToken = require("../middleware/authenticateToken");
 const Communication = require("../models/communication");
 const Organization = require("../models/organization");
 
 // ✅ Admin Creates a New Communication
-router.post("/communications", authenticateToken, async (req, res) => {
+router.post("/communications", async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can create communications." });
@@ -39,7 +38,7 @@ router.post("/communications", authenticateToken, async (req, res) => {
 });
 
 // ✅ Clients Retrieve Communications for Their Property
-router.get("/communications/:propertyId", authenticateToken, async (req, res) => {
+router.get("/communications/:propertyId", async (req, res) => {
   try {
     if (req.user.role !== "client") {
       return res.status(403).json({ error: "Only clients can view communications." });
