@@ -49,10 +49,10 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
     }
 
     // ✅ Decode and normalize `propertyName`
-    propertyName = decodeURIComponent(propertyName).trim().toLowerCase();
+    propertyName = propertyName.replace(/%20/g, " ").trim().toLowerCase();
 
-    console.log("🔹 Received propertyName:", propertyName);
-    console.log("🔹 Available properties:", organization.properties.map(p => encodeURIComponent(p.name)));
+    console.log("🔹 Backend received propertyName:", propertyName);
+    console.log("🔹 Available properties:", organization.properties.map(p => `"${p.name}"`));
 
     // ✅ Ensure `properties` exists before searching
     const propertyList = organization.properties || [];

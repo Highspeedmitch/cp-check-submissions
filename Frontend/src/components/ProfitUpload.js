@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 function ProfitUpload() {
   const navigate = useNavigate();
   const { propertyName } = useParams(); // ✅ Get propertyName from URL
-  const decodedPropertyName = decodeURIComponent(propertyName); // ✅ Ensure it's properly decoded
+  const decodedPropertyName = decodeURIComponent(propertyName).trim().toLowerCase(); // ✅ Ensure it's properly decoded
 
   const [monthlyProfit, setMonthlyProfit] = useState("");
   const [profitPdf, setProfitPdf] = useState(null);
