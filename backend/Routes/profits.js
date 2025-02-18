@@ -3,7 +3,6 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const Profit = require("../models/profit");
-const authenticateToken = require("../middleware/authenticateToken");
 const Organization = require("../models/organization");
 const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
@@ -30,7 +29,7 @@ const upload = multer({
 });
 
 // ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
-router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), async (req, res) => {
+router.post("/:propertyName", upload.single("profitPdf"), async (req, res) => {
   try {
     let { propertyName } = req.params;
     const { monthlyProfit } = req.body;
@@ -110,7 +109,7 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
 });
 
 // ✅ Clients retrieve profit data (Restricted to AzRoots Clients)
-router.get("/:propertyId", authenticateToken, async (req, res) => {
+router.get("/:propertyId", async (req, res) => {
   try {
     const { propertyId } = req.params;
 
