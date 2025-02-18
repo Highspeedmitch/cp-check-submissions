@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 function ClientDashboard() {
   const navigate = useNavigate();
@@ -7,6 +7,7 @@ function ClientDashboard() {
   const [communications, setCommunications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { propertyId } =  useParams();
 
   // Retrieve essential details from localStorage
   const role = localStorage.getItem("role");

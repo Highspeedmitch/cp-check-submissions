@@ -1,11 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const authenticateToken = require("../middleware/authenticateToken");
 const Communication = require("../models/communication"); // Ensure this model exists
 const Organization = require("../models/organization");
 
 // ✅ Get communications for clients
-router.get("/client/communications", authenticateToken, async (req, res) => {
+router.get("/client/communications", async (req, res) => {
   try {
     if (req.user.role !== "client") {
       return res.status(403).json({ error: "Only clients can view communications." });
