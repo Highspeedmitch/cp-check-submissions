@@ -35,7 +35,9 @@ function ClientDashboard() {
       const data = await response.json();
 
       // ✅ Filter only properties where the client is an owner
-      const clientProps = data.filter((p) => p.clientOwners?.includes(clientId));
+      const clientProps = data.filter((p) =>
+        p.clientOwners?.some(ownerId => ownerId.toString() === clientId)
+      );      
 
       setProperties(clientProps);
       if (clientProps.length > 0) setSelectedProperty(clientProps[0]);
