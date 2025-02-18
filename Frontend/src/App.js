@@ -82,7 +82,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<Scheduler />} />
-      <Route path="/access-instructions/:property" element={<AccessInstructions />} />
+      <Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />
 
       {/* New STR Admin Edit Property Route */}
       <Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />

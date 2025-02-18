@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 function ProfitUpload() {
   const navigate = useNavigate();
-  const { property } = useParams(); // ✅ Get propertyId from URL instead of dropdown
+  const { propertyName } = useParams(); // ✅ Get propertyId from URL instead of dropdown
   const [monthlyProfit, setMonthlyProfit] = useState("");
   const [profitPdf, setProfitPdf] = useState(null);
   const [message, setMessage] = useState("");
@@ -24,7 +24,7 @@ function ProfitUpload() {
 
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${property}`, // ✅ Uses URL param
+        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyName}`, // ✅ Uses URL param
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -46,7 +46,7 @@ function ProfitUpload() {
 
   return (
     <div className="profit-upload-container">
-      <h2>Upload Profit Statement for {property}</h2>
+      <h2>Upload Profit Statement for {propertyName}</h2>
       {message && <p className="upload-message">{message}</p>}
 
       <form onSubmit={handleSubmit} className="profit-upload-form">
