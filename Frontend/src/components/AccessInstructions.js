@@ -90,7 +90,7 @@ function AccessInstructions() {
   const handleAssignClient = () => {
     setAssignmentMessage(""); // Reset message
 
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assign-client", {
+    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/client/assign-client", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
