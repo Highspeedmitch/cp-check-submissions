@@ -135,5 +135,11 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error fetching profit data" });
   }
 });
+console.log("🔹 Registered API Routes:");
+router.stack.forEach(layer => {
+  if (layer.route) {
+    console.log(layer.route.path);
+  }
+});
 
 module.exports = router;
