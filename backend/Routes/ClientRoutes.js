@@ -130,7 +130,6 @@ router.post("/assign-client", async (req, res) => {
     res.status(500).json({ error: "Server error assigning client." });
   }
 });
-console.log("🔍 Client ID in Request:", req.user.id);
 
 /**
  * CLIENT: Fetch All Assigned Properties (Server-Side Filtering)
