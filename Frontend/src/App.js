@@ -94,7 +94,7 @@ function App() {
       <Route path="/client/dashboard" element={user && role === "client" ? <ClientDashboard /> : <Navigate to="/" />} />
       
       {/* New: Client Profit Statement Route */}
-      <Route path="/client/profit-statement/:propertyName" element={user && role === "client" ? <ClientProfitStatement /> : <Navigate to="/" />} />
+      <Route path="/client/profit-statement/:propertyId" element={user && role === "client" ? <ClientProfitStatement /> : <Navigate to="/" />} />
 
       {/* New: Client Consultation Scheduling Route */}
       <Route path="/client/schedule-consultation" element={user && role === "client" ? <ScheduleConsultation /> : <Navigate to="/" />} />
