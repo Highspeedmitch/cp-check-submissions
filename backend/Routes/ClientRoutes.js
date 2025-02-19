@@ -1,17 +1,16 @@
-
 const express = require("express");
 const router = express.Router();
 const Communication = require("../models/Communication");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const authenticateToken = require("../middleware/authenticateToken");
-const { ObjectId } = require("mongodb");
+const mongoose = require("mongoose");
 
 // ✅ All routes below require authentication
 router.use(authenticateToken);
 
 /**
- * ADMIN: Create a new Communication
+ * ADMIN: Create a New Communication
  */
 router.post("/communications", async (req, res) => {
   try {
@@ -20,24 +19,23 @@ router.post("/communications", async (req, res) => {
     }
     
     const { propertyId, message } = req.body;
-
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found." });
     }
-
+    
     // Ensure property belongs to the organization
-    const property = organization.properties.find((p) => p._id.toString() === propertyId);
+    const property = organization.properties.find(p => p._id.toString() === propertyId);
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
     }
-
+    
     const newCommunication = new Communication({
       propertyId,
       organizationId: req.user.organizationId,
       message,
     });
-
+    
     await newCommunication.save();
     res.status(201).json({ message: "Communication created successfully!" });
   } catch (error) {
@@ -54,25 +52,24 @@ router.get("/communications/:propertyId", async (req, res) => {
     if (req.user.role !== "client") {
       return res.status(403).json({ error: "Only clients can view communications." });
     }
-
+    
     const { propertyId } = req.params;
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found." });
     }
-
+    
     // Ensure property belongs to the organization
-    const property = organization.properties.find((p) => p._id.toString() === propertyId);
+    const property = organization.properties.find(p => p._id.toString() === propertyId);
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
     }
-
-    // Ensure the client is assigned (owner) of this property
-    // NOTE: If your JWT sets userId as req.user.userId, use that instead of req.user.id
-    if (!property.clientOwners?.some((clientId) => clientId.toString() === req.user.id)) {
+    
+    // Ensure the client is assigned (owner) of this property.
+    if (!property.clientOwners?.some(clientId => clientId.toString() === req.user.id)) {
       return res.status(403).json({ error: "You are not assigned to this property." });
     }
-
+    
     const communications = await Communication.find({ propertyId }).sort({ date: -1 });
     res.json(communications);
   } catch (error) {
@@ -87,16 +84,16 @@ router.get("/communications/:propertyId", async (req, res) => {
 router.post("/assign-client", async (req, res) => {
   try {
     const { propertyName, clientEmail } = req.body;
-
+    
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can assign clients." });
     }
-
+    
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found." });
     }
-
+    
     // Find the client in the same organization
     const client = await User.findOne({
       email: clientEmail,
@@ -106,23 +103,23 @@ router.post("/assign-client", async (req, res) => {
     if (!client) {
       return res.status(404).json({ error: "No registered client with this email." });
     }
-
-    // Find the property
-    const property = organization.properties.find((p) => p.name === propertyName);
+    
+    // Find the property by name
+    const property = organization.properties.find(p => p.name === propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found in this organization." });
     }
-
+    
     // Ensure clientOwners is an array
     if (!Array.isArray(property.clientOwners)) {
       property.clientOwners = [];
     }
-
+    
     // Push the client's _id (ObjectId) if not already present
-    if (!property.clientOwners.some((ownerId) => ownerId.toString() === client._id.toString())) {
+    if (!property.clientOwners.some(ownerId => ownerId.toString() === client._id.toString())) {
       property.clientOwners.push(client._id);
     }
-
+    
     await organization.save();
     res.json({ message: `Client ${clientEmail} assigned to ${propertyName}` });
   } catch (error) {
@@ -139,25 +136,35 @@ router.get("/client-properties", async (req, res) => {
     if (req.user.role !== "client") {
       return res.status(403).json({ error: "Only clients can view properties." });
     }
-
-    console.log("🔍 Client ID in Request:", req.user.id);  
-
-    const orgId = new ObjectId(req.user.organizationId);
-    const userId = new ObjectId(req.user.id);
-
-    // ✅ Log organization properties BEFORE filtering
+    
+    console.log("🔍 Client ID in Request:", req.user.id);
+    
+    const orgId = new mongoose.Types.ObjectId(req.user.organizationId);
+    // Use the correct client ID field from the JWT (ensure this matches your token payload)
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+    
+    // Log all organization properties before filtering
     const org = await Organization.findById(orgId);
     console.log("🏠 All Properties Before Filtering:", org.properties);
-
+    
+    // Use $ifNull to default missing clientOwners to an empty array
     const assignedProperties = await Organization.aggregate([
       { $match: { _id: orgId } },
       { $unwind: "$properties" },
-      { $match: { "properties.clientOwners": { $in: [userId] } } }, // ✅ Fix filtering for arrays
+      {
+        $match: {
+          $expr: {
+            $in: [
+              userId,
+              { $ifNull: ["$properties.clientOwners", []] }
+            ]
+          }
+        }
+      },
       { $replaceRoot: { newRoot: "$properties" } }
-    ]);    
-
+    ]);
+    
     console.log("🏠 Assigned Properties After Filtering:", assignedProperties);
-
     res.json(assignedProperties);
   } catch (error) {
     console.error("Error fetching client properties:", error);
