@@ -140,15 +140,23 @@ router.get("/client-properties", async (req, res) => {
       return res.status(403).json({ error: "Only clients can view properties." });
     }
 
+    console.log("🔍 Client ID in Request:", req.user.id);  
+
     const orgId = new ObjectId(req.user.organizationId);
     const userId = new ObjectId(req.user.id);
 
+    // ✅ Log organization properties BEFORE filtering
+    const org = await Organization.findById(orgId);
+    console.log("🏠 All Properties Before Filtering:", org.properties);
+
     const assignedProperties = await Organization.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(req.user.organizationId) } },
+      { $match: { _id: orgId } },
       { $unwind: "$properties" },
-      { $match: { "properties.clientOwners": { $in: [new mongoose.Types.ObjectId(req.user.id)] } } }, // ✅ Fix for array match
+      { $match: { "properties.clientOwners": { $in: [userId] } } }, // ✅ Fix filtering for arrays
       { $replaceRoot: { newRoot: "$properties" } }
     ]);    
+
+    console.log("🏠 Assigned Properties After Filtering:", assignedProperties);
 
     res.json(assignedProperties);
   } catch (error) {
