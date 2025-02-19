@@ -113,7 +113,7 @@ function ClientDashboard() {
                 onClick={() => handlePropertyClick(prop)}
                 style={{
                   cursor: "pointer",
-                  fontWeight: selectedProperty?.name === prop.name ? "bold" : "normal",
+                  fontWeight: "normal",
                 }}
               >
                 {prop.name}
@@ -135,7 +135,7 @@ function ClientDashboard() {
           <p>No admins found.</p>
         )}
 
-        <button onClick={handleConsult}>Consult</button>
+        <button onClick={handleConsult}>Schedule Consult</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
       </aside>
 
