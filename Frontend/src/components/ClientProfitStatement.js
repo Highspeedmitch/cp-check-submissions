@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import mongoose from "mongoose"; // if needed
 
 function ClientProfitStatement() {
   const { propertyId } = useParams(); // now using propertyId
