@@ -113,6 +113,7 @@ router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), asy
 router.get("/:propertyId", authenticateToken, async (req, res) => {
   try {
     const { propertyId } = req.params;
+    console.log("🔍 Received propertyId from request:", propertyId);
 
     if (req.user.role !== "client") {
       return res.status(403).json({ error: "Only clients can view profit statements." });
@@ -124,22 +125,27 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Only AzRoots clients can view profit statements." });
     }
 
-    // Convert the propertyId from the URL (a string) back into a Mongoose ObjectId
-    let propId;
-    try {
-      propId = new mongoose.Types.ObjectId(propertyId);
-    } catch (err) {
-      return res.status(400).json({ error: "Invalid property ID." });
+    // Ensure propertyId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(propertyId)) {
+      console.error("❌ Invalid ObjectId format:", propertyId);
+      return res.status(400).json({ error: "Invalid property ID format." });
     }
 
-    const profit = await Profit.findOne({ propertyId: new mongoose.Types.ObjectId(propertyId) });
+    // Convert to ObjectId before querying
+    const propId = new mongoose.Types.ObjectId(propertyId);
+    console.log("✅ Converted to ObjectId:", propId);
+
+    const profit = await Profit.findOne({ propertyId: propId });
+
     if (!profit) {
+      console.error("❌ No profit data found for property:", propId);
       return res.status(404).json({ error: "No profit data found for this property." });
     }
 
+    console.log("✅ Profit data found:", profit);
     res.json(profit);
   } catch (error) {
-    console.error("Error fetching profit data:", error);
+    console.error("🔥 Server error fetching profit data:", error);
     res.status(500).json({ error: "Server error fetching profit data" });
   }
 });
