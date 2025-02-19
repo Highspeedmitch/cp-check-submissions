@@ -22,8 +22,10 @@ function AccessInstructions() {
   const [clientEmail, setClientEmail] = useState("");
   const [assignmentMessage, setAssignmentMessage] = useState("");
 
+  // ─────────────────────────────────────────────────────────────
+  // 1) Fetch property details
+  // ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Fetch property details
     fetch(
       `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(propertyName)}`,
       {
@@ -45,6 +47,9 @@ function AccessInstructions() {
       .catch((err) => console.error("Server error fetching instructions:", err));
   }, [propertyName]);
 
+  // ─────────────────────────────────────────────────────────────
+  // 2) Admin toggles "Edit" mode
+  // ─────────────────────────────────────────────────────────────
   const handleEditClick = () => {
     setEditedInstructions(instructions);
     setEditedMaintenance(maintenanceInfo);
@@ -52,6 +57,9 @@ function AccessInstructions() {
     setIsEditing(true);
   };
 
+  // ─────────────────────────────────────────────────────────────
+  // 3) Admin saves updates
+  // ─────────────────────────────────────────────────────────────
   const handleSaveClick = () => {
     fetch(
       `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(propertyName)}`,
@@ -86,9 +94,11 @@ function AccessInstructions() {
       });
   };
 
-  // ✅ Assign Client to Property (Admin Only)
+  // ─────────────────────────────────────────────────────────────
+  // 4) Admin assigns client to property
+  // ─────────────────────────────────────────────────────────────
   const handleAssignClient = () => {
-    setAssignmentMessage(""); // Reset message
+    setAssignmentMessage(""); // reset any prior message
 
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/client/assign-client", {
       method: "POST",
@@ -113,11 +123,16 @@ function AccessInstructions() {
       });
   };
 
+  // ─────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────
   return (
     <div className="access-instructions-container" style={{ padding: "1rem" }}>
-      <h1 style={{ marginBottom: "1.5rem" }}>🔑 Access Instructions for {propertyName}</h1>
+      <h1 style={{ marginBottom: "1.5rem" }}>
+        🔑 Access Instructions for {propertyName}
+      </h1>
 
-      {/* Show assignment input ONLY if the user is an admin */}
+      {/* Admin-only: Assign client to property */}
       {role === "admin" && (
         <div style={{ marginBottom: "1rem" }}>
           <h3>Assign Property to Client</h3>
@@ -131,12 +146,15 @@ function AccessInstructions() {
           <button className="primary-button" onClick={handleAssignClient}>
             Assign Client
           </button>
-          {assignmentMessage && <p style={{ marginTop: "8px", color: "red" }}>{assignmentMessage}</p>}
+          {assignmentMessage && (
+            <p style={{ marginTop: "8px", color: "red" }}>{assignmentMessage}</p>
+          )}
         </div>
       )}
 
       {role === "admin" && isEditing ? (
         <>
+          {/* Edit mode */}
           <label style={{ fontWeight: "bold" }}>Access Instructions:</label>
           <textarea
             value={editedInstructions}
@@ -158,7 +176,11 @@ function AccessInstructions() {
             style={{ width: "100%", minHeight: "80px", marginBottom: "1rem" }}
           />
 
-          <button className="primary-button" onClick={handleSaveClick} style={{ marginRight: "10px" }}>
+          <button
+            className="primary-button"
+            onClick={handleSaveClick}
+            style={{ marginRight: "10px" }}
+          >
             Save
           </button>
           <button className="secondary-button" onClick={() => setIsEditing(false)}>
@@ -167,19 +189,53 @@ function AccessInstructions() {
         </>
       ) : (
         <>
-          <p><strong>Lockbox / Instructions:</strong> {instructions || "No instructions yet."}</p>
-          <p><strong>Maintenance Info:</strong> {maintenanceInfo || "Not specified"}</p>
-          <p><strong>General Information:</strong> {generalInfo || "Not specified"}</p>
+          {/* Read-only mode */}
+          <p>
+            <strong>Lockbox / Instructions:</strong>{" "}
+            {instructions || "No instructions yet."}
+          </p>
+          <p>
+            <strong>Maintenance Info:</strong>{" "}
+            {maintenanceInfo || "Not specified"}
+          </p>
+          <p>
+            <strong>General Information:</strong>{" "}
+            {generalInfo || "Not specified"}
+          </p>
 
+          {/* If admin, show "Edit" button + (AzRoots only) "Profit Statement Upload" */}
           {role === "admin" && (
-            <button className="primary-button" onClick={handleEditClick} style={{ marginBottom: "1rem" }}>
-              Edit Instructions
-            </button>
+            <>
+              <button
+                className="primary-button"
+                onClick={handleEditClick}
+                style={{ marginBottom: "1rem" }}
+              >
+                Edit Instructions
+              </button>
+
+              {/* Only show if orgName === "AzRoots" */}
+              {orgName === "AzRoots" && (
+                <button
+                  className="primary-button"
+                  onClick={() =>
+                    navigate(`/profit-uploads/${encodeURIComponent(propertyName)}`)
+                  }
+                  style={{ marginLeft: "10px", marginBottom: "1rem" }}
+                >
+                  Profit Statement Upload
+                </button>
+              )}
+            </>
           )}
         </>
       )}
 
-      <button className="secondary-button" onClick={() => navigate("/dashboard")} style={{ marginTop: "1rem" }}>
+      <button
+        className="secondary-button"
+        onClick={() => navigate("/dashboard")}
+        style={{ marginTop: "1rem" }}
+      >
         Back to Dashboard
       </button>
     </div>
