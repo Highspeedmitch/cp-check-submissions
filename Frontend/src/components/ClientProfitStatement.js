@@ -2,10 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
 function ClientProfitStatement() {
-  // Get propertyName from the URL and decode it
-  const { propertyName } = useParams();
-  const decodedPropertyName = decodeURIComponent(propertyName).trim();
-
+  const { propertyId } = useParams(); // now using propertyId
   const [profitData, setProfitData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -14,12 +11,9 @@ function ClientProfitStatement() {
     const fetchProfitData = async () => {
       try {
         const token = localStorage.getItem("token");
-        // NOTE: Your backend must accept a propertyName string and look up the corresponding profit record.
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(decodedPropertyName)}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(propertyId)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await response.json();
         if (response.ok) {
@@ -36,15 +30,15 @@ function ClientProfitStatement() {
     };
 
     fetchProfitData();
-  }, [decodedPropertyName]);
+  }, [propertyId]);
 
   if (loading) return <div>Loading profit data...</div>;
   if (error) return <div>Error: {error}</div>;
-  if (!profitData) return <div>No profit data available for {decodedPropertyName}.</div>;
+  if (!profitData) return <div>No profit data available.</div>;
 
   return (
     <div className="client-profit-statement">
-      <h2>Profit Statement for {decodedPropertyName}</h2>
+      <h2>Profit Statement for {propertyId}</h2>
       <div>
         <p>
           <strong>Current Month Profit:</strong> ${profitData.monthlyProfit.toFixed(2)}
