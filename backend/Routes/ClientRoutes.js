@@ -1,4 +1,3 @@
-import { ObjectId } from "mongodb";
 
 const express = require("express");
 const router = express.Router();
@@ -6,7 +5,7 @@ const Communication = require("../models/Communication");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const authenticateToken = require("../middleware/authenticateToken");
-const mongoose = require("mongoose");
+const { ObjectId } = require("mongodb");
 
 // ✅ All routes below require authentication
 router.use(authenticateToken);
