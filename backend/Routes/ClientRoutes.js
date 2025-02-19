@@ -130,6 +130,7 @@ router.post("/assign-client", async (req, res) => {
     res.status(500).json({ error: "Server error assigning client." });
   }
 });
+console.log("🔍 Client ID in Request:", req.user.id);
 
 /**
  * CLIENT: Fetch All Assigned Properties (Server-Side Filtering)
@@ -140,24 +141,19 @@ router.get("/client-properties", async (req, res) => {
       return res.status(403).json({ error: "Only clients can view properties." });
     }
 
-    // Convert IDs properly
-    const orgId = new mongoose.Types.ObjectId(req.user.organizationId);
-    const userId = new mongoose.Types.ObjectId(req.user.id);
+    const orgId = new ObjectId(req.user.organizationId);
+    const userId = new ObjectId(req.user.id);
 
-    console.log("🔍 Fetching properties for client:", userId.toString());
-
-    // Fetch properties where the client's ID exists in `clientOwners`
     const assignedProperties = await Organization.aggregate([
-      { $match: { _id: orgId } },
+      { $match: { _id: new mongoose.Types.ObjectId(req.user.organizationId) } },
       { $unwind: "$properties" },
-      { $match: { "properties.clientOwners": userId } },
+      { $match: { "properties.clientOwners": { $in: [new mongoose.Types.ObjectId(req.user.id)] } } }, // ✅ Fix for array match
       { $replaceRoot: { newRoot: "$properties" } }
-    ]);
+    ]);    
 
-    console.log("✅ Filtered Properties for Client:", assignedProperties);
     res.json(assignedProperties);
   } catch (error) {
-    console.error("❌ Error fetching client properties:", error);
+    console.error("Error fetching client properties:", error);
     res.status(500).json({ error: "Server error fetching client properties." });
   }
 });
