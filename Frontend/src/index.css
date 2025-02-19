@@ -1190,3 +1190,18 @@ button {
   font-weight: bold;
   color: #dc3545;
 }
+.search-results-container {
+  margin-top: 10px;
+}
+
+.search-result-item {
+  padding: 10px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.search-result-item:hover {
+  background: #e0e0e0;
+}

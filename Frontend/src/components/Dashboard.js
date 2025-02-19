@@ -141,6 +141,11 @@ const handleRegionFilter = async () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState("");
 
+  // ------------- Filtered Properties Modal -------------
+  const handlePropertyClick = (property) => {
+    setSelectedProperty(property);
+  };
+  
   // ======================
   // 1) Apply dark mode on load
   // ======================
@@ -664,20 +669,151 @@ useEffect(() => {
 
           {error && <p className="error">{error}</p>}
 
-         {/* ✅ Show Sidebar List ONLY AFTER Search */}
+         {/* ✅ Show Search Results in a Clickable Box */}
 {role === "admin" && sidebarProperties.length > 0 ? (
-  <ul>
+  <ul className="search-results-container">
     {sidebarProperties.map((prop) => (
-      <li key={prop._id}>
-        <strong>{prop.name}</strong>
-        {prop.region && <> - Region: {prop.region}</>}
+      <li
+        key={prop._id}
+        className="search-result-item"
+        onClick={() => handlePropertyClick(prop)}
+        style={{
+          cursor: "pointer",
+          padding: "10px",
+          border: "1px solid #ccc",
+          borderRadius: "5px",
+          margin: "5px 0",
+          backgroundColor: "#f9f9f9",
+        }}
+      >
+        <strong>{prop.name}</strong> - Region: {prop.region || "Uncategorized"}
       </li>
     ))}
   </ul>
 ) : (
   <p style={{ fontStyle: "italic", color: "#888" }}>
-    🔍 Search or filter to display properties.
+    🔍 Search or filter properties.
   </p>
+)}
+  {/* Modal for Admins to Choose Property Actions */}
+{selectedProperty && (
+  <div className="property-modal">
+    <div className="modal-content">
+      <h3>{selectedProperty.name}</h3>
+      <button onClick={() => navigate(`/submissions/${selectedProperty._id}`)}>
+        📄 View Submissions
+      </button>
+      <button onClick={() => navigate(`/access-instructions/${selectedProperty._id}`)}>
+        🔑 View Access / Info
+      </button>
+      <button onClick={() => setSelectedProperty(null)}>❌ Close</button>
+    </div>
+  </div>
+)}{/* ✅ Show Search Results in a Clickable Box */}
+{role === "admin" && sidebarProperties.length > 0 ? (
+  <ul className="search-results-container">
+    {sidebarProperties.map((prop) => (
+      <li
+        key={prop._id}
+        className="search-result-item"
+        onClick={() => handlePropertyClick(prop)}
+        style={{
+          cursor: "pointer",
+          padding: "10px",
+          border: "1px solid #ccc",
+          borderRadius: "5px",
+          margin: "5px 0",
+          backgroundColor: "#f9f9f9",
+          transition: "background 0.2s ease-in-out",
+        }}
+      >
+        <strong>{prop.name}</strong> - Region: {prop.region || "Uncategorized"}
+      </li>
+    ))}
+  </ul>
+) : (
+  <p style={{ fontStyle: "italic", color: "#888" }}>
+    🔍 Search or filter properties.
+  </p>
+)}
+
+{/* ✅ Modal for Admins to Choose Property Actions */}
+{selectedProperty && (
+  <div 
+    className="property-modal"
+    onClick={(e) => {
+      if (e.target.classList.contains("property-modal")) {
+        setSelectedProperty(null); // Close modal when clicking outside
+      }
+    }}
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      background: "rgba(0, 0, 0, 0.5)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 1000,
+    }}
+  >
+    <div className="modal-content" style={{
+      background: "#fff",
+      padding: "20px",
+      borderRadius: "10px",
+      textAlign: "center",
+      boxShadow: "0px 4px 6px rgba(0,0,0,0.1)"
+    }}>
+      <h3>{selectedProperty.name}</h3>
+      <button 
+        onClick={() => navigate(`/submissions/${selectedProperty._id}`)}
+        style={{
+          display: "block",
+          margin: "10px auto",
+          padding: "8px 15px",
+          background: "#007bff",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          cursor: "pointer",
+        }}
+      >
+        📄 View Submissions
+      </button>
+      <button 
+        onClick={() => navigate(`/access-instructions/${selectedProperty._id}`)}
+        style={{
+          display: "block",
+          margin: "10px auto",
+          padding: "8px 15px",
+          background: "#28a745",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          cursor: "pointer",
+        }}
+      >
+        🔑 View Access / Info
+      </button>
+      <button 
+        onClick={() => setSelectedProperty(null)}
+        style={{
+          display: "block",
+          margin: "10px auto",
+          padding: "8px 15px",
+          background: "#dc3545",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          cursor: "pointer",
+        }}
+      >
+        ❌ Close
+      </button>
+    </div>
+  </div>
 )}
         </>
       )}
