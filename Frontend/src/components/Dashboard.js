@@ -695,49 +695,6 @@ useEffect(() => {
     🔍 Search or filter properties.
   </p>
 )}
-  {/* Modal for Admins to Choose Property Actions */}
-{selectedProperty && (
-  <div className="property-modal">
-    <div className="modal-content">
-      <h3>{selectedProperty.name}</h3>
-      <button onClick={() => navigate(`/submissions/${selectedProperty._id}`)}>
-        📄 View Submissions
-      </button>
-      <button onClick={() => navigate(`/access-instructions/${selectedProperty._id}`)}>
-        🔑 View Access / Info
-      </button>
-      <button onClick={() => setSelectedProperty(null)}>❌ Close</button>
-    </div>
-  </div>
-)}
-{/* ✅ Show Search Results in a Clickable Box */}
-{role === "admin" && sidebarProperties.length > 0 ? (
-  <ul className="search-results-container">
-    {sidebarProperties.map((prop) => (
-      <li
-        key={prop._id}
-        className="search-result-item"
-        onClick={() => handlePropertyClick(prop)}
-        style={{
-          cursor: "pointer",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "5px",
-          margin: "5px 0",
-          backgroundColor: "#f9f9f9",
-          transition: "background 0.2s ease-in-out",
-        }}
-      >
-        <strong>{prop.name}</strong> - Region: {prop.region || "Uncategorized"}
-      </li>
-    ))}
-  </ul>
-) : (
-  <p style={{ fontStyle: "italic", color: "#888" }}>
-    🔍 Search or filter properties.
-  </p>
-)}
-
 {/* ✅ Modal for Admins to Choose Property Actions */}
 {selectedProperty && (
   <div
