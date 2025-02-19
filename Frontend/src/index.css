@@ -1136,3 +1136,57 @@ button {
       width: 90%;
   }
 }
+.profit-statement-container {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 20px;
+}
+
+.profit-header {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.profit-card {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.profit-value {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.pdf-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.pdf-link:hover {
+  text-decoration: underline;
+}
+
+.back-button {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.back-button:hover {
+  background-color: #0056b3;
+}
+
+.loading-text, .error-text, .info-text {
+  font-size: 16px;
+  font-weight: bold;
+  color: #dc3545;
+}

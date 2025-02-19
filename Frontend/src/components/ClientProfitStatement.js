@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 function ClientProfitStatement() {
-  const { propertyId } = useParams(); // Ensure it's receiving an actual property ID
+  const { propertyId } = useParams();
+  const navigate = useNavigate();
+
   const [profitData, setProfitData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!propertyId || propertyId.length !== 24) {
-        console.error("❌ Invalid property ID:", propertyId);
-        setError("Invalid property ID.");
-        setLoading(false);
-        return;
-      }      
-
     const fetchProfitData = async () => {
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(
           `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
         const data = await response.json();
         if (response.ok) {
@@ -39,25 +36,44 @@ function ClientProfitStatement() {
     fetchProfitData();
   }, [propertyId]);
 
-  if (loading) return <div>Loading profit data...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!profitData) return <div>No profit data available for this property.</div>;
+  if (loading) return <div className="loading-text">Loading profit data...</div>;
+  if (error) return <div className="error-text">Error: {error}</div>;
+  if (!profitData) return <div className="info-text">No profit data available.</div>;
 
   return (
-    <div className="client-profit-statement">
-      <h2>Profit Statement</h2>
-      <div>
-        <p><strong>Current Month Profit:</strong> ${profitData.monthlyProfit.toFixed(2)}</p>
-        <p><strong>Year-to-Date Profit:</strong> ${profitData.ytdProfit.toFixed(2)}</p>
-        <p><strong>Uploaded at:</strong> {new Date(profitData.uploadedAt).toLocaleString()}</p>
+    <div className="profit-statement-container">
+      <h1 className="profit-header">💰 Profit Statement</h1>
+      
+      <div className="profit-card">
+        <p>
+          <strong>Current Month Profit:</strong>{" "}
+          <span className="profit-value">${profitData.monthlyProfit.toFixed(2)}</span>
+        </p>
+        <p>
+          <strong>Year-to-Date Profit:</strong>{" "}
+          <span className="profit-value">${profitData.ytdProfit.toFixed(2)}</span>
+        </p>
+        <p>
+          <strong>Uploaded at:</strong>{" "}
+          {new Date(profitData.uploadedAt).toLocaleString()}
+        </p>
         {profitData.pdfUrl && (
           <p>
-            <a href={profitData.pdfUrl} target="_blank" rel="noopener noreferrer">
+            <a
+              className="pdf-link"
+              href={profitData.pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               View PDF Statement
             </a>
           </p>
         )}
       </div>
+
+      <button className="back-button" onClick={() => navigate("/dashboard")}>
+        ← Back to Dashboard
+      </button>
     </div>
   );
 }
