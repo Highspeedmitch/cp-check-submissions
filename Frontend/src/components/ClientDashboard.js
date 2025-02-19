@@ -9,6 +9,11 @@ function ClientDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  //Dark mode
+  const [darkMode, setDarkMode] = useState(
+      () => localStorage.getItem("darkMode") === "true"
+    );
+
   // Retrieve user details from localStorage
   const role = localStorage.getItem("role");
   const orgType = localStorage.getItem("orgType");
@@ -23,7 +28,16 @@ function ClientDashboard() {
     fetchClientProperties();
     fetchOrgAdmins();
   }, [role, orgType, navigate]);
-
+useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add("dark-mode");
+    } else {
+      root.classList.remove("dark-mode");
+    }
+    localStorage.setItem("darkMode", darkMode);
+  }, [darkMode]);
+  
   // ✅ Fetch only the properties assigned to this client from the new API route
   const fetchClientProperties = async () => {
     try {
