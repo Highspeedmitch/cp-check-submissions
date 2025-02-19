@@ -627,7 +627,23 @@ useEffect(() => {
               Search
             </button>
           </div>
-
+             {/* Clear Search Button (only shown when searchQuery has text) */}
+    {searchQuery && (
+      <p 
+        onClick={() => {
+          setSearchQuery("");
+          setSidebarProperties([]); // Clear search results
+        }} 
+        style={{
+          cursor: "pointer",
+          color: "#007bff",
+          textDecoration: "underline",
+          fontSize: "0.9em",
+          marginTop: "5px"
+        }}
+      >
+        Clear Search
+      </p>)}
           <div className="region-section">
           <label>Filter by</label>
             <select
