@@ -86,10 +86,12 @@ function ClientDashboard() {
   };
 
   const handleProfitStatement = () => {
-    if (selectedProperty) {
-      navigate(`/client/profit-statement/${encodeURIComponent(selectedProperty.propertyId)}`);
+    if (selectedProperty && selectedProperty._id) {
+      navigate(`/client/profit-statement/${selectedProperty._id.toString()}`);
+    } else {
+      console.error("Error: selectedProperty._id is missing or invalid.");
     }
-  };
+  };  
 
   const handleConsult = () => {
     navigate("/client/schedule-consultation");

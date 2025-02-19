@@ -2,17 +2,23 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
 function ClientProfitStatement() {
-  const { propertyId } = useParams(); // now using propertyId
+  const { propertyId } = useParams(); // Ensure it's receiving an actual property ID
   const [profitData, setProfitData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!propertyId || propertyId.length !== 24) {
+      setError("Invalid property ID.");
+      setLoading(false);
+      return;
+    }
+
     const fetchProfitData = async () => {
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(propertyId)}`,
+          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await response.json();
@@ -34,21 +40,15 @@ function ClientProfitStatement() {
 
   if (loading) return <div>Loading profit data...</div>;
   if (error) return <div>Error: {error}</div>;
-  if (!profitData) return <div>No profit data available.</div>;
+  if (!profitData) return <div>No profit data available for this property.</div>;
 
   return (
     <div className="client-profit-statement">
       <h2>Profit Statement</h2>
       <div>
-        <p>
-          <strong>Current Month Profit:</strong> ${profitData.monthlyProfit.toFixed(2)}
-        </p>
-        <p>
-          <strong>Year-to-Date Profit:</strong> ${profitData.ytdProfit.toFixed(2)}
-        </p>
-        <p>
-          <strong>Uploaded at:</strong> {new Date(profitData.uploadedAt).toLocaleString()}
-        </p>
+        <p><strong>Current Month Profit:</strong> ${profitData.monthlyProfit.toFixed(2)}</p>
+        <p><strong>Year-to-Date Profit:</strong> ${profitData.ytdProfit.toFixed(2)}</p>
+        <p><strong>Uploaded at:</strong> {new Date(profitData.uploadedAt).toLocaleString()}</p>
         {profitData.pdfUrl && (
           <p>
             <a href={profitData.pdfUrl} target="_blank" rel="noopener noreferrer">
