@@ -7,7 +7,7 @@ const authenticateToken = require("../middleware/authenticateToken");
 const Organization = require("../models/organization");
 const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
-
+const mongoose = require("mongoose");
 // AWS S3 Configuration
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
