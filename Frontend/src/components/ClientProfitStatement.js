@@ -2,7 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
 function ClientProfitStatement() {
+  // Get propertyName from the URL and decode it
   const { propertyName } = useParams();
+  const decodedPropertyName = decodeURIComponent(propertyName).trim();
+
   const [profitData, setProfitData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -11,9 +14,9 @@ function ClientProfitStatement() {
     const fetchProfitData = async () => {
       try {
         const token = localStorage.getItem("token");
-        // Adjust the endpoint as needed; here we assume the backend accepts propertyName
+        // NOTE: Your backend must accept a propertyName string and look up the corresponding profit record.
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(propertyName)}`,
+          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(decodedPropertyName)}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -33,15 +36,15 @@ function ClientProfitStatement() {
     };
 
     fetchProfitData();
-  }, [propertyName]);
+  }, [decodedPropertyName]);
 
   if (loading) return <div>Loading profit data...</div>;
   if (error) return <div>Error: {error}</div>;
-  if (!profitData) return <div>No profit data available for {propertyName}.</div>;
+  if (!profitData) return <div>No profit data available for {decodedPropertyName}.</div>;
 
   return (
     <div className="client-profit-statement">
-      <h2>Profit Statement for {propertyName}</h2>
+      <h2>Profit Statement for {decodedPropertyName}</h2>
       <div>
         <p>
           <strong>Current Month Profit:</strong> ${profitData.monthlyProfit.toFixed(2)}
@@ -50,8 +53,7 @@ function ClientProfitStatement() {
           <strong>Year-to-Date Profit:</strong> ${profitData.ytdProfit.toFixed(2)}
         </p>
         <p>
-          <strong>Uploaded at:</strong>{" "}
-          {new Date(profitData.uploadedAt).toLocaleString()}
+          <strong>Uploaded at:</strong> {new Date(profitData.uploadedAt).toLocaleString()}
         </p>
         {profitData.pdfUrl && (
           <p>
