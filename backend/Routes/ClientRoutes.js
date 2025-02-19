@@ -137,11 +137,11 @@ router.get("/client-properties", async (req, res) => {
       return res.status(403).json({ error: "Only clients can view properties." });
     }
     
-    console.log("🔍 Client ID in Request:", req.user.id);
+    console.log("🔍 Client ID in Request:", req.user.userId);
     
     const orgId = new mongoose.Types.ObjectId(req.user.organizationId);
     // Use the correct client ID field from the JWT (ensure this matches your token payload)
-    const userId = new mongoose.Types.ObjectId(req.user.id);
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
     
     // Log all organization properties before filtering
     const org = await Organization.findById(orgId);
