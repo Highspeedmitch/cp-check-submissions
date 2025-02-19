@@ -1,14 +1,19 @@
+import { ObjectId } from "mongodb";
+
 const express = require("express");
 const router = express.Router();
 const Communication = require("../models/Communication");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const authenticateToken = require("../middleware/authenticateToken");
+const mongoose = require("mongoose");
 
-// ✅ Protect all routes with authentication middleware
+// ✅ All routes below require authentication
 router.use(authenticateToken);
 
-// ✅ Admin Creates a New Communication
+/**
+ * ADMIN: Create a new Communication
+ */
 router.post("/communications", async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -22,7 +27,8 @@ router.post("/communications", async (req, res) => {
       return res.status(404).json({ error: "Organization not found." });
     }
 
-    const property = organization.properties.find(p => p._id.toString() === propertyId);
+    // Ensure property belongs to the organization
+    const property = organization.properties.find((p) => p._id.toString() === propertyId);
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
     }
@@ -41,7 +47,9 @@ router.post("/communications", async (req, res) => {
   }
 });
 
-// ✅ Clients Retrieve Communications for Their Property
+/**
+ * CLIENT: Retrieve Communications for a Single Property
+ */
 router.get("/communications/:propertyId", async (req, res) => {
   try {
     if (req.user.role !== "client") {
@@ -54,14 +62,15 @@ router.get("/communications/:propertyId", async (req, res) => {
       return res.status(404).json({ error: "Organization not found." });
     }
 
-    // Ensure the property exists and that the client is assigned to it
-    const property = organization.properties.find(p => p._id.toString() === propertyId);
+    // Ensure property belongs to the organization
+    const property = organization.properties.find((p) => p._id.toString() === propertyId);
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
     }
 
-    // Ensure the client is an owner of the property
-    if (!property.clientOwners?.some(clientId => clientId.toString() === req.user.id)) {
+    // Ensure the client is assigned (owner) of this property
+    // NOTE: If your JWT sets userId as req.user.userId, use that instead of req.user.id
+    if (!property.clientOwners?.some((clientId) => clientId.toString() === req.user.id)) {
       return res.status(403).json({ error: "You are not assigned to this property." });
     }
 
@@ -73,7 +82,9 @@ router.get("/communications/:propertyId", async (req, res) => {
   }
 });
 
-// ✅ Assign a Client to a Property
+/**
+ * ADMIN: Assign a Client to a Property
+ */
 router.post("/assign-client", async (req, res) => {
   try {
     const { propertyName, clientEmail } = req.body;
@@ -82,37 +93,35 @@ router.post("/assign-client", async (req, res) => {
       return res.status(403).json({ error: "Only admins can assign clients." });
     }
 
-    // Find the organization
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found." });
     }
 
-    // Find the client in the organization
+    // Find the client in the same organization
     const client = await User.findOne({
       email: clientEmail,
       organizationId: req.user.organizationId,
       role: "client",
     });
-
     if (!client) {
       return res.status(404).json({ error: "No registered client with this email." });
     }
 
     // Find the property
-    const property = organization.properties.find(p => p.name === propertyName);
+    const property = organization.properties.find((p) => p.name === propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found in this organization." });
     }
 
-    // Ensure `clientOwners` is an array
+    // Ensure clientOwners is an array
     if (!Array.isArray(property.clientOwners)) {
       property.clientOwners = [];
     }
 
-    // ✅ Store the Client’s `_id` (MongoDB ObjectId) instead of Email
-    if (!property.clientOwners.some(ownerId => ownerId.toString() === client._id.toString())) {
-      property.clientOwners.push(client._id); // ✅ Push the ObjectId
+    // Push the client's _id (ObjectId) if not already present
+    if (!property.clientOwners.some((ownerId) => ownerId.toString() === client._id.toString())) {
+      property.clientOwners.push(client._id);
     }
 
     await organization.save();
@@ -123,32 +132,29 @@ router.post("/assign-client", async (req, res) => {
   }
 });
 
-// ✅ Fetch Client's Assigned Properties
-router.get("/client-properties", authenticateToken, async (req, res) => {
+/**
+ * CLIENT: Fetch All Assigned Properties (Server-Side Filtering)
+ */
+router.get("/client-properties", async (req, res) => {
   try {
-      if (req.user.role !== "client") {
-          return res.status(403).json({ error: "Only clients can view properties." });
-      }
+    if (req.user.role !== "client") {
+      return res.status(403).json({ error: "Only clients can view properties." });
+    }
 
-      const organization = await Organization.findById(req.user.organizationId);
-      if (!organization) {
-          return res.status(404).json({ error: "Organization not found." });
-      }
+    const orgId = new ObjectId(req.user.organizationId);
+    const userId = new ObjectId(req.user.id);
 
-      console.log("🔹 Organization properties before filtering:", organization.properties);
+    const assignedProperties = await Organization.aggregate([
+      { $match: { _id: orgId } },
+      { $unwind: "$properties" },
+      { $match: { "properties.clientOwners": userId } },
+      { $replaceRoot: { newRoot: "$properties" } }
+    ]);
 
-      // ✅ Find properties where clientOwners includes the userId
-      const assignedProperties = organization.properties.filter((property) => 
-        Array.isArray(property.clientOwners) && 
-        property.clientOwners.some(ownerId => ownerId?.toString() === req.user.id.toString())
-    );    
-
-      console.log("✅ Filtered Properties for Client:", assignedProperties);
-
-      res.json(assignedProperties);
+    res.json(assignedProperties);
   } catch (error) {
-      console.error("Error fetching client properties:", error);
-      res.status(500).json({ error: "Server error fetching client properties." });
+    console.error("Error fetching client properties:", error);
+    res.status(500).json({ error: "Server error fetching client properties." });
   }
 });
 
