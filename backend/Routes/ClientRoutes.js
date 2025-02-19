@@ -139,7 +139,7 @@ router.get("/client-properties", authenticateToken, async (req, res) => {
 
       // ✅ Find properties where clientOwners includes the userId
       const assignedProperties = organization.properties.filter((property) =>
-          property.clientOwners?.some(ownerId => ownerId.toString() === req.user._id.toString())
+        property.clientOwners?.some(ownerId => ownerId.toString() === req.user.id.toString())
       );
 
       console.log("✅ Filtered Properties for Client:", assignedProperties);
