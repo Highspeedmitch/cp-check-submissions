@@ -15,13 +15,24 @@ function Scheduler() {
   const navigate = useNavigate();
   const location = useLocation();
   const token = location.state?.token || localStorage.getItem("token");
-
+  const [airbnbBookings, setAirbnbBookings] = useState([]); // ✅ Airbnb bookings
+  const [eventType, setEventType] = useState("");//tbd
+  const [assignees, setAssignees] = useState([]);//tbd
+  const [selectedAssignee, setSelectedAssignee] = useState("");//tbd
   const [assignments, setAssignments] = useState([]);
   const [properties, setProperties] = useState([]);
   const [users, setUsers] = useState([]);
+  const [date, setDate] = useState("");//tbd
+  const [time, setTime] = useState("");//tbd
+  const [message, setMessage] = useState("");//tbd
+  const [contractors, setContractors] = useState([]);
+  const [cleaners, setCleaners] = useState([]);
+  const [selectedProperty, setSelectedProperty] = useState(null);
+
   const [newAssignment, setNewAssignment] = useState({
     propertyName: "",
     userId: "",
+    eventType: "",
     startDate: "",
     endDate: "",
     oneTimeCheckRequest: "", // New field for one-time request
@@ -53,6 +64,28 @@ function Scheduler() {
       .catch((err) => console.error("Error fetching properties:", err));
   }, [token]);
 
+  // ✅ Fetch Airbnb Bookings When Property is Selected
+  useEffect(() => {
+    if (!selectedProperty) return;
+
+    const fetchAirbnbBookings = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `https://cp-check-submissions-dev-backend.onrender.com/api/airbnb-calendar/${selectedProperty}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const data = await response.json();
+        setAirbnbBookings(data); // ✅ Store Airbnb Bookings
+      } catch (error) {
+        console.error("Error fetching Airbnb calendar:", error);
+      }
+    };
+
+    fetchAirbnbBookings();
+  }, [selectedProperty]);
+
   // Fetch users (exclude admins)
   useEffect(() => {
     if (!token) return;
@@ -62,11 +95,12 @@ function Scheduler() {
     })
       .then((res) => res.json())
       .then((data) => {
-        const filteredUsers = data.filter(user => user.role !== "admin");
-        setUsers(filteredUsers);
+        setUsers(data.filter(user => user.role === "user"));
+        setContractors(data.filter(user => user.role === "contractor"));
+        setCleaners(data.filter(user => user.role === "cleaner"));
       })
       .catch((err) => console.error("Error fetching users:", err));
-  }, [token]);
+  }, [token]);  
 
   // Handle form submission (New or Editing)
   const handleSaveAssignment = async (e) => {
@@ -95,6 +129,7 @@ function Scheduler() {
       organizationId: storedOrgId,  
       propertyName: newAssignment.propertyName,
       userId: newAssignment.userId,
+      eventType: newAssignment.eventType,
       startDate: new Date(newAssignment.startDate).toISOString(),
       endDate: new Date(newAssignment.endDate).toISOString(),
       oneTimeCheckRequest: newAssignment.oneTimeCheckRequest, // Include this in the request
@@ -134,7 +169,7 @@ function Scheduler() {
           .catch((err) => console.error("❌ Error refreshing assignments:", err));
   
         setEditingAssignment(null);
-        setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+        setNewAssignment({ propertyName: "", userId: "", eventType: "", startDate: "", endDate: "" });
   
         // ✅ Send push notification
         console.log("📢 Sending push notification to user...");
@@ -274,18 +309,36 @@ const events = assignments.map((assignment) => {
       <option key={prop.name} value={prop.name}>{prop.name}</option>
     ))}
   </select>
-
-  <label>User:</label>
-  <select
-    value={newAssignment.userId}
-    onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
-    required
-  >
-    <option value="">Select User</option>
-    {users.map((user) => (
-      <option key={user._id} value={user._id}>{user.email}</option>
-    ))}
-  </select>
+ {/* ✅ Select Event Type */}
+ <label>Visit Type:</label>
+        <select
+          value={newAssignment.eventType}
+          onChange={(e) => setNewAssignment({ ...newAssignment, eventType: e.target.value })}
+          required
+        >
+          <option value="">Select Type</option>
+          <option value="QA Check">QA Check</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Cleaning">Cleaning</option>
+        </select>
+  {/* ✅ Assign Users Based on Event Type */}
+  <label>Assign To:</label>
+        <select
+          value={newAssignment.userId}
+          onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
+          required
+        >
+          <option value="">Select User</option>
+          {newAssignment.eventType === "QA Check" &&
+            users.map(user => <option key={user._id} value={user._id}>{user.email}</option>)
+          }
+          {newAssignment.eventType === "Maintenance" &&
+            contractors.map(user => <option key={user._id} value={user._id}>{user.email}</option>)
+          }
+          {newAssignment.eventType === "Cleaning" &&
+            cleaners.map(user => <option key={user._id} value={user._id}>{user.email}</option>)
+          }
+        </select>
 
   {/* ✅ Start Date */}
   <label>Start Date:</label>

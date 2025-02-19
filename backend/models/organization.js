@@ -28,7 +28,9 @@ const PropertySchema = new mongoose.Schema({
   city: { type: String, default: "" },
   state: { type: String, default: "" },
   zip: { type: String, default: "" },
-
+  
+  airbnbCalendarUrl: { type: String, default: "" }, // ✅ Store Airbnb `.ics` URL
+  
   // Optionally store an array of client user IDs who own this property
   clientOwners: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 });
