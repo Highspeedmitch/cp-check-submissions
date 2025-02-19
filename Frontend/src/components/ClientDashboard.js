@@ -123,7 +123,18 @@ function ClientDashboard() {
         ) : (
           <p>No properties assigned to you.</p>
         )}
-
+{/* Dark mode */}
+<div className="dark-mode-toggle">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={darkMode}
+                  onChange={() => setDarkMode((prev) => !prev)}
+                />
+                <span className="slider"></span>
+              </label>
+              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
+            </div>
         <h2>Property Managers</h2>
         {orgAdmins.length ? (
           <ul>
