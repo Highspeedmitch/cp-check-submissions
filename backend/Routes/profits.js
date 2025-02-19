@@ -132,7 +132,7 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Invalid property ID." });
     }
 
-    const profit = await Profit.findOne({ propertyId: propId.toString() });
+    const profit = await Profit.findOne({ propertyId: new mongoose.Types.ObjectId(propertyId) });
     if (!profit) {
       return res.status(404).json({ error: "No profit data found for this property." });
     }

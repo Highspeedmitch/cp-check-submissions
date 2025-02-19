@@ -9,10 +9,11 @@ function ClientProfitStatement() {
 
   useEffect(() => {
     if (!propertyId || propertyId.length !== 24) {
-      setError("Invalid property ID.");
-      setLoading(false);
-      return;
-    }
+        console.error("❌ Invalid property ID:", propertyId);
+        setError("Invalid property ID.");
+        setLoading(false);
+        return;
+      }      
 
     const fetchProfitData = async () => {
       try {
