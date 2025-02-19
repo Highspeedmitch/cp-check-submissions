@@ -124,26 +124,30 @@ router.post("/assign-client", async (req, res) => {
 });
 
 // ✅ Fetch Client's Assigned Properties
-router.get("/client-properties", async (req, res) => {
+router.get("/client-properties", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "client") {
-      return res.status(403).json({ error: "Only clients can access this information." });
-    }
+      if (req.user.role !== "client") {
+          return res.status(403).json({ error: "Only clients can view properties." });
+      }
 
-    const organization = await Organization.findById(req.user.organizationId).lean();
-    if (!organization) {
-      return res.status(404).json({ error: "Organization not found." });
-    }
+      const organization = await Organization.findById(req.user.organizationId);
+      if (!organization) {
+          return res.status(404).json({ error: "Organization not found." });
+      }
 
-    // ✅ Filter properties where the logged-in client is an owner
-    const clientProperties = organization.properties.filter(p =>
-      p.clientOwners?.some(ownerId => ownerId.toString() === req.user.id)
-    );
+      console.log("🔹 Organization properties before filtering:", organization.properties);
 
-    res.json(clientProperties);
+      // ✅ Find properties where clientOwners includes the userId
+      const assignedProperties = organization.properties.filter((property) =>
+          property.clientOwners?.some(ownerId => ownerId.toString() === req.user._id.toString())
+      );
+
+      console.log("✅ Filtered Properties for Client:", assignedProperties);
+
+      res.json(assignedProperties);
   } catch (error) {
-    console.error("Error fetching client properties:", error);
-    res.status(500).json({ error: "Server error fetching properties." });
+      console.error("Error fetching client properties:", error);
+      res.status(500).json({ error: "Server error fetching client properties." });
   }
 });
 
