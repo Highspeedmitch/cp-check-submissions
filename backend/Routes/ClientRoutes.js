@@ -2,9 +2,11 @@ const express = require("express");
 const router = express.Router();
 const Communication = require("../models/Communication");
 const Organization = require("../models/organization");
-const User = require("../models/user"); // ✅ Add this line
+const User = require("../models/user");
+const authenticateToken = require("../middleware/authenticateToken");
 
 // ✅ Protect all routes with authentication middleware
+router.use(authenticateToken);
 
 // ✅ Admin Creates a New Communication
 router.post("/communications", async (req, res) => {
@@ -12,6 +14,7 @@ router.post("/communications", async (req, res) => {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can create communications." });
     }
+    
     const { propertyId, message } = req.body;
 
     const organization = await Organization.findById(req.user.organizationId);
@@ -51,9 +54,15 @@ router.get("/communications/:propertyId", async (req, res) => {
       return res.status(404).json({ error: "Organization not found." });
     }
 
+    // Ensure the property exists and that the client is assigned to it
     const property = organization.properties.find(p => p._id.toString() === propertyId);
     if (!property) {
       return res.status(404).json({ error: "Property not found in your organization." });
+    }
+
+    // Ensure the client is an owner of the property
+    if (!property.clientOwners?.some(clientId => clientId.toString() === req.user.id)) {
+      return res.status(403).json({ error: "You are not assigned to this property." });
     }
 
     const communications = await Communication.find({ propertyId }).sort({ date: -1 });
@@ -63,6 +72,8 @@ router.get("/communications/:propertyId", async (req, res) => {
     res.status(500).json({ error: "Server error fetching communications." });
   }
 });
+
+// ✅ Assign a Client to a Property
 router.post("/assign-client", async (req, res) => {
   try {
     const { propertyName, clientEmail } = req.body;
@@ -89,7 +100,7 @@ router.post("/assign-client", async (req, res) => {
     }
 
     // Find the property
-    const property = organization.properties.find((p) => p.name === propertyName);
+    const property = organization.properties.find(p => p.name === propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found in this organization." });
     }
@@ -100,7 +111,7 @@ router.post("/assign-client", async (req, res) => {
     }
 
     // ✅ Store the Client’s `_id` (MongoDB ObjectId) instead of Email
-    if (!property.clientOwners.includes(client._id.toString())) {
+    if (!property.clientOwners.some(ownerId => ownerId.toString() === client._id.toString())) {
       property.clientOwners.push(client._id); // ✅ Push the ObjectId
     }
 
@@ -112,5 +123,28 @@ router.post("/assign-client", async (req, res) => {
   }
 });
 
+// ✅ Fetch Client's Assigned Properties
+router.get("/client-properties", async (req, res) => {
+  try {
+    if (req.user.role !== "client") {
+      return res.status(403).json({ error: "Only clients can access this information." });
+    }
+
+    const organization = await Organization.findById(req.user.organizationId).lean();
+    if (!organization) {
+      return res.status(404).json({ error: "Organization not found." });
+    }
+
+    // ✅ Filter properties where the logged-in client is an owner
+    const clientProperties = organization.properties.filter(p =>
+      p.clientOwners?.some(ownerId => ownerId.toString() === req.user.id)
+    );
+
+    res.json(clientProperties);
+  } catch (error) {
+    console.error("Error fetching client properties:", error);
+    res.status(500).json({ error: "Server error fetching properties." });
+  }
+});
 
 module.exports = router;
