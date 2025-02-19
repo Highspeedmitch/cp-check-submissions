@@ -709,7 +709,8 @@ useEffect(() => {
       <button onClick={() => setSelectedProperty(null)}>❌ Close</button>
     </div>
   </div>
-)}{/* ✅ Show Search Results in a Clickable Box */}
+)}
+{/* ✅ Show Search Results in a Clickable Box */}
 {role === "admin" && sidebarProperties.length > 0 ? (
   <ul className="search-results-container">
     {sidebarProperties.map((prop) => (
@@ -739,7 +740,7 @@ useEffect(() => {
 
 {/* ✅ Modal for Admins to Choose Property Actions */}
 {selectedProperty && (
-  <div 
+  <div
     className="property-modal"
     onClick={(e) => {
       if (e.target.classList.contains("property-modal")) {
@@ -815,6 +816,7 @@ useEffect(() => {
     </div>
   </div>
 )}
+
         </>
       )}
 
