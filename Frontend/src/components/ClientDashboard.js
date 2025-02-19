@@ -34,6 +34,9 @@ function ClientDashboard() {
       });
       const data = await response.json();
 
+      console.log("🔍 Client ID from localStorage:", clientId);
+      console.log("📜 Properties from API:", data);      
+
       // ✅ Filter only properties where the client is an owner
       const clientProps = data.filter((p) =>
         p.clientOwners?.some(ownerId => ownerId.toString() === clientId)
