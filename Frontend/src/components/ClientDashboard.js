@@ -87,7 +87,7 @@ function ClientDashboard() {
 
   const handleProfitStatement = () => {
     if (selectedProperty) {
-      navigate(`/client/profit-statement/${encodeURIComponent(selectedProperty._id)}`);
+      navigate(`/client/profit-statement/${encodeURIComponent(selectedProperty.propertyId)}`);
     }
   };
 

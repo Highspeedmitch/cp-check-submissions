@@ -118,13 +118,21 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Only clients can view profit statements." });
     }
 
-    // ✅ Fetch the organization
+    // Fetch the organization and check that it’s AzRoots
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization || organization.name !== "AzRoots") {
       return res.status(403).json({ error: "Only AzRoots clients can view profit statements." });
     }
 
-    const profit = await Profit.findOne({ propertyId });
+    // Convert the propertyId from the URL (a string) back into a Mongoose ObjectId
+    let propId;
+    try {
+      propId = new mongoose.Types.ObjectId(propertyId);
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid property ID." });
+    }
+
+    const profit = await Profit.findOne({ propertyId: propId });
     if (!profit) {
       return res.status(404).json({ error: "No profit data found for this property." });
     }
@@ -135,6 +143,7 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error fetching profit data" });
   }
 });
+
 console.log("🔹 Registered API Routes:");
 router.stack.forEach(layer => {
   if (layer.route) {

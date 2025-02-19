@@ -161,7 +161,8 @@ router.get("/client-properties", async (req, res) => {
           }
         }
       },
-      { $replaceRoot: { newRoot: "$properties" } }
+      { $replaceRoot: { newRoot: "$properties" } },
+      { $addFields: { propertyId: { $toString: "$_id" } } }
     ]);
     
     console.log("🏠 Assigned Properties After Filtering:", assignedProperties);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import mongoose from "mongoose"; // if needed
 
 function ClientProfitStatement() {
   const { propertyId } = useParams(); // now using propertyId
@@ -38,7 +39,7 @@ function ClientProfitStatement() {
 
   return (
     <div className="client-profit-statement">
-      <h2>Profit Statement for {propertyId}</h2>
+      <h2>Profit Statement</h2>
       <div>
         <p>
           <strong>Current Month Profit:</strong> ${profitData.monthlyProfit.toFixed(2)}
