@@ -221,7 +221,7 @@ function AccessInstructions() {
                   onClick={() =>
                     navigate(`/profit-uploads/${encodeURIComponent(propertyName)}`)
                   }
-                  style={{ marginLeft: "10px", marginBottom: "1rem" }}
+                  style={{ marginBottom: "1rem" }}
                 >
                   Profit Statement Upload
                 </button>
