@@ -250,7 +250,7 @@ router.post("/assign-client-to-property", async (req, res) => {
 });
 
 // ✅ Fetch & Parse Airbnb `.ics` Calendar
-router.get("/airbnb-calendar/:propertyId", authenticateToken, async (req, res) => {
+router.get("/airbnb-calendar/:propertyId", async (req, res) => {
   try {
     const { propertyId } = req.params;
 
