@@ -1,5 +1,26 @@
 // models/organization.js
 const mongoose = require('mongoose');
+const AccessCategorySchema = new mongoose.Schema({
+  name: String,
+  checked: Boolean,
+  quantity: Number,
+  details: [String], // array of key codes
+  // We can store photos as array of arrays: 
+  // photoUrls: [[String]] => each subIndex has an array 
+  photoUrls: [[String]] 
+});
+
+const MaintenanceItemSchema = new mongoose.Schema({
+  notes: String,
+  photos: [String] 
+});
+
+const MaintenanceCategorySchema = new mongoose.Schema({
+  name: String,
+  checked: Boolean,
+  quantity: Number,
+  items: [MaintenanceItemSchema] 
+});
 
 const PropertySchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -16,12 +37,14 @@ const PropertySchema = new mongoose.Schema({
       type: { type: String, enum: ["text", "yesno"], required: true }
     }
   ],
+  accessCategories: [AccessCategorySchema],
+  maintenanceCategories: [MaintenanceCategorySchema],
   maintenanceData: {
     breakerBoxLocation: { type: String, default: "" },
     airFilterSize: { type: String, default: "" },
     additionalNotes: { type: String, default: "" }
   },
-
+  
   // ✅ NEW ADDRESS FIELDS
   streetAddress: { type: String, default: "" },
   suite: { type: String, default: "" },
@@ -30,7 +53,7 @@ const PropertySchema = new mongoose.Schema({
   zip: { type: String, default: "" },
   
   airbnbCalendarUrl: { type: String, default: "" }, // ✅ Store Airbnb `.ics` URL
-  
+
   // Optionally store an array of client user IDs who own this property
   clientOwners: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 });

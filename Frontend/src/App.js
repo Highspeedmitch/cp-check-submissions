@@ -19,6 +19,7 @@ import LongTermRental from "./components/LongTermRental";
 import ShortTermRental from "./components/ShortTermRental";
 import STReditProperty from "./components/STReditProperty";
 import AccessInstructions from "./components/AccessInstructions";
+import AZRaccessinstructions from "./components/AZRaccessinstructions";
 import Payments from "./components/Payments";
 import ProfitUpload from "./components/ProfitUpload";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
@@ -34,6 +35,18 @@ function SchedulerWrapper() {
     return <AzRootsScheduler />;
   } else {
     return <DefaultScheduler />;
+  }
+}
+
+function AccessInstructionsWrapper() {
+  const role = localStorage.getItem("role");
+  const orgName = localStorage.getItem("orgName");
+  const isAzRootsAdmin = (role === "admin" && orgName === "AzRoots");
+
+  if (isAzRootsAdmin) {
+    return <AZRaccessinstructions />;
+  } else {
+    return <AccessInstructions />;
   }
 }
 
@@ -116,6 +129,9 @@ function App() {
 
       {/* Client Registration */}
       <Route path="/client-registration" element={<ClientRegistration />} />
+     
+      {/* AZRAccessinstructions conditional render */}
+      <Route path="/access-instructions/:propertyId" element={<AccessInstructionsWrapper />} />
 
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />

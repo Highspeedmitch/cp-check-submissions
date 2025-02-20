@@ -30,11 +30,12 @@ const bodyParser = require('body-parser');
 //push notifications
 const router = express.Router();
 const PushToken = require("./models/PushToken"); // Model to store tokens
-//ical
-const ical = require("node-ical");
 //azrootsAssignments.js
 const azrootsAssignments = require("./Routes/azrootsAssignments"); // Import the new route
-
+//airbnb ical
+const airbnbCalendar = require("./Routes/airbnbCalendar"); // Import Airbnb route
+//azroots properties
+const azrootsProperties = require("./Routes/azrootsProperties");
 router.post("/register-push-token", async (req, res) => {
   const { userId, token } = req.body;
   if (!userId || !token) {
@@ -171,6 +172,13 @@ app.use("/api/client", authenticateToken, clientRoutes); // Mount under /api/cli
 
 //azrootsAssignments
 app.use("/api/azroots-assignments", azrootsAssignments); // Register it
+
+//airnbnb integration
+app.use("/api/airbnb-calendar", airbnbCalendar); // Register it
+//azroots properties
+app.use("/api/azroots/properties", authenticateToken, azrootsProperties);
+
+
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
  */
