@@ -16,7 +16,7 @@ function AzRootsScheduler() {
   const location = useLocation();
   const token = location.state?.token || localStorage.getItem("token");
   const [airbnbBookings, setAirbnbBookings] = useState([]); // ✅ Airbnb bookings
-  const [eventType, setEventType] = useState("");//tbd
+  
   const [assignees, setAssignees] = useState([]);//tbd
   const [selectedAssignee, setSelectedAssignee] = useState("");//tbd
   const [assignments, setAssignments] = useState([]);
@@ -120,6 +120,12 @@ function AzRootsScheduler() {
       return;
     }
   
+    // 🔹 Check if eventType is empty before proceeding
+  if (!newAssignment.eventType) {
+    alert("❌ Error: Please select a Visit Type (QA Check, Maintenance, Cleaning).");
+    return;
+  }
+
     console.log("📌 Editing assignment:", editingAssignment);
   
     const url = editingAssignment
@@ -139,7 +145,7 @@ function AzRootsScheduler() {
       organizationId: storedOrgId,  
       propertyName: newAssignment.propertyName,
       userId: newAssignment.userId,
-      eventType: newAssignment.eventType,
+      eventType: newAssignment.eventType || "QA Check",
       startDate: new Date(newAssignment.startDate).toISOString(),
       endDate: new Date(newAssignment.endDate).toISOString(),
       oneTimeCheckRequest: newAssignment.oneTimeCheckRequest, // Include this in the request
@@ -321,16 +327,17 @@ const events = assignments.map((assignment) => {
   </select>
  {/* ✅ Select Event Type */}
  <label>Visit Type:</label>
-        <select
-          value={newAssignment.eventType}
-          onChange={(e) => setNewAssignment({ ...newAssignment, eventType: e.target.value })}
-          required
-        >
-          <option value="">Select Type</option>
-          <option value="QA Check">QA Check</option>
-          <option value="Maintenance">Maintenance</option>
-          <option value="Cleaning">Cleaning</option>
-        </select>
+<select
+  value={newAssignment.eventType} 
+  onChange={(e) => setNewAssignment({ ...newAssignment, eventType: e.target.value })}
+  required
+>
+  <option value="">Select Type</option> {/* User MUST pick one */}
+  <option value="QA Check">QA Check</option>
+  <option value="Maintenance">Maintenance</option>
+  <option value="Cleaning">Cleaning</option>
+</select>
+
   {/* ✅ Assign Users Based on Event Type */}
   <label>Assign To:</label>
         <select
