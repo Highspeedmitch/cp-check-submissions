@@ -23,7 +23,7 @@ import AZRaccessinstructions from "./components/AZRaccessinstructions";
 import Payments from "./components/Payments";
 import ProfitUpload from "./components/ProfitUpload";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
-
+import EditPropertyWrapper from "./components/EditPropertyWrapper";
 function SchedulerWrapper() {
   // We check localStorage or a context/hook, whichever you prefer
   const role = localStorage.getItem("role");
@@ -107,10 +107,10 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<SchedulerWrapper />} />
-      <Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />
+      {/*<Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />*/}
 
       {/* New STR Admin Edit Property Route */}
-      <Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />
+      {/*<Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />*/}
 
       {/* Payments Page - Only Admins */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
@@ -132,7 +132,8 @@ function App() {
      
       {/* AZRAccessinstructions conditional render */}
       <Route path="/access-instructions/:propertyId" element={<AccessInstructionsWrapper />} />
-
+      <Route path="/admin/edit-property/:propertyId" element={user ? <EditPropertyWrapper /> : <Navigate to="/" />}
+/>
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
