@@ -15,7 +15,7 @@ router.post("/", authenticateToken, async (req, res) => {
     const { organizationId, propertyName, userId, eventType, startDate, endDate, oneTimeCheckRequest } = req.body;
 
     // 🔹 Ensure only admins from AzRoots can create assignments
-    if (req.user.userType !== "admin" || req.user.organizationId !== organizationId) {
+    if (req.user.role !== "admin" || req.user.organizationId !== organizationId) {
       return res.status(403).json({ error: "Unauthorized. Admins only." });
     }
 
