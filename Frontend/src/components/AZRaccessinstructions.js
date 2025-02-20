@@ -31,26 +31,29 @@ function AZRaccessinstructions() {
         const response = await fetch(`/api/azroots/properties/${encodedName}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        // If the server returns HTML (login page?), we'd get an error:
-        const data = await response.json(); 
-        if (data.error) {
-          console.error("Server error:", data.error);
-          // Possibly redirect or show a message
+  
+        // Check content type to ensure it's JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("❌ Unexpected response, not JSON:", await response.text());
           return;
         }
-        
-        // If `data.accessCategories` is empty, we load DEFAULT_ACCESS_CATEGORIES
+  
+        const data = await response.json();
+        console.log("✅ Property data received:", data);
+  
         if (!data.accessCategories || data.accessCategories.length === 0) {
           setAccessCategories(DEFAULT_ACCESS_CATEGORIES);
         } else {
           setAccessCategories(data.accessCategories);
         }
       } catch (err) {
-        console.error("Error fetching property:", err);
+        console.error("❌ Error fetching property:", err);
       }
     }
     fetchProperty();
   }, [propertyName, token]);
+  
 
   /** ─────────────────────────────────────
    *  READ-ONLY MODE

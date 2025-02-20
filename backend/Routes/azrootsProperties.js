@@ -41,34 +41,36 @@ async function uploadFileToS3(file, orgId) {
  * Fetch extended property data (access & maintenance arrays)
  */
 router.get("/:propertyName", authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "Forbidden: Admin only" });
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin only" });
+      }
+  
+      const org = await Organization.findById(req.user.organizationId);
+      if (!org) {
+        console.error("❌ Org not found for user:", req.user.organizationId);
+        return res.status(404).json({ error: "Organization not found" });
+      }
+  
+      const decodedName = decodeURIComponent(req.params.propertyName);
+      const property = org.properties.find(p => p.name === decodedName);
+  
+      if (!property) {
+        console.error(`❌ Property '${decodedName}' not found in org '${org.name}'`);
+        return res.status(404).json({ error: "Property not found" });
+      }
+  
+      console.log("✅ Found property:", property.name);
+      res.json({
+        name: property.name,
+        accessCategories: property.accessCategories || [],
+        maintenanceCategories: property.maintenanceCategories || [],
+      });
+    } catch (error) {
+      console.error("❌ Error fetching AzRoots property:", error);
+      res.status(500).json({ error: "Server error fetching property." });
     }
-
-    // Optionally, check orgName in token if you store it, e.g. if (req.user.orgName !== "AzRoots") { ... }
-
-    const org = await Organization.findById(req.user.organizationId);
-    if (!org) return res.status(404).json({ error: "Organization not found" });
-
-    const decodedName = decodeURIComponent(req.params.propertyName);
-    // Find subdoc by .name
-    const property = org.properties.find(p => p.name === decodedName);
-    if (!property) {
-      return res.status(404).json({ error: "Property not found" });
-    }
-
-    res.json({
-      name: property.name,
-      accessCategories: property.accessCategories || [],
-      maintenanceCategories: property.maintenanceCategories || [],
-      // ...
-    });
-  } catch (error) {
-    console.error("❌ Error fetching AzRoots property:", error);
-    res.status(500).json({ error: "Server error fetching property." });
-  }
-});
+  });  
 
 /**
  * PUT /api/azroots/properties/:propertyId
