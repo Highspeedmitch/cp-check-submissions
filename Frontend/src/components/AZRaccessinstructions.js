@@ -1,102 +1,101 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
+// Define your "default categories" here:
+const DEFAULT_ACCESS_CATEGORIES = [
+  { name: "Garage Door", checked: false, quantity: 0, details: [], photoUrls: [] },
+  { name: "Keyless", checked: false, quantity: 0, details: [], photoUrls: [] },
+  { name: "Front Gate", checked: false, quantity: 0, details: [], photoUrls: [] },
+  { name: "Admin", checked: false, quantity: 0, details: [], photoUrls: [] },
+];
+
 function AZRaccessinstructions() {
   const navigate = useNavigate();
-  const { propertyName } = useParams(); // property name from the route param
+  const { propertyName } = useParams();
   const token = localStorage.getItem("token");
 
   // Whether we are in "edit" mode or "view" mode
   const [editMode, setEditMode] = useState(false);
 
-  // Access categories loaded from DB
+  // Access categories from DB or defaults
   const [accessCategories, setAccessCategories] = useState([]);
 
-  // Store File objects separately
-  // Key = "access-catIndex-subIndex" => array of File
+  // Store File objects in memory
   const [accessFiles, setAccessFiles] = useState({});
 
-  // On mount, fetch existing property data by name
+  // On mount, fetch data
   useEffect(() => {
     async function fetchProperty() {
       try {
-        const response = await fetch(
-          `/api/azroots/properties/${encodeURIComponent(propertyName)}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await response.json();
+        const encodedName = encodeURIComponent(propertyName);
+        const response = await fetch(`/api/azroots/properties/${encodedName}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // If the server returns HTML (login page?), we'd get an error:
+        const data = await response.json(); 
         if (data.error) {
-          alert(data.error);
+          console.error("Server error:", data.error);
+          // Possibly redirect or show a message
           return;
         }
-        // Set the categories from the DB
-        setAccessCategories(data.accessCategories || []);
+        
+        // If `data.accessCategories` is empty, we load DEFAULT_ACCESS_CATEGORIES
+        if (!data.accessCategories || data.accessCategories.length === 0) {
+          setAccessCategories(DEFAULT_ACCESS_CATEGORIES);
+        } else {
+          setAccessCategories(data.accessCategories);
+        }
       } catch (err) {
-        console.error("❌ Error fetching property:", err);
+        console.error("Error fetching property:", err);
       }
     }
     fetchProperty();
   }, [propertyName, token]);
 
-  /** -----------------------------------
-   * Read-Only View (if editMode = false)
-   * ------------------------------------
+  /** ─────────────────────────────────────
+   *  READ-ONLY MODE
+   *  ─────────────────────────────────────
    */
   if (!editMode) {
     return (
-      <div style={{ padding: "1rem" }}>
-        <h2 style={{ marginBottom: "1rem" }}>
-          Access Instructions for {propertyName}
-        </h2>
+      <div className="azr-access-container" style={styles.container}>
+        <h2 style={styles.header}>Access Instructions for {propertyName}</h2>
 
-        {/* Example: Show a summary of accessCategories */}
-        <h3>Access Categories</h3>
-        {accessCategories.length === 0 ? (
-          <p>No categories selected.</p>
+        <h3 style={styles.subHeader}>Access Categories</h3>
+        {accessCategories.filter(cat => cat.checked).length === 0 ? (
+          <p style={styles.paragraph}>No categories selected.</p>
         ) : (
           accessCategories.map((cat, idx) =>
             cat.checked ? (
-              <div
-                key={idx}
-                style={{
-                  margin: "0.5rem 0",
-                  padding: "0.5rem",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                }}
-              >
-                <strong>{cat.name}</strong> <br />
-                <em>Quantity:</em> {cat.quantity}
+              <div key={idx} style={styles.categoryBox}>
+                <strong>{cat.name}</strong>
+                <p style={styles.subInfo}>
+                  <em>Quantity:</em> {cat.quantity}
+                </p>
                 {cat.details?.map((detail, dIndex) => (
-                  <div key={dIndex} style={{ marginLeft: "1.5rem" }}>
+                  <p key={dIndex} style={{ marginLeft: "1rem" }}>
                     {cat.name} #{dIndex + 1}: {detail}
-                  </div>
+                  </p>
                 ))}
-                {/* If you want to show existing photo URLs, you'd iterate cat.photoUrls here */}
               </div>
             ) : null
           )
         )}
 
         <div style={{ marginTop: "1rem" }}>
-          <button
-            onClick={() => setEditMode(true)}
-            style={{ marginRight: "1rem" }}
-          >
+          <button style={styles.button} onClick={() => setEditMode(true)}>
             Edit Instructions
           </button>
-          <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
         </div>
       </div>
     );
   }
 
-  /** -----------------------------------
-   * Edit Mode (Dynamic Form UI)
-   * ------------------------------------
+  /** ─────────────────────────────────────
+   *  EDIT MODE
+   *  ─────────────────────────────────────
    */
 
-  // Handlers for Access Categories
   function handleAccessCheck(catIndex, isChecked) {
     setAccessCategories((prev) => {
       const newArr = [...prev];
@@ -116,11 +115,9 @@ function AZRaccessinstructions() {
       const cat = newArr[catIndex];
       cat.quantity = qty;
 
-      // ensure details length matches qty
       while (cat.details.length < qty) cat.details.push("");
       while (cat.details.length > qty) cat.details.pop();
 
-      // ensure photoUrls length matches qty
       while (cat.photoUrls.length < qty) cat.photoUrls.push([]);
       while (cat.photoUrls.length > qty) cat.photoUrls.pop();
 
@@ -145,42 +142,35 @@ function AZRaccessinstructions() {
     });
   }
 
-  // The Save function
   async function handleSave() {
     try {
       const formData = new FormData();
 
-      // Convert the categories to JSON
+      // Convert categories to text data
       const accessTextData = accessCategories.map((cat) => ({
         name: cat.name,
         checked: cat.checked,
         quantity: cat.quantity,
         details: cat.details,
-        // photoUrls we leave out, we let the server fill that after uploading
       }));
       formData.append("accessTextData", JSON.stringify(accessTextData));
 
-      // Attach the files
+      // Attach photos
       Object.keys(accessFiles).forEach((key) => {
-        const fileArray = accessFiles[key]; // array of File
+        const fileArray = accessFiles[key];
         const [prefix, catIndex, subIndex] = key.split("-");
         fileArray.forEach((file, fileIndex) => {
-          // e.g. "accessPhotos-catIndex-subIndex-fileIndex"
-          formData.append(
-            `${prefix}Photos-${catIndex}-${subIndex}-${fileIndex}`,
-            file
-          );
+          formData.append(`${prefix}Photos-${catIndex}-${subIndex}-${fileIndex}`, file);
         });
       });
 
-      const response = await fetch(
-        `/api/azroots/properties/${encodeURIComponent(propertyName)}`,
-        {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        }
-      );
+      const encodedName = encodeURIComponent(propertyName);
+      const response = await fetch(`/api/azroots/properties/${encodedName}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
       if (!response.ok) {
         const errData = await response.json();
         alert("Error saving property: " + (errData.error || "Unknown error"));
@@ -188,25 +178,28 @@ function AZRaccessinstructions() {
       }
       alert("Property updated successfully!");
       setEditMode(false);
-    } catch (error) {
-      console.error("❌ Error saving advanced data:", error);
+    } catch (err) {
+      console.error("❌ Error saving advanced data:", err);
       alert("Server error.");
     }
   }
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <h2>Editing Access Instructions for {propertyName}</h2>
-      <button onClick={() => setEditMode(false)} style={{ marginRight: "1rem" }}>
-        Cancel Edit
-      </button>
-      <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+    <div className="azr-access-container" style={styles.container}>
+      <h2 style={styles.header}>Editing Access Instructions for {propertyName}</h2>
+      <div style={styles.buttonRow}>
+        <button style={styles.button} onClick={() => setEditMode(false)}>
+          Cancel Edit
+        </button>
+        <button style={styles.button} onClick={() => navigate("/dashboard")}>
+          Back to Dashboard
+        </button>
+      </div>
+      <hr />
 
-      <hr style={{ margin: "1rem 0" }} />
-
-      <h3>Access Categories</h3>
+      <h3 style={styles.subHeader}>Access Categories</h3>
       {accessCategories.map((cat, idx) => (
-        <div key={idx} style={{ marginBottom: "1rem", border: "1px solid #ccc", padding: "0.5rem" }}>
+        <div key={idx} style={styles.editCategoryBox}>
           <label>
             <input
               type="checkbox"
@@ -228,38 +221,21 @@ function AZRaccessinstructions() {
                 }
                 style={{ width: "60px" }}
               />
-
               {Array.from({ length: cat.quantity }, (_, subIndex) => (
-                <div
-                  key={subIndex}
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "8px",
-                    marginTop: "8px",
-                    alignItems: "center",
-                    border: "1px solid #ddd",
-                    padding: "0.5rem",
-                    borderRadius: "4px",
-                  }}
-                >
+                <div key={subIndex} style={styles.subItemRow}>
                   <input
                     type="text"
                     placeholder={`Access code #${subIndex + 1}`}
                     value={cat.details[subIndex] || ""}
-                    onChange={(e) =>
-                      handleAccessDetailChange(idx, subIndex, e.target.value)
-                    }
-                    style={{ flex: "1 0 45%" }}
+                    onChange={(e) => handleAccessDetailChange(idx, subIndex, e.target.value)}
+                    style={styles.subItemInput}
                   />
-                  <div style={{ flex: "1 0 45%" }}>
+                  <div style={styles.subItemFileBlock}>
                     <label>Photos:</label>
                     <input
                       type="file"
                       multiple
-                      onChange={(e) =>
-                        handleAccessPhotoChange(idx, subIndex, e.target.files)
-                      }
+                      onChange={(e) => handleAccessPhotoChange(idx, subIndex, e.target.files)}
                       style={{ display: "block", marginTop: "4px" }}
                     />
                   </div>
@@ -270,14 +246,84 @@ function AZRaccessinstructions() {
         </div>
       ))}
 
-      {/* If you have maintenance logic, replicate a similar pattern here... */}
+      {/* If you add maintenance categories, replicate the same pattern here... */}
 
-      <button onClick={handleSave} style={{ marginRight: "1rem" }}>
-        Save Changes
-      </button>
-      <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+      <div style={{ marginTop: "1rem" }}>
+        <button style={styles.button} onClick={handleSave}>
+          Save Changes
+        </button>
+        <button style={styles.button} onClick={() => navigate("/dashboard")}>
+          Back to Dashboard
+        </button>
+      </div>
     </div>
   );
 }
+
+// Some simple styling to constrain width, center content, etc.
+const styles = {
+  container: {
+    maxWidth: "600px",
+    margin: "0 auto",
+    padding: "1rem",
+  },
+  header: {
+    marginBottom: "1rem",
+    fontSize: "1.3rem",
+  },
+  subHeader: {
+    marginTop: "1rem",
+    marginBottom: "0.5rem",
+    fontWeight: "bold",
+  },
+  paragraph: {
+    margin: "0.5rem 0",
+  },
+  buttonRow: {
+    display: "flex",
+    gap: "0.5rem",
+    marginBottom: "1rem",
+  },
+  button: {
+    backgroundColor: "#007bff",
+    color: "#fff",
+    border: "none",
+    padding: "0.5rem 1rem",
+    borderRadius: "4px",
+    cursor: "pointer",
+    marginRight: "0.5rem",
+  },
+  categoryBox: {
+    margin: "0.5rem 0",
+    padding: "0.5rem",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+  },
+  editCategoryBox: {
+    marginBottom: "1rem",
+    padding: "0.5rem",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+  },
+  subInfo: {
+    marginLeft: "1rem",
+  },
+  subItemRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    marginTop: "8px",
+    alignItems: "center",
+    border: "1px solid #ddd",
+    padding: "0.5rem",
+    borderRadius: "4px",
+  },
+  subItemInput: {
+    flex: "1 0 45%",
+  },
+  subItemFileBlock: {
+    flex: "1 0 45%",
+  },
+};
 
 export default AZRaccessinstructions;
