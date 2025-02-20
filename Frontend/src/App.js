@@ -12,7 +12,8 @@ import PropertySelector from "./components/PropertySelector";
 import AdminSubmissions from "./components/AdminSubmissions";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
-import Scheduler from "./components/Scheduler";
+import AzRootsScheduler from "./components/AzRootsScheduler";
+import DefaultScheduler from "./components/Scheduler";
 import ResidentialForm from "./components/ResidentialForm";
 import LongTermRental from "./components/LongTermRental";
 import ShortTermRental from "./components/ShortTermRental";
@@ -21,6 +22,20 @@ import AccessInstructions from "./components/AccessInstructions";
 import Payments from "./components/Payments";
 import ProfitUpload from "./components/ProfitUpload";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
+
+function SchedulerWrapper() {
+  // We check localStorage or a context/hook, whichever you prefer
+  const role = localStorage.getItem("role");
+  const orgName = localStorage.getItem("orgName");
+  const isAzRootsAdmin = (role === "admin" && orgName === "AzRoots");
+
+  // Return whichever component is appropriate
+  if (isAzRootsAdmin) {
+    return <AzRootsScheduler />;
+  } else {
+    return <DefaultScheduler />;
+  }
+}
 
 function App() {
   const [user, setUser] = useState(null);
@@ -78,7 +93,7 @@ function App() {
       <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/scheduler" element={<Scheduler />} />
+      <Route path="/scheduler" element={<SchedulerWrapper />} />
       <Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />
 
       {/* New STR Admin Edit Property Route */}

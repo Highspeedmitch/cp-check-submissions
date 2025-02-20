@@ -30,7 +30,8 @@ const bodyParser = require('body-parser');
 //push notifications
 const router = express.Router();
 const PushToken = require("./models/PushToken"); // Model to store tokens
-
+//ical
+const ical = require("node-ical");
 router.post("/register-push-token", async (req, res) => {
   const { userId, token } = req.body;
   if (!userId || !token) {
@@ -939,20 +940,38 @@ app.get('/api/assignments', authenticateToken, async (req, res) => {
 /**
  * 🔹 Get All Users (Admin Only)
  */
-app.get('/api/users', authenticateToken, async (req, res) => {
+app.get("/api/users", authenticateToken, async (req, res) => {
   try {
     // Ensure only admins can fetch users
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Forbidden - Admin only" });
     }
-    // Fetch only users with role "user"
-    const users = await User.find({ organizationId: req.user.organizationId, role: "user" }).select("_id email");
+
+    // 1) Parse query param (e.g. ?roles=all)
+    const { roles } = req.query;
+
+    // 2) By default, we preserve your existing logic (only 'user')
+    let roleFilter = ["user"];
+
+    // 3) If the frontend wants all non-admin roles, they pass &roles=all
+    if (roles === "all") {
+      roleFilter = ["user", "contractor", "cleaner"];
+    }
+
+    // 4) Fetch from your org only, filtering by the relevant roles
+    const users = await User.find({
+      organizationId: req.user.organizationId,
+      role: { $in: roleFilter },
+    }).select("_id email role"); // note: also select 'role' if you want it returned
+
     res.json(users);
+
   } catch (error) {
     console.error("❌ Error fetching users:", error);
     res.status(500).json({ error: "Server error fetching users" });
   }
 });
+
 //Get admins from a clients org
 app.get('/api/org-admins', authenticateToken, async (req, res) => {
   try {

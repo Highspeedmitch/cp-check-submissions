@@ -5,7 +5,6 @@ const Submission = require("../models/submission");
 const MileageTracking = require("../models/mileageTracking");
 const Payment = require("../models/Payment");
 const apn = require('apn');
-const ical = require("node-ical");
 
 const apnProvider = new apn.Provider({
   token: {
@@ -40,53 +39,45 @@ module.exports = { sendPushNotification };
 router.get("/users", async (req, res) => {
   try {
     const adminOrgId = req.user.organizationId;
-    const { eventType } = req.query; // ✅ Get event type filter from request
-
-    // ✅ Determine allowed roles based on eventType
-    let allowedRoles = ["user"]; // Default (QA Check)
-    if (eventType === "Maintenance") allowedRoles = ["contractor"];
-    if (eventType === "Cleaning") allowedRoles = ["cleaner"];
-
-    console.log("🔹 Fetching users for event type:", eventType, "Allowed roles:", allowedRoles);
-
-    // ✅ Get users from admin's organization & filter by role
+    // Get only non-admin users from the admin's organization
     const users = await User.find(
-      { organizationId: adminOrgId, role: { $in: allowedRoles } },
-      "username _id lastPaidDate role"
+      { organizationId: adminOrgId, role: "user" },
+      "username _id lastPaidDate"
     );
 
     const today = new Date();
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - today.getDay());
 
-    // ✅ Define the start of the current year (YTD calculation)
+    // Define the start of the current year (YTD calculation)
     const startOfYear = new Date(today.getFullYear(), 0, 1);
 
-    // ✅ Aggregate payments since the start of the year
+    // Aggregate payments since the start of the year
     const paymentAgg = await Payment.aggregate([
       { $match: { paidAt: { $gte: startOfYear } } },
       { $group: { _id: "$userId", total: { $sum: "$amount" } } },
     ]);
 
-    // ✅ Map payment aggregation results for easy lookup
+    // Map the aggregation results for easy lookup
     const ytdMap = {};
     paymentAgg.forEach((item) => {
       ytdMap[item._id.toString()] = item.total;
     });
 
-    // ✅ Process each user: compute payment status and attach YTD total
+    // Process each user: compute payment status and attach YTD total
     const usersWithStatus = users.map((user) => {
-      user.status =
-        user.lastPaidDate && new Date(user.lastPaidDate) >= startOfWeek
-          ? "PAID"
-          : "Awaiting Payment";
+      if (user.lastPaidDate && new Date(user.lastPaidDate) >= startOfWeek) {
+        user.status = "PAID";
+      } else {
+        user.status = "Awaiting Payment";
+      }
       user.ytd = ytdMap[user._id.toString()] || 0;
       return user;
     });
 
     res.json(usersWithStatus);
   } catch (error) {
-    console.error("❌ Error fetching users:", error);
+    console.error("Error fetching users:", error);
     res.status(500).json({ error: "Server error fetching users" });
   }
 });
@@ -246,37 +237,6 @@ router.post("/assign-client-to-property", async (req, res) => {
   } catch (error) {
     console.error("Error assigning client:", error);
     res.status(500).json({ error: "Server error assigning client." });
-  }
-});
-
-// ✅ Fetch & Parse Airbnb `.ics` Calendar
-router.get("/airbnb-calendar/:propertyId", async (req, res) => {
-  try {
-    const { propertyId } = req.params;
-
-    // ✅ Find Property & Get `.ics` URL
-    const organization = await Organization.findOne({ "properties._id": propertyId }, { "properties.$": 1 });
-    if (!organization) return res.status(404).json({ error: "Property not found" });
-
-    const property = organization.properties[0];
-    if (!property.airbnbCalendarUrl) return res.status(400).json({ error: "No Airbnb calendar URL found" });
-
-    console.log("🔹 Fetching Airbnb `.ics` from:", property.airbnbCalendarUrl);
-
-    // ✅ Fetch & Parse `.ics` Data
-    const events = await ical.fromURL(property.airbnbCalendarUrl);
-    const parsedEvents = Object.values(events)
-      .filter((event) => event.type === "VEVENT")
-      .map((event) => ({
-        title: "Airbnb Booking",
-        start: event.start,
-        end: event.end,
-      }));
-
-    res.json(parsedEvents);
-  } catch (error) {
-    console.error("❌ Error fetching Airbnb calendar:", error);
-    res.status(500).json({ error: "Server error fetching Airbnb calendar" });
   }
 });
 
