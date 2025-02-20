@@ -131,7 +131,7 @@ function App() {
       <Route path="/client-registration" element={<ClientRegistration />} />
      
       {/* AZRAccessinstructions conditional render */}
-      <Route path="/access-instructions/:propertyId" element={<AccessInstructionsWrapper />} />
+      <Route path="/access-instructions/:propertyName" element={<AccessInstructionsWrapper />} />
       <Route path="/admin/edit-property/:propertyName" element={user ? <EditPropertyWrapper /> : <Navigate to="/" />}
 />
       {/* 404 Redirect */}
