@@ -28,7 +28,7 @@ function AZRaccessinstructions() {
     async function fetchProperty() {
       try {
         const encodedName = encodeURIComponent(propertyName);
-        const response = await fetch(`/api/azroots/properties/${encodedName}`, {
+        const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/azroots/properties/${encodedName}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
   
@@ -168,7 +168,7 @@ function AZRaccessinstructions() {
       });
 
       const encodedName = encodeURIComponent(propertyName);
-      const response = await fetch(`/api/azroots/properties/${encodedName}`, {
+      const response = await fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/azroots/properties/${encodedName}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
