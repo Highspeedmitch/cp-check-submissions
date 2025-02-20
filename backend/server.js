@@ -32,6 +32,9 @@ const router = express.Router();
 const PushToken = require("./models/PushToken"); // Model to store tokens
 //ical
 const ical = require("node-ical");
+//azrootsAssignments.js
+const azrootsAssignments = require("./Routes/azrootsAssignments"); // Import the new route
+
 router.post("/register-push-token", async (req, res) => {
   const { userId, token } = req.body;
   if (!userId || !token) {
@@ -166,6 +169,8 @@ app.use("/api/profits", require("./Routes/profits"));
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file
 app.use("/api/client", authenticateToken, clientRoutes); // Mount under /api/client
 
+//azrootsAssignments
+app.use("/api/azroots-assignments", azrootsAssignments); // Register it
 /**
  * 🔹 Rate Limiting Middleware (Optional but Recommended)
  */

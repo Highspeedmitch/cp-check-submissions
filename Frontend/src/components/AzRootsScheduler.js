@@ -129,8 +129,9 @@ function AzRootsScheduler() {
     console.log("📌 Editing assignment:", editingAssignment);
   
     const url = editingAssignment
-      ? `https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`
-      : "https://cp-check-submissions-dev-backend.onrender.com/api/assignments";
+  ? `https://cp-check-submissions-dev-backend.onrender.com/api/azroots-assignments/${editingAssignment._id}`
+  : "https://cp-check-submissions-dev-backend.onrender.com/api/azroots-assignments";
+
   
     const method = editingAssignment ? "PUT" : "POST";
   
