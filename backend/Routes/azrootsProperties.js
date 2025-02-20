@@ -40,7 +40,7 @@ async function uploadFileToS3(file, orgId) {
  * ---------------------------------------
  * Fetch extended property data (access & maintenance arrays)
  */
-router.get("/:propertyId", authenticateToken, async (req, res) => {
+router.get("/:propertyName", authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Forbidden: Admin only" });
@@ -49,22 +49,20 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
     // Optionally, check orgName in token if you store it, e.g. if (req.user.orgName !== "AzRoots") { ... }
 
     const org = await Organization.findById(req.user.organizationId);
-    if (!org) {
-      return res.status(404).json({ error: "Organization not found" });
-    }
+    if (!org) return res.status(404).json({ error: "Organization not found" });
 
-    // propertyId might be a subdocument ID in org.properties
-    const property = org.properties.id(req.params.propertyId);
+    const decodedName = decodeURIComponent(req.params.propertyName);
+    // Find subdoc by .name
+    const property = org.properties.find(p => p.name === decodedName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
 
-    // Send back the relevant fields 
     res.json({
       name: property.name,
       accessCategories: property.accessCategories || [],
       maintenanceCategories: property.maintenanceCategories || [],
-      // any other fields you store
+      // ...
     });
   } catch (error) {
     console.error("❌ Error fetching AzRoots property:", error);
@@ -80,7 +78,7 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
  * - Maintenance categories
  * - Photos for each sub-item
  */
-router.put("/:propertyId", authenticateToken, upload.any(), async (req, res) => {
+router.put("/:propertyName", authenticateToken, upload.any(), async (req, res) => {
   try {
     // 1) Check user is an AzRoots admin
     if (req.user.role !== "admin") {
@@ -93,7 +91,8 @@ router.put("/:propertyId", authenticateToken, upload.any(), async (req, res) => 
     }
 
     // 2) Find the subdocument property by ID
-    const property = org.properties.id(req.params.propertyId);
+    const decodedName = decodeURIComponent(req.params.propertyName);
+    const property = org.properties.find(p => p.name === decodedName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }

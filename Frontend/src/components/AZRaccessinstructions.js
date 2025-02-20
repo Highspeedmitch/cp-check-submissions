@@ -1,28 +1,102 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 function AZRaccessinstructions() {
-  const { propertyId } = useParams();
+  const navigate = useNavigate();
+  const { propertyName } = useParams(); // property name from the route param
   const token = localStorage.getItem("token");
 
-  // Example state for Access categories
-  const [accessCategories, setAccessCategories] = useState([
-    { name: "Garage Door", checked: false, quantity: 0, details: [], photoUrls: [] },
-    { name: "Keyless", checked: false, quantity: 0, details: [], photoUrls: [] },
-    { name: "Front Gate", checked: false, quantity: 0, details: [], photoUrls: [] },
-    { name: "Admin", checked: false, quantity: 0, details: [], photoUrls: [] },
-  ]);
+  // Whether we are in "edit" mode or "view" mode
+  const [editMode, setEditMode] = useState(false);
 
-  // This state will track the File objects for each subfield
-  // Key format => "access-catIndex-subIndex" => array of File
+  // Access categories loaded from DB
+  const [accessCategories, setAccessCategories] = useState([]);
+
+  // Store File objects separately
+  // Key = "access-catIndex-subIndex" => array of File
   const [accessFiles, setAccessFiles] = useState({});
 
+  // On mount, fetch existing property data by name
   useEffect(() => {
-    // 1) Potentially fetch existing data from /api/azroots/properties/:propertyId
-    //    then setAccessCategories(...) accordingly
-  }, [propertyId]);
+    async function fetchProperty() {
+      try {
+        const response = await fetch(
+          `/api/azroots/properties/${encodeURIComponent(propertyName)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        // Set the categories from the DB
+        setAccessCategories(data.accessCategories || []);
+      } catch (err) {
+        console.error("❌ Error fetching property:", err);
+      }
+    }
+    fetchProperty();
+  }, [propertyName, token]);
 
-  /** Handlers **/
+  /** -----------------------------------
+   * Read-Only View (if editMode = false)
+   * ------------------------------------
+   */
+  if (!editMode) {
+    return (
+      <div style={{ padding: "1rem" }}>
+        <h2 style={{ marginBottom: "1rem" }}>
+          Access Instructions for {propertyName}
+        </h2>
+
+        {/* Example: Show a summary of accessCategories */}
+        <h3>Access Categories</h3>
+        {accessCategories.length === 0 ? (
+          <p>No categories selected.</p>
+        ) : (
+          accessCategories.map((cat, idx) =>
+            cat.checked ? (
+              <div
+                key={idx}
+                style={{
+                  margin: "0.5rem 0",
+                  padding: "0.5rem",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                }}
+              >
+                <strong>{cat.name}</strong> <br />
+                <em>Quantity:</em> {cat.quantity}
+                {cat.details?.map((detail, dIndex) => (
+                  <div key={dIndex} style={{ marginLeft: "1.5rem" }}>
+                    {cat.name} #{dIndex + 1}: {detail}
+                  </div>
+                ))}
+                {/* If you want to show existing photo URLs, you'd iterate cat.photoUrls here */}
+              </div>
+            ) : null
+          )
+        )}
+
+        <div style={{ marginTop: "1rem" }}>
+          <button
+            onClick={() => setEditMode(true)}
+            style={{ marginRight: "1rem" }}
+          >
+            Edit Instructions
+          </button>
+          <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+        </div>
+      </div>
+    );
+  }
+
+  /** -----------------------------------
+   * Edit Mode (Dynamic Form UI)
+   * ------------------------------------
+   */
+
+  // Handlers for Access Categories
   function handleAccessCheck(catIndex, isChecked) {
     setAccessCategories((prev) => {
       const newArr = [...prev];
@@ -42,11 +116,11 @@ function AZRaccessinstructions() {
       const cat = newArr[catIndex];
       cat.quantity = qty;
 
-      // Ensure 'details' has correct length
+      // ensure details length matches qty
       while (cat.details.length < qty) cat.details.push("");
       while (cat.details.length > qty) cat.details.pop();
 
-      // Ensure 'photoUrls' has correct length if you track them in this array
+      // ensure photoUrls length matches qty
       while (cat.photoUrls.length < qty) cat.photoUrls.push([]);
       while (cat.photoUrls.length > qty) cat.photoUrls.pop();
 
@@ -62,9 +136,8 @@ function AZRaccessinstructions() {
     });
   }
 
-  function handleAccessPhotoChange(catIndex, subIndex, files) {
-    // Convert FileList to array
-    const newFiles = Array.from(files);
+  function handleAccessPhotoChange(catIndex, subIndex, fileList) {
+    const newFiles = Array.from(fileList);
     setAccessFiles((prev) => {
       const newObj = { ...prev };
       newObj[`access-${catIndex}-${subIndex}`] = newFiles;
@@ -72,47 +145,49 @@ function AZRaccessinstructions() {
     });
   }
 
+  // The Save function
   async function handleSave() {
     try {
       const formData = new FormData();
 
-      // Convert accessCategories to text data
+      // Convert the categories to JSON
       const accessTextData = accessCategories.map((cat) => ({
         name: cat.name,
         checked: cat.checked,
         quantity: cat.quantity,
         details: cat.details,
+        // photoUrls we leave out, we let the server fill that after uploading
       }));
       formData.append("accessTextData", JSON.stringify(accessTextData));
 
-      // Attach access files
+      // Attach the files
       Object.keys(accessFiles).forEach((key) => {
         const fileArray = accessFiles[key]; // array of File
-        // key looks like "access-0-1"
         const [prefix, catIndex, subIndex] = key.split("-");
         fileArray.forEach((file, fileIndex) => {
-          // field name => "accessPhotos-catIndex-subIndex-fileIndex"
+          // e.g. "accessPhotos-catIndex-subIndex-fileIndex"
           formData.append(
-            `accessPhotos-${catIndex}-${subIndex}-${fileIndex}`,
+            `${prefix}Photos-${catIndex}-${subIndex}-${fileIndex}`,
             file
           );
         });
       });
 
-      // ... similarly for maintenance ...
-
-      const response = await fetch(`/api/azroots/properties/${propertyId}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
+      const response = await fetch(
+        `/api/azroots/properties/${encodeURIComponent(propertyName)}`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        }
+      );
       if (!response.ok) {
         const errData = await response.json();
         alert("Error saving property: " + (errData.error || "Unknown error"));
         return;
       }
       alert("Property updated successfully!");
+      setEditMode(false);
     } catch (error) {
       console.error("❌ Error saving advanced data:", error);
       alert("Server error.");
@@ -120,12 +195,18 @@ function AZRaccessinstructions() {
   }
 
   return (
-    <div>
-      <h2>AzRoots: Access Instructions Setup</h2>
+    <div style={{ padding: "1rem" }}>
+      <h2>Editing Access Instructions for {propertyName}</h2>
+      <button onClick={() => setEditMode(false)} style={{ marginRight: "1rem" }}>
+        Cancel Edit
+      </button>
+      <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
 
+      <hr style={{ margin: "1rem 0" }} />
+
+      <h3>Access Categories</h3>
       {accessCategories.map((cat, idx) => (
-        <div key={idx} style={{ marginBottom: "1rem" }}>
-          {/* Checkbox */}
+        <div key={idx} style={{ marginBottom: "1rem", border: "1px solid #ccc", padding: "0.5rem" }}>
           <label>
             <input
               type="checkbox"
@@ -135,10 +216,9 @@ function AZRaccessinstructions() {
             {cat.name}
           </label>
 
-          {/* If checked, show the rest */}
           {cat.checked && (
-            <>
-              <span style={{ marginLeft: "1rem" }}>Quantity:</span>
+            <div style={{ marginLeft: "1rem", marginTop: "0.5rem" }}>
+              <label>Quantity: </label>
               <input
                 type="number"
                 min={0}
@@ -146,10 +226,9 @@ function AZRaccessinstructions() {
                 onChange={(e) =>
                   handleAccessQuantityChange(idx, parseInt(e.target.value) || 0)
                 }
-                style={{ width: "60px", marginLeft: "0.5rem" }}
+                style={{ width: "60px" }}
               />
 
-              {/* For each quantity, show a row */}
               {Array.from({ length: cat.quantity }, (_, subIndex) => (
                 <div
                   key={subIndex}
@@ -159,39 +238,44 @@ function AZRaccessinstructions() {
                     gap: "8px",
                     marginTop: "8px",
                     alignItems: "center",
+                    border: "1px solid #ddd",
+                    padding: "0.5rem",
+                    borderRadius: "4px",
                   }}
                 >
-                  {/* Access code input */}
                   <input
                     type="text"
-                    placeholder={`Access code for ${cat.name} #${subIndex + 1}`}
+                    placeholder={`Access code #${subIndex + 1}`}
                     value={cat.details[subIndex] || ""}
                     onChange={(e) =>
                       handleAccessDetailChange(idx, subIndex, e.target.value)
                     }
-                    style={{ flex: "1 0 40%" }}
+                    style={{ flex: "1 0 45%" }}
                   />
-
-                  {/* Photo upload */}
-                  <label style={{ flex: "0 0 auto" }}>Photos:</label>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={(e) =>
-                      handleAccessPhotoChange(idx, subIndex, e.target.files)
-                    }
-                    style={{ flex: "1 0 40%" }}
-                  />
+                  <div style={{ flex: "1 0 45%" }}>
+                    <label>Photos:</label>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={(e) =>
+                        handleAccessPhotoChange(idx, subIndex, e.target.files)
+                      }
+                      style={{ display: "block", marginTop: "4px" }}
+                    />
+                  </div>
                 </div>
               ))}
-            </>
+            </div>
           )}
         </div>
       ))}
 
-      {/* Maintenance or other sections below in a similar style... */}
+      {/* If you have maintenance logic, replicate a similar pattern here... */}
 
-      <button onClick={handleSave}>Save All</button>
+      <button onClick={handleSave} style={{ marginRight: "1rem" }}>
+        Save Changes
+      </button>
+      <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
     </div>
   );
 }
