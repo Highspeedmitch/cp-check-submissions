@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
 import axios from "axios";
+import { format } from "date-fns";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -146,6 +147,38 @@ const handleRegionFilter = async () => {
     setSelectedProperty(property);
   };
   
+  // ------------- Profit Upload Status format -----------
+  const [profitStatuses, setProfitStatuses] = useState({});
+  useEffect(() => {
+  async function fetchProfitStatuses() {
+    const currentMonth = format(new Date(), "MMM"); // Get abbreviated month name (e.g., "Feb")
+    const statuses = {};
+
+    for (const prop of properties) {
+      try {
+        const response = await fetch(
+          `https://your-backend-url.com/api/profits/${prop._id}/latest`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (!response.ok) throw new Error("No profit statement found");
+
+        const data = await response.json();
+
+        // Check if the latest profit statement is from this month
+        const uploadedMonth = format(new Date(data.uploadedAt), "MMM");
+
+        statuses[prop._id] = uploadedMonth === currentMonth ? "✅" : "❌";
+      } catch (error) {
+        statuses[prop._id] = "❌"; // No profit statement found
+      }
+    }
+    setProfitStatuses(statuses);
+  }
+
+  fetchProfitStatuses();
+}, [properties]);
+
   // ======================
   // 1) Apply dark mode on load
   // ======================
@@ -984,20 +1017,25 @@ useEffect(() => {
                 const orgType = prop.orgType || "COM";
                 const isCompleted = completedProperties.includes(prop.name);
 
+                // Get the current month in abbreviated format (e.g., "Feb")
+                const currentMonth = format(new Date(), "MMM");
+
+                // Retrieve orgName to check for AzRoots
+                const storedOrgName = localStorage.getItem("orgName");
+
+                // Check if a profit statement exists for this property
+                const hasProfitStatement = profitStatements.some(
+                  (statement) => statement.propertyName === prop.name
+                );
+
                 return (
                   <div
                     key={prop.name}
-                    className={`property-card ${
-                      isCompleted ? "completed-tile" : ""
-                    }`}
+                    className={`property-card ${isCompleted ? "completed-tile" : ""}`}
                     onClick={() => {
                       if (role === "admin") {
-                        // For all admins, property-card click => "view recent submissions"
-                        navigate(
-                          `/admin/submissions/${encodeURIComponent(prop.name)}`
-                        );
+                        navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                       } else {
-                        // For regular users => forms or STR modal
                         if (orgType === "STR") {
                           setSelectedProperty(prop.name);
                           setShowModal(true);
@@ -1020,17 +1058,20 @@ useEffect(() => {
                         : "Click to complete checklist"}
                     </p>
 
-                   {/* If STR admin => Show "Access / Info" button, but NOT "Remove" */}
+                    {/* ✅ Profit Statement Status - Only for AzRoots Admins */}
+                    {role === "admin" && storedOrgName === "AzRoots" && (
+                      <p>
+                        Profit Statement for {currentMonth}:{" "}
+                        {hasProfitStatement ? "✅" : "❌"}
+                      </p>
+                    )}
+
+                    {/* If STR admin => Show "Access / Info" button */}
                     {role === "admin" && adminOrgType === "STR" && (
                       <button
                         className="access-instructions-button"
                         onClick={(e) => {
-                          e.stopPropagation(); // prevent card click
-
-                          // Grab orgName from localStorage to determine if it's AzRoots
-                          const storedOrgName = localStorage.getItem("orgName");
-
-                          // Conditionally navigate based on the organization
+                          e.stopPropagation();
                           if (storedOrgName === "AzRoots") {
                             navigate(`/azr-access-instructions/${encodeURIComponent(prop.name)}`);
                           } else {
@@ -1041,13 +1082,13 @@ useEffect(() => {
                         Access / Info
                       </button>
                     )}
+
                     {/* If admin is NOT STR => Show "Remove" button */}
                     {role === "admin" && adminOrgType !== "STR" && (
                       <button
                         className="remove-button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // directly remove passkey prompt for non-STR admins
                           setPropertyToRemove(prop.name);
                           setRemovePropertyModalVisible(true);
                         }}
@@ -1072,7 +1113,6 @@ useEffect(() => {
                 );
               })}
             </div>
-
             {/* Remove Property Modal (one combined) */}
             {removePropertyModalVisible && (
               <div className="modal-overlay">
