@@ -15,16 +15,14 @@ function AZRaccessinstructions() {
   const role = localStorage.getItem("role") || "user";
   const isAdmin = (role === "admin");
 
-  // whether we are in "edit" or "view" mode
+  // Whether we are in "edit" mode or "view" mode
   const [editMode, setEditMode] = useState(false);
 
-  // access categories from DB or defaults
+  // Access categories from DB or defaults
   const [accessCategories, setAccessCategories] = useState([]);
-
-  // store File objects in memory
   const [accessFiles, setAccessFiles] = useState({});
 
-  // on mount, fetch data
+  // On mount, fetch data
   useEffect(() => {
     async function fetchProperty() {
       try {
@@ -34,7 +32,6 @@ function AZRaccessinstructions() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        // check content type to ensure it's JSON
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
           const text = await response.text();
@@ -59,10 +56,8 @@ function AZRaccessinstructions() {
 
   /**
    * ─────────────────────────────────────
-   * READ-ONLY MODE
+   * READ‐ONLY MODE (Or Non‐Admin)
    * ─────────────────────────────────────
-   *
-   * Also used if the user is not an admin.
    */
   if (!editMode || !isAdmin) {
     return (
@@ -91,11 +86,22 @@ function AZRaccessinstructions() {
         )}
 
         <div style={{ marginTop: "1rem" }}>
-          {/* Show the "Edit" button only if user is admin */}
+          {/* If admin => show “Edit” and “Profit Statements” buttons */}
           {isAdmin && (
-            <button style={styles.button} onClick={() => setEditMode(true)}>
-              Edit Instructions
-            </button>
+            <>
+              <button style={styles.button} onClick={() => setEditMode(true)}>
+                Edit Instructions
+              </button>
+              {/* Profit Statement Uploads */}
+              <button
+                style={styles.button}
+                onClick={() =>
+                  navigate(`/profit-uploads/${encodeURIComponent(propertyName)}`)
+                }
+              >
+                Profit Statements
+              </button>
+            </>
           )}
 
           <button style={styles.button} onClick={() => navigate("/dashboard")}>
@@ -108,11 +114,11 @@ function AZRaccessinstructions() {
 
   /**
    * ─────────────────────────────────────
-   * EDIT MODE (admin only)
+   * EDIT MODE (Admin Only)
    * ─────────────────────────────────────
    */
   function handleAccessCheck(catIndex, isChecked) {
-    setAccessCategories(prev => {
+    setAccessCategories((prev) => {
       const newArr = [...prev];
       newArr[catIndex].checked = isChecked;
       if (!isChecked) {
@@ -125,7 +131,7 @@ function AZRaccessinstructions() {
   }
 
   function handleAccessQuantityChange(catIndex, qty) {
-    setAccessCategories(prev => {
+    setAccessCategories((prev) => {
       const newArr = [...prev];
       const cat = newArr[catIndex];
       cat.quantity = qty;
@@ -140,7 +146,7 @@ function AZRaccessinstructions() {
   }
 
   function handleAccessDetailChange(catIndex, subIndex, value) {
-    setAccessCategories(prev => {
+    setAccessCategories((prev) => {
       const newArr = [...prev];
       newArr[catIndex].details[subIndex] = value;
       return newArr;
@@ -149,7 +155,7 @@ function AZRaccessinstructions() {
 
   function handleAccessPhotoChange(catIndex, subIndex, fileList) {
     const newFiles = Array.from(fileList);
-    setAccessFiles(prev => {
+    setAccessFiles((prev) => {
       const newObj = { ...prev };
       newObj[`access-${catIndex}-${subIndex}`] = newFiles;
       return newObj;
@@ -159,9 +165,7 @@ function AZRaccessinstructions() {
   async function handleSave() {
     try {
       const formData = new FormData();
-
-      // convert categories to text data
-      const accessTextData = accessCategories.map(cat => ({
+      const accessTextData = accessCategories.map((cat) => ({
         name: cat.name,
         checked: cat.checked,
         quantity: cat.quantity,
@@ -169,8 +173,7 @@ function AZRaccessinstructions() {
       }));
       formData.append("accessTextData", JSON.stringify(accessTextData));
 
-      // attach photos
-      Object.keys(accessFiles).forEach(key => {
+      Object.keys(accessFiles).forEach((key) => {
         const fileArray = accessFiles[key];
         const [prefix, catIndex, subIndex] = key.split("-");
         fileArray.forEach((file, fileIndex) => {
@@ -187,7 +190,6 @@ function AZRaccessinstructions() {
           body: formData,
         }
       );
-
       if (!response.ok) {
         const errData = await response.json();
         alert("Error saving property: " + (errData.error || "Unknown error"));
@@ -201,7 +203,7 @@ function AZRaccessinstructions() {
     }
   }
 
-  // Return the edit UI if user is admin
+  // Admin-Only Edit UI
   return (
     <div style={styles.container}>
       <h2 style={styles.header}>Editing Access Instructions for {propertyName}</h2>
@@ -222,7 +224,7 @@ function AZRaccessinstructions() {
             <input
               type="checkbox"
               checked={cat.checked}
-              onChange={e => handleAccessCheck(idx, e.target.checked)}
+              onChange={(e) => handleAccessCheck(idx, e.target.checked)}
             />
             {cat.name}
           </label>
@@ -234,7 +236,9 @@ function AZRaccessinstructions() {
                 type="number"
                 min={0}
                 value={cat.quantity}
-                onChange={e => handleAccessQuantityChange(idx, parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleAccessQuantityChange(idx, parseInt(e.target.value) || 0)
+                }
                 style={{ width: "60px" }}
               />
               {Array.from({ length: cat.quantity }, (_, subIndex) => (
@@ -243,7 +247,9 @@ function AZRaccessinstructions() {
                     type="text"
                     placeholder={`Access code #${subIndex + 1}`}
                     value={cat.details[subIndex] || ""}
-                    onChange={e => handleAccessDetailChange(idx, subIndex, e.target.value)}
+                    onChange={(e) =>
+                      handleAccessDetailChange(idx, subIndex, e.target.value)
+                    }
                     style={styles.subItemInput}
                   />
                   <div style={styles.subItemFileBlock}>
@@ -251,7 +257,9 @@ function AZRaccessinstructions() {
                     <input
                       type="file"
                       multiple
-                      onChange={e => handleAccessPhotoChange(idx, subIndex, e.target.files)}
+                      onChange={(e) =>
+                        handleAccessPhotoChange(idx, subIndex, e.target.files)
+                      }
                       style={{ display: "block", marginTop: "4px" }}
                     />
                   </div>
