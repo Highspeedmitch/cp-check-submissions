@@ -1020,21 +1020,27 @@ useEffect(() => {
                         : "Click to complete checklist"}
                     </p>
 
-                    {/* If STR admin => Show "Access Instructions" button, but NOT "Remove" */}
+                   {/* If STR admin => Show "Access / Info" button, but NOT "Remove" */}
                     {role === "admin" && adminOrgType === "STR" && (
                       <button
                         className="access-instructions-button"
                         onClick={(e) => {
                           e.stopPropagation(); // prevent card click
-                          navigate(
-                            `/access-instructions/${encodeURIComponent(prop.name)}`
-                          );
+
+                          // Grab orgName from localStorage to determine if it's AzRoots
+                          const storedOrgName = localStorage.getItem("orgName");
+
+                          // Conditionally navigate based on the organization
+                          if (storedOrgName === "AzRoots") {
+                            navigate(`/azr-access-instructions/${encodeURIComponent(prop.name)}`);
+                          } else {
+                            navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
+                          }
                         }}
                       >
                         Access / Info
                       </button>
                     )}
-
                     {/* If admin is NOT STR => Show "Remove" button */}
                     {role === "admin" && adminOrgType !== "STR" && (
                       <button
