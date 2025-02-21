@@ -62,7 +62,7 @@ function AZRaccessinstructions() {
   if (!editMode) {
     return (
       <div className="azr-access-container" style={styles.container}>
-        <h2 style={styles.header}>Access Instructions for {propertyName}</h2>
+        <h2 style={styles.header}> 🔑 Access Instructions for {propertyName}</h2>
 
         <h3 style={styles.subHeader}>Access Categories</h3>
         {accessCategories.filter(cat => cat.checked).length === 0 ? (
@@ -89,6 +89,9 @@ function AZRaccessinstructions() {
           <button style={styles.button} onClick={() => setEditMode(true)}>
             Edit Instructions
           </button>
+          <button style={styles.button} onClick={() => navigate("/dashboard")}>
+          Back to Dashboard
+        </button>
         </div>
       </div>
     );

@@ -29,7 +29,6 @@ async function uploadFileToS3(file, orgId) {
     Key: fileKey,
     Body: file.buffer,
     ContentType: file.mimetype,
-    ACL: "public-read", // or "private" if you don't want it public
   };
   const uploadResult = await s3.upload(params).promise();
   return uploadResult.Location; // the S3 URL
