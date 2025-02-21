@@ -92,20 +92,18 @@ useEffect(() => {
   const handlePropertyClick = (property) => {
     setSelectedProperty(property);
   };
-
-  const handleViewInfo = () => {
-    if (selectedProperty) {
-      navigate(`/access-instructions/${encodeURIComponent(selectedProperty.name)}`);
-    }
+  
+  const handleViewInfo = (property) => {
+    navigate(`/access-instructions/${encodeURIComponent(property.name)}`);
   };
-
-  const handleProfitStatement = () => {
-    if (selectedProperty && selectedProperty._id) {
-      navigate(`/client/profit-statement/${selectedProperty._id.toString()}`);
+  
+  const handleProfitStatement = (property) => {
+    if (property && property._id) {
+      navigate(`/client/profit-statement/${property._id.toString()}`);
     } else {
-      console.error("Error: selectedProperty._id is missing or invalid.");
+      console.error("Error: property._id is missing or invalid.");
     }
-  };  
+  };    
 
   const handleConsult = () => {
     navigate("/client/schedule-consultation");
@@ -181,8 +179,8 @@ useEffect(() => {
               >
                 <h3>{prop.name}</h3>
                 <p>Click to view info about this property.</p>
-                <button onClick={handleViewInfo}>View Info</button>
-                <button onClick={handleProfitStatement}>Profit Statement</button>
+                <button onClick={(e) => { e.stopPropagation(); handleViewInfo(prop); }}>View Info</button>
+                <button onClick={(e) => { e.stopPropagation(); handleProfitStatement(prop); }}>Profit Statement</button>
               </div>
             ))}
           </div>
