@@ -8,6 +8,7 @@ function ClientProfitStatement() {
   const [profitData, setProfitData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showNoProfitModal, setShowNoProfitModal] = useState(false); // Controls modal visibility
 
   useEffect(() => {
     const fetchProfitData = async () => {
@@ -24,10 +25,12 @@ function ClientProfitStatement() {
           setProfitData(data);
         } else {
           setError(data.error || "Error fetching profit data");
+          setShowNoProfitModal(true); // Show modal if no data is found
         }
       } catch (err) {
         console.error("Error fetching profit data:", err);
         setError("Server error while fetching profit data");
+        setShowNoProfitModal(true);
       } finally {
         setLoading(false);
       }
@@ -37,43 +40,62 @@ function ClientProfitStatement() {
   }, [propertyId]);
 
   if (loading) return <div className="loading-text">Loading profit data...</div>;
-  if (error) return <div className="error-text">Error: {error}</div>;
-  if (!profitData) return <div className="info-text">No profit data available.</div>;
 
   return (
     <div className="profit-statement-container">
       <h1 className="profit-header">💰 Profit Statement</h1>
-      
-      <div className="profit-card">
-        <p>
-          <strong>Current Month Profit:</strong>{" "}
-          <span className="profit-value">${profitData.monthlyProfit.toFixed(2)}</span>
-        </p>
-        <p>
-          <strong>Year-to-Date Profit:</strong>{" "}
-          <span className="profit-value">${profitData.ytdProfit.toFixed(2)}</span>
-        </p>
-        <p>
-          <strong>Uploaded at:</strong>{" "}
-          {new Date(profitData.uploadedAt).toLocaleString()}
-        </p>
-        {profitData.pdfUrl && (
-          <p>
-            <a
-              className="pdf-link"
-              href={profitData.pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View PDF Statement
-            </a>
-          </p>
-        )}
-      </div>
 
-      <button className="back-button" onClick={() => navigate("/dashboard")}>
-        ← Back to Dashboard
-      </button>
+      {profitData ? (
+        <div className="profit-card">
+          <p>
+            <strong>Current Month Profit:</strong>{" "}
+            <span className="profit-value">${profitData.monthlyProfit.toFixed(2)}</span>
+          </p>
+          <p>
+            <strong>Year-to-Date Profit:</strong>{" "}
+            <span className="profit-value">${profitData.ytdProfit.toFixed(2)}</span>
+          </p>
+          <p>
+            <strong>Uploaded at:</strong> {new Date(profitData.uploadedAt).toLocaleString()}
+          </p>
+          {profitData.pdfUrl && (
+            <p>
+              <a
+                className="pdf-link"
+                href={profitData.pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View PDF Statement
+              </a>
+            </p>
+          )}
+        </div>
+      ) : (
+        // Show the modal if there's no profit data
+        showNoProfitModal && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <h2>🤔 Hmm... Looks like you don't have a profit statement yet.</h2>
+              <p>Come back later or reach out to your property manager.</p>
+              <div className="modal-buttons">
+                <button className="back-button" onClick={() => navigate("/dashboard")}>
+                  ← Back to Dashboard
+                </button>
+                <button
+                  className="contact-pm-button"
+                  onClick={() => {
+                    // Replace with a proper contact method (email or form)
+                    window.location.href = "mailto:propertymanager@example.com";
+                  }}
+                >
+                  📩 Contact PM
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      )}
     </div>
   );
 }
