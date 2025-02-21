@@ -52,7 +52,7 @@ function ProfitUpload() {
 
   return (
     <div className="profit-upload-container">
-      <h2>Upload Profit Statement for {decodedPropertyName}</h2>
+      <h2>💰 Upload Profit Statement for {decodedPropertyName}</h2>
       {message && <p className="upload-message">{message}</p>}
 
       <form onSubmit={handleSubmit} className="profit-upload-form">
@@ -78,7 +78,7 @@ function ProfitUpload() {
 
         <button type="submit">Upload Profit Data</button>
       </form>
-
+      <p></p>
       <button className="back-button" onClick={() => navigate("/dashboard")}>
         Back to Dashboard
       </button>
