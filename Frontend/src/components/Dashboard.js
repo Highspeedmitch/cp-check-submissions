@@ -929,13 +929,15 @@ useEffect(() => {
               <p>
                 What would you like to do for <strong>{selectedProperty}</strong>?
               </p>
-              <button
+                <button
                 className="modal-btn"
                 onClick={() => {
-                  // For normal user in STR org => read-only instructions
-                  navigate(
-                    `/access-instructions/${encodeURIComponent(selectedProperty)}`
-                  );
+                  // Redirect AzRoots users to AZRaccessinstructions instead of default AccessInstructions
+                  if (orgName === "AzRoots") {
+                    navigate(`/azr-access-instructions/${encodeURIComponent(selectedProperty)}`);
+                  } else {
+                    navigate(`/access-instructions/${encodeURIComponent(selectedProperty)}`);
+                  }
                   setShowModal(false);
                 }}
               >
