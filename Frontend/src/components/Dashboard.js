@@ -157,7 +157,7 @@ const handleRegionFilter = async () => {
     for (const prop of properties) {
       try {
         const response = await fetch(
-          `https://your-backend-url.com/api/profits/${prop._id}/latest`,
+          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${prop._id}/latest`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -1017,17 +1017,6 @@ useEffect(() => {
                 const orgType = prop.orgType || "COM";
                 const isCompleted = completedProperties.includes(prop.name);
 
-                // Get the current month in abbreviated format (e.g., "Feb")
-                const currentMonth = format(new Date(), "MMM");
-
-                // Retrieve orgName to check for AzRoots
-                const storedOrgName = localStorage.getItem("orgName");
-
-                // Check if a profit statement exists for this property
-                const hasProfitStatement = profitStatements.some(
-                  (statement) => statement.propertyName === prop.name
-                );
-
                 return (
                   <div
                     key={prop.name}
@@ -1058,20 +1047,22 @@ useEffect(() => {
                         : "Click to complete checklist"}
                     </p>
 
-                    {/* ✅ Profit Statement Status - Only for AzRoots Admins */}
+                    {/* ✅ PROFIT STATEMENT STATUS - AzRoots Admins ONLY */}
                     {role === "admin" && storedOrgName === "AzRoots" && (
                       <p>
-                        Profit Statement for {currentMonth}:{" "}
-                        {hasProfitStatement ? "✅" : "❌"}
+                        Profit Statement for {format(new Date(), "MMM")}:{" "}
+                        {profitStatuses[prop._id] || "❌"}
                       </p>
                     )}
 
-                    {/* If STR admin => Show "Access / Info" button */}
+                    {/* If STR admin => Show "Access / Info" button, but NOT "Remove" */}
                     {role === "admin" && adminOrgType === "STR" && (
                       <button
                         className="access-instructions-button"
                         onClick={(e) => {
                           e.stopPropagation();
+                          const storedOrgName = localStorage.getItem("orgName");
+
                           if (storedOrgName === "AzRoots") {
                             navigate(`/azr-access-instructions/${encodeURIComponent(prop.name)}`);
                           } else {
