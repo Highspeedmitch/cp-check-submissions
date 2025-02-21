@@ -1048,7 +1048,7 @@ useEffect(() => {
                     </p>
 
                     {/* ✅ PROFIT STATEMENT STATUS - AzRoots Admins ONLY */}
-                    {role === "admin" && storedOrgName === "AzRoots" && (
+                    {role === "admin" && orgName === "AzRoots" && (
                       <p>
                         Profit Statement for {format(new Date(), "MMM")}:{" "}
                         {profitStatuses[prop._id] || "❌"}
@@ -1061,9 +1061,9 @@ useEffect(() => {
                         className="access-instructions-button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          const storedOrgName = localStorage.getItem("orgName");
+                          const orgName = localStorage.getItem("orgName");
 
-                          if (storedOrgName === "AzRoots") {
+                          if (orgName === "AzRoots") {
                             navigate(`/azr-access-instructions/${encodeURIComponent(prop.name)}`);
                           } else {
                             navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
