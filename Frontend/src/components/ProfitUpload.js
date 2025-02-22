@@ -1,87 +1,130 @@
-import React, { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { format, subMonths } from "date-fns"; // Import date functions
 
 function ProfitUpload() {
+  const { propertyName } = useParams();
   const navigate = useNavigate();
-  const { propertyName } = useParams(); // ✅ Get propertyName from URL
-  const decodedPropertyName = decodeURIComponent(propertyName).trim(); // ✅ Ensure it's properly decoded
+  const token = localStorage.getItem("token");
 
-  const [monthlyProfit, setMonthlyProfit] = useState("");
-  const [profitPdf, setProfitPdf] = useState(null);
-  const [message, setMessage] = useState("");
+  const [profitAmount, setProfitAmount] = useState("");
+  const [pdfFile, setPdfFile] = useState(null);
+  const [profitHistory, setProfitHistory] = useState([]); // Stores last 12 months of data
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    async function fetchProfitHistory() {
+      try {
+        const response = await fetch(
+          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyName}/history`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-    if (!profitPdf || !monthlyProfit || !decodedPropertyName) {
-      setMessage("Missing required data. Please try again.");
+        if (!response.ok) throw new Error("Failed to fetch profit history");
+
+        const data = await response.json();
+        setProfitHistory(data); // Expecting an array of past profits
+      } catch (err) {
+        console.error("Error fetching profit history:", err);
+        setError("Could not load past profit data.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfitHistory();
+  }, [propertyName, token]);
+
+  async function handleUpload() {
+    if (!profitAmount || !pdfFile) {
+      alert("Please enter a profit amount and select a PDF file.");
       return;
     }
 
     const formData = new FormData();
-    formData.append("monthlyProfit", monthlyProfit);
-    formData.append("profitPdf", profitPdf);
-
-    const token = localStorage.getItem("token");
-
-    console.log("🔹 Uploading profit for:", decodedPropertyName);
-    console.log("🔹 Monthly Profit:", monthlyProfit);
-    console.log("🔹 Selected File:", profitPdf?.name);
+    formData.append("profitAmount", profitAmount);
+    formData.append("pdf", pdfFile);
 
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${encodeURIComponent(decodedPropertyName)}`,
+        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyName}/upload`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         }
-      );      
+      );
 
-      const data = await response.json();
-      if (response.ok) {
-        setMessage("Profit data uploaded successfully!");
-      } else {
-        setMessage(data.error || "Upload failed");
-      }
+      if (!response.ok) throw new Error("Failed to upload profit statement");
+
+      alert("Profit statement uploaded successfully!");
+      navigate("/dashboard"); // Redirect after upload
     } catch (err) {
-      console.error("Error uploading profit data:", err);
-      setMessage("Server error during upload.");
+      console.error("Upload error:", err);
+      alert("Error uploading profit statement.");
     }
-  };
+  }
 
   return (
     <div className="profit-upload-container">
-      <h2>💰 Upload Profit Statement for {decodedPropertyName}</h2>
-      {message && <p className="upload-message">{message}</p>}
+      <h1 className="profit-upload-header">💰 Upload Profit Statement for {propertyName}</h1>
 
-      <form onSubmit={handleSubmit} className="profit-upload-form">
-        <label>
-          This Month's Profit:
-          <input
-            type="number"
-            value={monthlyProfit}
-            onChange={(e) => setMonthlyProfit(e.target.value)}
-            required
-          />
-        </label>
+      <div className="upload-section">
+        <label>This Month's Profit:</label>
+        <input
+          type="number"
+          value={profitAmount}
+          onChange={(e) => setProfitAmount(e.target.value)}
+          placeholder="Enter profit amount"
+        />
 
-        <label>
-          Profit PDF:
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setProfitPdf(e.target.files[0])}
-            required
-          />
-        </label>
+        <label>Profit PDF:</label>
+        <input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files[0])} />
 
-        <button type="submit">Upload Profit Data</button>
-      </form>
-      <p></p>
-      <button className="back-button" onClick={() => navigate("/dashboard")}>
-        Back to Dashboard
-      </button>
+        <button className="upload-button" onClick={handleUpload}>
+          Upload Profit Data
+        </button>
+
+        <button className="back-button" onClick={() => navigate("/dashboard")}>
+          Back to Dashboard
+        </button>
+      </div>
+
+      <hr />
+
+      <h2 className="history-header">📊 Profit History (Last 12 Months)</h2>
+
+      {loading ? (
+        <p>Loading past profit statements...</p>
+      ) : error ? (
+        <p className="error-text">{error}</p>
+      ) : (
+        <table className="profit-history-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Uploaded Date</th>
+              <th>Profit Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {profitHistory.length > 0 ? (
+              profitHistory.map((profit) => (
+                <tr key={profit._id}>
+                  <td>{format(new Date(profit.uploadedAt), "MMMM yyyy")}</td>
+                  <td>{format(new Date(profit.uploadedAt), "PPpp")}</td>
+                  <td>${profit.amount.toFixed(2)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="3">No profit data found for past 12 months.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

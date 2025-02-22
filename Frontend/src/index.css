@@ -1213,4 +1213,24 @@ button {
   cursor: pointer;
   border-radius: 4px;
 }
+.history-header {
+  margin-top: 2rem;
+}
+
+.profit-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.profit-history-table th, .profit-history-table td {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.profit-history-table th {
+  background: #007bff;
+  color: white;
+}
 
