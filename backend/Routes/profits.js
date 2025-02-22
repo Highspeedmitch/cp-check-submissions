@@ -156,22 +156,21 @@ router.stack.forEach(layer => {
     console.log(layer.route.path);
   }
 });
-router.get("/:propertyName/history", authenticateToken, async (req, res) => {
+router.get("/:propertyId/latest", authenticateToken, async (req, res) => {
   try {
-    const propertyId = req.params.propertyId;
-    const profits = await Profit.find({ propertyId })
-      .sort({ uploadedAt: -1 }) // Sort by newest first
-      .limit(12); // Limit to last 12 months
+    const { propertyId } = req.params;
+    const latestProfit = await Profit.findOne({ propertyId }).sort({ uploadedAt: -1 });
 
-    if (!profits.length) {
-      return res.status(404).json({ error: "No profit history found for this property." });
+    if (!latestProfit) {
+      return res.status(404).json({ error: "No profit statement found for this property." });
     }
 
-    res.json(profits);
+    res.json(latestProfit);
   } catch (error) {
-    console.error("Error fetching profit history:", error);
-    res.status(500).json({ error: "Server error fetching profit history." });
+    console.error("Error fetching latest profit statement:", error);
+    res.status(500).json({ error: "Server error fetching profit statement." });
   }
 });
+
 
 module.exports = router;
