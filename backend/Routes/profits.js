@@ -156,10 +156,19 @@ router.stack.forEach(layer => {
     console.log(layer.route.path);
   }
 });
+
 router.get("/:propertyId/latest", authenticateToken, async (req, res) => {
   try {
     const { propertyId } = req.params;
-    const latestProfit = await Profit.findOne({ propertyId }).sort({ uploadedAt: -1 });
+    
+    // 1) Validate and convert
+    if (!mongoose.Types.ObjectId.isValid(propertyId)) {
+      return res.status(400).json({ error: "Invalid property ID format." });
+    }
+    const propId = new mongoose.Types.ObjectId(propertyId);
+
+    // 2) Query for the Profit doc
+    const latestProfit = await Profit.findOne({ propertyId: propId }).sort({ uploadedAt: -1 });
 
     if (!latestProfit) {
       return res.status(404).json({ error: "No profit statement found for this property." });
@@ -171,6 +180,7 @@ router.get("/:propertyId/latest", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error fetching profit statement." });
   }
 });
+
 
 
 module.exports = router;
