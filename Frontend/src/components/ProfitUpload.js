@@ -114,7 +114,8 @@ function ProfitUpload() {
                 <tr key={profit._id}>
                   <td>{format(new Date(profit.uploadedAt), "MMMM yyyy")}</td>
                   <td>{format(new Date(profit.uploadedAt), "PPpp")}</td>
-                  <td>${profit.amount.toFixed(2)}</td>
+                  <td>${profit.monthlyProfit.toFixed(2)}</td>
+                  <td>${profit.ytdProfit.toFixed(2)}</td>
                 </tr>
               ))
             ) : (
