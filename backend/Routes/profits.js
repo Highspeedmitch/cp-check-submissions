@@ -181,6 +181,32 @@ router.get("/:propertyId/latest", authenticateToken, async (req, res) => {
   }
 });
 
+router.get("/:propertyName/history", authenticateToken, async (req, res) => {
+  try {
+    const { propertyName } = req.params;
+    const decodedName = decodeURIComponent(propertyName).trim().toLowerCase();
+    const org = await Organization.findById(req.user.organizationId);
+    if (!org) return res.status(404).json({ error: "Organization not found" });
+    
+    // Find property by name (case-insensitive)
+    const property = org.properties.find(p => p.name.trim().toLowerCase() === decodedName);
+    if (!property) return res.status(404).json({ error: "Property not found" });
+    
+    // Now query profit statements by property._id for the last 12 months
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
+    const profits = await Profit.find({
+      propertyId: property._id,
+      uploadedAt: { $gte: twelveMonthsAgo }
+    }).sort({ uploadedAt: -1 });
+    
+    res.json(profits);
+  } catch (error) {
+    console.error("Error fetching profit history:", error);
+    res.status(500).json({ error: "Server error fetching profit history" });
+  }
+});
 
 
 module.exports = router;
