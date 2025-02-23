@@ -106,6 +106,7 @@ function ProfitUpload() {
               <th>Month</th>
               <th>Uploaded Date</th>
               <th>Profit Amount</th>
+              <th>YTD $</th>
             </tr>
           </thead>
           <tbody>
