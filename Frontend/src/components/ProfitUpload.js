@@ -44,7 +44,7 @@ function ProfitUpload() {
 
     const formData = new FormData();
     formData.append("profitAmount", profitAmount);
-    formData.append("pdf", pdfFile);
+    formData.append("profitPdf", pdfFile);
 
     try {
       const response = await fetch(
