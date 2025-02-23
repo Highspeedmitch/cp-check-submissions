@@ -30,7 +30,7 @@ const upload = multer({
 });
 
 // ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
-router.post("/:propertyName", authenticateToken, upload.single("profitPdf"), async (req, res) => {
+router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf"), async (req, res) => {
   try {
     let { propertyName } = req.params;
     const { monthlyProfit } = req.body;
