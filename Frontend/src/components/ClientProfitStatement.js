@@ -70,6 +70,13 @@ function ClientProfitStatement() {
               </a>
             </p>
           )}
+          <button
+        className="secondary-button"
+        onClick={() => navigate("/dashboard")}
+        style={{ marginTop: "1rem" }}
+      >
+        Back to Dashboard
+      </button>
         </div>
       ) : (
         // Show the modal if there's no profit data
