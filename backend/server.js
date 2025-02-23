@@ -327,6 +327,7 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
 
     // ✅ Include `orgType` in each property response
     const properties = org.properties.map((p) => ({
+      _id: p._id,  // include the property ID
       name: p.name,
       lat: p.lat,
       lng: p.lng,
