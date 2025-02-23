@@ -43,7 +43,7 @@ function ProfitUpload() {
     }
 
     const formData = new FormData();
-    formData.append("profitAmount", profitAmount);
+    formData.append("monthlyProfit", profitAmount);
     formData.append("profitPdf", pdfFile);
 
     try {

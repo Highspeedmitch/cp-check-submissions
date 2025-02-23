@@ -34,7 +34,9 @@ router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf
   try {
     let { propertyName } = req.params;
     const { monthlyProfit } = req.body;
-
+    
+    console.log("Received monthlyProfit (raw):", monthlyProfit);
+    
     if (!req.file) {
       return res.status(400).json({ error: "PDF file is required." });
     }
@@ -48,24 +50,23 @@ router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf
       return res.status(403).json({ error: "Only AzRoots admins can upload profit statements." });
     }
 
-    // Decode and trim the property name for comparison
+    // Decode and normalize the property name
     propertyName = decodeURIComponent(propertyName).trim();
+    console.log("Decoded propertyName:", propertyName);
 
-    console.log("🔹 Backend received propertyName:", propertyName);
-    console.log("🔹 Available properties:", organization.properties.map(p => `"${p.name}"`));
-
-    // Find the property by name (case-insensitive)
-    const propertyList = organization.properties || [];
-    const property = propertyList.find(p => p.name.trim().toLowerCase() === propertyName.toLowerCase());
+    const property = organization.properties.find(
+      (p) => p.name.trim().toLowerCase() === propertyName.toLowerCase()
+    );
     if (!property) {
-      console.log("❌ Property not found:", propertyName);
+      console.log("Property not found. Available properties:",
+        organization.properties.map(p => p.name)
+      );
       return res.status(404).json({ error: "Property not found in your organization." });
     }
 
-    // Use the property's _id as the propertyId
     const propertyId = property._id.toString();
 
-    // Upload the PDF file to S3
+    // Upload PDF to S3
     const fileName = `profits/${uuidv4()}-${req.file.originalname}`;
     const params = {
       Bucket: process.env.S3_BUCKET_NAME,
@@ -77,7 +78,7 @@ router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf
 
     const uploadResult = await s3.upload(params).promise();
 
-    // Calculate the running YTD total
+    // Calculate YTD total
     const startOfYear = new Date(new Date().getFullYear(), 0, 1);
     const existingProfits = await Profit.find({
       organizationId: req.user.organizationId,
@@ -86,20 +87,23 @@ router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf
     });
 
     const previousYTD = existingProfits.reduce((acc, record) => acc + record.monthlyProfit, 0);
+    
+    // Convert profit amount to a number
     const newMonthlyProfit = Number(monthlyProfit);
+    console.log("Converted monthlyProfit:", newMonthlyProfit);
     if (isNaN(newMonthlyProfit)) {
       return res.status(400).json({ error: "Invalid profit amount." });
-    }
+    } 
     const newYTDTotal = previousYTD + newMonthlyProfit;
 
-    // Create and save the profit record
+    // Save profit record
     const profit = new Profit({
       propertyId,
       organizationId: req.user.organizationId,
       monthlyProfit: newMonthlyProfit,
       ytdProfit: newYTDTotal,
       pdfUrl: uploadResult.Location,
-      uploadedAt: new Date(),
+      uploadedAt: new Date()
     });
 
     await profit.save();
@@ -109,7 +113,6 @@ router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf
     return res.status(500).json({ error: "Server error uploading profit data" });
   }
 });
-
 
 // ✅ Clients retrieve profit data (Restricted to AzRoots Clients)
 router.get("/:propertyId", authenticateToken, async (req, res) => {
