@@ -4,6 +4,48 @@ const path = require('path');
 
 const pdfStorageDir = path.join(__dirname, 'pdfstore');
 
+// Helper: get AZ timestamp for filename and display
+function getAZTimestamps(date = new Date()) {
+  const tz = 'America/Phoenix';
+
+  // Parts for filename (YYYY-MM-DD_HH-mm-ss)
+  const partsFmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const get = (t) => partsFmt.find(p => p.type === t)?.value;
+
+  const y = get('year');
+  const m = get('month');
+  const d = get('day');
+  const hh = get('hour');
+  const mm = get('minute');
+  const ss = get('second');
+
+  const filenameStamp = `${y}-${m}-${d}_${hh}-${mm}-${ss}-AZMT`;
+
+  // Friendly display string (e.g., August 16, 2025, 2:07 PM)
+  const displayFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: 'long',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const displayStamp = `${displayFmt.format(date)} AZMT`;
+
+  return { filenameStamp, displayStamp };
+}
+
 function generateChecklistPDF(formData, photoBuffers) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50 });
@@ -12,8 +54,12 @@ function generateChecklistPDF(formData, photoBuffers) {
       fs.mkdirSync(pdfStorageDir, { recursive: true });
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `checklist-${timestamp}.pdf`;
+    // If you ever pass an explicit inspection time from the client, prefer that here:
+    // const sourceDate = formData?.submittedAt ? new Date(formData.submittedAt) : new Date();
+    const sourceDate = new Date();
+    const { filenameStamp, displayStamp } = getAZTimestamps(sourceDate);
+
+    const fileName = `checklist-${filenameStamp}.pdf`;
     const filePath = path.join(pdfStorageDir, fileName);
     const pdfStream = fs.createWriteStream(filePath);
 
@@ -49,7 +95,6 @@ function generateChecklistPDF(formData, photoBuffers) {
           potholes: "Major Potholes?"
         };
         break;
-
       case "LTR":
         title = "Long-Term Rental Inspection Checklist";
         fieldMappings = {
@@ -62,7 +107,6 @@ function generateChecklistPDF(formData, photoBuffers) {
           additionalComments: "Additional Comments"
         };
         break;
-
       case "RES":
         title = "Residential Property Inspection Checklist";
         fieldMappings = {
@@ -75,7 +119,6 @@ function generateChecklistPDF(formData, photoBuffers) {
           additionalComments: "Additional Comments"
         };
         break;
-
       case "STR":
         title = "Short-Term Rental Inspection Checklist";
         fieldMappings = {
@@ -88,7 +131,6 @@ function generateChecklistPDF(formData, photoBuffers) {
           additionalComments: "Additional Comments"
         };
         break;
-
       default:
         console.warn("⚠️ Unknown orgType, defaulting to Commercial fields.");
         fieldMappings = {
@@ -100,6 +142,9 @@ function generateChecklistPDF(formData, photoBuffers) {
 
     // ✅ Title
     doc.fontSize(20).text(title, { align: 'center' });
+    doc.moveDown(0.5);
+    // NEW: show AZMT submission time prominently
+    doc.fontSize(12).text(`Submission Timestamp (AZMT): ${displayStamp}`, { align: 'center' });
     doc.moveDown(1);
 
     // ✅ Print the text fields dynamically
@@ -108,57 +153,40 @@ function generateChecklistPDF(formData, photoBuffers) {
       const value = formData[field] || "N/A";
 
       doc.fontSize(14).text(`${displayName}: ${value}`);
-      // If there's a description (e.g., plumbingLeaksDescription), print that
       if (formData[`${field}Description`]) {
         doc.fontSize(12).text(`  Description: ${formData[`${field}Description`]}`);
       }
-
       doc.moveDown(0.5);
     });
 
     // ✅ Handle photos dynamically
     if (photoBuffers && photoBuffers.length > 0) {
-      // Group images by field name
       const grouped = {};
       photoBuffers.forEach(({ fieldName, imageBuffer }) => {
-        if (!imageBuffer || imageBuffer.length === 0) {
-          return; // Skip empty buffers
-        }
-        if (!grouped[fieldName]) {
-          grouped[fieldName] = [];
-        }
+        if (!imageBuffer || imageBuffer.length === 0) return;
+        if (!grouped[fieldName]) grouped[fieldName] = [];
         grouped[fieldName].push(imageBuffer);
       });
 
-      // Loop through grouped images and add them to the PDF
       Object.keys(grouped).forEach(field => {
         doc.addPage();
-        doc.fontSize(16).text(`Photos for: ${field}`, { bold: true, underline: true });
+        doc.fontSize(16).text(`Photos for: ${field}`, { underline: true });
         doc.moveDown(1);
 
         const buffers = grouped[field];
         buffers.forEach((buffer, idx) => {
-          // If near bottom, add a new page
           if (doc.y + 480 > doc.page.height - 50) {
             doc.addPage();
             doc.moveDown(1);
           }
-
           doc.fontSize(12).text(`Image #${idx + 1}`);
           doc.moveDown(0.5);
-
-          doc.image(buffer, {
-            fit: [640, 480],
-            align: 'center',
-          });
-
-          // Add spacing
+          doc.image(buffer, { fit: [640, 480], align: 'center' });
           doc.moveDown(50);
         });
 
-        doc.moveDown(2); // Space before the next field’s page
+        doc.moveDown(2);
       });
-
     } else {
       doc.moveDown(1);
       doc.fontSize(14).text("No photos uploaded.", { italic: true });
