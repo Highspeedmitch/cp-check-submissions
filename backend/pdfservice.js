@@ -187,11 +187,11 @@ function drawContinuationHeader(doc, propertyName, sectionTitle) {
     .fillColor(COLORS.white)
     .font('Helvetica-Bold')
     .fontSize(14)
-    .text(sectionTitle, 98, 16, width - 140);
+    .text(sectionTitle, 98, 16, { width: width - 140 });
   doc
     .font('Helvetica')
     .fontSize(9)
-    .text(propertyName, 98, 38, width - 140);
+    .text(propertyName, 98, 38, { width: width - 140 });
   return 84;
 }
 
@@ -205,26 +205,38 @@ function drawBadge(doc, x, y, width, label, status) {
     .fillColor(foreground)
     .font('Helvetica-Bold')
     .fontSize(8.5)
-    .text(label, x + 7, y + 7, width - 14, { align: 'center' });
+    .text(label, x + 7, y + 7, { width: width - 14, align: 'center' });
 }
 
 function drawSummaryCard(doc, x, y, width, count, label, status) {
   const color = status === 'attention' ? COLORS.orange : status === 'ok' ? COLORS.green : COLORS.gray;
   doc.roundedRect(x, y, width, 52, 6).fillAndStroke(COLORS.white, COLORS.line);
   doc.circle(x + 25, y + 26, 14).fill(color);
-  doc
-    .fillColor(COLORS.white)
-    .font('Helvetica-Bold')
-    .fontSize(13)
-    .text(status === 'ok' ? '✓' : status === 'attention' ? '!' : '—', x + 14, y + 18, 22, { align: 'center' });
+  if (status === 'ok') {
+    doc
+      .save()
+      .lineWidth(2.2)
+      .strokeColor(COLORS.white)
+      .moveTo(x + 18, y + 26)
+      .lineTo(x + 23, y + 31)
+      .lineTo(x + 32, y + 20)
+      .stroke()
+      .restore();
+  } else {
+    doc
+      .fillColor(COLORS.white)
+      .font('Helvetica-Bold')
+      .fontSize(13)
+      .text(status === 'attention' ? '!' : '-', x + 14, y + 18, { width: 22, align: 'center' });
+  }
   doc
     .fillColor(color)
     .font('Helvetica-Bold')
     .fontSize(17)
-    .text(String(count), x + 45, y + 9, width - 52, { align: 'center' });
+    .text(String(count), x + 45, y + 9, { width: width - 52, align: 'center' });
   doc
     .fontSize(7.5)
-    .text(label, x + 45, y + 31, width - 52, { align: 'center', characterSpacing: 0.3 });
+    .text(label, x + 45, y + 31, { width: width - 52, align: 'center', characterSpacing: 0.3 });
 }
 
 function drawCommercialOverview(doc, formData, displayStamp, results) {
@@ -246,7 +258,7 @@ function drawCommercialOverview(doc, formData, displayStamp, results) {
     .fillColor(COLORS.navyDark)
     .font('Helvetica-Bold')
     .fontSize(19)
-    .text('Monthly Commercial Property Inspection', left, 108, contentWidth);
+    .text('Monthly Commercial Property Inspection', left, 108, { width: contentWidth });
 
   const metaY = 145;
   const labelWidth = 63;
@@ -258,8 +270,8 @@ function drawCommercialOverview(doc, formData, displayStamp, results) {
   ];
   rows.forEach(([label, value], index) => {
     const y = metaY + index * 18;
-    doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(9).text(label, left, y, labelWidth);
-    doc.fillColor(COLORS.slate).font('Helvetica').fontSize(9).text(truncate(value, 55), valueX, y, 295);
+    doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(9).text(label, left, y, { width: labelWidth });
+    doc.fillColor(COLORS.slate).font('Helvetica').fontSize(9).text(truncate(value, 55), valueX, y, { width: 295 });
   });
 
   const overallLabel = overallStatus === 'attention' ? 'ATTENTION NEEDED' : overallStatus === 'ok' ? 'ALL ITEMS OK' : 'INCOMPLETE';
@@ -289,9 +301,9 @@ function drawResultsTable(doc, results, x, y, width) {
 
   doc.roundedRect(x, tableY, width, headerHeight, 4).fill(COLORS.navy);
   doc.fillColor(COLORS.white).font('Helvetica-Bold').fontSize(7.5);
-  doc.text('AREA', x + 9, tableY + 8, areaWidth - 18);
-  doc.text('STATUS', x + areaWidth, tableY + 8, statusWidth, { align: 'center' });
-  doc.text('OBSERVATION', x + areaWidth + statusWidth + 8, tableY + 8, observationWidth - 16);
+  doc.text('AREA', x + 9, tableY + 8, { width: areaWidth - 18 });
+  doc.text('STATUS', x + areaWidth, tableY + 8, { width: statusWidth, align: 'center' });
+  doc.text('OBSERVATION', x + areaWidth + statusWidth + 8, tableY + 8, { width: observationWidth - 16 });
 
   results.forEach((result, index) => {
     const rowY = tableY + headerHeight + index * rowHeight;
@@ -304,7 +316,8 @@ function drawResultsTable(doc, results, x, y, width) {
       .lineTo(x + areaWidth + statusWidth, rowY + rowHeight)
       .stroke(COLORS.line);
 
-    doc.fillColor(COLORS.navyDark).font('Helvetica').fontSize(8.3).text(result.label, x + 9, rowY + 8, areaWidth - 18, {
+    doc.fillColor(COLORS.navyDark).font('Helvetica').fontSize(8.3).text(result.label, x + 9, rowY + 8, {
+      width: areaWidth - 18,
       ellipsis: true,
       height: 11,
     });
@@ -321,7 +334,8 @@ function drawResultsTable(doc, results, x, y, width) {
       .fillColor(COLORS.slate)
       .font('Helvetica')
       .fontSize(7.6)
-      .text(truncate(observation, 55), x + areaWidth + statusWidth + 8, rowY + 8, observationWidth - 16, {
+      .text(truncate(observation, 55), x + areaWidth + statusWidth + 8, rowY + 8, {
+        width: observationWidth - 16,
         ellipsis: true,
         height: 11,
       });
@@ -338,7 +352,7 @@ function drawObservationSummary(doc, formData, x, y, width) {
     .fillColor(COLORS.slate)
     .font('Helvetica')
     .fontSize(8.5)
-    .text(truncate(summary, 190), x + 11, y + 32, width - 22, { height: 25, ellipsis: true });
+    .text(truncate(summary, 190), x + 11, y + 32, { width: width - 22, height: 25, ellipsis: true });
 }
 
 function addDetailPage(doc, propertyName) {
@@ -367,7 +381,7 @@ function drawDetailNotes(doc, formData, propertyName, startY) {
     y = ensureDetailSpace(doc, y, textHeight + 42, propertyName);
     doc.roundedRect(44, y, doc.page.width - 88, textHeight + 28, 5).fillAndStroke(COLORS.panel, COLORS.line);
     doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(9).text(note.label, 56, y + 10);
-    doc.fillColor(COLORS.slate).font('Helvetica').fontSize(9).text(note.value, 56, y + 27, doc.page.width - 112);
+    doc.fillColor(COLORS.slate).font('Helvetica').fontSize(9).text(note.value, 56, y + 27, { width: doc.page.width - 112 });
     y += textHeight + 40;
   });
   return y + 4;
@@ -388,13 +402,13 @@ function drawPhotoCard(doc, buffer, x, y, width, caption) {
       .fillColor(COLORS.muted)
       .font('Helvetica-Oblique')
       .fontSize(8)
-      .text('Image could not be rendered', x + 16, y + 72, width - 32, { align: 'center' });
+      .text('Image could not be rendered', x + 16, y + 72, { width: width - 32, align: 'center' });
   }
   doc
     .fillColor(COLORS.slate)
     .font('Helvetica')
     .fontSize(7.8)
-    .text(caption, x + 9, y + 158, width - 18, { align: 'center', ellipsis: true, height: 11 });
+    .text(caption, x + 9, y + 158, { width: width - 18, align: 'center', ellipsis: true, height: 11 });
   return cardHeight;
 }
 
@@ -402,13 +416,13 @@ function drawFindingSection(doc, result, buffers, propertyName, startY) {
   const contentWidth = doc.page.width - 88;
   let y = ensureDetailSpace(doc, startY, 78, propertyName);
   doc.rect(44, y, 4, 37).fill(COLORS.orange);
-  doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(11).text(result.label, 57, y + 1, 290);
+  doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(11).text(result.label, 57, y + 1, { width: 290 });
   drawBadge(doc, doc.page.width - 143, y, 99, 'ATTENTION', 'attention');
   doc
     .fillColor(COLORS.slate)
     .font('Helvetica')
     .fontSize(8.7)
-    .text(result.description || 'No description was provided.', 57, y + 20, contentWidth - 13);
+    .text(result.description || 'No description was provided.', 57, y + 20, { width: contentWidth - 13 });
   y += 50;
 
   if (!buffers || buffers.length === 0) {
@@ -468,18 +482,23 @@ function drawPageFooters(doc, propertyName) {
   const range = doc.bufferedPageRange();
   for (let index = range.start; index < range.start + range.count; index += 1) {
     doc.switchToPage(index);
+    // Footer text intentionally sits inside the page's normal bottom margin.
+    // Temporarily relax that margin so PDFKit does not auto-create a new page.
+    const originalBottomMargin = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
     const y = doc.page.height - 39;
     doc.moveTo(44, y - 8).lineTo(doc.page.width - 44, y - 8).stroke(COLORS.line);
     doc
       .fillColor(COLORS.slate)
       .font('Helvetica')
       .fontSize(7.5)
-      .text(`${propertyName}  •  Monthly Inspection`, 44, y, 280);
-    doc.text(`Page ${index - range.start + 1} of ${range.count}`, doc.page.width - 145, y, 101, { align: 'right' });
+      .text(`${propertyName}  •  Monthly Inspection`, 44, y, { width: 280 });
+    doc.text(`Page ${index - range.start + 1} of ${range.count}`, doc.page.width - 145, y, { width: 101, align: 'right' });
     doc
       .fillColor(COLORS.muted)
       .fontSize(6.8)
-      .text('Generated by Inspectors Gadget', 44, y + 12, doc.page.width - 88, { align: 'center' });
+      .text('Generated by Inspectors Gadget', 44, y + 12, { width: doc.page.width - 88, align: 'center' });
+    doc.page.margins.bottom = originalBottomMargin;
   }
 }
 
