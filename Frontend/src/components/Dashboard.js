@@ -150,34 +150,43 @@ const handleRegionFilter = async () => {
   // ------------- Profit Upload Status format -----------
   const [profitStatuses, setProfitStatuses] = useState({});
   useEffect(() => {
-  async function fetchProfitStatuses() {
-    const currentMonth = format(new Date(), "MMM"); // Get abbreviated month name (e.g., "Feb")
-    const statuses = {};
+    async function fetchProfitStatuses() {
+      if (!token || properties.length === 0) {
+        setProfitStatuses({});
+        return;
+      }
 
-    for (const prop of properties) {
       try {
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${prop._id}/latest`,
+          "https://cp-check-submissions-dev-backend.onrender.com/api/profits/latest-statuses",
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        if (!response.ok) throw new Error("No profit statement found");
+        if (!response.ok) throw new Error("Failed to fetch profit statuses");
 
         const data = await response.json();
+        const currentMonth = format(new Date(), "yyyy-MM");
+        const statuses = Object.fromEntries(
+          properties.map((property) => {
+            const latest = data.statuses?.[property._id];
+            const isCurrentMonth = latest?.uploadedAt
+              && format(new Date(latest.uploadedAt), "yyyy-MM") === currentMonth;
 
-        // Check if the latest profit statement is from this month
-        const uploadedMonth = format(new Date(data.uploadedAt), "MMM");
+            return [property._id, isCurrentMonth ? "✅" : "❌"];
+          })
+        );
 
-        statuses[prop._id] = uploadedMonth === currentMonth ? "✅" : "❌";
+        setProfitStatuses(statuses);
       } catch (error) {
-        statuses[prop._id] = "❌"; // No profit statement found
+        console.error("Error fetching profit statuses:", error);
+        setProfitStatuses(
+          Object.fromEntries(properties.map((property) => [property._id, "❌"]))
+        );
       }
     }
-    setProfitStatuses(statuses);
-  }
 
-  fetchProfitStatuses();
-}, [properties]);
+    fetchProfitStatuses();
+  }, [properties, token]);
 
   // ======================
   // 1) Apply dark mode on load
@@ -404,8 +413,11 @@ useEffect(() => {
     if (!newPropAddress) {
       return alert("Please enter an address to geocode.");
     }
-    const mapboxToken =
-      "pk.eyJ1IjoiaGlnaHNwZWVkbWl0Y2giLCJhIjoiY202c24xNjV5MDl3NTJqcHBtZHM2NjBoZyJ9.CfvYSFKwel_Zt8aU2N_WVA";
+    const mapboxToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
+    if (!mapboxToken) {
+      console.error("REACT_APP_MAPBOX_ACCESS_TOKEN is not configured.");
+      return alert("Address lookup is temporarily unavailable.");
+    }
     const baseUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
     const url = `${baseUrl}${encodeURIComponent(newPropAddress)}.json?access_token=${mapboxToken}`;
 

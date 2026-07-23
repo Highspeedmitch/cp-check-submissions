@@ -11,5 +11,8 @@ const ProfitSchema = new mongoose.Schema({
   uploadedAt: { type: Date, default: Date.now }
 });
 
+// Supports the dashboard's organization-scoped latest-upload aggregation.
+ProfitSchema.index({ organizationId: 1, propertyId: 1, uploadedAt: -1 });
+
 module.exports = mongoose.model("Profit", ProfitSchema);
 

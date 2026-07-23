@@ -8,6 +8,7 @@ const Organization = require("../models/organization");
 const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
 const mongoose = require("mongoose");
+const { getLatestProfitStatuses } = require("../services/profitStatuses");
 // AWS S3 Configuration
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -30,6 +31,27 @@ const upload = multer({
 });
 
 // ✅ Admin uploads profit statement (Restricted to AzRoots Admins)
+// Return the latest profit upload for every property in the authenticated
+// user's organization. This replaces one request per property on the dashboard.
+router.get("/latest-statuses", authenticateToken, async (req, res) => {
+  try {
+    const statuses = await getLatestProfitStatuses({
+      organizationId: req.user.organizationId,
+      Organization,
+      Profit,
+    });
+
+    if (!statuses) {
+      return res.status(404).json({ error: "Organization not found." });
+    }
+
+    return res.json({ statuses });
+  } catch (error) {
+    console.error("Error fetching latest profit statuses:", error);
+    return res.status(500).json({ error: "Server error fetching profit statuses." });
+  }
+});
+
 router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf"), async (req, res) => {
   try {
     let { propertyName } = req.params;
