@@ -3,10 +3,10 @@ module.exports = {
     'PICOR': {
         properties: [
             { name: 'Broadway Center', emails: ['gfurrier@picor.com', 'Nfurrier@picor.com', 'lmontes@picor.com'] },
-            { name: '22 & Harrison', emails: ['Gfurrier@picor.com', 'Nfurrier@picor.com', 'asegard@picor.com'] },
+            { name: '22 & Harrison', emails: ['Gfurrier@picor.com', 'Nfurrier@picor.com', 'jabeyta@picor.com'] },
             { name: 'San Clemente', emails: ['Gfurrier@picor.com', 'nfurrier@picor.com', 'steve@pmcta.com', 'chris@pmcta.com'] },
-            { name: 'Speedway & Country Club', emails: ['Gfurrier@picor.com', 'Nfurrier@picor.com', 'asegard@picor.com'] },
-            { name: 'Grant & i-10', emails: ['Gfurrier@picor.com', 'Nfurrier@picor.com'] },
+            { name: 'Speedway & Country Club', emails: ['Gfurrier@picor.com', 'Nfurrier@picor.com', 'jabeyta@picor.com'] },
+            { name: 'Grant & i-10', emails: ['Gfurrier@picor.com', 'Nfurrier@picor.com', 'lgonzalez@picor.com'] },
         ],
     },
    'Atlas': {  // New Organization
