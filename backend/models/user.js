@@ -6,7 +6,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization" },
-  role: { type: String, enum: ["admin", "user", "client", "contractor", "cleaner"], default: "user" },
+  role: { type: String, enum: ["admin", "property_manager", "user", "client", "contractor", "cleaner"], default: "user" },
   lastPaidDate: { type: Date, default: null },
   paymentStatus: { type: String, enum: ["Awaiting Payment", "Paid"], default: "Awaiting Payment" },
   resetPasswordToken: { type: String, default: null },

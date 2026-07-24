@@ -13,6 +13,7 @@ export default function Billing() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
+  const isOversight = role === "admin" || role === "property_manager";
   const [invoices, setInvoices] = useState([]);
   const [status, setStatus] = useState("");
   const [amounts, setAmounts] = useState({});
@@ -101,7 +102,7 @@ export default function Billing() {
     <div className="dashboard-container">
       <main className="main-content" style={{ width: "100%" }}>
         <header className="dashboard-header">
-          <div className="subtext">{role === "admin" ? "Organization billing ledger" : "My contractor invoices"}</div>
+          <div className="subtext">{isOversight ? "Managed property billing ledger" : "My contractor invoices"}</div>
           <h1>Billing</h1>
           <button className="logout-btn" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
         </header>
@@ -165,7 +166,7 @@ export default function Billing() {
               <thead>
                 <tr>
                   <th>Property</th><th>Code</th><th>Inspection</th>
-                  {role === "admin" && <th>Submitter</th>}
+                  {isOversight && <th>Submitter</th>}
                   <th>Amount</th><th>Status</th><th>AP Method</th><th>Actions</th>
                 </tr>
               </thead>
@@ -175,9 +176,9 @@ export default function Billing() {
                     <td>{invoice.propertySnapshot.name}<br/><small>{invoice.propertySnapshot.address}</small></td>
                     <td>{invoice.propertySnapshot.propertyCode || "Needs setup"}</td>
                     <td>{new Date(invoice.inspectionDate).toLocaleDateString()}</td>
-                    {role === "admin" && <td>{invoice.submitterId?.username || invoice.submitterId?.email}</td>}
+                    {isOversight && <td>{invoice.submitterId?.username || invoice.submitterId?.email}</td>}
                     <td>
-                      {role !== "admin" && invoice.status === "unbilled" ? (
+                      {!isOversight && invoice.status === "unbilled" ? (
                         <input
                           type="number" min="0" step="0.01"
                           value={amounts[invoice._id] ?? (invoice.amountCents ? invoice.amountCents / 100 : "")}
@@ -189,7 +190,7 @@ export default function Billing() {
                     <td>{invoice.status === "submitted" ? "Awaiting payment" : invoice.status}</td>
                     <td>{invoice.propertySnapshot.apMethod || "download"}</td>
                     <td>
-                      {role !== "admin" && invoice.status === "unbilled" && (
+                      {!isOversight && invoice.status === "unbilled" && (
                         <>
                           <button onClick={() => saveAmount(invoice)}>Save Amount</button>
                           <button onClick={() => generate(invoice)}>Review PDF</button>
@@ -199,7 +200,7 @@ export default function Billing() {
                         </>
                       )}
                       {invoice.pdfUrl && <a href={invoice.pdfUrl} target="_blank" rel="noreferrer"> View PDF</a>}
-                      {invoice.status === "submitted" && (
+                      {role === "admin" && invoice.status === "submitted" && (
                         <button onClick={() => action(invoice._id, "mark-paid")}>Mark Paid</button>
                       )}
                     </td>

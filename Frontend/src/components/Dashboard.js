@@ -113,6 +113,7 @@ const handleRegionFilter = async () => {
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
+  const isManagement = role === "admin" || role === "property_manager";
   const adminOrgType = localStorage.getItem("orgType") || "COM";
   const [loginTime] = useState(
     () => localStorage.getItem("loginTime") || new Date().toISOString()
@@ -245,7 +246,7 @@ const handleRegionFilter = async () => {
 useEffect(() => {
   const fetchRegions = async () => {
     // Only admins should fetch regions
-    if (role === "admin") {
+    if (isManagement) {
       try {
         const res = await axios.get(
           "https://cp-check-submissions-dev-backend.onrender.com/api/properties/regions",
@@ -260,14 +261,14 @@ useEffect(() => {
   };
 
   fetchRegions();
-}, [role]);
+}, [isManagement]);
 
   // Fetch user assignments for non-admin users
   useEffect(() => {
-    if (role !== "admin") {
+    if (!isManagement) {
       fetchUserAssignments();
     }
-  }, [role, token]);
+  }, [isManagement, token]);
 
   function fetchUserAssignments() {
     if (!token) return;
@@ -675,7 +676,7 @@ useEffect(() => {
   </button>
   {!sidebarCollapsed && (
     <>
-      <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+      <h2>{isManagement ? "Managed Properties" : "Checklist"}</h2>
       {adminOrgType === "COM" && role !== "admin" && (
         <button
           className="Admin-tools-adtl"
@@ -684,9 +685,14 @@ useEffect(() => {
           Billing
         </button>
       )}
+      {role === "property_manager" && (
+        <button className="Admin-tools-adtl" onClick={() => navigate("/bid-requests")}>
+          Get A Bid
+        </button>
+      )}
 
       {/* ✅ Managed Properties Section (Admins Only) */}
-      {role === "admin" && (
+      {isManagement && (
         <>
           <div className="search-section">
             <input
@@ -737,7 +743,7 @@ useEffect(() => {
           {error && <p className="error">{error}</p>}
 
          {/* ✅ Show Search Results in a Clickable Box */}
-{role === "admin" && sidebarProperties.length > 0 ? (
+{isManagement && sidebarProperties.length > 0 ? (
   <ul className="search-results-container">
     {sidebarProperties.map((prop) => (
       <li
@@ -845,14 +851,14 @@ useEffect(() => {
       )}
 
       {/* ✅ Checklist Section for Non-Admins */}
-      {role !== "admin" && (
+      {!isManagement && (
         <ul>
           {displayedProperties.map((prop) => (
             <li
               key={prop.name}
               className={completedProperties.includes(prop.name) ? "completed" : ""}
               onClick={() => {
-                if (role === "admin") {
+                if (isManagement) {
                   if (adminOrgType === "STR") {
                     navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
                   } else {
@@ -974,15 +980,17 @@ useEffect(() => {
                 >
                   Scheduler
                 </button>
-                <button
-                  className="Admin-tools-adtl"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate("/payments", { state: { token } });
-                  }}
-                >
-                  Payments
-                </button>
+                {adminOrgType !== "COM" && (
+                  <button
+                    className="Admin-tools-adtl"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/payments", { state: { token } });
+                    }}
+                  >
+                    Payments
+                  </button>
+                )}
                 {adminOrgType === "COM" && (
                   <button
                     className="Admin-tools-adtl"
@@ -990,6 +998,16 @@ useEffect(() => {
                   >
                     Billing
                   </button>
+                )}
+                {adminOrgType === "COM" && (
+                  <>
+                    <button className="Admin-tools-adtl" onClick={() => navigate("/property-managers")}>
+                      PM Access
+                    </button>
+                    <button className="Admin-tools-adtl" onClick={() => navigate("/bid-requests")}>
+                      Bid Requests
+                    </button>
+                  </>
                 )}
               </div>
             )}
@@ -1064,7 +1082,7 @@ useEffect(() => {
                     key={prop.name}
                     className={`property-card ${isCompleted ? "completed-tile" : ""}`}
                     onClick={() => {
-                      if (role === "admin") {
+                      if (isManagement) {
                         navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
                       } else {
                         if (orgType === "STR") {
@@ -1082,7 +1100,7 @@ useEffect(() => {
                     <h3>{prop.name}</h3>
 
                     <p>
-                      {role === "admin"
+                      {isManagement
                         ? "Click to view recent submissions"
                         : isCompleted
                         ? "Completed"

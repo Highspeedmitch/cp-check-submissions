@@ -1,12 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const Organization = require("../models/organization");
+const { managedProperties } = require("../services/propertyAccess");
 
 // ✅ Global Search for Properties (Admins Only)
 router.get("/search", async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "Only admins can search properties." });
+    if (!["admin", "property_manager"].includes(req.user.role)) {
+      return res.status(403).json({ error: "Management access required." });
     }
 
     const { q } = req.query;
@@ -21,7 +22,7 @@ router.get("/search", async (req, res) => {
     }
 
     // Case-insensitive search on properties
-    const matchingProperties = organization.properties.filter(property =>
+    const matchingProperties = managedProperties(organization, req.user).filter(property =>
       property.name.toLowerCase().includes(q.toLowerCase())
     );
 
@@ -44,12 +45,12 @@ router.get("/region/:region", async (req, res) => {
     }
 
     // If the user is not an admin, return an empty array (instead of a 403 error)
-    if (req.user.role !== "admin") {
+    if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.json([]);
     }
 
     // For admins, filter properties by region (case-insensitive)
-    const propertiesByRegion = organization.properties.filter(property =>
+    const propertiesByRegion = managedProperties(organization, req.user).filter(property =>
       property.region.toLowerCase() === region.toLowerCase()
     );
 
@@ -97,7 +98,7 @@ router.get(
   async (req, res) => {
     try {
       // 2) check role
-      if (req.user.role !== "admin") {
+      if (!["admin", "property_manager"].includes(req.user.role)) {
         return res
           .status(403)
           .json({ error: "Only admins can view regions." });
@@ -111,7 +112,7 @@ router.get(
 
       // 4) extract unique regions
       const uniqueRegions = [
-        ...new Set(org.properties.map((p) => p.region).filter(Boolean))
+        ...new Set(managedProperties(org, req.user).map((p) => p.region).filter(Boolean))
       ];
 
       res.json(uniqueRegions);

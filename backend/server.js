@@ -18,6 +18,7 @@ const Organization = require('./models/organization');
 const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
 const Invoice = require('./models/invoice');
+const { managedProperties, canAccessProperty } = require('./services/propertyAccess');
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 const adminRoutes = require("./Routes/admin");
 const clientAuth = require("./Routes/ClientAuth");
@@ -167,6 +168,8 @@ app.use("/api/properties", authenticateToken, propertyRoutes);
 //profits
 app.use("/api/profits", require("./Routes/profits"));
 app.use("/api/billing", authenticateToken, require("./Routes/billing"));
+app.use("/api/property-managers", authenticateToken, require("./Routes/propertyManagers"));
+app.use("/api/bid-requests", authenticateToken, require("./Routes/bidRequests"));
 
 //client routes
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file
@@ -328,7 +331,7 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
     }
 
     // ✅ Include `orgType` in each property response
-    const properties = org.properties.map((p) => ({
+    const properties = managedProperties(org, req.user).map((p) => ({
       _id: p._id,  // include the property ID
       name: p.name,
       lat: p.lat,
@@ -390,6 +393,9 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     const property = org.properties.find(p => p.name === propertyName);
     if (!property) {
       return res.status(404).json({ message: `Property ${propertyName} not found in organization.` });
+    }
+    if (!canAccessProperty(property, req.user)) {
+      return res.status(403).json({ message: "You do not manage this property." });
     }
 
     // **Determine recipients based on orgType**
@@ -638,7 +644,12 @@ app.post('/api/reset-password', async (req, res) => {
  */
 app.get('/api/recent-submissions', authenticateToken, async (req, res) => {
   try {
-    const submissions = await Submission.find({ organizationId: req.user.organizationId })
+    const query = { organizationId: req.user.organizationId };
+    if (req.user.role === "property_manager") {
+      const organization = await Organization.findById(req.user.organizationId);
+      query.property = { $in: managedProperties(organization, req.user).map((item) => item.name) };
+    }
+    const submissions = await Submission.find(query)
       .sort({ submittedAt: -1 });
 
     res.json(submissions);
@@ -653,7 +664,12 @@ app.get('/api/recent-submissions', authenticateToken, async (req, res) => {
  */
 app.get('/api/submissions', authenticateToken, async (req, res) => {
   try {
-    const submissions = await Submission.find({ organizationId: req.user.organizationId })
+    const query = { organizationId: req.user.organizationId };
+    if (req.user.role === "property_manager") {
+      const organization = await Organization.findById(req.user.organizationId);
+      query.property = { $in: managedProperties(organization, req.user).map((item) => item.name) };
+    }
+    const submissions = await Submission.find(query)
       .sort({ submittedAt: -1 });
 
     // Generate pre-signed URLs for secure access
@@ -694,6 +710,12 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
 app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) => {
   try {
     const { property } = req.params;
+    const organization = await Organization.findById(req.user.organizationId);
+    const scopedProperty = organization?.properties.find((item) => item.name === property);
+    if (!scopedProperty) return res.status(404).json({ error: "Property not found." });
+    if (!canAccessProperty(scopedProperty, req.user)) {
+      return res.status(403).json({ error: "You do not manage this property." });
+    }
 
     // Calculate the date 3 months ago
     const threeMonthsAgo = new Date();
@@ -937,6 +959,9 @@ app.put("/api/admin/edit-property/:propertyName", authenticateToken, async (req,
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
+    if (!canAccessProperty(property, req.user)) {
+      return res.status(403).json({ error: "You do not manage this property." });
+    }
 
     if (org.orgType !== "STR") {
       return res.status(403).json({ error: "Access Instructions only allowed for STR organizations." });
@@ -989,7 +1014,12 @@ app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, r
 app.get('/api/assignments', authenticateToken, async (req, res) => {
   try {
     // ✅ Fetch assignments **only for the admin's organization**
-    const assignments = await Assignment.find({ organizationId: req.user.organizationId }).sort({ startDate: 1 });
+    const query = { organizationId: req.user.organizationId };
+    if (req.user.role === "property_manager") {
+      const organization = await Organization.findById(req.user.organizationId);
+      query.propertyName = { $in: managedProperties(organization, req.user).map((item) => item.name) };
+    }
+    const assignments = await Assignment.find(query).sort({ startDate: 1 });
 
     if (!assignments.length) {
       console.warn("⚠️ No assignments found for organization:", req.user.organizationId);

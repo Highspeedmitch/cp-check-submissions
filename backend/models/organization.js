@@ -67,6 +67,7 @@ const PropertySchema = new mongoose.Schema({
 
   // Optionally store an array of client user IDs who own this property
   clientOwners: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  propertyManagers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 });
 
 const OrganizationSchema = new mongoose.Schema({

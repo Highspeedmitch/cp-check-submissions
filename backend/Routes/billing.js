@@ -76,7 +76,18 @@ function invoiceScope(req, id) {
 router.get("/", async (req, res) => {
   try {
     const query = { organizationId: req.user.organizationId };
-    if (req.user.role !== "admin") query.submitterId = req.user.userId;
+    if (req.user.role === "property_manager") {
+      const organization = await Organization.findById(req.user.organizationId).lean();
+      query.propertyId = {
+        $in: organization.properties
+          .filter((property) => property.propertyManagers?.some(
+            (id) => id.toString() === req.user.userId.toString()
+          ))
+          .map((property) => property._id),
+      };
+    } else if (req.user.role !== "admin") {
+      query.submitterId = req.user.userId;
+    }
     if (req.query.status) query.status = req.query.status;
     const invoices = await Invoice.find(query)
       .populate("submitterId", "username email")
