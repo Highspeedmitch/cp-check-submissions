@@ -18,6 +18,7 @@ const Organization = require('./models/organization');
 const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
 const Invoice = require('./models/invoice');
+const authenticateToken = require('./middleware/authenticateToken');
 const { managedProperties, canAccessProperty } = require('./services/propertyAccess');
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 const adminRoutes = require("./Routes/admin");
@@ -143,17 +144,6 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 /**
  * 🔹 JWT Auth Middleware
  */
-const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
-
-  jwt.verify(token, SECRET_KEY, (err, user) => {
-    if (err) return res.status(403).json({ message: "Invalid token" });
-    req.user = user;
-    next();
-  });
-};
-
 // ✅ Admin-only payments route
 app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
 
@@ -168,7 +158,7 @@ app.use("/api/properties", authenticateToken, propertyRoutes);
 //profits
 app.use("/api/profits", require("./Routes/profits"));
 app.use("/api/billing", authenticateToken, require("./Routes/billing"));
-app.use("/api/property-managers", authenticateToken, require("./Routes/propertyManagers"));
+app.use("/api/admin-users", authenticateToken, require("./Routes/adminUsers"));
 app.use("/api/bid-requests", authenticateToken, require("./Routes/bidRequests"));
 
 //client routes
@@ -274,6 +264,9 @@ app.post('/api/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials (user not found)" });
     }
+    if (user.accountStatus === "inactive") {
+      return res.status(403).json({ message: "This account has been deactivated." });
+    }
 
     // Ensure password matches
     if (!bcrypt.compareSync(password, user.password)) {
@@ -298,6 +291,7 @@ app.post('/api/login', async (req, res) => {
         organizationId: user.organizationId._id,
         role: user.role,
         userId: user._id,
+        tokenVersion: user.tokenVersion || 0,
         orgType: orgType, // ✅ Inject orgType into JWT payload
       },
       SECRET_KEY,
@@ -629,6 +623,7 @@ app.post('/api/reset-password', async (req, res) => {
       user.password = bcrypt.hashSync(newPassword, 10);
       user.resetPasswordToken = null; // Clear the token
       user.resetPasswordExpires = null;
+      user.tokenVersion = (user.tokenVersion || 0) + 1;
       await user.save();
 
       res.json({ message: "Password reset successful. You can now log in." });

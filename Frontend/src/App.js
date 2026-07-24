@@ -26,7 +26,7 @@ import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 import EditPropertyWrapper from "./components/EditPropertyWrapper";
 import Billing from "./components/Billing";
 import BidRequests from "./components/BidRequests";
-import PropertyManagers from "./components/PropertyManagers";
+import UserManagement from "./components/UserManagement";
 function SchedulerWrapper() {
   // We check localStorage or a context/hook, whichever you prefer
   const role = localStorage.getItem("role");
@@ -119,7 +119,7 @@ function App() {
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
       <Route path="/billing" element={user && role !== "client" ? <Billing /> : <Navigate to="/" />} />
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
-      <Route path="/property-managers" element={user && role === "admin" ? <PropertyManagers /> : <Navigate to="/" />} />
+      <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
 
       {/* Profit Uploads - Only for AzRoots Admins */}
       <Route path="/profit-uploads/:propertyName" element={user && role === "admin" ? <ProfitUpload /> : <Navigate to="/" />} />

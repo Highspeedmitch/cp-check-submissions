@@ -1001,8 +1001,8 @@ useEffect(() => {
                 )}
                 {adminOrgType === "COM" && (
                   <>
-                    <button className="Admin-tools-adtl" onClick={() => navigate("/property-managers")}>
-                      PM Access
+                    <button className="Admin-tools-adtl" onClick={() => navigate("/admin/users")}>
+                      User Management
                     </button>
                     <button className="Admin-tools-adtl" onClick={() => navigate("/bid-requests")}>
                       Bid Requests
