@@ -17,6 +17,7 @@ const Assignment = require('./models/assignment');
 const Organization = require('./models/organization');
 const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
+const Invoice = require('./models/invoice');
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 const adminRoutes = require("./Routes/admin");
 const clientAuth = require("./Routes/ClientAuth");
@@ -165,6 +166,7 @@ app.use("/api/properties", authenticateToken, propertyRoutes);
 
 //profits
 app.use("/api/profits", require("./Routes/profits"));
+app.use("/api/billing", authenticateToken, require("./Routes/billing"));
 
 //client routes
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file
@@ -457,7 +459,7 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
 
 // Save submission record in DB (modified to include userId)
 try {
-  await Submission.create({
+  const submissionRecord = await Submission.create({
     organizationId: organizationId,           // from req.user.organizationId
     userId: req.user.userId,                  // <-- NEW: add the userId from the token
     property: propertyName,
@@ -467,6 +469,31 @@ try {
   });
 
   console.log('✅ Submission saved in database');
+  if (orgType === "COM") {
+    const address = [
+      property.streetAddress, property.suite, property.city, property.state, property.zip
+    ].filter(Boolean).join(", ");
+    await Invoice.create({
+      organizationId,
+      propertyId: property._id,
+      submissionId: submissionRecord._id,
+      submitterId: req.user.userId,
+      inspectionDate: submissionRecord.submittedAt,
+      amountCents: property.defaultInspectionAmountCents || null,
+      propertySnapshot: {
+        name: property.name,
+        propertyCode: property.propertyCode,
+        address,
+        brokerageName: org.name,
+        apMethod: property.apMethod,
+        apEmail: property.apEmail,
+        apPortal: property.apPortal,
+        billingInstructions: property.billingInstructions,
+        purchaseOrder: property.purchaseOrder,
+      },
+      statusHistory: [{ status: "unbilled", changedBy: req.user.userId }],
+    });
+  }
 } catch (error) {
   console.error('❌ Database Submission Error:', error);
   return res.status(500).json({ message: 'Error saving submission to database' });
@@ -827,13 +854,24 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     }
 
     // 4) Extract property details (including accessInstructions and customFields for STR)
-    const { name, lat, lng, emails, region, accessInstructions, customFields, maintenanceInfo, generalInfo } = req.body;
+    const {
+      name, lat, lng, emails, region, accessInstructions, customFields,
+      maintenanceInfo, generalInfo, propertyCode, streetAddress,
+      defaultInspectionAmountCents, apMethod, apEmail, apPortal,
+      billingInstructions, purchaseOrder
+    } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Property name is required" });
     }
 
     // 5) Determine if this is an STR organization
     const isSTR = org.orgType === "STR";
+    const isCOM = org.orgType === "COM";
+    if (isCOM && (!propertyCode || !streetAddress)) {
+      return res.status(400).json({
+        error: "Property code and billing address are required for commercial properties."
+      });
+    }
 
      // 6) Create the property
      const newProperty = {
@@ -842,6 +880,18 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
       lng,
       emails: emails || [],
       region,
+      ...(isCOM && {
+        propertyCode: propertyCode.trim(),
+        streetAddress: streetAddress.trim(),
+        defaultInspectionAmountCents: Number.isInteger(defaultInspectionAmountCents)
+          ? defaultInspectionAmountCents
+          : null,
+        apMethod: apMethod || "download",
+        apEmail: apEmail || "",
+        apPortal: apPortal || "",
+        billingInstructions: billingInstructions || "",
+        purchaseOrder: purchaseOrder || "",
+      }),
       orgType: org.orgType, // ✅ Ensure orgType is explicitly stored in each property
       ...(isSTR && { 
         accessInstructions: accessInstructions || "No instructions provided.",

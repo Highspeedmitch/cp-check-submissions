@@ -127,6 +127,10 @@ const handleRegionFilter = async () => {
   const [newPropLat, setNewPropLat] = useState("");
   const [newPropLng, setNewPropLng] = useState("");
   const [newPropAddress, setNewPropAddress] = useState("");
+  const [newPropCode, setNewPropCode] = useState("");
+  const [newPropDefaultAmount, setNewPropDefaultAmount] = useState("");
+  const [newPropApMethod, setNewPropApMethod] = useState("download");
+  const [newPropApDestination, setNewPropApDestination] = useState("");
 
   // ----------- "Remove Property" Admin Flow -----------
   // We have a single modal for removing property + passkey.
@@ -462,6 +466,16 @@ useEffect(() => {
             emails: emailsArray,
             lat: parseFloat(newPropLat) || 0,
             lng: parseFloat(newPropLng) || 0,
+            ...(adminOrgType === "COM" && {
+              propertyCode: newPropCode.trim(),
+              streetAddress: newPropAddress.trim(),
+              defaultInspectionAmountCents: newPropDefaultAmount
+                ? Math.round(Number(newPropDefaultAmount) * 100)
+                : null,
+              apMethod: newPropApMethod,
+              apEmail: newPropApMethod === "email" ? newPropApDestination.trim() : "",
+              apPortal: newPropApMethod === "portal" ? newPropApDestination.trim() : "",
+            }),
           }),
         }
       );
@@ -662,6 +676,14 @@ useEffect(() => {
   {!sidebarCollapsed && (
     <>
       <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
+      {adminOrgType === "COM" && (
+        <button
+          className="Admin-tools-adtl"
+          onClick={() => navigate("/billing")}
+        >
+          Billing
+        </button>
+      )}
 
       {/* ✅ Managed Properties Section (Admins Only) */}
       {role === "admin" && (
@@ -1218,6 +1240,50 @@ useEffect(() => {
                 onChange={(e) => setNewPropAddress(e.target.value)}
               />
             </label>
+            {adminOrgType === "COM" && (
+              <>
+                <label>
+                  Brokerage Property Code:
+                  <input
+                    type="text"
+                    required
+                    value={newPropCode}
+                    onChange={(e) => setNewPropCode(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Default Check Amount (optional):
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newPropDefaultAmount}
+                    onChange={(e) => setNewPropDefaultAmount(e.target.value)}
+                  />
+                </label>
+                <label>
+                  AP Delivery:
+                  <select
+                    value={newPropApMethod}
+                    onChange={(e) => setNewPropApMethod(e.target.value)}
+                  >
+                    <option value="download">Manual download</option>
+                    <option value="email">Email</option>
+                    <option value="portal">AP portal</option>
+                  </select>
+                </label>
+                {newPropApMethod !== "download" && (
+                  <label>
+                    {newPropApMethod === "email" ? "AP Email:" : "AP Portal / Instructions:"}
+                    <input
+                      type={newPropApMethod === "email" ? "email" : "text"}
+                      value={newPropApDestination}
+                      onChange={(e) => setNewPropApDestination(e.target.value)}
+                    />
+                  </label>
+                )}
+              </>
+            )}
             <button onClick={handleGeocodeAddress} style={{ marginBottom: "1rem" }}>
               Geocode
             </button>

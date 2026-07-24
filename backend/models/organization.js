@@ -24,6 +24,17 @@ const MaintenanceCategorySchema = new mongoose.Schema({
 
 const PropertySchema = new mongoose.Schema({
   name: { type: String, required: true },
+  propertyCode: { type: String, default: "" },
+  defaultInspectionAmountCents: { type: Number, min: 0, default: null },
+  apMethod: {
+    type: String,
+    enum: ["email", "portal", "download"],
+    default: "download"
+  },
+  apEmail: { type: String, default: "" },
+  apPortal: { type: String, default: "" },
+  billingInstructions: { type: String, default: "" },
+  purchaseOrder: { type: String, default: "" },
   lat: { type: Number },
   lng: { type: Number },
   emails: { type: [String], default: [] },
