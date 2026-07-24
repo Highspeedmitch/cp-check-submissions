@@ -676,7 +676,7 @@ useEffect(() => {
   {!sidebarCollapsed && (
     <>
       <h2>{role === "admin" ? "Managed Properties" : "Checklist"}</h2>
-      {adminOrgType === "COM" && (
+      {adminOrgType === "COM" && role !== "admin" && (
         <button
           className="Admin-tools-adtl"
           onClick={() => navigate("/billing")}
@@ -983,6 +983,14 @@ useEffect(() => {
                 >
                   Payments
                 </button>
+                {adminOrgType === "COM" && (
+                  <button
+                    className="Admin-tools-adtl"
+                    onClick={() => navigate("/billing")}
+                  >
+                    Billing
+                  </button>
+                )}
               </div>
             )}
           </>
