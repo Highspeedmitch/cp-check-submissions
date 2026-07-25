@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
+import { NOTIFICATION_SECTIONS, useMarkNotificationsRead } from "../services/notificationCenter";
 
 const API = "https://cp-check-submissions-dev-backend.onrender.com/api/billing";
 
@@ -26,6 +27,7 @@ export default function Billing() {
   const [message, setMessage] = useState("");
   const [properties, setProperties] = useState([]);
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  useMarkNotificationsRead(NOTIFICATION_SECTIONS.billing);
 
   const loadInvoices = useCallback(async () => {
     try {

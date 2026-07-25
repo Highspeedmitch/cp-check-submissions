@@ -109,13 +109,43 @@ router.delete("/devices", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const notifications = await Notification.find({
+    const query = {
       userId: req.user.userId,
       organizationId: req.user.organizationId,
-    }).sort({ createdAt: -1 }).limit(50).lean();
+    };
+    if (req.query.unread === "true") query.readAt = null;
+    const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(50).lean();
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ error: "Unable to load notifications." });
+  }
+});
+
+router.put("/read", async (req, res) => {
+  try {
+    const types = [...new Set(
+      (Array.isArray(req.body.types) ? req.body.types : [])
+        .map((type) => String(type).trim())
+        .filter(Boolean)
+    )].slice(0, 20);
+    if (!types.length) return res.status(400).json({ error: "At least one notification type is required." });
+    const route = typeof req.body.route === "string" && req.body.route.startsWith("/")
+      ? req.body.route.slice(0, 500)
+      : "";
+    const query = {
+      userId: req.user.userId,
+      organizationId: req.user.organizationId,
+      type: { $in: types },
+      readAt: null,
+    };
+    if (route) query.route = route;
+    const result = await Notification.updateMany(
+      query,
+      { $set: { readAt: new Date() } }
+    );
+    res.json({ success: true, modifiedCount: result.modifiedCount || 0 });
+  } catch (error) {
+    res.status(500).json({ error: "Unable to update notifications." });
   }
 });
 

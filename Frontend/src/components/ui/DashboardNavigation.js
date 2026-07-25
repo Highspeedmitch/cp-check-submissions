@@ -1,13 +1,14 @@
 import React from "react";
 
-function NavButton({ active, children, onClick }) {
+function NavButton({ active, children, onClick, badge = 0 }) {
   return (
     <button
       type="button"
       className={`beta-nav-item${active ? " active" : ""}`}
       onClick={onClick}
     >
-      {children}
+      <span>{children}</span>
+      {badge > 0 && <span className="beta-nav-badge" aria-label={`${badge} unread notifications`}>{badge > 9 ? "9+" : badge}</span>}
     </button>
   );
 }
@@ -35,6 +36,7 @@ export default function DashboardNavigation({
   mileageCount,
   onMileageToggle,
   onLogout,
+  notificationBadges = {},
 }) {
   const isAdmin = role === "admin";
   const isManager = role === "property_manager";
@@ -60,12 +62,12 @@ export default function DashboardNavigation({
 
         <nav>
           <p className="beta-nav-label">Workspace</p>
-          <NavButton active onClick={() => go("/dashboard")}>Dashboard</NavButton>
+          <NavButton active badge={notificationBadges.dashboard} onClick={() => go("/dashboard")}>Dashboard</NavButton>
           {orgType === "COM" && role !== "client" && (
-            <NavButton onClick={() => go("/billing")}>Billing</NavButton>
+            <NavButton badge={notificationBadges.billing} onClick={() => go("/billing")}>Billing</NavButton>
           )}
           {(isManager || (isAdmin && orgType === "COM")) && (
-            <NavButton onClick={() => go("/bid-requests")}>
+            <NavButton badge={notificationBadges.bids} onClick={() => go("/bid-requests")}>
               {isManager ? "Bid Requests" : "Bid Management"}
             </NavButton>
           )}

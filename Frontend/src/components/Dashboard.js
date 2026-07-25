@@ -7,6 +7,10 @@ import { format } from "date-fns";
 import { logoutSession } from "../services/session";
 import DashboardNavigation from "./ui/DashboardNavigation";
 import PageHeader from "./ui/PageHeader";
+import {
+  useMarkNotificationsRead,
+  useNotificationBadges,
+} from "../services/notificationCenter";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -125,6 +129,8 @@ const handleRegionFilter = async () => {
   const role = localStorage.getItem("role") || "user";
   const isManagement = role === "admin" || role === "property_manager";
   const adminOrgType = localStorage.getItem("orgType") || "COM";
+  const notificationBadges = useNotificationBadges(Boolean(token));
+  useMarkNotificationsRead(["assignment_created"]);
   const [loginTime] = useState(
     () => localStorage.getItem("loginTime") || new Date().toISOString()
   );
@@ -731,6 +737,7 @@ useEffect(() => {
         mileageCount={mileageCount}
         onMileageToggle={handleMileageToggle}
         onLogout={handleLogout}
+        notificationBadges={notificationBadges}
       />
       {/* Sidebar */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>

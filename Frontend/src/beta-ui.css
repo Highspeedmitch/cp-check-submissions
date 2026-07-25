@@ -91,6 +91,21 @@
   box-shadow: none;
   text-align: left;
 }
+.beta-nav-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.beta-nav-badge {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #26a65b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
 
 .beta-nav-item:hover { background: var(--beta-soft-blue); color: var(--beta-blue-dark); box-shadow: none; }
 .beta-nav-item.active { background: var(--beta-blue); color: #fff; }

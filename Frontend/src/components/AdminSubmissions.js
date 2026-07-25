@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from "./ui/PageHeader";
+import { useMarkNotificationsRead } from "../services/notificationCenter";
 
 function AdminSubmissions() {
   const { property } = useParams();
@@ -11,6 +12,10 @@ function AdminSubmissions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const token = localStorage.getItem("token");
+  useMarkNotificationsRead(
+    ["inspection_submitted"],
+    `/admin/submissions/${encodeURIComponent(property)}`
+  );
 
   useEffect(() => {
     if (!token) {

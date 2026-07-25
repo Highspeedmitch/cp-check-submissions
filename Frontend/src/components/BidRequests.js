@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
+import { NOTIFICATION_SECTIONS, useMarkNotificationsRead } from "../services/notificationCenter";
 
 const API = "https://cp-check-submissions-dev-backend.onrender.com/api/bid-requests";
 
@@ -18,6 +19,7 @@ export default function BidRequests() {
     grossSquareFeet: "", propertyType: "free_standing", address: "",
     serviceFrequency: "monthly", knownIssues: "", attachment: null,
   });
+  useMarkNotificationsRead(NOTIFICATION_SECTIONS.bids);
 
   const load = useCallback(async () => {
     const auth = { headers: { Authorization: `Bearer ${token}` } };
