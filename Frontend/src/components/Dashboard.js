@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
 import axios from "axios";
 import { format } from "date-fns";
+import { logoutSession } from "../services/session";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -511,8 +512,8 @@ useEffect(() => {
     setSidebarCollapsed((prev) => !prev);
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
+  const handleLogout = async () => {
+    await logoutSession();
     if (setUser) setUser(false);
     navigate("/login");
   };

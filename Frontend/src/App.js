@@ -27,6 +27,7 @@ import EditPropertyWrapper from "./components/EditPropertyWrapper";
 import Billing from "./components/Billing";
 import BidRequests from "./components/BidRequests";
 import UserManagement from "./components/UserManagement";
+import { restoreSession, tokenNeedsRefresh } from "./services/session";
 function SchedulerWrapper() {
   // We check localStorage or a context/hook, whichever you prefer
   const role = localStorage.getItem("role");
@@ -58,7 +59,30 @@ function App() {
   const [role, setRole] = useState(null);
 
   useEffect(() => {
+    const handleSessionCleared = () => {
+      setUser(false);
+      setRole(null);
+    };
+    window.addEventListener("auth-session-cleared", handleSessionCleared);
+    return () => window.removeEventListener("auth-session-cleared", handleSessionCleared);
+  }, []);
+
+  useEffect(() => {
+    if (user === false) {
+      setRole(null);
+      return;
+    }
     const token = localStorage.getItem("token");
+    if (
+      process.env.NODE_ENV !== "test" &&
+      (!token || tokenNeedsRefresh(token, 0))
+    ) {
+      restoreSession().then((authenticated) => {
+        setUser(authenticated);
+        setRole(authenticated ? localStorage.getItem("role") || "user" : null);
+      });
+      return;
+    }
 
     if (!token) {
       setUser(false);
@@ -78,10 +102,12 @@ function App() {
       console.warn("⚠️ Role is missing in localStorage, defaulting to 'user'");
       setRole("user");
     }
-  }, [user]); // Re-run when `user` updates
+  }, [user]);
 
   console.log("🔹 Final User State:", user);
   console.log("🔹 Final Role State:", role);
+
+  if (user === null) return null;
 
   return (
     <>
@@ -89,7 +115,7 @@ function App() {
     <Routes>
       <Route path="/" element={!user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login setUser={setUser} />} />
 
       {/* ✅ Ensure Clients Redirect Correctly */}
       <Route
@@ -127,7 +153,7 @@ function App() {
       <Route path="/profit-uploads/:propertyName" element={user && role === "admin" ? <ProfitUpload /> : <Navigate to="/" />} />
 
       {/* Client Dashboard - Only for Clients */}
-      <Route path="/client/dashboard" element={user && role === "client" ? <ClientDashboard /> : <Navigate to="/" />} />
+      <Route path="/client/dashboard" element={user && role === "client" ? <ClientDashboard setUser={setUser} /> : <Navigate to="/" />} />
       
       {/* New: Client Profit Statement Route */}
       <Route path="/client/profit-statement/:propertyId" element={user && role === "client" ? <ClientProfitStatement /> : <Navigate to="/" />} />

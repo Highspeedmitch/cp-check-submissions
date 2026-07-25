@@ -8,6 +8,7 @@ const {
   normalizeAccountStatus,
   isValidAccountStatus,
 } = require("../utils/accountStatus");
+const { revokeUserSessions } = require("../services/authSessions");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "contractor", "cleaner"];
@@ -89,6 +90,7 @@ router.put("/:userId", async (req, res) => {
     await Promise.all([
       organization.save(),
       user.save(),
+      revokeUserSessions(user._id),
       UserAudit.create({
         organizationId: req.user.organizationId,
         targetUserId: user._id,

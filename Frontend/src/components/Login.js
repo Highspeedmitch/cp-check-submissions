@@ -1,6 +1,7 @@
 // Login.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { storeAuthentication } from "../services/session";
 
 function Login({ setUser }) {
   const [email, setEmail] = useState("");
@@ -43,6 +44,7 @@ function Login({ setUser }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.toLowerCase(), password }),
+          credentials: "include",
         }
       );
   
@@ -51,11 +53,7 @@ function Login({ setUser }) {
       try {
         const data = JSON.parse(text);
         if (response.ok) {
-          localStorage.setItem("token", data.token);
-          localStorage.setItem("orgName", data.orgName || "Your Organization");
-          localStorage.setItem("organizationId", data.organizationId);
-          localStorage.setItem("orgType", data.orgType);  
-          localStorage.setItem("role", data.role || "user");
+          storeAuthentication(data);
           localStorage.setItem("loginTime", new Date().toISOString());
   
           if (data.organizationId) {
@@ -78,7 +76,7 @@ function Login({ setUser }) {
           }
   
           // ✅ Set user to logged in
-          setUser(true);
+          if (setUser) setUser(true);
   
           // ✅ Navigate based on role
           if (data.role === "client") {

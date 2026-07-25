@@ -161,7 +161,7 @@ export default function PushNotifications({ enabled }) {
   return (
     <aside className="notification-permission-banner" role="status">
       <span>
-        {error || "Enable notifications to receive assignment and payment updates."}
+        {error || "Enable notifications to receive important workflow updates."}
       </span>
       {permission !== "denied" && (
         <button type="button" onClick={() => register(true)}>

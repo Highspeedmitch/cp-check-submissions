@@ -36,8 +36,20 @@ const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 const admin = require("firebase-admin");
 const bodyParser = require('body-parser');
+const cookieParser = require("cookie-parser");
 const { sendUserNotification } = require("./services/notifications");
 const { inspectionSubmitted } = require("./services/notificationEvents");
+const RefreshSession = require("./models/refreshSession");
+const {
+  REFRESH_COOKIE,
+  hashToken,
+  cookieSettings,
+  clearRefreshCookie,
+  authResponse,
+  createRefreshSession,
+  revokeRefreshToken,
+  revokeUserSessions,
+} = require("./services/authSessions");
 //azrootsAssignments.js
 const azrootsAssignments = require("./Routes/azrootsAssignments"); // Import the new route
 //airbnb ical
@@ -90,15 +102,29 @@ const PORT = process.env.PORT || 10000;
 const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
 // ✅ CORS configuration
+const allowedOrigins = [
+  "https://cp-check-submissions-dev.onrender.com",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 app.use(cors({
-  origin: ["https://cp-check-submissions-dev.onrender.com"], // Explicitly allow frontend
+  origin: allowedOrigins,
   methods: "GET,POST,PUT,DELETE",
   allowedHeaders: "Content-Type,Authorization",
+  credentials: true,
 }));
+
+function requireTrustedSessionOrigin(req, res, next) {
+  const origin = req.get("origin");
+  if (origin && !allowedOrigins.includes(origin)) {
+    return res.status(403).json({ message: "Untrusted session origin." });
+  }
+  next();
+}
 
 // Increase size limits for JSON and URL-encoded data
 app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
+app.use(cookieParser());
 
 
 // ✅ Middleware to ensure only admins can access
@@ -231,7 +257,7 @@ app.post('/api/legacy-save-subscription-disabled', authenticateToken, async (req
 /**
  * 🔹 User Login (Returns JWT)
  */
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', requireTrustedSessionOrigin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -260,34 +286,85 @@ app.post('/api/login', async (req, res) => {
       return res.status(500).json({ message: "Organization type not found for this organization." });
     }
 
-    // Generate JWT, including the role, userId, and orgType in the payload
-    const token = jwt.sign(
-      {
-        email: user.email,
-        organizationId: user.organizationId._id,
-        role: user.role,
-        userId: user._id,
-        tokenVersion: user.tokenVersion || 0,
-        orgType: orgType, // ✅ Inject orgType into JWT payload
-      },
-      SECRET_KEY,
-      { expiresIn: '2h' }
-    );
+    const authentication = authResponse(user, SECRET_KEY);
+    await createRefreshSession({ user, req, res });
 
     // ✅ Return the token along with organization details, role, and orgType
     res.json({ 
-      message: "Login successful", 
-      token, 
-      organizationId: user.organizationId._id,
-      orgName: user.organizationId.name,
-      orgType: orgType, // ✅ Include orgType in response
-      role: user.role
+      message: "Login successful",
+      ...authentication,
     });
 
   } catch (error) {
     console.error("❌ Login error:", error);
     res.status(500).json({ message: "Server error during login." });
   }
+});
+
+app.post("/api/auth/refresh", requireTrustedSessionOrigin, async (req, res) => {
+  const refreshToken = req.cookies[REFRESH_COOKIE];
+  if (!refreshToken) {
+    clearRefreshCookie(res);
+    return res.status(401).json({ message: "No active session." });
+  }
+
+  try {
+    const session = await RefreshSession.findOne({
+      tokenHash: hashToken(refreshToken),
+      revokedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+    if (!session) {
+      clearRefreshCookie(res);
+      return res.status(401).json({ message: "Session expired. Please sign in again." });
+    }
+
+    const user = await User.findById(session.userId).populate("organizationId");
+    if (
+      !user ||
+      !user.organizationId ||
+      user.accountStatus === "inactive" ||
+      (user.tokenVersion || 0) !== session.tokenVersion
+    ) {
+      session.revokedAt = new Date();
+      await session.save();
+      clearRefreshCookie(res);
+      return res.status(401).json({ message: "Session expired. Please sign in again." });
+    }
+
+    const replacementToken = crypto.randomBytes(48).toString("base64url");
+    const replacementHash = hashToken(replacementToken);
+    session.revokedAt = new Date();
+    session.replacedByHash = replacementHash;
+    session.lastUsedAt = new Date();
+    await Promise.all([
+      session.save(),
+      RefreshSession.create({
+        userId: user._id,
+        organizationId: user.organizationId._id,
+        tokenHash: replacementHash,
+        tokenVersion: user.tokenVersion || 0,
+        expiresAt: session.expiresAt,
+        userAgent: req.get("user-agent") || "",
+        ipAddress: req.ip || "",
+      }),
+    ]);
+    res.cookie(REFRESH_COOKIE, replacementToken, cookieSettings(session.expiresAt));
+    res.json(authResponse(user, SECRET_KEY));
+  } catch (error) {
+    console.error("Refresh session error:", error);
+    res.status(500).json({ message: "Unable to refresh session." });
+  }
+});
+
+app.post("/api/auth/logout", requireTrustedSessionOrigin, async (req, res) => {
+  try {
+    await revokeRefreshToken(req.cookies[REFRESH_COOKIE]);
+  } catch (error) {
+    console.error("Logout session revocation error:", error);
+  }
+  clearRefreshCookie(res);
+  res.json({ success: true });
 });
 
 /**
@@ -613,6 +690,7 @@ app.post('/api/reset-password', async (req, res) => {
       user.resetPasswordExpires = null;
       user.tokenVersion = (user.tokenVersion || 0) + 1;
       await user.save();
+      await revokeUserSessions(user._id);
 
       res.json({ message: "Password reset successful. You can now log in." });
   } catch (error) {

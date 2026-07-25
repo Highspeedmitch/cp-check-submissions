@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { logoutSession } from "../services/session";
 
-function ClientDashboard() {
+function ClientDashboard({ setUser }) {
   const navigate = useNavigate();
   const [properties, setProperties] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
@@ -84,8 +85,9 @@ useEffect(() => {
   };
 
   // Logout Function
-  const handleLogout = () => {
-    localStorage.clear();
+  const handleLogout = async () => {
+    await logoutSession();
+    if (setUser) setUser(false);
     navigate("/login");
   };
 
