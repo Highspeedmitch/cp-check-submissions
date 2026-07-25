@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PageHeader from "./ui/PageHeader";
 
 const API = "https://cp-check-submissions-dev-backend.onrender.com/api/admin-users";
 
@@ -57,35 +58,41 @@ export default function UserManagement() {
   }
 
   return (
-    <main className="main-content" style={{ maxWidth: "900px", margin: "30px auto", padding: "20px" }}>
-      <header className="dashboard-header">
-        <div className="subtext">Organization administration</div>
-        <h1>User Management</h1>
-        <button className="logout-btn" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
-      </header>
+    <div className="beta-page">
+    <main className="beta-page-shell">
+      <PageHeader
+        onBack={() => navigate("/dashboard")}
+        eyebrow="Organization administration"
+        title="User Management"
+        subtitle="Manage roles, account access, and property assignments"
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) 2fr", gap: "24px", marginTop: "24px" }}>
-        <section>
+      <div className="beta-user-layout">
+        <section className="beta-panel beta-user-list">
           <h2>Users</h2>
           {data.users.map((user) => (
             <button key={user._id} onClick={() => chooseUser(user._id)}
-              style={{ display: "block", width: "100%", marginBottom: "8px", textAlign: "left" }}>
-              {user.username || user.email}<br />
+              className={`beta-user-row${selectedId === user._id ? " active" : ""}`}>
+              <span>{user.username || user.email}</span>
               <small>{user.role.replace("_", " ")} · {user.accountStatus || "active"}</small>
             </button>
           ))}
         </section>
 
-        <section>
-          {!draft ? <p>Select a user to review or edit.</p> : (
+        <section className="beta-panel beta-user-editor">
+          {!draft ? <div className="beta-empty-state">Select a user to review or edit.</div> : (
             <>
-              <label>Name
+              <div className="beta-section-heading"><div><h2>{draft.username || draft.email}</h2><p>Edit account details and access.</p></div>
+                <span className={`beta-status ${draft.accountStatus === "active" ? "success" : "declined"}`}>{draft.accountStatus || "active"}</span>
+              </div>
+              <div className="beta-form-grid">
+              <label className="beta-form-field">Name
                 <input value={draft.username || ""} onChange={(e) => setDraft({ ...draft, username: e.target.value })} />
               </label>
-              <label>Email
+              <label className="beta-form-field">Email
                 <input type="email" value={draft.email || ""} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
               </label>
-              <label>Role
+              <label className="beta-form-field">Role
                 <select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
                   <option value="user">User</option>
                   <option value="property_manager">Property Manager</option>
@@ -93,18 +100,19 @@ export default function UserManagement() {
                   <option value="cleaner">Cleaner</option>
                 </select>
               </label>
-              <label>Status
+              <label className="beta-form-field">Status
                 <select value={draft.accountStatus || "active"} onChange={(e) => setDraft({ ...draft, accountStatus: e.target.value })}>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
               </label>
+              </div>
 
               {draft.role === "property_manager" && (
-                <fieldset>
+                <fieldset className="beta-property-access">
                   <legend>Managed Properties</legend>
                   {data.properties.map((property) => (
-                    <label key={property._id} style={{ display: "block" }}>
+                    <label key={property._id}>
                       <input type="checkbox" checked={propertyIds.includes(property._id)}
                         onChange={(e) => toggleProperty(property._id, e.target.checked)} />
                       {property.name}
@@ -113,15 +121,16 @@ export default function UserManagement() {
                 </fieldset>
               )}
 
-              <div style={{ marginTop: "18px" }}>
-                <button onClick={save}>Save Changes</button>
-                <button onClick={sendReset}>Send Password Reset</button>
+              <div className="beta-card-actions">
+                <button className="beta-button" onClick={save}>Save Changes</button>
+                <button className="beta-button secondary" onClick={sendReset}>Send Password Reset</button>
               </div>
-              {message && <p>{message}</p>}
+              {message && <p className="beta-alert success">{message}</p>}
             </>
           )}
         </section>
       </div>
     </main>
+    </div>
   );
 }

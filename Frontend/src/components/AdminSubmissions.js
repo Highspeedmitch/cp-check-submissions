@@ -1,6 +1,7 @@
 // AdminSubmissions.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import PageHeader from "./ui/PageHeader";
 
 function AdminSubmissions() {
   const { property } = useParams();
@@ -46,8 +47,16 @@ function AdminSubmissions() {
   }, [property, months, token, navigate]);
 
   return (
-    <div className="container">
-      <h1>{property} - Submissions</h1>
+    <div className="beta-page">
+    <main className="beta-page-shell">
+      <PageHeader
+        onBack={() => navigate("/dashboard")}
+        eyebrow="Property activity"
+        title={property}
+        subtitle="Inspection submissions"
+      />
+      <div className="beta-toolbar">
+        <div><h2>Submission history</h2><p>{submissions.length} records in this view</p></div>
       <div className="submission-range-filter">
         <label htmlFor="submission-months">Show submissions from the last</label>
         <select
@@ -55,31 +64,33 @@ function AdminSubmissions() {
           value={months}
           onChange={(event) => setMonths(Number(event.target.value))}
         >
-          {Array.from({ length: 18 }, (_, index) => index + 1).map((month) => (
+          {[1, 3, 6, 12, 18].map((month) => (
             <option key={month} value={month}>
               {month} {month === 1 ? "month" : "months"}
             </option>
           ))}
         </select>
       </div>
+      </div>
       {loading ? (
-        <p>Loading submissions...</p>
+        <div className="beta-empty-state">Loading submissions...</div>
       ) : error ? (
-        <p className="error">{error}</p>
+        <p className="beta-alert error">{error}</p>
       ) : submissions.length === 0 ? (
-        <p>No submissions found for the last {months} {months === 1 ? "month" : "months"}.</p>
+        <div className="beta-empty-state">No submissions found for the last {months} {months === 1 ? "month" : "months"}.</div>
       ) : (
-        <ul>
+        <section className="beta-panel beta-submission-list">
           {submissions.map((sub) => (
-            <li key={sub._id}>
-              <a href={sub.signedPdfUrl} target="_blank" rel="noopener noreferrer">
-                {new Date(sub.submittedAt).toLocaleString()} - Download PDF
-              </a>
-            </li>
+            <article key={sub._id}>
+              <div><strong>{new Date(sub.submittedAt).toLocaleDateString()}</strong>
+                <small>{new Date(sub.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small>
+              </div>
+              <a className="beta-button secondary" href={sub.signedPdfUrl} target="_blank" rel="noopener noreferrer">View PDF</a>
+            </article>
           ))}
-        </ul>
+        </section>
       )}
-      <button onClick={() => navigate("/dashboard")}>Return to Dashboard</button>
+    </main>
     </div>
   );
 }

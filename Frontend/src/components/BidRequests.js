@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PageHeader from "./ui/PageHeader";
 
 const API = "https://cp-check-submissions-dev-backend.onrender.com/api/bid-requests";
 
@@ -82,81 +83,99 @@ export default function BidRequests() {
   ].filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <main className="main-content" style={{ maxWidth: "900px", margin: "30px auto" }}>
-      <header className="dashboard-header">
-        <h1>{role === "admin" ? "Bid Requests" : "Get A Bid"}</h1>
-        <button className="logout-btn" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
-      </header>
+    <div className="beta-page">
+    <main className="beta-page-shell">
+      <PageHeader
+        onBack={() => navigate("/dashboard")}
+        title={role === "admin" ? "Bid Requests" : "Get A Bid"}
+        subtitle={role === "admin" ? "Review and manage property service requests" : "Request service pricing for a new property"}
+      />
 
       {role === "property_manager" && (
-        <form onSubmit={submit} style={{ display: "grid", gap: "12px", padding: "20px" }}>
-          <input type="number" min="1" required placeholder="Gross square footage"
-            onChange={(event) => setForm({ ...form, grossSquareFeet: event.target.value })} />
+        <form onSubmit={submit} className="beta-panel beta-form-grid">
+          <label className="beta-form-field">Gross square footage
+          <input type="number" min="1" required
+            onChange={(event) => setForm({ ...form, grossSquareFeet: event.target.value })} /></label>
+          <label className="beta-form-field">Property type
           <select value={form.propertyType} onChange={(event) => setForm({ ...form, propertyType: event.target.value })}>
             <option value="free_standing">Free standing</option>
             <option value="strip_mall">Strip mall</option>
             <option value="individual_suite">Individual suite</option>
-          </select>
-          <input required placeholder="Property address"
-            onChange={(event) => setForm({ ...form, address: event.target.value })} />
+          </select></label>
+          <label className="beta-form-field full">Property address
+          <input required onChange={(event) => setForm({ ...form, address: event.target.value })} /></label>
+          <label className="beta-form-field">Service frequency
           <select value={form.serviceFrequency} onChange={(event) => setForm({ ...form, serviceFrequency: event.target.value })}>
             <option value="monthly">Monthly</option>
             <option value="weekly">Weekly</option>
             <option value="ad_hoc">Ad-hoc</option>
-          </select>
-          <textarea placeholder="Known issues"
-            onChange={(event) => setForm({ ...form, knownIssues: event.target.value })} />
-          <label>Lot dimensions with perimeter lines (PDF, JPG, or PNG)
+          </select></label>
+          <label className="beta-form-field full">Known issues
+          <textarea placeholder="Optional notes about the property"
+            onChange={(event) => setForm({ ...form, knownIssues: event.target.value })} /></label>
+          <label className="beta-form-field full">Lot dimensions with perimeter lines (PDF, JPG, or PNG)
             <input type="file" required accept=".pdf,image/jpeg,image/png"
               onChange={(event) => setForm({ ...form, attachment: event.target.files[0] })} />
           </label>
-          <button type="submit">Submit Bid Request</button>
-          {message && <p>{message}</p>}
+          <div className="beta-card-actions full">
+            <button className="beta-button" type="submit">Submit Bid Request</button>
+          </div>
+          {message && <p className="beta-alert success full">{message}</p>}
         </form>
       )}
 
-      <section style={{ padding: "20px" }}>
-        <h2>{role === "admin" ? "Bid Management" : "My Requests"}</h2>
+      <section className="beta-section">
+        <div className="beta-section-heading">
+          <div><h2>{role === "admin" ? "Bid Management" : "My Requests"}</h2>
+          <p>{visibleRequests.length} requests in this view</p></div>
+        </div>
         {role === "admin" && (
-          <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
-            <button onClick={() => setTab("active")} disabled={tab === "active"}>
+          <div className="beta-tabs">
+            <button className={tab === "active" ? "active" : ""} onClick={() => setTab("active")}>
               Active Bids ({activeRequests.length})
             </button>
-            <button onClick={() => setTab("archived")} disabled={tab === "archived"}>
+            <button className={tab === "archived" ? "active" : ""} onClick={() => setTab("archived")}>
               Archived Bids ({archivedRequests.length})
             </button>
           </div>
         )}
-        <input type="search" placeholder="Search by address, requester, or status"
+        <input className="beta-search-input" type="search" placeholder="Search by address, requester, or status"
           value={search} onChange={(event) => setSearch(event.target.value)}
-          style={{ width: "100%", marginBottom: "16px" }} />
+        />
 
+        <div className="beta-card-grid">
         {visibleRequests.map((request) => (
-          <article key={request._id} style={{ border: "1px solid #ccc", padding: "14px", marginBottom: "12px" }}>
-            <strong>{request.address}</strong> — {request.grossSquareFeet.toLocaleString()} sq ft
+          <article className="beta-card" key={request._id}>
+            <div className="beta-card-header">
+              <div><h3>{request.address}</h3><p>{request.grossSquareFeet.toLocaleString()} sq ft</p></div>
+              <span className={`beta-status ${request.status}`}>{request.status}</span>
+            </div>
             <p>{request.propertyType.replaceAll("_", " ")} · {request.serviceFrequency.replace("_", "-")}</p>
             {request.requestedBy && <p>Requested by: {request.requestedBy.username || request.requestedBy.email}</p>}
             <p>Known issues: {request.knownIssues || "None provided"}</p>
-            <a href={request.attachmentUrl} target="_blank" rel="noreferrer">View lot attachment</a>
-            <p>Status: <strong>{request.status}</strong></p>
+            <a className="beta-link-button" href={request.attachmentUrl} target="_blank" rel="noreferrer">View lot attachment</a>
             {request.archivedAt && (
               <p>Archived {new Date(request.archivedAt).toLocaleDateString()}
                 {request.archivedBy && ` by ${request.archivedBy.username || request.archivedBy.email}`}</p>
             )}
+            <div className="beta-card-actions">
             {role === "admin" && tab === "active" && request.status === "pending" && (
               <>
-                <button onClick={() => review(request._id, "approved")}>Approve</button>
-                <button onClick={() => review(request._id, "declined")}>Decline</button>
+                <button className="beta-button" onClick={() => review(request._id, "approved")}>Approve</button>
+                <button className="beta-button danger" onClick={() => review(request._id, "declined")}>Decline</button>
               </>
             )}
             {role === "admin" && tab === "active"
-              && <button onClick={() => archive(request)}>Archive Bid</button>}
+              && <button className="beta-button secondary" onClick={() => archive(request)}>Archive</button>}
             {role === "admin" && tab === "archived"
-              && <button onClick={() => restore(request._id)}>Restore Bid</button>}
+              && <button className="beta-button secondary" onClick={() => restore(request._id)}>Restore</button>}
+            </div>
           </article>
         ))}
-        {!visibleRequests.length && <p>No bids match this view.</p>}
+        </div>
+        {!visibleRequests.length && <div className="beta-empty-state">No bids match this view.</div>}
       </section>
     </main>
+    </div>
   );
 }

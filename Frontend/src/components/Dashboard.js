@@ -5,6 +5,8 @@ import { Geolocation } from '@capacitor/geolocation';
 import axios from "axios";
 import { format } from "date-fns";
 import { logoutSession } from "../services/session";
+import DashboardNavigation from "./ui/DashboardNavigation";
+import PageHeader from "./ui/PageHeader";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -64,6 +66,8 @@ function Dashboard({ setUser }) {
   
       if (Array.isArray(res.data)) {
         setSidebarProperties(res.data); // ✅ Only set if it's an array
+        setProperties(res.data);
+        setPageIndex(0);
       } else {
         console.error("❌ Unexpected response format:", res.data);
         setSidebarProperties([]); // ✅ Prevent crashes
@@ -78,7 +82,11 @@ function Dashboard({ setUser }) {
 
 // Fetch properties by region (only for sidebar)
 const handleRegionFilter = async () => {
-  if (!selectedRegion.trim()) return;
+  if (!selectedRegion.trim()) {
+    fetchProperties();
+    setPageIndex(0);
+    return;
+  }
   
   try {
     // Update the main property-cards state rather than sidebar results
@@ -87,6 +95,7 @@ const handleRegionFilter = async () => {
       getAuthConfig()
     );
     setProperties(res.data);
+    setPageIndex(0);
     setError(null);
   } catch (err) {
     console.error("Error fetching properties by region:", err);
@@ -95,7 +104,7 @@ const handleRegionFilter = async () => {
 };
   
   // ----------- Paging -----------
-  const PAGE_SIZE = 3;
+  const PAGE_SIZE = 6;
   const [pageIndex, setPageIndex] = useState(0);
 
   // ----------- States for properties, loading, etc. -----------
@@ -547,6 +556,22 @@ useEffect(() => {
   function handlePrevPage() {
     if (canGoPrev) setPageIndex((prev) => prev - 1);
   }
+
+  function openProperty(prop) {
+    if (isManagement) {
+      navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
+      return;
+    }
+    if (prop.orgType === "STR") {
+      setSelectedProperty(prop.name);
+      setShowModal(true);
+      return;
+    }
+    let formRoute = "/form";
+    if (prop.orgType === "LTR") formRoute = "/long-term-rental-form";
+    if (prop.orgType === "RES") formRoute = "/residential-form";
+    navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+  }
   async function startMileageTracking() {
     if (!userId) {
       console.error("⚠️ No userId found in localStorage. Cannot track mileage.");
@@ -669,7 +694,44 @@ useEffect(() => {
   // RENDER
   // ======================
   return (
-    <div className={`dashboard-container ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className="beta-dashboard">
+      <DashboardNavigation
+        open={sidebarCollapsed}
+        onClose={() => setSidebarCollapsed(false)}
+        role={role}
+        orgName={orgName}
+        orgType={adminOrgType}
+        navigate={navigate}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={handleSearch}
+        onClearSearch={() => {
+          setSearchQuery("");
+          setSidebarProperties([]);
+          fetchProperties();
+        }}
+        regions={regions}
+        selectedRegion={selectedRegion}
+        setSelectedRegion={setSelectedRegion}
+        onRegionFilter={handleRegionFilter}
+        onAddProperty={() => {
+          setSidebarCollapsed(false);
+          setPasskeyPromptVisible(true);
+          setPasskey("");
+        }}
+        onRemoveProperty={() => {
+          setSidebarCollapsed(false);
+          setRemovePropertyModalVisible(true);
+          setRemovePasskey("");
+          setPropertyToRemove("");
+        }}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        mileageTracking={mileageTracking}
+        mileageCount={mileageCount}
+        onMileageToggle={handleMileageToggle}
+        onLogout={handleLogout}
+      />
       {/* Sidebar */}
       <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
   <button className="sidebar-toggle" onClick={toggleSidebar}>
@@ -1057,14 +1119,50 @@ useEffect(() => {
       </div>
 
       {/* Main Content */}
-      <div className="main-content">
-        <header className="dashboard-header">
-          <div className="subtext">Working on behalf of {orgName}</div>
-          <h1>Dashboard</h1>
-          <button className="logout-btn" onClick={handleLogout}>
-            Logout
-          </button>
-        </header>
+      <div className="beta-dashboard-main">
+        <div className="beta-mobile-topbar">
+          <button type="button" className="beta-menu-button" onClick={() => setSidebarCollapsed(true)} aria-label="Open menu">☰</button>
+          <strong>Dashboard</strong>
+          <span className="beta-avatar" aria-hidden="true">{orgName.slice(0, 1)}</span>
+        </div>
+        <PageHeader
+          eyebrow={`Working on behalf of ${orgName}`}
+          title="Dashboard"
+          actions={<button type="button" className="beta-back-link" onClick={handleLogout}>Log out</button>}
+        />
+
+        {!isManagement && assignments.length > 0 && (
+          <section className="beta-section">
+            <div className="beta-section-heading">
+              <div>
+                <h2>My Assignments</h2>
+                <p>Your scheduled property work.</p>
+              </div>
+            </div>
+            <div className="beta-assignment-grid">
+              {assignments.slice(0, 4).map((assignment) => {
+                const property = properties.find((item) => item.name === assignment.propertyName);
+                return (
+                  <article className="beta-assignment-card" key={assignment._id}>
+                    <div className="beta-card-header">
+                      <div>
+                        <h3>{assignment.propertyName}</h3>
+                        <p>{new Date(assignment.startDate).toLocaleDateString()}</p>
+                      </div>
+                      <span className="beta-status warning">Scheduled</span>
+                    </div>
+                    <div className="beta-card-actions">
+                      {property && <button className="beta-button" onClick={() => openProperty(property)}>Start Inspection</button>}
+                      {property?.lat && property?.lng && (
+                        <button className="beta-button secondary" onClick={() => openNativeMaps(property.lat, property.lng)}>Navigate</button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {loading ? (
           <p>Loading properties...</p>
@@ -1072,41 +1170,37 @@ useEffect(() => {
           <p className="error">{error}</p>
         ) : (
           <>
+            <section className="beta-section">
+              <div className="beta-section-heading">
+                <div>
+                  <h2>{isManagement ? "All Managed Properties" : "All Properties"}</h2>
+                  <p>{isManagement ? "Review inspections and property activity." : "Select a property to begin an inspection."}</p>
+                </div>
+              </div>
             {/* Property Cards */}
             <div className="property-cards">
               {displayedProperties.map((prop) => {
-                const orgType = prop.orgType || "COM";
                 const isCompleted = completedProperties.includes(prop.name);
 
                 return (
                   <div
                     key={prop.name}
-                    className={`property-card ${isCompleted ? "completed-tile" : ""}`}
-                    onClick={() => {
-                      if (isManagement) {
-                        navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-                      } else {
-                        if (orgType === "STR") {
-                          setSelectedProperty(prop.name);
-                          setShowModal(true);
-                        } else {
-                          let formRoute = "/form";
-                          if (orgType === "LTR") formRoute = "/long-term-rental-form";
-                          if (orgType === "RES") formRoute = "/residential-form";
-                          navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
-                        }
-                      }
-                    }}
+                    className="beta-property-card"
                   >
-                    <h3>{prop.name}</h3>
-
-                    <p>
-                      {isManagement
-                        ? "Click to view recent submissions"
-                        : isCompleted
-                        ? "Completed"
-                        : "Click to complete checklist"}
-                    </p>
+                    <div className="beta-card-header">
+                      <div>
+                        <h3>{prop.name}</h3>
+                        <p>{isManagement ? "Inspection history and property activity" : "Property inspection checklist"}</p>
+                      </div>
+                      <span className={`beta-status ${isCompleted ? "completed" : ""}`}>
+                        {isCompleted ? "Completed" : isManagement ? "Managed" : "Ready"}
+                      </span>
+                    </div>
+                    <div className="beta-card-actions">
+                      <button className="beta-button" onClick={() => openProperty(prop)}>
+                        {isManagement ? "View Submissions" : "Start Inspection"}
+                      </button>
+                    </div>
 
                     {/* ✅ PROFIT STATEMENT STATUS - AzRoots Admins ONLY */}
                     {role === "admin" && orgName === "AzRoots" && (
@@ -1165,6 +1259,7 @@ useEffect(() => {
                 );
               })}
             </div>
+            </section>
             {/* Remove Property Modal (one combined) */}
             {removePropertyModalVisible && (
               <div className="modal-overlay">
