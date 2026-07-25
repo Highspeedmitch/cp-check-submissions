@@ -139,6 +139,7 @@ const handleRegionFilter = async () => {
   // ----------- "Add Property" Admin Flow -----------
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
   const [passkey, setPasskey] = useState("");
+  const [verifiedAddPropertyPasskey, setVerifiedAddPropertyPasskey] = useState("");
   const [passkeyError, setPasskeyError] = useState("");
   const [passkeyVerifying, setPasskeyVerifying] = useState(false);
   const passkeyInputRef = useRef(null);
@@ -405,6 +406,7 @@ useEffect(() => {
     if (passkeyVerifying) return;
     setPasskeyPromptVisible(false);
     setPasskey("");
+    setVerifiedAddPropertyPasskey("");
     setPasskeyError("");
   };
 
@@ -423,6 +425,7 @@ useEffect(() => {
         return;
       }
 
+      setVerifiedAddPropertyPasskey(passkey);
       setPasskeyPromptVisible(false);
       setPasskey("");
       setAddPropertyFormVisible(true);
@@ -446,6 +449,7 @@ useEffect(() => {
       if (event.key === "Escape") {
         setPasskeyPromptVisible(false);
         setPasskey("");
+        setVerifiedAddPropertyPasskey("");
         setPasskeyError("");
       }
     };
@@ -533,6 +537,7 @@ useEffect(() => {
         .filter(Boolean);
 
       await api.post("/api/admin/add-property", {
+        passkey: verifiedAddPropertyPasskey,
         name: newPropName,
         emails: emailsArray,
         lat: parseFloat(newPropLat) || 0,
@@ -549,9 +554,11 @@ useEffect(() => {
         }),
       });
       if (adminOrgType === "STR") {
+        setVerifiedAddPropertyPasskey("");
         navigate(`/admin/edit-property/${encodeURIComponent(newPropName)}`);
       } else {
         setAddPropertyFormVisible(false);
+        setVerifiedAddPropertyPasskey("");
         setNewPropName("");
         setNewPropEmails("");
         setNewPropLat("");
@@ -772,6 +779,7 @@ useEffect(() => {
           setSidebarCollapsed(false);
           setPasskeyPromptVisible(true);
           setPasskey("");
+          setVerifiedAddPropertyPasskey("");
           setPasskeyError("");
           setPropertyActionError("");
           setPropertyActionMessage("");
@@ -1073,6 +1081,7 @@ useEffect(() => {
                   onClick={() => {
                     setPasskeyPromptVisible(true);
                     setPasskey("");
+                    setVerifiedAddPropertyPasskey("");
                     setPasskeyError("");
                     setPropertyActionError("");
                     setPropertyActionMessage("");
@@ -1555,6 +1564,7 @@ useEffect(() => {
               disabled={propertyActionBusy === "create"}
               onClick={() => {
                 setAddPropertyFormVisible(false);
+                setVerifiedAddPropertyPasskey("");
                 setPropertyActionError("");
               }}
             >
