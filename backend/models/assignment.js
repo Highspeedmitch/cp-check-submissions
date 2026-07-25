@@ -20,5 +20,6 @@ const assignmentSchema = new mongoose.Schema({
 
 // 🔹 Ensure uniqueness for assignments within an organization (prevents duplicates)
 assignmentSchema.index({ propertyName: 1, startDate: 1, organizationId: 1 }, { unique: true });
+assignmentSchema.index({ organizationId: 1, userId: 1, startDate: -1 });
 
 module.exports = mongoose.model('Assignment', assignmentSchema);

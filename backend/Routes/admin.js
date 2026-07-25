@@ -1,34 +1,17 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 const User = require("../models/user");
 const Submission = require("../models/submission");
 const MileageTracking = require("../models/mileageTracking");
 const Payment = require("../models/Payment");
-const apn = require('apn');
-
-const apnProvider = new apn.Provider({
-  token: {
-      key: Buffer.from(process.env.APN_PRIVATE_KEY, 'base64').toString('utf8'), // ❌ Bad practice
-      keyId: process.env.APN_KEY_ID,
-      teamId: process.env.APN_TEAM_ID,
-  },
-  production: process.env.NODE_ENV === "production",
-});
-
-async function sendPushNotification(deviceToken, message) {
-  let note = new apn.Notification();
-  note.alert = message;
-  note.topic = process.env.APN_BUNDLE_ID;
-
-  try {
-    const result = await apnProvider.send(note, deviceToken);
-    console.log("APN Response:", result);
-  } catch (err) {
-    console.error("APN Error:", err);
-  }
-}
-
-module.exports = { sendPushNotification };
+const Organization = require("../models/organization");
+const {
+  getPaymentSummary,
+  parsePaymentRates,
+  calculatePaymentTotal,
+} = require("../services/paymentSummary");
+const { sendUserNotification } = require("../services/notifications");
 
 // ========================================
 // 1) GET /admin/users
@@ -43,7 +26,7 @@ router.get("/users", async (req, res) => {
     const users = await User.find(
       { organizationId: adminOrgId, role: "user" },
       "username _id lastPaidDate"
-    );
+    ).lean();
 
     const today = new Date();
     const startOfWeek = new Date(today);
@@ -54,7 +37,12 @@ router.get("/users", async (req, res) => {
 
     // Aggregate payments since the start of the year
     const paymentAgg = await Payment.aggregate([
-      { $match: { paidAt: { $gte: startOfYear } } },
+      {
+        $match: {
+          userId: { $in: users.map((user) => user._id) },
+          paidAt: { $gte: startOfYear },
+        },
+      },
       { $group: { _id: "$userId", total: { $sum: "$amount" } } },
     ]);
 
@@ -66,13 +54,14 @@ router.get("/users", async (req, res) => {
 
     // Process each user: compute payment status and attach YTD total
     const usersWithStatus = users.map((user) => {
+      const result = { ...user };
       if (user.lastPaidDate && new Date(user.lastPaidDate) >= startOfWeek) {
-        user.status = "PAID";
+        result.status = "PAID";
       } else {
-        user.status = "Awaiting Payment";
+        result.status = "Awaiting Payment";
       }
-      user.ytd = ytdMap[user._id.toString()] || 0;
-      return user;
+      result.ytd = ytdMap[user._id.toString()] || 0;
+      return result;
     });
 
     res.json(usersWithStatus);
@@ -89,19 +78,40 @@ router.get("/users", async (req, res) => {
 router.get("/user-submissions/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId);
+    const user = await User.findOne({
+      _id: userId,
+      organizationId: req.user.organizationId,
+      role: "user",
+    });
     if (!user) return res.status(404).json({ error: "User not found." });
 
     // Use submittedAt instead of createdAt
-    const submissions = await Submission.find({
+    const count = await Submission.countDocuments({
+      organizationId: req.user.organizationId,
       userId,
       submittedAt: { $gt: user.lastPaidDate || new Date(0) },
     });
 
-    res.json({ count: submissions.length });
+    res.json({ count });
   } catch (error) {
     console.error("Error fetching submissions:", error);
     res.status(500).json({ error: "Server error fetching submissions" });
+  }
+});
+
+router.get("/payment-summary/:userId", async (req, res) => {
+  try {
+    const summary = await getPaymentSummary({
+      organizationId: req.user.organizationId,
+      userId: req.params.userId,
+    });
+    if (!summary) {
+      return res.status(404).json({ error: "User not found in this organization." });
+    }
+    res.json(summary);
+  } catch (error) {
+    console.error("Error fetching payment summary:", error);
+    res.status(500).json({ error: "Unable to load payment summary." });
   }
 });
 
@@ -113,6 +123,134 @@ router.get("/user-submissions/:userId", async (req, res) => {
 //    - Create a Payment entry
 // ========================================
 router.post("/process-payment", async (req, res) => {
+  let session;
+  try {
+    session = await mongoose.startSession();
+    const { userId, allowSubmissionMismatch = false } = req.body;
+    const rates = parsePaymentRates(req.body);
+    if (!rates) {
+      return res.status(400).json({ error: "Payment rates must be valid non-negative numbers." });
+    }
+
+    let processed;
+    await session.withTransaction(async () => {
+      const summary = await getPaymentSummary({
+        organizationId: req.user.organizationId,
+        userId,
+        session,
+      });
+      if (!summary) {
+        const error = new Error("User not found in this organization.");
+        error.statusCode = 404;
+        throw error;
+      }
+      if (summary.submissionCount > summary.assignmentCount && !allowSubmissionMismatch) {
+        const error = new Error("Submissions exceed assignments. Confirmation is required.");
+        error.statusCode = 409;
+        error.code = "SUBMISSION_MISMATCH";
+        error.summary = summary;
+        throw error;
+      }
+
+      const totalPayment = calculatePaymentTotal(summary, rates);
+      if (totalPayment <= 0) {
+        const error = new Error("Payment total must be greater than zero.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const paidAt = new Date();
+      const userUpdate = await User.updateOne(
+        {
+          _id: userId,
+          organizationId: req.user.organizationId,
+          lastPaidDate: summary.lastPaidDate,
+        },
+        { $set: { lastPaidDate: paidAt } },
+        { session }
+      );
+      if (userUpdate.modifiedCount !== 1) {
+        const error = new Error("Payment data changed. Refresh and try again.");
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const mileageRecord = await MileageTracking.findOne({
+        userId,
+        organizationId: req.user.organizationId,
+      }).session(session);
+      if (mileageRecord) {
+        mileageRecord.history.push({
+          paidDate: paidAt,
+          milesPaid: summary.currentMiles,
+          note: `Paid at $${rates.perMileRate}/mi + $${rates.perSubmissionRate}/submission`,
+        });
+        mileageRecord.totalMiles = 0;
+        mileageRecord.lastUpdated = paidAt;
+        await mileageRecord.save({ session });
+      } else {
+        await MileageTracking.create([{
+          userId,
+          organizationId: req.user.organizationId,
+          totalMiles: 0,
+          history: [{
+            paidDate: paidAt,
+            milesPaid: summary.currentMiles,
+            note: "Initial payment with no prior mileage record",
+          }],
+        }], { session });
+      }
+
+      await Payment.create([{
+        organizationId: req.user.organizationId,
+        userId,
+        amount: totalPayment,
+        paidAt,
+        milesPaid: summary.currentMiles,
+        submissionsPaid: summary.submissionCount,
+        assignmentsCount: summary.assignmentCount,
+        perSubmissionRate: rates.perSubmissionRate,
+        perMileRate: rates.perMileRate,
+        processedBy: req.user.userId,
+      }], { session });
+
+      processed = { summary, totalPayment };
+    });
+
+    sendUserNotification({
+      organizationId: req.user.organizationId,
+      userId,
+      type: "payment_processed",
+      title: "Payment processed",
+      body: `You've been paid $${processed.totalPayment.toFixed(2)} for your work.`,
+      route: "/dashboard",
+    }).catch((notificationError) => {
+      console.error("Payment notification error:", notificationError);
+    });
+
+    res.json({
+      success: true,
+      message: "Payment logged and mileage reset.",
+      totalPayment: processed.totalPayment,
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        error: error.message,
+        code: error.code,
+        summary: error.summary,
+      });
+    }
+    console.error("Error processing payment:", error);
+    res.status(500).json({ error: "Server error processing payment" });
+  } finally {
+    if (session) await session.endSession();
+  }
+});
+
+router.post("/legacy-process-payment-disabled", async (req, res) => {
+  return res.status(410).json({ error: "This payment endpoint has been retired." });
+  /* istanbul ignore next */
   try {
     const {
       userId,

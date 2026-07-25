@@ -36,37 +36,19 @@ const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 const admin = require("firebase-admin");
 const bodyParser = require('body-parser');
-//push notifications
-const router = express.Router();
-const PushToken = require("./models/PushToken"); // Model to store tokens
+const { sendUserNotification } = require("./services/notifications");
 //azrootsAssignments.js
 const azrootsAssignments = require("./Routes/azrootsAssignments"); // Import the new route
 //airbnb ical
 const airbnbCalendar = require("./Routes/airbnbCalendar"); // Import Airbnb route
 //azroots properties
 const azrootsProperties = require("./Routes/azrootsProperties");
-router.post("/register-push-token", async (req, res) => {
-  const { userId, token } = req.body;
-  if (!userId || !token) {
-    return res.status(400).json({ error: "Missing userId or token" });
-  }
-
-  try {
-    await PushToken.findOneAndUpdate(
-      { userId },
-      { token },
-      { upsert: true, new: true }
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Error storing push token:", err);
-    res.status(500).json({ error: "Failed to store push token" });
-  }
-});
-
-module.exports = router;
-
-if (!admin.apps.length) {
+const firebaseConfigured = Boolean(
+  process.env.FIREBASE_PROJECT_ID &&
+  process.env.FIREBASE_CLIENT_EMAIL &&
+  process.env.FIREBASE_PRIVATE_KEY
+);
+if (firebaseConfigured && !admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
@@ -84,20 +66,6 @@ AWS.config.update({
 
 // Create S3 Instance
 const s3 = new AWS.S3();
-
-const webpush = require('web-push');
-
-const vapidKeys = {
-  publicKey: process.env.VAPID_PUBLIC_KEY,
-  privateKey: process.env.VAPID_PRIVATE_KEY,
-};
-
-webpush.setVapidDetails(
-  'mailto:highspeedmitch@gmail.com',
-  vapidKeys.publicKey,
-  vapidKeys.privateKey
-);
-
 
 // Example: Upload a File to S3
 const uploadToS3 = (fileContent, fileName, organizationId, propertyName) => {
@@ -166,6 +134,7 @@ app.use("/api/profits", require("./Routes/profits"));
 app.use("/api/billing", authenticateToken, require("./Routes/billing"));
 app.use("/api/admin-users", authenticateToken, require("./Routes/adminUsers"));
 app.use("/api/bid-requests", authenticateToken, require("./Routes/bidRequests"));
+app.use("/api/notifications", authenticateToken, require("./Routes/notifications"));
 
 //client routes
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file
@@ -247,7 +216,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-app.post('/api/save-subscription', authenticateToken, async (req, res) => {
+app.post('/api/legacy-save-subscription-disabled', authenticateToken, async (req, res) => {
   const subscription = req.body;
   try {
     // Assuming your User model has a "pushSubscription" field
@@ -781,6 +750,14 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
       console.error("❌ Missing organizationId in request.");
       return res.status(400).json({ error: "Missing organization ID" });
     }
+    const assignedUser = await User.findOne({
+      _id: userId,
+      organizationId,
+      accountStatus: { $ne: "inactive" },
+    }).select("_id").lean();
+    if (!assignedUser) {
+      return res.status(400).json({ error: "Assigned user is not active in this organization." });
+    }
 
     // ✅ Prevent duplicate assignments for the same property & time frame
     const overlapping = await Assignment.findOne({
@@ -809,21 +786,17 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
 
     console.log("✅ Assignment created successfully:", assignment);
 
-    // ✅ Send push notification
-
-async function sendPushNotification(deviceToken, title, body) {
-    const message = {
-        notification: { title, body },
-        token: deviceToken
-    };
-
-    try {
-        const response = await admin.messaging().send(message);
-        console.log("Successfully sent push notification:", response);
-    } catch (error) {
-        console.error("Error sending push notification:", error);
-    }
-}
+    sendUserNotification({
+      organizationId,
+      userId,
+      type: "assignment_created",
+      title: "New property inspection",
+      body: `${propertyName} was assigned to you.`,
+      route: "/dashboard",
+      entityId: assignment._id,
+    }).catch((error) => {
+      console.error("Assignment notification error:", error);
+    });
     res.json({ success: true, message: "Assignment created successfully", assignment });
 
   } catch (error) {
@@ -1129,7 +1102,7 @@ app.put("/api/assignments/:id", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/api/register-push-token", authenticateToken, async (req, res) => {
+app.post("/api/legacy-register-push-token-disabled", authenticateToken, async (req, res) => {
     try {
         const { userId, token } = req.body;
         const user = await User.findById(userId);

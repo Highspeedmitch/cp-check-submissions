@@ -11,5 +11,6 @@ const SubmissionSchema = new mongoose.Schema({
 });
 
 SubmissionSchema.index({ organizationId: 1, property: 1, submittedAt: -1 });
+SubmissionSchema.index({ organizationId: 1, userId: 1, submittedAt: -1 });
 
 module.exports = mongoose.model('Submission', SubmissionSchema);

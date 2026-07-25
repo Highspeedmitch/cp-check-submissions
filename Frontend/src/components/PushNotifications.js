@@ -1,98 +1,173 @@
-import { useEffect } from "react";
-import { PushNotifications } from "@capacitor/push-notifications";
-export async function registerPush() {
-  try {
-      let permStatus = await PushNotifications.requestPermissions();
-      if (permStatus.receive === 'granted') {
-          await PushNotifications.register();
-          console.log("✅ Push notifications registered!");
+import React, { useCallback, useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseMessaging } from "@capacitor-firebase/messaging";
+import { useNavigate } from "react-router-dom";
 
-          PushNotifications.addListener('registration', (token) => {
-              console.log("🔥 Push token received:", token.value);
+const API = "https://cp-check-submissions-dev-backend.onrender.com/api/notifications";
 
-              // Send this token to your backend
-              fetch("https://cp-check-submissions-dev-backend.onrender.com/api/register-push-token", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ userId: localStorage.getItem("userId"), token: token.value })
-              }).then(() => console.log("✅ Push token stored in backend!"))
-                .catch(err => console.error("❌ Error storing token:", err));
-          });
-
-          PushNotifications.addListener('registrationError', (error) => {
-              console.error("❌ Push registration error:", error);
-          });
-
-          PushNotifications.addListener('pushNotificationReceived', (notification) => {
-              console.log("🔔 Push received:", notification);
-          });
-      }
-  } catch (error) {
-      console.error("❌ Push notification setup failed:", error);
+function getDeviceId() {
+  let deviceId = localStorage.getItem("notificationDeviceId");
+  if (!deviceId) {
+    deviceId = window.crypto?.randomUUID?.()
+      || `device-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem("notificationDeviceId", deviceId);
   }
+  return deviceId;
 }
-function PushNotificationsComponent() {
-  useEffect(() => {
-    const registerForPushNotifications = async () => {
-      try {
-        let permStatus = await PushNotifications.checkPermissions();
 
-        if (permStatus.receive === "prompt") {
-          permStatus = await PushNotifications.requestPermissions();
-        }
-
-        if (permStatus.receive !== "granted") {
-          console.error("Push Notifications permission not granted");
-          return;
-        }
-
-        await PushNotifications.register();
-
-        useEffect(() => {
-          const userId = localStorage.getItem("userId");
-          if (!userId) return;
-      
-          PushNotifications.addListener('registration', (token) => {
-              console.log("🔥 Push token received:", token.value);
-              fetch("https://backend-url.com/api/register-push-token", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ userId, token: token.value })
-              });
-          });
-      }, []);
-
-        PushNotifications.addListener("registrationError", (error) => {
-          console.error("Push registration error:", error);
-        });
-
-        PushNotifications.addListener("pushNotificationReceived", (notification) => {
-          console.log("Push received:", notification);
-          alert(`New notification: ${notification.title} - ${notification.body}`);
-        });
-
-        PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-          console.log("Push action:", action);
-        });
-      } catch (error) {
-        console.error("Push Notifications error:", error);
-      }
-    };
-
-    registerForPushNotifications();
-  }, []);
-
-  return null;
+function authHeaders() {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  };
 }
-export async function registerPush() {
+
+async function responseBody(response, fallback) {
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || fallback);
+  return body;
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map((character) => character.charCodeAt(0)));
+}
+
+async function saveNativeToken(token) {
+  if (!token) return;
+  const response = await fetch(`${API}/devices`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      token,
+      platform: Capacitor.getPlatform(),
+      deviceId: getDeviceId(),
+    }),
+  });
+  await responseBody(response, "Unable to register native notifications.");
+}
+
+async function registerWebPush(requestPermission) {
+  const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+    || window.navigator.standalone === true;
+  if (isAppleMobile && !isStandalone) {
+    throw new Error("On iPhone or iPad, add this app to your Home Screen before enabling notifications.");
+  }
+  if (
+    !("serviceWorker" in navigator) ||
+    !("PushManager" in window) ||
+    !("Notification" in window)
+  ) {
+    throw new Error("Web Push is not available. On iPhone, add this app to your Home Screen first.");
+  }
+  let permission = window.Notification?.permission || "default";
+  if (requestPermission && permission !== "granted") {
+    permission = await window.Notification.requestPermission();
+  }
+  if (permission !== "granted") return permission;
+
+  const registration = await navigator.serviceWorker.register("/service-worker.js");
+  const keyResponse = await fetch(`${API}/web-push-key`, {
+    headers: authHeaders(),
+  });
+  const { publicKey } = await responseBody(keyResponse, "Web Push is not configured.");
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+  }
+  const saveResponse = await fetch(`${API}/web-subscriptions`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      subscription: subscription.toJSON(),
+      deviceId: getDeviceId(),
+    }),
+  });
+  await responseBody(saveResponse, "Unable to register Web Push.");
+  return permission;
+}
+
+export default function PushNotifications({ enabled }) {
+  const navigate = useNavigate();
+  const [permission, setPermission] = useState("unknown");
+  const [error, setError] = useState("");
+  const isNative = Capacitor.isNativePlatform();
+
+  const register = useCallback(async (requestPermission = false) => {
     try {
-        let permStatus = await PushNotifications.requestPermissions();
-        if (permStatus.receive === 'granted') {
-            await PushNotifications.register();
-            console.log("Push notifications registered!");
-        }
-    } catch (error) {
-        console.error("Push notification registration failed:", error);
+      if (!isNative) {
+        const result = await registerWebPush(requestPermission);
+        setPermission(result);
+        setError("");
+        return;
+      }
+
+      const supported = await FirebaseMessaging.isSupported();
+      if (!supported.isSupported) {
+        setPermission("unsupported");
+        return;
+      }
+      let status = await FirebaseMessaging.checkPermissions();
+      if (requestPermission && status.receive !== "granted") {
+        status = await FirebaseMessaging.requestPermissions();
+      }
+      setPermission(status.receive);
+      if (status.receive === "granted") {
+        const { token } = await FirebaseMessaging.getToken();
+        await saveNativeToken(token);
+        setError("");
+      }
+    } catch (registrationError) {
+      setError(registrationError.message);
+      setPermission("unavailable");
     }
+  }, [isNative]);
+
+  useEffect(() => {
+    if (!enabled || process.env.NODE_ENV === "test") return undefined;
+    const handles = [];
+    let active = true;
+
+    if (isNative) {
+      Promise.all([
+        FirebaseMessaging.addListener("tokenReceived", ({ token }) => {
+          saveNativeToken(token).catch((tokenError) => setError(tokenError.message));
+        }),
+        FirebaseMessaging.addListener("notificationActionPerformed", ({ notification }) => {
+          const route = notification?.data?.route;
+          if (typeof route === "string" && route.startsWith("/")) navigate(route);
+        }),
+      ]).then((listeners) => {
+        if (active) handles.push(...listeners);
+        else listeners.forEach((handle) => handle.remove());
+      });
+    }
+
+    register(false);
+    return () => {
+      active = false;
+      handles.forEach((handle) => handle.remove());
+    };
+  }, [enabled, isNative, navigate, register]);
+
+  if (!enabled || permission === "granted") return null;
+
+  return (
+    <aside className="notification-permission-banner" role="status">
+      <span>
+        {error || "Enable notifications to receive assignment and payment updates."}
+      </span>
+      {permission !== "denied" && (
+        <button type="button" onClick={() => register(true)}>
+          Enable Notifications
+        </button>
+      )}
+    </aside>
+  );
 }
-export default PushNotificationsComponent;

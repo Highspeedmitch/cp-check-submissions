@@ -6,15 +6,20 @@ const User = require("../models/user"); // ✅ Import User model
 // ✅ Start or Resume Tracking (Called when the user enables the toggle)
 router.post("/start", async (req, res) => {
   try {
-    const { userId, organizationId } = req.body; // Extract user info from request body
-
-    let mileageRecord = await MileageTracking.findOne({ userId });
-
-    if (!mileageRecord) {
-      mileageRecord = new MileageTracking({ userId, organizationId, totalMiles: 0 });
-    }
-
-    await mileageRecord.save();
+    const mileageRecord = await MileageTracking.findOneAndUpdate(
+      {
+        userId: req.user.userId,
+        organizationId: req.user.organizationId,
+      },
+      {
+        $setOnInsert: {
+          userId: req.user.userId,
+          organizationId: req.user.organizationId,
+          totalMiles: 0,
+        },
+      },
+      { upsert: true, new: true }
+    );
     res.json({ success: true, message: "Mileage tracking started/resumed.", mileageRecord });
   } catch (error) {
     console.error("Error starting mileage tracking:", error);
@@ -25,18 +30,25 @@ router.post("/start", async (req, res) => {
 // ✅ Update Mileage (Every 30s)
 router.post("/update", async (req, res) => {
     try {
-      const { userId, miles } = req.body; 
-  
-      // Find the MileageTracking document for the user
-      let mileageRecord = await MileageTracking.findOne({ userId });
+      const miles = Number(req.body.miles);
+      if (!Number.isFinite(miles) || miles < 0 || miles > 100) {
+        return res.status(400).json({ error: "Enter a valid mileage increment." });
+      }
+
+      const mileageRecord = await MileageTracking.findOneAndUpdate(
+        {
+          userId: req.user.userId,
+          organizationId: req.user.organizationId,
+        },
+        {
+          $inc: { totalMiles: miles },
+          $set: { lastUpdated: new Date() },
+        },
+        { new: true }
+      );
       if (!mileageRecord) {
         return res.status(404).json({ error: "Mileage record not found." });
       }
-  
-      // Update the mileage record rather than the User model
-      mileageRecord.totalMiles += miles;
-      mileageRecord.lastUpdated = new Date();
-      await mileageRecord.save();
   
       res.json({ success: true, totalMiles: mileageRecord.totalMiles });
     } catch (error) {
@@ -52,9 +64,22 @@ router.post("/update", async (req, res) => {
 router.get("/user/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
+      if (req.user.role !== "admin" && req.user.userId.toString() !== userId) {
+        return res.status(403).json({ error: "You cannot view another user's mileage." });
+      }
+      const user = await User.findOne({
+        _id: userId,
+        organizationId: req.user.organizationId,
+      }).select("_id").lean();
+      if (!user) {
+        return res.status(404).json({ error: "User not found in this organization." });
+      }
       const currentYear = new Date().getFullYear();
   
-      const record = await MileageTracking.findOne({ userId });
+      const record = await MileageTracking.findOne({
+        userId,
+        organizationId: req.user.organizationId,
+      }).lean();
       if (!record) {
         return res.json({ totalMiles: 0, ytdMiles: 0 });
       }

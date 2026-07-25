@@ -22,7 +22,7 @@ import AccessInstructions from "./components/AccessInstructions";
 import AZRaccessinstructions from "./components/AZRaccessinstructions";
 import Payments from "./components/Payments";
 import ProfitUpload from "./components/ProfitUpload";
-import { FirebaseMessaging } from "@capacitor-firebase/messaging";
+import PushNotifications from "./components/PushNotifications";
 import EditPropertyWrapper from "./components/EditPropertyWrapper";
 import Billing from "./components/Billing";
 import BidRequests from "./components/BidRequests";
@@ -84,6 +84,8 @@ function App() {
   console.log("🔹 Final Role State:", role);
 
   return (
+    <>
+    <PushNotifications enabled={user === true} />
     <Routes>
       <Route path="/" element={!user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" />} />
       <Route path="/register" element={<Register />} />
@@ -143,6 +145,7 @@ function App() {
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
+    </>
   );
 }
 

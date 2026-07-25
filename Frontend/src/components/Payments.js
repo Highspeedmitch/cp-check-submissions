@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 function Payments() {
@@ -21,6 +21,10 @@ const [showSubmissionWarningModal, setShowSubmissionWarningModal] = useState(fal
 
   // Calculated total for this pay period
   const [totalPayment, setTotalPayment] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const detailRequest = useRef(0);
 
   // Date range display
   const [currentWeek, setCurrentWeek] = useState("");
@@ -73,43 +77,32 @@ const [showSubmissionWarningModal, setShowSubmissionWarningModal] = useState(fal
   }, [token]);
 
   // ===== Fetch Data for a Clicked User =====
-  function fetchUserData(userId) {
+  async function fetchUserData(userId) {
+    const requestId = ++detailRequest.current;
     setSelectedUser(userId);
-
-    // Submissions since last payment
-    fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/admin/user-submissions/${userId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    )
-      .then((res) => res.json())
-      .then((data) => setSubmissions(data.count))
-      .catch((err) => console.error("Error fetching submissions:", err));
-
-    // Miles since last payment + YTD miles
-    fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/mileage/user/${userId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        // data.totalMiles = miles since last payment
-        // data.ytdMiles   = sum of miles paid so far this year
-        setMileage(data.totalMiles);
-        setYtdMiles(data.ytdMiles || 0);
-      })
-      .catch((err) => console.error("Error fetching mileage:", err));
-     
-    // Fetch assignments count since last payment for the selected user
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/count/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => setAssignmentsCount(data.count))
-      .catch((err) => console.error("Error fetching assignment count:", err));    
+    setLoadingDetails(true);
+    setError("");
+    setTotalPayment(null);
+    try {
+      const response = await fetch(
+        `https://cp-check-submissions-dev-backend.onrender.com/admin/payment-summary/${userId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to load payment details.");
+      if (requestId !== detailRequest.current) return;
+      setSubmissions(data.submissionCount);
+      setMileage(data.currentMiles);
+      setAssignmentsCount(data.assignmentCount);
+      setYtdMiles(data.ytdMiles || 0);
+      setUsers((current) => current.map((user) =>
+        user._id === userId ? { ...user, ytd: data.ytdPayments || 0 } : user
+      ));
+    } catch (requestError) {
+      if (requestId === detailRequest.current) setError(requestError.message);
+    } finally {
+      if (requestId === detailRequest.current) setLoadingDetails(false);
+    }
   }
         
   // ===== Calculate Payment for this Pay Period =====
@@ -137,7 +130,9 @@ function logPayment() {
   }
   
   // This function actually performs the API call to log the payment
-  function proceedWithPayment() {
+  function proceedWithPayment(allowSubmissionMismatch = false) {
+    setProcessing(true);
+    setError("");
     fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment", {
       method: "POST",
       headers: {
@@ -146,20 +141,21 @@ function logPayment() {
       },
       body: JSON.stringify({
         userId: selectedUser,
-        submissions,
-        mileage,
         perSubmissionRate,
         perMileRate,
-        totalPayment,
-        adminId: localStorage.getItem("userId"), // ✅ Log the admin making the payment
-        paymentDate: new Date().toISOString(),  // ✅ Log payment timestamp
+        allowSubmissionMismatch,
       }),
     })
-      .then(() => {
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) {
+          if (data.code === "SUBMISSION_MISMATCH") {
+            setShowSubmissionWarningModal(true);
+            return;
+          }
+          throw new Error(data.error || "Unable to process payment.");
+        }
         alert("Payment logged!");
-  
-        // ✅ Log the transaction for admin reference
-        console.log(`🚀 Payment logged for User ${selectedUser}: $${totalPayment}`);
   
         // Mark that user as "Paid" locally
         setUsers((prevUsers) =>
@@ -174,9 +170,10 @@ function logPayment() {
         setTotalPayment(null);
   
         // ✅ Fetch user data again to refresh YTD values
-        fetchUserData(selectedUser);
+        await fetchUserData(selectedUser);
       })
-      .catch((err) => console.error("Error logging payment:", err));
+      .catch((requestError) => setError(requestError.message))
+      .finally(() => setProcessing(false));
   }  
 
   return (
@@ -186,6 +183,7 @@ function logPayment() {
         ← Back to Dashboard
       </button>
       <h2 className="payments-subheader">Week: {currentWeek}</h2>
+      {error && <p className="error">{error}</p>}
       <div className="table-wrapper">
         <table className="payments-table">
           <thead>
@@ -219,7 +217,8 @@ function logPayment() {
         </table>
       </div>
 
-      {selectedUser && (
+      {selectedUser && loadingDetails && <p>Loading payment details...</p>}
+      {selectedUser && !loadingDetails && (
         <div className="payment-card">
           <h3 className="card-title">Payment Details</h3>
           <p>
@@ -258,9 +257,9 @@ function logPayment() {
           <button
             onClick={logPayment}
             className="payments-button payments-success"
-            disabled={!totalPayment || totalPayment <= 0}
+            disabled={processing || !totalPayment || totalPayment <= 0}
           >
-            Log Payment
+            {processing ? "Processing..." : "Log Payment"}
           </button>
         </div>
       )}
@@ -292,7 +291,7 @@ function logPayment() {
               <button
                 onClick={() => {
                   setShowSubmissionWarningModal(false);
-                  proceedWithPayment();
+                  proceedWithPayment(true);
                 }}
                 className="payments-button"
               >

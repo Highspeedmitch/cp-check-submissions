@@ -3,7 +3,7 @@
   "appName": "iGadget",
   "webDir": "build",
   "plugins": {
-    "PushNotifications": {
+    "FirebaseMessaging": {
       "presentationOptions": ["badge", "sound", "alert"]
     }
   }
