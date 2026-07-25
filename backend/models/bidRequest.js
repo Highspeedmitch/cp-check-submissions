@@ -27,6 +27,15 @@ const BidRequestSchema = new mongoose.Schema({
   adminNotes: { type: String, default: "" },
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   reviewedAt: Date,
+  archivedAt: { type: Date, default: null, index: true },
+  archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  activity: [{
+    action: { type: String, enum: ["created", "approved", "declined", "archived", "restored"] },
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    changedAt: { type: Date, default: Date.now },
+  }],
 }, { timestamps: true });
+
+BidRequestSchema.index({ organizationId: 1, archivedAt: 1, createdAt: -1 });
 
 module.exports = mongoose.model("BidRequest", BidRequestSchema);

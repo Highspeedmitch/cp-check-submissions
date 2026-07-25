@@ -6,6 +6,7 @@ function AdminSubmissions() {
   const { property } = useParams();
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
+  const [months, setMonths] = useState(12);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const token = localStorage.getItem("token");
@@ -16,10 +17,14 @@ function AdminSubmissions() {
       return;
     }
 
-    // Fetch admin submissions for the specified property
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/admin/submissions/${encodeURIComponent(property)}`, {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+
+    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/admin/submissions/${encodeURIComponent(property)}?months=${months}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     })
       .then((res) => {
         if (!res.ok) {
@@ -32,21 +37,37 @@ function AdminSubmissions() {
         setLoading(false);
       })
       .catch((err) => {
+        if (err.name === "AbortError") return;
         console.error("Error fetching admin submissions:", err);
         setError("Failed to load submissions");
         setLoading(false);
       });
-  }, [property, token, navigate]);
+    return () => controller.abort();
+  }, [property, months, token, navigate]);
 
   return (
     <div className="container">
-      <h1>{property} - Submissions (Last 3 Months)</h1>
+      <h1>{property} - Submissions</h1>
+      <div className="submission-range-filter">
+        <label htmlFor="submission-months">Show submissions from the last</label>
+        <select
+          id="submission-months"
+          value={months}
+          onChange={(event) => setMonths(Number(event.target.value))}
+        >
+          {Array.from({ length: 18 }, (_, index) => index + 1).map((month) => (
+            <option key={month} value={month}>
+              {month} {month === 1 ? "month" : "months"}
+            </option>
+          ))}
+        </select>
+      </div>
       {loading ? (
         <p>Loading submissions...</p>
       ) : error ? (
         <p className="error">{error}</p>
       ) : submissions.length === 0 ? (
-        <p>No submissions found for the last 3 months.</p>
+        <p>No submissions found for the last {months} {months === 1 ? "month" : "months"}.</p>
       ) : (
         <ul>
           {submissions.map((sub) => (

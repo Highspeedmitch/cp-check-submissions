@@ -18,6 +18,12 @@ const Organization = require('./models/organization');
 const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
 const Invoice = require('./models/invoice');
+const {
+  MIN_SUBMISSION_MONTHS,
+  MAX_SUBMISSION_MONTHS,
+  parseSubmissionMonths,
+  getSubmissionCutoff,
+} = require('./utils/submissionRange');
 const authenticateToken = require('./middleware/authenticateToken');
 const { managedProperties, canAccessProperty } = require('./services/propertyAccess');
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
@@ -705,6 +711,13 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
 app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) => {
   try {
     const { property } = req.params;
+    const months = parseSubmissionMonths(req.query.months);
+    if (months === null) {
+      return res.status(400).json({
+        error: `months must be a whole number between ${MIN_SUBMISSION_MONTHS} and ${MAX_SUBMISSION_MONTHS}.`,
+      });
+    }
+
     const organization = await Organization.findById(req.user.organizationId);
     const scopedProperty = organization?.properties.find((item) => item.name === property);
     if (!scopedProperty) return res.status(404).json({ error: "Property not found." });
@@ -712,15 +725,13 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
       return res.status(403).json({ error: "You do not manage this property." });
     }
 
-    // Calculate the date 3 months ago
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    const submissionCutoff = getSubmissionCutoff(months);
 
     // Find submissions for the current organization, for the given property, within the last 3 months
     const submissions = await Submission.find({
       organizationId: req.user.organizationId,
       property: property,
-      submittedAt: { $gte: threeMonthsAgo }
+      submittedAt: { $gte: submissionCutoff }
     }).sort({ submittedAt: -1 });
 
     // For each submission, generate a pre-signed URL

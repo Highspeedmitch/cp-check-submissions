@@ -16,9 +16,14 @@ const upload = multer({
 
 router.get("/", async (req, res) => {
   const query = { organizationId: req.user.organizationId };
-  if (req.user.role !== "admin") query.requestedBy = req.user.userId;
+  if (req.user.role === "admin") {
+    query.archivedAt = req.query.archive === "archived" ? { $ne: null } : null;
+  } else {
+    query.requestedBy = req.user.userId;
+  }
   const requests = await BidRequest.find(query)
     .populate("requestedBy", "username email")
+    .populate("archivedBy", "username email")
     .sort({ createdAt: -1 })
     .lean();
   res.json(requests.map((request) => ({
@@ -55,6 +60,7 @@ router.post("/", upload.single("attachment"), async (req, res) => {
       knownIssues: req.body.knownIssues,
       attachmentKey: key,
       attachmentName: req.file.originalname,
+      activity: [{ action: "created", changedBy: req.user.userId }],
     });
     res.status(201).json(request);
   } catch (error) {
@@ -70,11 +76,47 @@ router.put("/:id/review", async (req, res) => {
     return res.status(400).json({ error: "Invalid review status." });
   }
   const request = await BidRequest.findOneAndUpdate(
-    { _id: req.params.id, organizationId: req.user.organizationId },
-    { status, adminNotes: adminNotes || "", reviewedBy: req.user.userId, reviewedAt: new Date() },
+    { _id: req.params.id, organizationId: req.user.organizationId, archivedAt: null },
+    {
+      status,
+      adminNotes: adminNotes || "",
+      reviewedBy: req.user.userId,
+      reviewedAt: new Date(),
+      $push: { activity: { action: status, changedBy: req.user.userId } },
+    },
     { new: true }
   );
   if (!request) return res.status(404).json({ error: "Bid request not found." });
+  res.json(request);
+});
+
+router.put("/:id/archive", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Admins only." });
+  const request = await BidRequest.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId, archivedAt: null },
+    {
+      archivedAt: new Date(),
+      archivedBy: req.user.userId,
+      $push: { activity: { action: "archived", changedBy: req.user.userId } },
+    },
+    { new: true }
+  );
+  if (!request) return res.status(404).json({ error: "Active bid request not found." });
+  res.json(request);
+});
+
+router.put("/:id/restore", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Admins only." });
+  const request = await BidRequest.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId, archivedAt: { $ne: null } },
+    {
+      archivedAt: null,
+      archivedBy: null,
+      $push: { activity: { action: "restored", changedBy: req.user.userId } },
+    },
+    { new: true }
+  );
+  if (!request) return res.status(404).json({ error: "Archived bid request not found." });
   res.json(request);
 });
 

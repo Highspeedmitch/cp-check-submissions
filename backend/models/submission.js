@@ -10,4 +10,6 @@ const SubmissionSchema = new mongoose.Schema({
   // You can add any additional fields as needed, e.g., customFields
 });
 
+SubmissionSchema.index({ organizationId: 1, property: 1, submittedAt: -1 });
+
 module.exports = mongoose.model('Submission', SubmissionSchema);

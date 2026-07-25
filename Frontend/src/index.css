@@ -428,6 +428,27 @@ button:hover {
 }
 
 /* Submissions Table */
+.submission-range-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.submission-range-filter label {
+  font-weight: 600;
+}
+
+.submission-range-filter select {
+  min-width: 120px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: #fff;
+  font-size: 16px;
+}
+
 .submissions-table {
   width: 100%;
   border-collapse: collapse;
