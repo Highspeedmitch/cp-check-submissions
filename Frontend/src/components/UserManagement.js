@@ -22,7 +22,7 @@ export default function UserManagement() {
   function chooseUser(userId) {
     const user = data.users.find((item) => item._id === userId);
     setSelectedId(userId);
-    setDraft(user ? { ...user } : null);
+    setDraft(user ? { ...user, accountStatus: user.accountStatus || "active" } : null);
     setPropertyIds(user ? data.properties
       .filter((property) => property.propertyManagers.some((id) => id === userId))
       .map((property) => property._id) : []);

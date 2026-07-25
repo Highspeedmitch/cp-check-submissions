@@ -4,6 +4,10 @@ const nodemailer = require("nodemailer");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
+const {
+  normalizeAccountStatus,
+  isValidAccountStatus,
+} = require("../utils/accountStatus");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "contractor", "cleaner"];
@@ -41,13 +45,14 @@ router.put("/:userId", async (req, res) => {
     if (!user) return res.status(404).json({ error: "Editable user not found." });
 
     const { username, email, role, accountStatus, propertyIds = [] } = req.body;
+    const normalizedAccountStatus = normalizeAccountStatus(accountStatus);
     if (!username?.trim() || !email?.trim()) {
       return res.status(400).json({ error: "Name and email are required." });
     }
     if (!editableRoles.includes(role)) {
       return res.status(400).json({ error: "Invalid role." });
     }
-    if (!["active", "inactive"].includes(accountStatus)) {
+    if (!isValidAccountStatus(normalizedAccountStatus)) {
       return res.status(400).json({ error: "Invalid account status." });
     }
     const duplicate = await User.findOne({
@@ -78,7 +83,7 @@ router.put("/:userId", async (req, res) => {
     user.username = username.trim();
     user.email = email.trim().toLowerCase();
     user.role = role;
-    user.accountStatus = accountStatus;
+    user.accountStatus = normalizedAccountStatus;
     user.tokenVersion = (user.tokenVersion || 0) + 1;
 
     await Promise.all([
@@ -89,7 +94,16 @@ router.put("/:userId", async (req, res) => {
         targetUserId: user._id,
         changedBy: req.user.userId,
         action: "user_updated",
-        changes: { before, after: { username: user.username, email: user.email, role, accountStatus }, propertyIds: [...assignedIds] },
+        changes: {
+          before,
+          after: {
+            username: user.username,
+            email: user.email,
+            role,
+            accountStatus: normalizedAccountStatus,
+          },
+          propertyIds: [...assignedIds],
+        },
       }),
     ]);
     res.json({ success: true, user });
