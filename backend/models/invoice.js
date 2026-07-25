@@ -19,6 +19,7 @@ const InvoiceSchema = new mongoose.Schema({
   },
   inspectionDate: { type: Date, required: true },
   amountCents: { type: Number, min: 0, default: null },
+  amountSetBySubmitter: { type: Boolean, default: false },
   status: {
     type: String,
     enum: ["unbilled", "submitted", "paid", "failed", "void"],

@@ -40,7 +40,12 @@ export default function Billing() {
     if (role === "admin") {
       fetch(`${API}/properties`, { headers: { Authorization: `Bearer ${token}` } })
         .then((response) => response.json())
-        .then((data) => Array.isArray(data) && setProperties(data));
+        .then((data) => Array.isArray(data) && setProperties(data.map((property) => ({
+          ...property,
+          defaultInspectionAmountDollars: property.defaultInspectionAmountCents == null
+            ? ""
+            : (property.defaultInspectionAmountCents / 100).toFixed(2),
+        }))));
     }
     const timer = setInterval(loadInvoices, 30000);
     return () => clearInterval(timer);
@@ -58,9 +63,9 @@ export default function Billing() {
       headers,
       body: JSON.stringify({
         ...property,
-        defaultInspectionAmountCents: property.defaultInspectionAmountCents === ""
+        defaultInspectionAmountCents: property.defaultInspectionAmountDollars === ""
           ? null
-          : Number(property.defaultInspectionAmountCents),
+          : Math.round(Number(property.defaultInspectionAmountDollars) * 100),
       }),
     });
     const data = await response.json();
@@ -125,9 +130,9 @@ export default function Billing() {
                     onChange={(e) => updateProperty(property._id, "streetAddress", e.target.value)}
                   />
                   <input
-                    type="number" min="0" placeholder="Default amount cents"
-                    value={property.defaultInspectionAmountCents ?? ""}
-                    onChange={(e) => updateProperty(property._id, "defaultInspectionAmountCents", e.target.value)}
+                    type="number" min="0" step="0.01" placeholder="Suggested amount ($)"
+                    value={property.defaultInspectionAmountDollars ?? ""}
+                    onChange={(e) => updateProperty(property._id, "defaultInspectionAmountDollars", e.target.value)}
                   />
                   <select
                     value={property.apMethod || "download"}

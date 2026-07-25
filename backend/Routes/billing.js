@@ -40,6 +40,7 @@ router.put("/properties/:propertyId", async (req, res) => {
     if (!propertyCode || !streetAddress) {
       return res.status(400).json({ error: "Property code and billing address are required." });
     }
+    const previousDefaultAmountCents = property.defaultInspectionAmountCents;
     property.propertyCode = propertyCode.trim();
     property.streetAddress = streetAddress.trim();
     property.defaultInspectionAmountCents = Number.isInteger(defaultInspectionAmountCents)
@@ -50,9 +51,19 @@ router.put("/properties/:propertyId", async (req, res) => {
     property.apPortal = apPortal || "";
     await organization.save();
     await Invoice.updateMany(
-      { organizationId: organization._id, propertyId: property._id, status: "unbilled" },
+      {
+        organizationId: organization._id,
+        propertyId: property._id,
+        status: "unbilled",
+        amountSetBySubmitter: { $ne: true },
+        $or: [
+          { amountCents: previousDefaultAmountCents },
+          { amountCents: null },
+        ],
+      },
       {
         $set: {
+          amountCents: property.defaultInspectionAmountCents,
           "propertySnapshot.propertyCode": property.propertyCode,
           "propertySnapshot.address": property.streetAddress,
           "propertySnapshot.apMethod": property.apMethod,
@@ -118,7 +129,7 @@ router.put("/:id/amount", async (req, res) => {
     }
     const invoice = await Invoice.findOneAndUpdate(
       { ...invoiceScope(req, req.params.id), status: "unbilled" },
-      { amountCents, pdfKey: "" },
+      { amountCents, amountSetBySubmitter: true, pdfKey: "" },
       { new: true }
     );
     if (!invoice) return res.status(404).json({ error: "Editable invoice not found." });
