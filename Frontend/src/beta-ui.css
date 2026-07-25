@@ -340,6 +340,56 @@
 .beta-submission-list article:last-child { border-bottom: 0; }
 .beta-submission-list article > div { display: flex; flex-direction: column; gap: 4px; }
 .beta-submission-list small { color: var(--beta-muted); }
+.beta-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(12, 20, 32, .58);
+  backdrop-filter: blur(3px);
+}
+.beta-dialog {
+  width: min(100%, 440px);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--beta-border);
+  border-radius: 14px;
+  background: var(--beta-surface);
+  color: var(--beta-ink);
+  box-shadow: 0 24px 70px rgba(10, 18, 31, .28);
+}
+.beta-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.beta-dialog-header h2 { margin: 4px 0 0; font-size: 24px; }
+.beta-dialog-close {
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  margin: -6px -6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--beta-muted);
+  box-shadow: none;
+  font-size: 28px;
+  line-height: 1;
+}
+.beta-dialog-close:hover { background: var(--beta-soft-blue); color: var(--beta-ink); box-shadow: none; }
+.beta-dialog-copy { margin: 14px 0 20px; color: var(--beta-muted); line-height: 1.5; }
+.beta-dialog .beta-field { display: grid; gap: 7px; font-weight: 700; }
+.beta-dialog .beta-field input { width: 100%; margin: 0; }
+.beta-dialog-error { margin: 10px 0 0; color: var(--beta-danger); font-size: 14px; }
+.beta-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.beta-dialog-actions .beta-button { width: auto; min-width: 112px; margin: 0; }
+.beta-dialog button:disabled { cursor: not-allowed; opacity: .58; }
 @media (max-width: 768px) {
   .beta-user-layout { grid-template-columns: 1fr; }
 }
@@ -397,4 +447,8 @@
   .beta-card-actions .beta-button { flex: 1 1 140px; }
   .notification-permission-banner { left: 12px; right: 12px; bottom: 12px; flex-direction: column; align-items: stretch; }
   .notification-permission-banner button { width: 100%; }
+  .beta-dialog-overlay { align-items: end; padding: 12px; }
+  .beta-dialog { max-height: calc(100vh - 24px); padding: 20px; border-radius: 16px; }
+  .beta-dialog-actions { flex-direction: column-reverse; }
+  .beta-dialog-actions .beta-button { width: 100%; }
 }

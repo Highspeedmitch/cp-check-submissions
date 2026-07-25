@@ -1,5 +1,5 @@
 // Dashboard.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
 import axios from "axios";
@@ -138,6 +138,10 @@ const handleRegionFilter = async () => {
   // ----------- "Add Property" Admin Flow -----------
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
   const [passkey, setPasskey] = useState("");
+  const [passkeyError, setPasskeyError] = useState("");
+  const [passkeyVerifying, setPasskeyVerifying] = useState(false);
+  const passkeyInputRef = useRef(null);
+  const addPropertyFormRef = useRef(null);
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
   const [newPropName, setNewPropName] = useState("");
   const [newPropEmails, setNewPropEmails] = useState("");
@@ -393,23 +397,82 @@ useEffect(() => {
   // ======================
   // 4) Add Property Logic
   // ======================
-  const handlePasskeySubmit = () => {
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/verify-passkey", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passkey }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.valid) {
-          setAddPropertyFormVisible(true);
-        } else {
-          alert("Invalid passkey. Cannot add property.");
-        }
-        setPasskeyPromptVisible(false);
-      })
-      .catch((err) => console.error("Error verifying passkey:", err));
+  const closePasskeyPrompt = () => {
+    if (passkeyVerifying) return;
+    setPasskeyPromptVisible(false);
+    setPasskey("");
+    setPasskeyError("");
   };
+
+  const handlePasskeySubmit = async (event) => {
+    event?.preventDefault();
+    if (!passkey.trim() || passkeyVerifying) return;
+
+    setPasskeyVerifying(true);
+    setPasskeyError("");
+
+    try {
+      const response = await fetch(
+        "https://cp-check-submissions-dev-backend.onrender.com/api/verify-passkey",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ passkey }),
+        }
+      );
+      const data = await response.json();
+
+      if (!response.ok || !data.valid) {
+        setPasskeyError("That passkey is not valid. Please try again.");
+        return;
+      }
+
+      setPasskeyPromptVisible(false);
+      setPasskey("");
+      setAddPropertyFormVisible(true);
+    } catch (err) {
+      console.error("Error verifying passkey:", err);
+      setPasskeyError("We could not verify the passkey. Please try again.");
+    } finally {
+      setPasskeyVerifying(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!passkeyPromptVisible) return undefined;
+
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    passkeyInputRef.current?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setPasskeyPromptVisible(false);
+        setPasskey("");
+        setPasskeyError("");
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [passkeyPromptVisible]);
+
+  useEffect(() => {
+    if (!addPropertyFormVisible) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      addPropertyFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [addPropertyFormVisible]);
 
   // If viewScheduler flag is set, fetch assignments (for admin scheduler view)
   useEffect(() => {
@@ -724,6 +787,7 @@ useEffect(() => {
           setSidebarCollapsed(false);
           setPasskeyPromptVisible(true);
           setPasskey("");
+          setPasskeyError("");
         }}
         onRemoveProperty={() => {
           setSidebarCollapsed(false);
@@ -1022,6 +1086,7 @@ useEffect(() => {
                   onClick={() => {
                     setPasskeyPromptVisible(true);
                     setPasskey("");
+                    setPasskeyError("");
                   }}
                 >
                   + Property
@@ -1330,21 +1395,84 @@ useEffect(() => {
 
         {/* Passkey prompt for adding property */}
         {passkeyPromptVisible && (
-          <div className="passkey-modal">
-            <h3>Enter passkey to add property</h3>
-            <input
-              type="password"
-              value={passkey}
-              onChange={(e) => setPasskey(e.target.value)}
-            />
-            <button onClick={handlePasskeySubmit}>Submit</button>
-            <button onClick={() => setPasskeyPromptVisible(false)}>Cancel</button>
+          <div
+            className="beta-dialog-overlay"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closePasskeyPrompt();
+            }}
+          >
+            <form
+              className="beta-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="add-property-passkey-title"
+              aria-describedby="add-property-passkey-description"
+              onSubmit={handlePasskeySubmit}
+            >
+              <div className="beta-dialog-header">
+                <div>
+                  <span className="beta-eyebrow">Admin verification</span>
+                  <h2 id="add-property-passkey-title">Add a new property</h2>
+                </div>
+                <button
+                  type="button"
+                  className="beta-dialog-close"
+                  aria-label="Close passkey dialog"
+                  onClick={closePasskeyPrompt}
+                  disabled={passkeyVerifying}
+                >
+                  ×
+                </button>
+              </div>
+              <p id="add-property-passkey-description" className="beta-dialog-copy">
+                Enter your organization passkey to continue to property setup.
+              </p>
+              <label className="beta-field" htmlFor="add-property-passkey">
+                <span>Organization passkey</span>
+                <input
+                  ref={passkeyInputRef}
+                  id="add-property-passkey"
+                  type="password"
+                  autoComplete="current-password"
+                  value={passkey}
+                  onChange={(event) => {
+                    setPasskey(event.target.value);
+                    if (passkeyError) setPasskeyError("");
+                  }}
+                  aria-invalid={Boolean(passkeyError)}
+                  aria-describedby={passkeyError ? "passkey-error" : undefined}
+                  disabled={passkeyVerifying}
+                />
+              </label>
+              {passkeyError && (
+                <p id="passkey-error" className="beta-dialog-error" role="alert">
+                  {passkeyError}
+                </p>
+              )}
+              <div className="beta-dialog-actions">
+                <button
+                  type="button"
+                  className="beta-button secondary"
+                  onClick={closePasskeyPrompt}
+                  disabled={passkeyVerifying}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="beta-button"
+                  disabled={!passkey.trim() || passkeyVerifying}
+                >
+                  {passkeyVerifying ? "Verifying…" : "Continue"}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
         {/* Show Add Property Form if passkey verified */}
         {addPropertyFormVisible && (
-          <div className="add-property-form">
+          <div className="add-property-form" ref={addPropertyFormRef}>
             <h3>Add New Property</h3>
             <label>
               Property Name:
