@@ -1218,28 +1218,4 @@ app.put('/api/access-instructions/:propertyName', authenticateToken, async (req,
   }
 });
 
-//client.js
-router.get("/properties", authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== "client") {
-      return res.status(403).json({ error: "Only clients can view properties." });
-    }
-
-    const org = await Organization.findById(req.user.organizationId);
-    if (!org) {
-      return res.status(404).json({ error: "Organization not found." });
-    }
-
-    // Filter for properties that contain this client's userId
-    const clientProps = org.properties.filter(p =>
-      p.clientOwners && p.clientOwners.some(id => id.equals(req.user._id))
-    );
-
-    res.json(clientProps);
-  } catch (error) {
-    console.error("Error fetching client properties:", error);
-    res.status(500).json({ error: "Server error fetching properties." });
-  }
-});
-
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
