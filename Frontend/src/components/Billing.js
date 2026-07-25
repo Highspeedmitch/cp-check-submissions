@@ -205,7 +205,7 @@ export default function Billing() {
                         </>
                       )}
                       {invoice.pdfUrl && <a href={invoice.pdfUrl} target="_blank" rel="noreferrer"> View PDF</a>}
-                      {role === "admin" && invoice.status === "submitted" && (
+                      {isOversight && invoice.status === "submitted" && (
                         <button onClick={() => action(invoice._id, "mark-paid")}>Mark Paid</button>
                       )}
                     </td>

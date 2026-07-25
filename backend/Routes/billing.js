@@ -6,6 +6,11 @@ const User = require("../models/user");
 const Organization = require("../models/organization");
 const s3 = require("../awsConfig");
 const { generateInvoicePDF } = require("../invoicePdfService");
+const { sendUserNotification } = require("../services/notifications");
+const {
+  invoiceSubmitted,
+  invoiceStatusChanged,
+} = require("../services/notificationEvents");
 
 const router = express.Router();
 
@@ -203,6 +208,13 @@ router.post("/:id/submit", async (req, res) => {
     invoice.status = "submitted";
     invoice.statusHistory.push({ status: "submitted", changedBy: req.user.userId });
     await invoice.save();
+    sendUserNotification({
+      organizationId: req.user.organizationId,
+      userId: invoice.submitterId,
+      ...invoiceSubmitted(invoice),
+    }).catch((notificationError) => {
+      console.error("Invoice submission notification error:", notificationError);
+    });
     res.json(invoice);
   } catch (error) {
     console.error("Invoice submission error:", error);
@@ -212,12 +224,36 @@ router.post("/:id/submit", async (req, res) => {
 
 router.post("/:id/mark-paid", async (req, res) => {
   try {
-    const invoice = await Invoice.findOne(invoiceScope(req, req.params.id));
+    if (!["admin", "property_manager"].includes(req.user.role)) {
+      return res.status(403).json({ error: "Only organization administrators and property managers can update invoice status." });
+    }
+
+    const query = { _id: req.params.id, organizationId: req.user.organizationId };
+    if (req.user.role === "property_manager") {
+      const organization = await Organization.findById(req.user.organizationId).lean();
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
+      query.propertyId = {
+        $in: organization.properties
+          .filter((property) => property.propertyManagers?.some(
+            (id) => id.toString() === req.user.userId.toString()
+          ))
+          .map((property) => property._id),
+      };
+    }
+
+    const invoice = await Invoice.findOne(query);
     if (!invoice) return res.status(404).json({ error: "Invoice not found." });
     if (invoice.status !== "submitted") return res.status(400).json({ error: "Only submitted invoices can be marked paid." });
     invoice.status = "paid";
     invoice.statusHistory.push({ status: "paid", changedBy: req.user.userId });
     await invoice.save();
+    sendUserNotification({
+      organizationId: req.user.organizationId,
+      userId: invoice.submitterId,
+      ...invoiceStatusChanged(invoice),
+    }).catch((notificationError) => {
+      console.error("Invoice status notification error:", notificationError);
+    });
     res.json(invoice);
   } catch (error) {
     res.status(500).json({ error: "Unable to update invoice." });

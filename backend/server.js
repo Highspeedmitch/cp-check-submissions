@@ -37,6 +37,7 @@ const { v4: uuidv4 } = require('uuid');
 const admin = require("firebase-admin");
 const bodyParser = require('body-parser');
 const { sendUserNotification } = require("./services/notifications");
+const { inspectionSubmitted } = require("./services/notificationEvents");
 //azrootsAssignments.js
 const azrootsAssignments = require("./Routes/azrootsAssignments"); // Import the new route
 //airbnb ical
@@ -469,6 +470,18 @@ try {
       statusHistory: [{ status: "unbilled", changedBy: req.user.userId }],
     });
   }
+  const propertyManagerIds = [
+    ...new Set((property.propertyManagers || []).map((id) => id.toString())),
+  ];
+  propertyManagerIds.forEach((propertyManagerId) => {
+    sendUserNotification({
+      organizationId,
+      userId: propertyManagerId,
+      ...inspectionSubmitted(propertyName, submissionRecord._id),
+    }).catch((notificationError) => {
+      console.error("Inspection submission notification error:", notificationError);
+    });
+  });
 } catch (error) {
   console.error('❌ Database Submission Error:', error);
   return res.status(500).json({ message: 'Error saving submission to database' });

@@ -2,7 +2,14 @@ const express = require("express");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 const BidRequest = require("../models/bidRequest");
+const User = require("../models/user");
 const s3 = require("../awsConfig");
+const { sendUserNotification } = require("../services/notifications");
+const {
+  bidRequestSubmitted,
+  bidRequestReceived,
+  bidRequestStatusChanged,
+} = require("../services/notificationEvents");
 
 const router = express.Router();
 const upload = multer({
@@ -62,6 +69,30 @@ router.post("/", upload.single("attachment"), async (req, res) => {
       attachmentName: req.file.originalname,
       activity: [{ action: "created", changedBy: req.user.userId }],
     });
+    sendUserNotification({
+      organizationId: req.user.organizationId,
+      userId: req.user.userId,
+      ...bidRequestSubmitted(request),
+    }).catch((notificationError) => {
+      console.error("Bid requester notification error:", notificationError);
+    });
+    User.find({
+      organizationId: req.user.organizationId,
+      role: "admin",
+      accountStatus: { $ne: "inactive" },
+    }).select("_id").lean().then((admins) => {
+      admins.forEach((admin) => {
+        sendUserNotification({
+          organizationId: req.user.organizationId,
+          userId: admin._id,
+          ...bidRequestReceived(request),
+        }).catch((notificationError) => {
+          console.error("Bid admin notification error:", notificationError);
+        });
+      });
+    }).catch((notificationError) => {
+      console.error("Unable to resolve bid request administrators:", notificationError);
+    });
     res.status(201).json(request);
   } catch (error) {
     console.error("Bid request error:", error);
@@ -75,18 +106,28 @@ router.put("/:id/review", async (req, res) => {
   if (!["approved", "declined"].includes(status)) {
     return res.status(400).json({ error: "Invalid review status." });
   }
-  const request = await BidRequest.findOneAndUpdate(
-    { _id: req.params.id, organizationId: req.user.organizationId, archivedAt: null },
-    {
-      status,
-      adminNotes: adminNotes || "",
-      reviewedBy: req.user.userId,
-      reviewedAt: new Date(),
-      $push: { activity: { action: status, changedBy: req.user.userId } },
-    },
-    { new: true }
-  );
+  const request = await BidRequest.findOne({
+    _id: req.params.id,
+    organizationId: req.user.organizationId,
+    archivedAt: null,
+  });
   if (!request) return res.status(404).json({ error: "Bid request not found." });
+  const statusChanged = request.status !== status;
+  request.status = status;
+  request.adminNotes = adminNotes || "";
+  request.reviewedBy = req.user.userId;
+  request.reviewedAt = new Date();
+  request.activity.push({ action: status, changedBy: req.user.userId });
+  await request.save();
+  if (statusChanged) {
+    sendUserNotification({
+      organizationId: req.user.organizationId,
+      userId: request.requestedBy,
+      ...bidRequestStatusChanged(request),
+    }).catch((notificationError) => {
+      console.error("Bid status notification error:", notificationError);
+    });
+  }
   res.json(request);
 });
 
