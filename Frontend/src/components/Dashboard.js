@@ -11,6 +11,7 @@ import {
   useMarkNotificationsRead,
   useNotificationBadges,
 } from "../services/notificationCenter";
+import { api } from "../services/api";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -152,6 +153,9 @@ const handleRegionFilter = async () => {
   const [newPropDefaultAmount, setNewPropDefaultAmount] = useState("");
   const [newPropApMethod, setNewPropApMethod] = useState("download");
   const [newPropApDestination, setNewPropApDestination] = useState("");
+  const [propertyActionError, setPropertyActionError] = useState("");
+  const [propertyActionMessage, setPropertyActionMessage] = useState("");
+  const [propertyActionBusy, setPropertyActionBusy] = useState("");
 
   // ----------- "Remove Property" Admin Flow -----------
   // We have a single modal for removing property + passkey.
@@ -412,17 +416,9 @@ useEffect(() => {
     setPasskeyError("");
 
     try {
-      const response = await fetch(
-        "https://cp-check-submissions-dev-backend.onrender.com/api/verify-passkey",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ passkey }),
-        }
-      );
-      const data = await response.json();
+      const data = await api.post("/api/verify-passkey", { passkey });
 
-      if (!response.ok || !data.valid) {
+      if (!data.valid) {
         setPasskeyError("That passkey is not valid. Please try again.");
         return;
       }
@@ -526,60 +522,49 @@ useEffect(() => {
   // 6) Submit new property (admin only)
   // ======================
   const handleCreateProperty = async () => {
+    if (propertyActionBusy) return;
+    setPropertyActionBusy("create");
+    setPropertyActionError("");
+    setPropertyActionMessage("");
     try {
       const emailsArray = newPropEmails
         .split(",")
         .map((email) => email.trim())
         .filter(Boolean);
 
-      const response = await fetch(
-        "https://cp-check-submissions-dev-backend.onrender.com/api/admin/add-property",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            passkey,
-            name: newPropName,
-            emails: emailsArray,
-            lat: parseFloat(newPropLat) || 0,
-            lng: parseFloat(newPropLng) || 0,
-            ...(adminOrgType === "COM" && {
-              propertyCode: newPropCode.trim(),
-              streetAddress: newPropAddress.trim(),
-              defaultInspectionAmountCents: newPropDefaultAmount
-                ? Math.round(Number(newPropDefaultAmount) * 100)
-                : null,
-              apMethod: newPropApMethod,
-              apEmail: newPropApMethod === "email" ? newPropApDestination.trim() : "",
-              apPortal: newPropApMethod === "portal" ? newPropApDestination.trim() : "",
-            }),
-          }),
-        }
-      );
-      const data = await response.json();
-      if (data.error) {
-        alert(data.error);
+      await api.post("/api/admin/add-property", {
+        name: newPropName,
+        emails: emailsArray,
+        lat: parseFloat(newPropLat) || 0,
+        lng: parseFloat(newPropLng) || 0,
+        ...(adminOrgType === "COM" && {
+          propertyCode: newPropCode.trim(),
+          streetAddress: newPropAddress.trim(),
+          defaultInspectionAmountCents: newPropDefaultAmount
+            ? Math.round(Number(newPropDefaultAmount) * 100)
+            : null,
+          apMethod: newPropApMethod,
+          apEmail: newPropApMethod === "email" ? newPropApDestination.trim() : "",
+          apPortal: newPropApMethod === "portal" ? newPropApDestination.trim() : "",
+        }),
+      });
+      if (adminOrgType === "STR") {
+        navigate(`/admin/edit-property/${encodeURIComponent(newPropName)}`);
       } else {
-        alert("Property added successfully!");
-        // If STR org, navigate to edit-property route
-        if (adminOrgType === "STR") {
-          navigate(`/admin/edit-property/${encodeURIComponent(newPropName)}`);
-        } else {
-          // Otherwise, just refresh & close
-          setAddPropertyFormVisible(false);
-          setNewPropName("");
-          setNewPropEmails("");
-          setNewPropLat("");
-          setNewPropLng("");
-          setNewPropAddress("");
-          fetchProperties();
-        }
+        setAddPropertyFormVisible(false);
+        setNewPropName("");
+        setNewPropEmails("");
+        setNewPropLat("");
+        setNewPropLng("");
+        setNewPropAddress("");
+        setPropertyActionMessage("Property added successfully.");
+        await fetchProperties();
       }
-    } catch (error) {
-      console.error("Error creating property:", error);
+    } catch (err) {
+      console.error("Error creating property:", err);
+      setPropertyActionError(err.message || "Unable to create the property.");
+    } finally {
+      setPropertyActionBusy("");
     }
   };
 
@@ -788,6 +773,8 @@ useEffect(() => {
           setPasskeyPromptVisible(true);
           setPasskey("");
           setPasskeyError("");
+          setPropertyActionError("");
+          setPropertyActionMessage("");
         }}
         onRemoveProperty={() => {
           setSidebarCollapsed(false);
@@ -1087,6 +1074,8 @@ useEffect(() => {
                     setPasskeyPromptVisible(true);
                     setPasskey("");
                     setPasskeyError("");
+                    setPropertyActionError("");
+                    setPropertyActionMessage("");
                   }}
                 >
                   + Property
@@ -1470,6 +1459,13 @@ useEffect(() => {
           </div>
         )}
 
+        {propertyActionError && (
+          <p className="beta-alert error" role="alert">{propertyActionError}</p>
+        )}
+        {propertyActionMessage && (
+          <p className="beta-alert success" role="status">{propertyActionMessage}</p>
+        )}
+
         {/* Show Add Property Form if passkey verified */}
         {addPropertyFormVisible && (
           <div className="add-property-form" ref={addPropertyFormRef}>
@@ -1549,8 +1545,21 @@ useEffect(() => {
               <br />
               <small>Lng: {newPropLng || "N/A"}</small>
             </div>
-            <button onClick={handleCreateProperty}>Create</button>
-            <button onClick={() => setAddPropertyFormVisible(false)}>Close</button>
+            <button
+              onClick={handleCreateProperty}
+              disabled={propertyActionBusy === "create"}
+            >
+              {propertyActionBusy === "create" ? "Creating…" : "Create"}
+            </button>
+            <button
+              disabled={propertyActionBusy === "create"}
+              onClick={() => {
+                setAddPropertyFormVisible(false);
+                setPropertyActionError("");
+              }}
+            >
+              Close
+            </button>
           </div>
         )}
       </div>

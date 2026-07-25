@@ -2,12 +2,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
 import { NOTIFICATION_SECTIONS, useMarkNotificationsRead } from "../services/notificationCenter";
-
-const API = "https://cp-check-submissions-dev-backend.onrender.com/api/bid-requests";
+import { api } from "../services/api";
 
 export default function BidRequests() {
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
   const [requests, setRequests] = useState([]);
   const [activeRequests, setActiveRequests] = useState([]);
@@ -15,6 +13,10 @@ export default function BidRequests() {
   const [tab, setTab] = useState("active");
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState("");
+  const [formVersion, setFormVersion] = useState(0);
   const [form, setForm] = useState({
     grossSquareFeet: "", propertyType: "free_standing", address: "",
     serviceFrequency: "monthly", knownIssues: "", attachment: null,
@@ -22,59 +24,84 @@ export default function BidRequests() {
   useMarkNotificationsRead(NOTIFICATION_SECTIONS.bids);
 
   const load = useCallback(async () => {
-    const auth = { headers: { Authorization: `Bearer ${token}` } };
-    if (role === "admin") {
-      const [activeResponse, archivedResponse] = await Promise.all([
-        fetch(`${API}?archive=active`, auth),
-        fetch(`${API}?archive=archived`, auth),
-      ]);
-      const [active, archived] = await Promise.all([activeResponse.json(), archivedResponse.json()]);
-      if (activeResponse.ok) setActiveRequests(active);
-      if (archivedResponse.ok) setArchivedRequests(archived);
-    } else {
-      const response = await fetch(API, auth);
-      const data = await response.json();
-      if (response.ok) setRequests(data);
+    try {
+      if (role === "admin") {
+        const [active, archived] = await Promise.all([
+          api.get("/api/bid-requests?archive=active"),
+          api.get("/api/bid-requests?archive=archived"),
+        ]);
+        setActiveRequests(active);
+        setArchivedRequests(archived);
+      } else {
+        setRequests(await api.get("/api/bid-requests"));
+      }
+      setError("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  }, [role, token]);
+  }, [role]);
 
   useEffect(() => { load(); }, [load]);
 
   async function submit(event) {
     event.preventDefault();
+    if (busyAction) return;
     const body = new FormData();
     Object.entries(form).forEach(([key, value]) => value != null && body.append(key, value));
-    const response = await fetch(API, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` }, body,
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Bid request sent to the organization admin." : data.error);
-    if (response.ok) load();
+    setBusyAction("submit");
+    setMessage("");
+    setError("");
+    try {
+      await api.post("/api/bid-requests", body);
+      setMessage("Bid request sent to the organization admin.");
+      setForm({
+        grossSquareFeet: "", propertyType: "free_standing", address: "",
+        serviceFrequency: "monthly", knownIssues: "", attachment: null,
+      });
+      setFormVersion((version) => version + 1);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAction("");
+    }
   }
 
   async function review(id, status) {
-    await fetch(`${API}/${id}/review`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status }),
-    });
-    load();
+    await runAction(`${id}:review`, () => api.put(`/api/bid-requests/${id}/review`, { status }),
+      `Bid ${status === "approved" ? "approved" : "declined"}.`);
   }
 
   async function archive(request) {
     if (request.status === "pending"
       && !window.confirm("This bid has not been reviewed. Archive it anyway?")) return;
-    await fetch(`${API}/${request._id}/archive`, {
-      method: "PUT", headers: { Authorization: `Bearer ${token}` },
-    });
-    load();
+    await runAction(`${request._id}:archive`,
+      () => api.put(`/api/bid-requests/${request._id}/archive`),
+      "Bid archived.");
   }
 
   async function restore(id) {
-    await fetch(`${API}/${id}/restore`, {
-      method: "PUT", headers: { Authorization: `Bearer ${token}` },
-    });
-    load();
+    await runAction(`${id}:restore`,
+      () => api.put(`/api/bid-requests/${id}/restore`),
+      "Bid restored.");
+  }
+
+  async function runAction(key, request, successMessage) {
+    if (busyAction) return;
+    setBusyAction(key);
+    setMessage("");
+    setError("");
+    try {
+      await request();
+      setMessage(successMessage);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAction("");
+    }
   }
 
   const visibleRequests = (role === "admin"
@@ -94,9 +121,9 @@ export default function BidRequests() {
       />
 
       {role === "property_manager" && (
-        <form onSubmit={submit} className="beta-panel beta-form-grid">
+        <form key={formVersion} onSubmit={submit} className="beta-panel beta-form-grid">
           <label className="beta-form-field">Gross square footage
-          <input type="number" min="1" required
+          <input type="number" min="1" required value={form.grossSquareFeet}
             onChange={(event) => setForm({ ...form, grossSquareFeet: event.target.value })} /></label>
           <label className="beta-form-field">Property type
           <select value={form.propertyType} onChange={(event) => setForm({ ...form, propertyType: event.target.value })}>
@@ -105,7 +132,7 @@ export default function BidRequests() {
             <option value="individual_suite">Individual suite</option>
           </select></label>
           <label className="beta-form-field full">Property address
-          <input required onChange={(event) => setForm({ ...form, address: event.target.value })} /></label>
+          <input required value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></label>
           <label className="beta-form-field">Service frequency
           <select value={form.serviceFrequency} onChange={(event) => setForm({ ...form, serviceFrequency: event.target.value })}>
             <option value="monthly">Monthly</option>
@@ -113,20 +140,23 @@ export default function BidRequests() {
             <option value="ad_hoc">Ad-hoc</option>
           </select></label>
           <label className="beta-form-field full">Known issues
-          <textarea placeholder="Optional notes about the property"
+          <textarea placeholder="Optional notes about the property" value={form.knownIssues}
             onChange={(event) => setForm({ ...form, knownIssues: event.target.value })} /></label>
           <label className="beta-form-field full">Lot dimensions with perimeter lines (PDF, JPG, or PNG)
             <input type="file" required accept=".pdf,image/jpeg,image/png"
               onChange={(event) => setForm({ ...form, attachment: event.target.files[0] })} />
           </label>
           <div className="beta-card-actions full">
-            <button className="beta-button" type="submit">Submit Bid Request</button>
+            <button className="beta-button" type="submit" disabled={busyAction === "submit"}>
+              {busyAction === "submit" ? "Sending…" : "Submit Bid Request"}
+            </button>
           </div>
-          {message && <p className="beta-alert success full">{message}</p>}
         </form>
       )}
 
       <section className="beta-section">
+        {error && <p className="beta-alert error">{error}</p>}
+        {message && <p className="beta-alert success">{message}</p>}
         <div className="beta-section-heading">
           <div><h2>{role === "admin" ? "Bid Management" : "My Requests"}</h2>
           <p>{visibleRequests.length} requests in this view</p></div>
@@ -145,7 +175,7 @@ export default function BidRequests() {
           value={search} onChange={(event) => setSearch(event.target.value)}
         />
 
-        <div className="beta-card-grid">
+        {loading ? <div className="beta-empty-state">Loading bids…</div> : <div className="beta-card-grid">
         {visibleRequests.map((request) => (
           <article className="beta-card" key={request._id}>
             <div className="beta-card-header">
@@ -163,19 +193,25 @@ export default function BidRequests() {
             <div className="beta-card-actions">
             {role === "admin" && tab === "active" && request.status === "pending" && (
               <>
-                <button className="beta-button" onClick={() => review(request._id, "approved")}>Approve</button>
-                <button className="beta-button danger" onClick={() => review(request._id, "declined")}>Decline</button>
+                <button className="beta-button" disabled={Boolean(busyAction)} onClick={() => review(request._id, "approved")}>
+                  {busyAction === `${request._id}:review` ? "Updating…" : "Approve"}
+                </button>
+                <button className="beta-button danger" disabled={Boolean(busyAction)} onClick={() => review(request._id, "declined")}>Decline</button>
               </>
             )}
             {role === "admin" && tab === "active"
-              && <button className="beta-button secondary" onClick={() => archive(request)}>Archive</button>}
+              && <button className="beta-button secondary" disabled={Boolean(busyAction)} onClick={() => archive(request)}>
+                {busyAction === `${request._id}:archive` ? "Archiving…" : "Archive"}
+              </button>}
             {role === "admin" && tab === "archived"
-              && <button className="beta-button secondary" onClick={() => restore(request._id)}>Restore</button>}
+              && <button className="beta-button secondary" disabled={Boolean(busyAction)} onClick={() => restore(request._id)}>
+                {busyAction === `${request._id}:restore` ? "Restoring…" : "Restore"}
+              </button>}
             </div>
           </article>
         ))}
-        </div>
-        {!visibleRequests.length && <div className="beta-empty-state">No bids match this view.</div>}
+        </div>}
+        {!loading && !visibleRequests.length && <div className="beta-empty-state">No bids match this view.</div>}
       </section>
     </main>
     </div>

@@ -1,4 +1,4 @@
-const API_ORIGIN = "https://cp-check-submissions-dev-backend.onrender.com";
+import { API_ORIGIN } from "./api";
 const REFRESH_URL = `${API_ORIGIN}/api/auth/refresh`;
 const LOGOUT_URL = `${API_ORIGIN}/api/auth/logout`;
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;

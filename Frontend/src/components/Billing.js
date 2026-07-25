@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
 import { NOTIFICATION_SECTIONS, useMarkNotificationsRead } from "../services/notificationCenter";
-
-const API = "https://cp-check-submissions-dev-backend.onrender.com/api/billing";
+import { api } from "../services/api";
 
 function dollars(cents) {
   if (cents == null) return "Not set";
@@ -17,7 +16,6 @@ function statusLabel(status) {
 
 export default function Billing() {
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
   const isOversight = role === "admin" || role === "property_manager";
   const [invoices, setInvoices] = useState([]);
@@ -26,38 +24,40 @@ export default function Billing() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [properties, setProperties] = useState([]);
-  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  const [loading, setLoading] = useState(true);
+  const [busyActions, setBusyActions] = useState({});
   useMarkNotificationsRead(NOTIFICATION_SECTIONS.billing);
 
-  const loadInvoices = useCallback(async () => {
+  const setBusy = (key, value) => setBusyActions((current) => ({ ...current, [key]: value }));
+
+  const loadInvoices = useCallback(async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
-      const response = await fetch(`${API}${status ? `?status=${status}` : ""}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Unable to load billing.");
+      const data = await api.get(`/api/billing${status ? `?status=${status}` : ""}`);
       setInvoices(data);
       setError("");
     } catch (err) {
       setError(err.message);
+    } finally {
+      if (showLoading) setLoading(false);
     }
-  }, [status, token]);
+  }, [status]);
 
   useEffect(() => {
-    loadInvoices();
+    loadInvoices(true);
     if (role === "admin") {
-      fetch(`${API}/properties`, { headers: { Authorization: `Bearer ${token}` } })
-        .then((response) => response.json())
+      api.get("/api/billing/properties")
         .then((data) => Array.isArray(data) && setProperties(data.map((property) => ({
           ...property,
           defaultInspectionAmountDollars: property.defaultInspectionAmountCents == null
             ? ""
             : (property.defaultInspectionAmountCents / 100).toFixed(2),
-        }))));
+        }))))
+        .catch((err) => setError(err.message));
     }
     const timer = setInterval(loadInvoices, 30000);
     return () => clearInterval(timer);
-  }, [loadInvoices, role, token]);
+  }, [loadInvoices, role]);
 
   function updateProperty(id, field, value) {
     setProperties(properties.map((property) =>
@@ -66,38 +66,53 @@ export default function Billing() {
   }
 
   async function saveProperty(property) {
-    const response = await fetch(`${API}/properties/${property._id}`, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify({
+    const actionKey = `property:${property._id}`;
+    if (busyActions[actionKey]) return;
+    setBusy(actionKey, true);
+    setMessage("");
+    try {
+      await api.put(`/api/billing/properties/${property._id}`, {
         ...property,
         defaultInspectionAmountCents: property.defaultInspectionAmountDollars === ""
           ? null
           : Math.round(Number(property.defaultInspectionAmountDollars) * 100),
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) return setError(data.error || "Unable to save property billing.");
-    setMessage(`${property.name} billing settings saved.`);
-    setError("");
-    await loadInvoices();
+      });
+      setMessage(`${property.name} billing settings saved.`);
+      setError("");
+      await loadInvoices();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(actionKey, false);
+    }
   }
 
   async function action(id, path, options = {}) {
-    const response = await fetch(`${API}/${id}/${path}`, {
-      method: options.method || "POST",
-      headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setError(data.error || "Billing action failed.");
+    const actionKey = `${id}:${path}`;
+    if (busyActions[actionKey]) return null;
+    setBusy(actionKey, true);
+    setMessage("");
+    try {
+      const data = await apiRequestForMethod(
+        options.method || "POST",
+        `/api/billing/${id}/${path}`,
+        options.body
+      );
+      setError("");
+      setMessage(path === "submit" ? "Invoice submitted successfully." : path === "mark-paid" ? "Invoice marked paid." : path === "amount" ? "Invoice amount saved." : "");
+      await loadInvoices();
+      return data;
+    } catch (err) {
+      setError(err.message);
       return null;
+    } finally {
+      setBusy(actionKey, false);
     }
-    setError("");
-    setMessage(path === "submit" ? "Invoice submitted successfully." : path === "mark-paid" ? "Invoice marked paid." : "");
-    await loadInvoices();
-    return data;
+  }
+
+  function apiRequestForMethod(method, path, body) {
+    if (method === "PUT") return api.put(path, body);
+    return api.post(path, body);
   }
 
   async function saveAmount(invoice) {
@@ -114,20 +129,29 @@ export default function Billing() {
   }
 
   function InvoiceActions({ invoice }) {
+    const isBusy = (path) => Boolean(busyActions[`${invoice._id}:${path}`]);
     return (
       <div className="beta-table-actions">
         {!isOversight && invoice.status === "unbilled" && (
           <>
-            <button className="beta-button secondary compact" onClick={() => saveAmount(invoice)}>Save Amount</button>
-            <button className="beta-button secondary compact" onClick={() => generate(invoice)}>Review PDF</button>
-            {invoice.pdfUrl && <button className="beta-button compact" onClick={() => action(invoice._id, "submit")}>Submit to AP</button>}
+            <button className="beta-button secondary compact" disabled={isBusy("amount")} onClick={() => saveAmount(invoice)}>
+              {isBusy("amount") ? "Saving…" : "Save Amount"}
+            </button>
+            <button className="beta-button secondary compact" disabled={isBusy("generate")} onClick={() => generate(invoice)}>
+              {isBusy("generate") ? "Generating…" : "Review PDF"}
+            </button>
+            {invoice.pdfUrl && <button className="beta-button compact" disabled={isBusy("submit")} onClick={() => action(invoice._id, "submit")}>
+              {isBusy("submit") ? "Submitting…" : "Submit to AP"}
+            </button>}
           </>
         )}
         {invoice.pdfUrl && (
           <a className="beta-link-button" href={invoice.pdfUrl} target="_blank" rel="noreferrer">View PDF</a>
         )}
         {isOversight && invoice.status === "submitted" && (
-          <button className="beta-button compact" onClick={() => action(invoice._id, "mark-paid")}>Mark Paid</button>
+          <button className="beta-button compact" disabled={isBusy("mark-paid")} onClick={() => action(invoice._id, "mark-paid")}>
+            {isBusy("mark-paid") ? "Updating…" : "Mark Paid"}
+          </button>
         )}
       </div>
     );
@@ -177,7 +201,9 @@ export default function Billing() {
                         onChange={(e) => updateProperty(property._id, property.apMethod === "email" ? "apEmail" : "apPortal", e.target.value)} />
                     </label>
                   </div>
-                  <button className="beta-button compact" onClick={() => saveProperty(property)}>Save settings</button>
+                  <button className="beta-button compact" disabled={busyActions[`property:${property._id}`]} onClick={() => saveProperty(property)}>
+                    {busyActions[`property:${property._id}`] ? "Saving…" : "Save settings"}
+                  </button>
                 </section>
               ))}
             </div>
@@ -201,8 +227,9 @@ export default function Billing() {
 
         {error && <p className="beta-alert error">{error}</p>}
         {message && <p className="beta-alert success">{message}</p>}
+        {loading && <div className="beta-empty-state">Loading invoices…</div>}
 
-        <section className="beta-panel beta-desktop-table">
+        {!loading && <section className="beta-panel beta-desktop-table">
           <table className="beta-data-table">
             <thead>
               <tr>
@@ -232,9 +259,9 @@ export default function Billing() {
               {!invoices.length && <tr><td colSpan="7">No invoices match this view.</td></tr>}
             </tbody>
           </table>
-        </section>
+        </section>}
 
-        <section className="beta-mobile-list">
+        {!loading && <section className="beta-mobile-list">
           {invoices.map((invoice) => (
             <article className="beta-invoice-card" key={invoice._id}>
               <div className="beta-card-header">
@@ -263,7 +290,7 @@ export default function Billing() {
             </article>
           ))}
           {!invoices.length && <div className="beta-empty-state">No invoices match this view.</div>}
-        </section>
+        </section>}
       </main>
     </div>
   );

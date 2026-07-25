@@ -1,23 +1,29 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
-
-const API = "https://cp-check-submissions-dev-backend.onrender.com/api/admin-users";
+import { api } from "../services/api";
 
 export default function UserManagement() {
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
   const [data, setData] = useState({ users: [], properties: [] });
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState(null);
   const [propertyIds, setPropertyIds] = useState([]);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState("");
 
   const load = useCallback(async () => {
-    const response = await fetch(API, { headers: { Authorization: `Bearer ${token}` } });
-    const body = await response.json();
-    if (response.ok) setData(body);
-  }, [token]);
+    try {
+      setData(await api.get("/api/admin-users"));
+      setError("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
   useEffect(() => { load(); }, [load]);
 
   function chooseUser(userId) {
@@ -28,27 +34,38 @@ export default function UserManagement() {
       .filter((property) => property.propertyManagers.some((id) => id === userId))
       .map((property) => property._id) : []);
     setMessage("");
+    setError("");
   }
 
   async function save() {
-    const response = await fetch(`${API}/${selectedId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...draft, propertyIds }),
-    });
-    const body = await response.json();
-    if (!response.ok) return setMessage(body.error || "Unable to save user.");
-    setMessage("User updated. Their existing sessions have been invalidated.");
-    await load();
+    if (!draft || busyAction) return;
+    setBusyAction("save");
+    setMessage("");
+    setError("");
+    try {
+      await api.put(`/api/admin-users/${selectedId}`, { ...draft, propertyIds });
+      setMessage("User updated. Their existing sessions have been invalidated.");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAction("");
+    }
   }
 
   async function sendReset() {
-    const response = await fetch(`${API}/${selectedId}/send-password-reset`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const body = await response.json();
-    setMessage(response.ok ? body.message : body.error);
+    if (busyAction) return;
+    setBusyAction("reset");
+    setMessage("");
+    setError("");
+    try {
+      const body = await api.post(`/api/admin-users/${selectedId}/send-password-reset`);
+      setMessage(body.message || "Password reset sent.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAction("");
+    }
   }
 
   function toggleProperty(propertyId, checked) {
@@ -70,6 +87,8 @@ export default function UserManagement() {
       <div className="beta-user-layout">
         <section className="beta-panel beta-user-list">
           <h2>Users</h2>
+          {loading && <div className="beta-empty-state">Loading users…</div>}
+          {error && !data.users.length && <p className="beta-alert error">{error}</p>}
           {data.users.map((user) => (
             <button key={user._id} onClick={() => chooseUser(user._id)}
               className={`beta-user-row${selectedId === user._id ? " active" : ""}`}>
@@ -122,10 +141,15 @@ export default function UserManagement() {
               )}
 
               <div className="beta-card-actions">
-                <button className="beta-button" onClick={save}>Save Changes</button>
-                <button className="beta-button secondary" onClick={sendReset}>Send Password Reset</button>
+                <button className="beta-button" disabled={Boolean(busyAction)} onClick={save}>
+                  {busyAction === "save" ? "Saving…" : "Save Changes"}
+                </button>
+                <button className="beta-button secondary" disabled={Boolean(busyAction)} onClick={sendReset}>
+                  {busyAction === "reset" ? "Sending…" : "Send Password Reset"}
+                </button>
               </div>
               {message && <p className="beta-alert success">{message}</p>}
+              {error && <p className="beta-alert error">{error}</p>}
             </>
           )}
         </section>
