@@ -19,7 +19,6 @@ import DefaultScheduler from "./components/Scheduler";
 import ResidentialForm from "./components/ResidentialForm";
 import LongTermRental from "./components/LongTermRental";
 import ShortTermRental from "./components/ShortTermRental";
-import STReditProperty from "./components/STReditProperty";
 import AccessInstructions from "./components/AccessInstructions";
 import AZRaccessinstructions from "./components/AZRaccessinstructions";
 import Payments from "./components/Payments";
@@ -143,9 +142,6 @@ function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<SchedulerWrapper />} />
       {/*<Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />*/}
-
-      {/* New STR Admin Edit Property Route */}
-      {/*<Route path="/admin/edit-property/:propertyName" element={user ? <STReditProperty /> : <Navigate to="/" />} />*/}
 
       {/* Payments Page - Only Admins */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />

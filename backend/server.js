@@ -38,8 +38,6 @@ const { managedProperties, canAccessProperty } = require('./services/propertyAcc
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 const adminRoutes = require("./Routes/admin");
 const clientAuth = require("./Routes/ClientAuth");
-// ✅ Import your orgPropertyMap
-const orgPropertyMap = require('./models/orgPropertyMap');
 // AWS S3 and UUID Integration
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
