@@ -59,6 +59,16 @@ async function ensureOrganizationBillingPolicy(organizationId) {
     if (assignedPolicy) return { organization, policy: assignedPolicy };
   }
 
+  const existingActive = await BillingPolicy.findOne({
+    organizationId,
+    active: true,
+  }).sort({ version: -1 });
+  if (existingActive) {
+    organization.billingPolicyId = existingActive._id;
+    await organization.save();
+    return { organization, policy: existingActive };
+  }
+
   const definition = defaultPolicyDefinition(organizationId);
   const policy = await BillingPolicy.findOneAndUpdate(
     { organizationId, version: DEFAULT_POLICY_VERSION },

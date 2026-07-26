@@ -127,8 +127,16 @@ function humanizeFieldName(fieldName) {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function getCommercialResults(formData) {
-  return COM_INSPECTION_FIELDS.map((field) => {
+function getCommercialResults(formData, template) {
+  const configuredFields = template?.fields
+    ? template.fields
+      .filter((field) => field.type === 'yes_no_issue')
+      .map((field) => ({
+        key: field.key,
+        label: field.reportLabel || field.label || humanizeFieldName(field.key),
+      }))
+    : COM_INSPECTION_FIELDS;
+  return configuredFields.map((field) => {
     const rawValue = cleanValue(formData[field.key]).toLowerCase();
     let status = 'not_assessed';
     if (rawValue === 'yes') status = 'attention';
@@ -239,7 +247,7 @@ function drawSummaryCard(doc, x, y, width, count, label, status) {
     .text(label, x + 45, y + 31, { width: width - 52, align: 'center', characterSpacing: 0.3 });
 }
 
-function drawCommercialOverview(doc, formData, displayStamp, results) {
+function drawCommercialOverview(doc, formData, displayStamp, results, template) {
   const left = 44;
   const contentWidth = doc.page.width - 88;
   const propertyName = cleanValue(formData.selectedProperty || formData.property || formData.businessName) || 'Commercial Property';
@@ -285,7 +293,7 @@ function drawCommercialOverview(doc, formData, displayStamp, results) {
   drawSummaryCard(doc, left + (cardWidth + gap) * 2, summaryY, cardWidth, counts.not_assessed, 'NOT ASSESSED', 'not_assessed');
 
   drawResultsTable(doc, results, left, 287, contentWidth);
-  drawObservationSummary(doc, formData, left, 664, contentWidth);
+  drawObservationSummary(doc, formData, left, 664, contentWidth, template);
 
   return { propertyName, counts };
 }
@@ -294,7 +302,7 @@ function drawResultsTable(doc, results, x, y, width) {
   doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(13).text('Inspection Results', x, y);
   const tableY = y + 23;
   const headerHeight = 23;
-  const rowHeight = 25;
+  const rowHeight = Math.min(25, Math.max(18, 340 / Math.max(results.length, 1)));
   const areaWidth = 205;
   const statusWidth = 90;
   const observationWidth = width - areaWidth - statusWidth;
@@ -342,10 +350,17 @@ function drawResultsTable(doc, results, x, y, width) {
   });
 }
 
-function drawObservationSummary(doc, formData, x, y, width) {
-  const comments = cleanValue(formData.additionalComments);
-  const activity = cleanValue(formData.homelessActivity);
-  const summary = comments || activity || 'No additional observations were provided.';
+function drawObservationSummary(doc, formData, x, y, width, template) {
+  const noteFields = template?.fields?.filter((field) =>
+    ['text', 'textarea'].includes(field.type)
+    && !['businessName', 'propertyAddress'].includes(field.key)
+  ) || [
+    { key: 'additionalComments' },
+    { key: 'homelessActivity' },
+  ];
+  const summary = noteFields
+    .map((field) => cleanValue(formData[field.key]))
+    .find(Boolean) || 'No additional observations were provided.';
   doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(11.5).text('General Observations', x, y);
   doc.roundedRect(x, y + 20, width, 46, 5).fillAndStroke(COLORS.panel, COLORS.line);
   doc
@@ -365,11 +380,18 @@ function ensureDetailSpace(doc, y, needed, propertyName) {
   return addDetailPage(doc, propertyName);
 }
 
-function drawDetailNotes(doc, formData, propertyName, startY) {
-  const notes = [
+function drawDetailNotes(doc, formData, propertyName, startY, template) {
+  const configuredNotes = template?.fields?.filter((field) =>
+    ['text', 'textarea'].includes(field.type)
+    && !['businessName', 'propertyAddress'].includes(field.key)
+  ).map((field) => ({
+    label: field.reportLabel || field.label,
+    value: cleanValue(formData[field.key]),
+  }));
+  const notes = (configuredNotes || [
     { label: 'Homeless Activity', value: cleanValue(formData.homelessActivity) },
     { label: 'Additional Comments', value: cleanValue(formData.additionalComments) },
-  ].filter((note) => hasValue(note.value));
+  ]).filter((note) => hasValue(note.value));
 
   let y = startY;
   if (notes.length === 0) return y;
@@ -453,16 +475,22 @@ function drawUnmatchedPhotoSection(doc, fieldName, buffers, propertyName, startY
   return drawFindingSection(doc, result, buffers, propertyName, startY);
 }
 
-function drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName) {
+function drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName, template) {
   const attentionResults = results.filter((result) => result.status === 'attention');
-  const hasNotes = hasValue(formData.homelessActivity) || hasValue(formData.additionalComments);
+  const hasNotes = template?.fields
+    ? template.fields.some((field) =>
+      ['text', 'textarea'].includes(field.type)
+      && !['businessName', 'propertyAddress'].includes(field.key)
+      && hasValue(formData[field.key])
+    )
+    : hasValue(formData.homelessActivity) || hasValue(formData.additionalComments);
   const configuredKeys = new Set(results.map((result) => result.key));
   const unmatchedPhotoFields = Object.keys(groupedPhotos).filter((fieldName) => !configuredKeys.has(fieldName));
   const shouldRender = attentionResults.length > 0 || hasNotes || unmatchedPhotoFields.length > 0;
   if (!shouldRender) return;
 
   let y = addDetailPage(doc, propertyName);
-  y = drawDetailNotes(doc, formData, propertyName, y);
+  y = drawDetailNotes(doc, formData, propertyName, y, template);
 
   if (attentionResults.length > 0) {
     y = ensureDetailSpace(doc, y, 30, propertyName);
@@ -502,11 +530,11 @@ function drawPageFooters(doc, propertyName) {
   }
 }
 
-function renderCommercialReport(doc, formData, photoBuffers, displayStamp) {
-  const results = getCommercialResults(formData);
+function renderCommercialReport(doc, formData, photoBuffers, displayStamp, template) {
+  const results = getCommercialResults(formData, template);
   const groupedPhotos = groupPhotos(photoBuffers);
-  const { propertyName } = drawCommercialOverview(doc, formData, displayStamp, results);
-  drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName);
+  const { propertyName } = drawCommercialOverview(doc, formData, displayStamp, results, template);
+  drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName, template);
   drawPageFooters(doc, propertyName);
 }
 
@@ -554,7 +582,7 @@ function renderLegacyReport(doc, orgType, formData, photoBuffers, displayStamp) 
   });
 }
 
-function generateChecklistPDF(formData, photoBuffers) {
+function generateChecklistPDF(formData, photoBuffers, template = null) {
   return new Promise((resolve, reject) => {
     try {
       if (!fs.existsSync(pdfStorageDir)) {
@@ -581,7 +609,7 @@ function generateChecklistPDF(formData, photoBuffers) {
       doc.pipe(pdfStream);
       const orgType = cleanValue(formData.orgType || 'COM').toUpperCase();
       if (orgType === 'COM') {
-        renderCommercialReport(doc, formData, photoBuffers, displayStamp);
+        renderCommercialReport(doc, formData, photoBuffers, displayStamp, template);
       } else {
         renderLegacyReport(doc, orgType, formData, photoBuffers, displayStamp);
       }

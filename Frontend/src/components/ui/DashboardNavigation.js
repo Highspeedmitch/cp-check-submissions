@@ -78,6 +78,7 @@ export default function DashboardNavigation({
               <NavButton onClick={() => go("/scheduler")}>Scheduler</NavButton>
               <NavButton onClick={onAddProperty}>Add Property</NavButton>
               {orgType === "COM" && <NavButton onClick={() => go("/admin/users")}>Users</NavButton>}
+              {orgType === "COM" && <NavButton onClick={() => go("/organization-form-settings")}>Form Template</NavButton>}
               {orgType !== "COM" && <NavButton onClick={() => go("/payments")}>Payments</NavButton>}
               <button type="button" className="beta-nav-danger" onClick={onRemoveProperty}>
                 Remove Property

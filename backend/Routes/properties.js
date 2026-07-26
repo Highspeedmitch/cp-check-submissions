@@ -1,8 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const Organization = require("../models/organization");
-const { managedProperties } = require("../services/propertyAccess");
+const Submission = require("../models/submission");
+const Assignment = require("../models/assignment");
+const Invoice = require("../models/invoice");
+const Notification = require("../models/notification");
+const { managedProperties, canAccessProperty } = require("../services/propertyAccess");
 const { normalizePropertyEmails } = require("../services/propertyEmails");
+const { normalizePropertyDetails } = require("../services/propertyDetails");
 
 // ✅ Global Search for Properties (Admins Only)
 router.get("/search", async (req, res) => {
@@ -123,6 +128,110 @@ router.put("/:propertyId/emails", async (req, res) => {
     const status = error.status || 500;
     res.status(status).json({
       error: status === 500 ? "Unable to update inspection recipients." : error.message,
+    });
+  }
+});
+
+router.get("/:propertyId/details", async (req, res) => {
+  try {
+    if (!["admin", "property_manager"].includes(req.user.role)) {
+      return res.status(403).json({ error: "Management access required." });
+    }
+    const organization = await Organization.findById(req.user.organizationId);
+    const property = organization?.properties.id(req.params.propertyId);
+    if (!property) return res.status(404).json({ error: "Property not found." });
+    if (!canAccessProperty(property, req.user)) {
+      return res.status(403).json({ error: "You do not manage this property." });
+    }
+    res.json({
+      _id: property._id,
+      name: property.name,
+      propertyCode: property.propertyCode,
+      streetAddress: property.streetAddress,
+      lat: property.lat,
+      lng: property.lng,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Unable to load property details." });
+  }
+});
+
+router.put("/:propertyId/details", async (req, res) => {
+  try {
+    if (!["admin", "property_manager"].includes(req.user.role)) {
+      return res.status(403).json({ error: "Management access required." });
+    }
+    const organization = await Organization.findById(req.user.organizationId);
+    const property = organization?.properties.id(req.params.propertyId);
+    if (!property) return res.status(404).json({ error: "Property not found." });
+    if (!canAccessProperty(property, req.user)) {
+      return res.status(403).json({ error: "You do not manage this property." });
+    }
+
+    const details = normalizePropertyDetails(req.body, organization.orgType);
+    const duplicate = organization.properties.some((candidate) =>
+      candidate._id.toString() !== property._id.toString()
+      && candidate.name.trim().toLowerCase() === details.name.toLowerCase()
+    );
+    if (duplicate) {
+      return res.status(409).json({ error: "Another property in this organization already uses that name." });
+    }
+
+    const previousName = property.name;
+    property.name = details.name;
+    property.propertyCode = details.propertyCode;
+    property.streetAddress = details.streetAddress;
+    property.lat = details.lat;
+    property.lng = details.lng;
+    await organization.save();
+
+    const propagation = [];
+    if (previousName !== details.name) {
+      propagation.push(
+        Submission.updateMany(
+          { organizationId: organization._id, property: previousName },
+          { $set: { property: details.name, "responses.selectedProperty": details.name } }
+        ),
+        Assignment.updateMany(
+          { organizationId: organization._id, propertyName: previousName },
+          { $set: { propertyName: details.name } }
+        ),
+        Notification.updateMany(
+          {
+            organizationId: organization._id,
+            route: `/admin/submissions/${encodeURIComponent(previousName)}`,
+          },
+          { $set: { route: `/admin/submissions/${encodeURIComponent(details.name)}` } }
+        )
+      );
+    }
+    propagation.push(Invoice.updateMany(
+      { organizationId: organization._id, propertyId: property._id, status: "unbilled" },
+      {
+        $set: {
+          "propertySnapshot.name": details.name,
+          "propertySnapshot.propertyCode": details.propertyCode,
+          "propertySnapshot.address": details.streetAddress,
+        },
+      }
+    ));
+    await Promise.all(propagation);
+
+    res.json({
+      message: "Property details updated.",
+      property: {
+        _id: property._id,
+        name: property.name,
+        propertyCode: property.propertyCode,
+        streetAddress: property.streetAddress,
+        lat: property.lat,
+        lng: property.lng,
+      },
+    });
+  } catch (error) {
+    const validationError = /required|valid|characters/i.test(error.message || "");
+    res.status(validationError ? 400 : 500).json({
+      error: validationError ? error.message : "Unable to update property details.",
     });
   }
 });

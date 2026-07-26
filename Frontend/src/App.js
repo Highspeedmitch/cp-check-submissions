@@ -7,6 +7,8 @@ import ClientProfitStatement from "./components/ClientProfitStatement"; // New c
 import ScheduleConsultation from "./components/ScheduleConsultation";   // New component for consultation scheduling
 import ClientRegistration from "./components/ClientRegistration";
 import FormPage from "./components/FormPage";
+import PropertyFormSettings from "./components/PropertyFormSettings";
+import OrganizationFormSettings from "./components/OrganizationFormSettings";
 import Register from "./components/Register";
 import PropertySelector from "./components/PropertySelector";
 import AdminSubmissions from "./components/AdminSubmissions";
@@ -131,6 +133,8 @@ function App() {
 
       <Route path="/property-selector" element={user ? <PropertySelector /> : <Navigate to="/" />} />
       <Route path="/form/:property" element={user ? <FormPage /> : <Navigate to="/" />} />
+      <Route path="/property-form-settings/:property" element={user ? <PropertyFormSettings /> : <Navigate to="/" />} />
+      <Route path="/organization-form-settings" element={user ? <OrganizationFormSettings /> : <Navigate to="/" />} />
       <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />
       <Route path="/long-term-rental-form/:property" element={user ? <LongTermRental /> : <Navigate to="/" />} />
       <Route path="/short-term-rental-form/:property" element={user ? <ShortTermRental /> : <Navigate to="/" />} />

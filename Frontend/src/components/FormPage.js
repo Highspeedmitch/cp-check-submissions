@@ -1,542 +1,203 @@
-// FormPage.js
-import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { api } from "../services/api";
+import PageHeader from "./ui/PageHeader";
 
-function FormPage() {
+export default function FormPage() {
   const { property } = useParams();
   const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    businessName: '',
-    propertyAddress: '',
-    securityLights: '',
-    homelessActivity: '',
-    additionalComments: '',
-    parkingLotLights: '',
-    underCanopyLights: '',
-    graffiti: '',
-    parkingBumpers: '',
-    dumpsters: '',
-    trashCans: '',
-    waterLeaks: '',
-    waterLeaksTenant: '',
-    dangerousTrees: '',
-    brokenCurbs: '',
-    potholes: '',
-    photos: {} // Each fieldName will store an array of Files
-  });
-
+  const [template, setTemplate] = useState(null);
+  const [responses, setResponses] = useState({});
+  const [photos, setPhotos] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  // Handle changes for standard text/textarea/select fields
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective`)
+      .then((data) => {
+        if (!active) return;
+        setTemplate(data);
+        setResponses(Object.fromEntries(data.fields.map((field) => [field.key, ""])));
+        setError("");
+      })
+      .catch((err) => active && setError(err.message))
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [property]);
 
-  /**
-   * Handle multiple file uploads for a given field.
-   * We'll store an array of files in formData.photos[fieldName].
-   */
-  const handleFileChange = (e, fieldName) => {
-    const files = e.target.files; // This is a FileList
-    if (!files || files.length === 0) return;
-
-    setFormData((prev) => {
-      const updatedPhotos = { ...prev.photos };
-      // If this field doesn't exist yet, initialize an empty array
-      if (!updatedPhotos[fieldName]) {
-        updatedPhotos[fieldName] = [];
-      }
-
-      // Convert each File into a new File that includes fieldName in the name
-      for (let i = 0; i < files.length; i++) {
-        const originalFile = files[i];
-        const newFile = new File([originalFile], `${fieldName}-${originalFile.name}`, {
-          type: originalFile.type,
-        });
-        updatedPhotos[fieldName].push(newFile);
-      }
-
-      return {
-        ...prev,
-        photos: updatedPhotos,
-      };
+  const sections = useMemo(() => {
+    if (!template) return [];
+    const grouped = new Map();
+    template.fields.forEach((field) => {
+      const section = field.section || "Property Condition";
+      if (!grouped.has(section)) grouped.set(section, []);
+      grouped.get(section).push(field);
     });
+    return [...grouped.entries()];
+  }, [template]);
+
+  const setResponse = (key, value) => {
+    setResponses((current) => ({ ...current, [key]: value }));
   };
 
-  /**
-   * Submit the form with all text fields + photos in FormData
-   */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleFileChange = (event, fieldKey) => {
+    const selected = [...(event.target.files || [])];
+    if (!selected.length) return;
+    setPhotos((current) => ({
+      ...current,
+      [fieldKey]: [...(current[fieldKey] || []), ...selected],
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!template || submitting) return;
+    setSubmitting(true);
+    setError("");
     try {
-      const token = localStorage.getItem('token');
-      const formDataToSend = new FormData();
-
-      // Append all text fields
-      Object.keys(formData).forEach((key) => {
-        if (key !== 'photos') {
-          formDataToSend.append(key, formData[key]);
+      const payload = new FormData();
+      template.fields.forEach((field) => {
+        payload.append(field.key, responses[field.key] || "");
+        if (field.type === "yes_no_issue") {
+          payload.append(`${field.key}Description`, responses[`${field.key}Description`] || "");
         }
       });
-
-      // Append selected property explicitly
-      formDataToSend.append('selectedProperty', property);
-
-      // Append photos
-      Object.keys(formData.photos).forEach((field) => {
-        const files = formData.photos[field];
-        if (Array.isArray(files)) {
-          files.forEach((file) => {
-            formDataToSend.append('photos', file);
-          });
-        }
+      payload.append("selectedProperty", property);
+      Object.entries(photos).forEach(([fieldKey, files]) => {
+        files.forEach((file) => {
+          payload.append(
+            "photos",
+            new File([file], `${fieldKey}-${file.name}`, { type: file.type })
+          );
+        });
       });
-
-      const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/submit-form', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formDataToSend,
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message);
-        setSubmitted(true);
-      } else {
-        alert('Error: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      alert('Error submitting form. Please try again.');
+      const result = await api.post("/api/submit-form", payload);
+      setMessage(result.message || "Inspection submitted successfully.");
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.message || "Unable to submit the inspection.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // Renders just the file names for each field
-  const FileNameList = ({ fieldName }) => {
-    const fileArray = formData.photos[fieldName] || [];
+  const renderField = (field) => {
+    if (field.type === "text") {
+      return (
+        <label className="beta-form-field" key={field.key}>
+          {field.label}
+          <input
+            type="text"
+            value={responses[field.key] || ""}
+            onChange={(event) => setResponse(field.key, event.target.value)}
+            required={field.required}
+          />
+        </label>
+      );
+    }
+
+    if (field.type === "textarea") {
+      return (
+        <label className="beta-form-field full" key={field.key}>
+          {field.label}
+          <textarea
+            value={responses[field.key] || ""}
+            onChange={(event) => setResponse(field.key, event.target.value)}
+            required={field.required}
+          />
+        </label>
+      );
+    }
+
+    const needsDetails = responses[field.key] === "yes";
     return (
-      <>
-        {fileArray.map((file, idx) => (
-          <div key={idx} style={{ marginTop: '4px', fontSize: '0.9em', color: '#999' }}>
-            {file.name}
+      <div className="beta-inspection-field" key={field.key}>
+        <label className="beta-form-field">
+          {field.label}
+          <select
+            value={responses[field.key] || ""}
+            onChange={(event) => setResponse(field.key, event.target.value)}
+            required={field.required}
+          >
+            <option value="">Select…</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+        {needsDetails && (
+          <div className="beta-inspection-followup">
+            <label className="beta-form-field">
+              {field.descriptionLabel || "Describe the issue"}
+              <textarea
+                value={responses[`${field.key}Description`] || ""}
+                onChange={(event) => setResponse(`${field.key}Description`, event.target.value)}
+              />
+            </label>
+            {field.allowPhotos && (
+              <label className="beta-form-field">
+                Add photos
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  onChange={(event) => handleFileChange(event, field.key)}
+                />
+                {(photos[field.key] || []).map((file, index) => (
+                  <small key={`${file.name}-${index}`}>{file.name}</small>
+                ))}
+              </label>
+            )}
           </div>
-        ))}
-      </>
+        )}
+      </div>
     );
   };
 
   return (
-    <div className="container">
-      <h1>
-        {property} – Commercial Property Inspection Checklist
-      </h1>
+    <div className="beta-page">
+      <main className="beta-page-shell beta-inspection-page">
+        <PageHeader
+          onBack={() => navigate("/dashboard")}
+          eyebrow={property}
+          title={template?.title || "Commercial Property Inspection Checklist"}
+          subtitle="Complete the property inspection and attach photos for any issues."
+        />
 
-      {/* Only show this if we're NOT submitted yet */}
-      {!submitted && (
-        <div className="return-to-dash">
-          <button onClick={() => navigate('/dashboard')}>Return To Dashboard</button>
-        </div>
-      )}
+        {loading && <div className="beta-empty-state">Loading inspection form…</div>}
+        {error && <p className="beta-alert error" role="alert">{error}</p>}
 
-      {submitted ? (
-        <div>
-          <h2>{message}</h2>
-          <button onClick={() => navigate('/dashboard')}>Return To Dashboard</button>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <input type="hidden" name="selectedProperty" value={property} />
-
-          <label>Shopping Center Name:</label>
-          <input
-            type="text"
-            name="businessName"
-            onChange={handleChange}
-            required
-          />
-
-          <label>Property Address:</label>
-          <input
-            type="text"
-            name="propertyAddress"
-            onChange={handleChange}
-            required
-          />
-
-          <h2>Additional Property Condition Checks</h2>
-          <div className="additional-checks">
-            {/* ===== 1. Parking Lot Lights ===== */}
-            <div>
-              <label>Are parking lot lights out?:
-                <select name="parkingLotLights" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.parkingLotLights === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'parkingLotLights')}
-                  />
-                  <textarea
-                    name="parkingLotLightsDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="parkingLotLights" />
-                </>
-              )}
+        {submitted ? (
+          <section className="beta-panel">
+            <h2>Inspection complete</h2>
+            <p>{message}</p>
+            <button className="beta-button" onClick={() => navigate("/dashboard")}>
+              Return to Dashboard
+            </button>
+          </section>
+        ) : !loading && template && (
+          <form onSubmit={handleSubmit}>
+            {sections.map(([section, fields]) => (
+              <section className="beta-panel beta-inspection-section" key={section}>
+                <h2>{section}</h2>
+                <div className="beta-form-grid">
+                  {fields.map(renderField)}
+                </div>
+              </section>
+            ))}
+            <div className="beta-sticky-submit">
+              <button className="beta-button" type="submit" disabled={submitting}>
+                {submitting ? "Submitting…" : "Submit Checklist"}
+              </button>
             </div>
-
-            {/* ===== 2. Security Lights ===== */}
-            <div>
-              <label>Are Rear security lights out?:
-                <select name="securityLights" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.securityLights === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'securityLights')}
-                  />
-                  <textarea
-                    name="securityLightsDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="securityLights" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 3. Under Canopy Lights ===== */}
-            <div>
-              <label>Are any under canopy lights out?:
-                <select name="underCanopyLights" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.underCanopyLights === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'underCanopyLights')}
-                  />
-                  <textarea
-                    name="underCanopyLightsDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="underCanopyLights" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 4. Tenant Signs ===== */}
-            <div>
-              <label>Are any tenant signs out?:
-                <select name="tenantSigns" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.tenantSigns === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'tenantSigns')}
-                  />
-                  <textarea
-                    name="tenantSignsDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="tenantSigns" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 5. Graffiti ===== */}
-            <div>
-              <label>Is there graffiti on or around the property?:
-                <select name="graffiti" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.graffiti === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'graffiti')}
-                  />
-                  <textarea
-                    name="graffitiDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="graffiti" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 6. Dumpsters ===== */}
-            <div>
-              <label>Is there trash overflowing from the dumpsters?:
-                <select name="dumpsters" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.dumpsters === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'dumpsters')}
-                  />
-                  <textarea
-                    name="dumpstersDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="dumpsters" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 7. Trash Cans ===== */}
-            <div>
-              <label>Is there trash overflowing from the trashcans on sidewalks?:
-                <select name="trashCans" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.trashCans === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'trashCans')}
-                  />
-                  <textarea
-                    name="trashCansDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="trashCans" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 8. Water Leaks (General) ===== */}
-            <div>
-              <label>Are there any visible water leaks in parking lot? ie. irrigation leak:
-                <select name="waterLeaks" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.waterLeaks === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'waterLeaks')}
-                  />
-                  <textarea
-                    name="waterLeaksDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="waterLeaks" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 9. Water Leaks (Tenant) ===== */}
-            <div>
-              <label>Are there any visible water leaks from specific tenant? ie. swamp cooler leak:
-                <select name="waterLeaksTenant" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.waterLeaksTenant === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'waterLeaksTenant')}
-                  />
-                  <textarea
-                    name="waterLeaksTenantDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="waterLeaksTenant" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 10. Dangerous Trees ===== */}
-            <div>
-              <label>Are there any obviously dangerous trees / branches?:
-                <select name="dangerousTrees" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.dangerousTrees === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'dangerousTrees')}
-                  />
-                  <textarea
-                    name="dangerousTreesDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="dangerousTrees" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 11. Broken Curbs ===== */}
-            <div>
-              <label>Is there any broken parking lot curbing?:
-                <select name="brokenCurbs" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.brokenCurbs === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'brokenCurbs')}
-                  />
-                  <textarea
-                    name="brokenCurbsDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="brokenCurbs" />
-                </>
-              )}
-            </div>
-
-            {/* ===== 12. Potholes ===== */}
-            <div>
-              <label>Are there any major potholes?:
-                <select name="potholes" onChange={handleChange}>
-                  <option value="">Select...</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              {formData.potholes === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="camera"
-                    multiple
-                    onChange={(e) => handleFileChange(e, 'potholes')}
-                  />
-                  <textarea
-                    name="potholesDescription"
-                    onChange={handleChange}
-                    placeholder="Describe the issue"
-                  />
-                  {/* File name preview */}
-                  <FileNameList fieldName="potholes" />
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Other text areas */}
-          <label>Is there any homeless activity of note?:</label>
-          <textarea
-            name="homelessActivity"
-            onChange={handleChange}
-          />
-
-          <label>Additional Comments:</label>
-          <textarea
-            name="additionalComments"
-            onChange={handleChange}
-          />
-
-          <button type="submit" className="submit button">
-            Submit Checklist
-          </button>
-        </form>
-      )}
+          </form>
+        )}
+      </main>
     </div>
   );
 }
-
-export default FormPage;

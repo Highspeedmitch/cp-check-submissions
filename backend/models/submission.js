@@ -7,7 +7,8 @@ const SubmissionSchema = new mongoose.Schema({
   property: { type: String, required: true },
   pdfUrl: { type: String, required: true },
   submittedAt: { type: Date, default: Date.now },
-  // You can add any additional fields as needed, e.g., customFields
+  responses: { type: mongoose.Schema.Types.Mixed, default: {} },
+  templateSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
 });
 
 SubmissionSchema.index({ organizationId: 1, property: 1, submittedAt: -1 });

@@ -23,6 +23,10 @@ const {
   createPolicySnapshot,
 } = require("./services/billingPolicy");
 const {
+  resolvePropertyInspectionTemplate,
+  createTemplateSnapshot,
+} = require("./services/inspectionTemplates");
+const {
   MIN_SUBMISSION_MONTHS,
   MAX_SUBMISSION_MONTHS,
   parseSubmissionMonths,
@@ -166,6 +170,7 @@ app.use("/api/billing", authenticateToken, require("./Routes/billing"));
 app.use("/api/admin-users", authenticateToken, require("./Routes/adminUsers"));
 app.use("/api/bid-requests", authenticateToken, require("./Routes/bidRequests"));
 app.use("/api/notifications", authenticateToken, require("./Routes/notifications"));
+app.use("/api/inspection-templates", authenticateToken, require("./Routes/inspectionTemplates"));
 
 //client routes
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file
@@ -420,14 +425,6 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
       return res.status(400).json({ message: "Property name is missing in submission." });
     }
    
-    const customFields = {};
-    Object.keys(req.body).forEach((key) => {
-      if (key.startsWith("custom_")) {
-        const fieldName = key.replace("custom_", ""); // Remove the prefix
-        customFields[fieldName] = req.body[key];
-      }
-    });
-
     // (Removed the initial Submission.create that referenced uploadResult.Location)
 
     const organizationId = req.user.organizationId;
@@ -449,6 +446,43 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
       return res.status(403).json({ message: "You do not manage this property." });
     }
 
+    let effectiveInspectionTemplate = null;
+    let submissionData = data;
+    if (orgType === "COM") {
+      const resolvedTemplate = await resolvePropertyInspectionTemplate({
+        organizationId,
+        propertyId: property._id,
+        user: req.user,
+      });
+      effectiveInspectionTemplate = resolvedTemplate.effectiveTemplate;
+      submissionData = {
+        selectedProperty: propertyName,
+        orgType,
+      };
+      effectiveInspectionTemplate.fields.forEach((field) => {
+        submissionData[field.key] = String(data[field.key] || "").trim();
+        if (field.type === "yes_no_issue") {
+          submissionData[`${field.key}Description`] = String(
+            data[`${field.key}Description`] || ""
+          ).trim();
+        }
+      });
+      const invalidChoiceField = effectiveInspectionTemplate.fields.find(
+        (field) => field.type === "yes_no_issue"
+          && submissionData[field.key]
+          && !["yes", "no"].includes(submissionData[field.key].toLowerCase())
+      );
+      if (invalidChoiceField) {
+        return res.status(400).json({ message: `Invalid response for ${invalidChoiceField.label}.` });
+      }
+      const missingField = effectiveInspectionTemplate.fields.find(
+        (field) => field.required && !submissionData[field.key]
+      );
+      if (missingField) {
+        return res.status(400).json({ message: `${missingField.label} is required.` });
+      }
+    }
+
     // **Determine recipients based on orgType**
     let recipientEmails = [];
     if (property.emails && property.emails.length > 0) {
@@ -464,10 +498,16 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
         const extractedFieldName = file.originalname.split('-')[0]; // Extracts the field name
-        photoBuffers.push({
-          fieldName: extractedFieldName,
-          imageBuffer: file.buffer
-        });
+        const fieldAllowed = !effectiveInspectionTemplate
+          || effectiveInspectionTemplate.fields.some(
+            (field) => field.key === extractedFieldName && field.allowPhotos
+          );
+        if (fieldAllowed) {
+          photoBuffers.push({
+            fieldName: extractedFieldName,
+            imageBuffer: file.buffer
+          });
+        }
       });
     }
     console.log("📷 Processed Photo Buffers:", photoBuffers);
@@ -475,7 +515,11 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     // **Generate PDF**
     let pdfStream, filePath, fileName;
     try {
-      const pdfGenerationResult = await generateChecklistPDF(data, photoBuffers);
+      const pdfGenerationResult = await generateChecklistPDF(
+        submissionData,
+        photoBuffers,
+        effectiveInspectionTemplate
+      );
       pdfStream = pdfGenerationResult.pdfStream;
       filePath = pdfGenerationResult.filePath;
       fileName = pdfGenerationResult.fileName;
@@ -522,7 +566,10 @@ try {
     property: propertyName,
     pdfUrl: uploadResult.Location,
     submittedAt: new Date(),
-    customFields: customFields                // if you are storing custom fields
+    responses: submissionData,
+    templateSnapshot: effectiveInspectionTemplate
+      ? createTemplateSnapshot(effectiveInspectionTemplate)
+      : null,
   });
 
   console.log('✅ Submission saved in database');

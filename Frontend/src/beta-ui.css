@@ -340,6 +340,25 @@
 .beta-submission-list article:last-child { border-bottom: 0; }
 .beta-submission-list article > div { display: flex; flex-direction: column; gap: 4px; }
 .beta-submission-list small { color: var(--beta-muted); }
+.beta-inspection-page { max-width: 880px; }
+.beta-inspection-page form { display: grid; gap: 16px; }
+.beta-inspection-section h2 { margin: 0 0 18px; font-size: 20px; }
+.beta-inspection-field { grid-column: 1 / -1; padding: 14px 0; border-bottom: 1px solid var(--beta-border); }
+.beta-inspection-field:last-child { border-bottom: 0; }
+.beta-inspection-followup { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-top: 14px; padding: 14px; border-radius: 8px; background: var(--beta-soft-blue); }
+.beta-inspection-followup textarea { min-height: 92px; }
+.beta-inspection-followup small { display: block; margin-top: 4px; color: var(--beta-muted); font-weight: 400; }
+.beta-sticky-submit { position: sticky; bottom: 12px; z-index: 5; display: flex; justify-content: flex-end; padding: 12px; border: 1px solid var(--beta-border); border-radius: 10px; background: rgba(255,255,255,.94); box-shadow: 0 8px 30px rgba(20,31,48,.12); backdrop-filter: blur(8px); }
+.beta-sticky-submit .beta-button { min-width: 210px; }
+.beta-template-field-list { display: grid; gap: 8px; }
+.beta-template-field-row { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--beta-border); border-radius: 8px; }
+.beta-template-field-row input, .beta-template-checkbox input { width: 18px; margin: 0; }
+.beta-template-field-row span { display: grid; gap: 3px; }
+.beta-template-field-row small { color: var(--beta-muted); text-transform: capitalize; }
+.beta-template-add-field { display: grid; grid-template-columns: 1.5fr 1fr auto; align-items: end; gap: 12px; }
+.beta-template-add-field .beta-button { margin: 0; }
+.beta-template-custom-fields { display: grid; gap: 12px; margin-top: 20px; }
+.beta-template-checkbox { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .beta-dialog-overlay {
   position: fixed;
   inset: 0;
@@ -455,4 +474,8 @@
   .beta-dialog-actions .beta-button { width: 100%; }
   .beta-property-actions { flex-direction: column; }
   .beta-property-actions .beta-button { width: 100%; flex-basis: auto; }
+  .beta-inspection-followup { grid-template-columns: 1fr; }
+  .beta-sticky-submit .beta-button { width: 100%; }
+  .beta-template-add-field { grid-template-columns: 1fr; }
+  .beta-template-add-field .beta-button { width: 100%; }
 }

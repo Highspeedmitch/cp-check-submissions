@@ -68,6 +68,30 @@ const PropertySchema = new mongoose.Schema({
   // Optionally store an array of client user IDs who own this property
   clientOwners: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   propertyManagers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  inspectionTemplateOverride: {
+    omittedFieldKeys: { type: [String], default: [] },
+    additionalFields: {
+      type: [{
+        key: { type: String, required: true },
+        label: { type: String, required: true },
+        reportLabel: { type: String, default: "" },
+        type: {
+          type: String,
+          enum: ["text", "textarea", "yes_no_issue"],
+          required: true,
+        },
+        section: { type: String, default: "Property-Specific Checks" },
+        required: { type: Boolean, default: false },
+        allowPhotos: { type: Boolean, default: false },
+        descriptionLabel: { type: String, default: "Describe the issue" },
+        locked: { type: Boolean, default: false },
+        order: { type: Number, default: 0 },
+      }],
+      default: [],
+    },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    updatedAt: { type: Date, default: null },
+  },
 });
 
 const OrganizationSchema = new mongoose.Schema({
@@ -81,6 +105,11 @@ const OrganizationSchema = new mongoose.Schema({
   billingPolicyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "BillingPolicy",
+    default: null,
+  },
+  inspectionTemplateId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "InspectionTemplate",
     default: null,
   },
 });

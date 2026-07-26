@@ -1365,6 +1365,15 @@ useEffect(() => {
                           Manage Emails
                         </button>
                       )}
+                      {isManagement && adminOrgType === "COM" && (
+                        <button
+                          type="button"
+                          className="beta-button secondary"
+                          onClick={() => navigate(`/property-form-settings/${encodeURIComponent(prop.name)}`)}
+                        >
+                          {role === "property_manager" ? "Manage Details" : "Customize Form"}
+                        </button>
+                      )}
                     </div>
 
                     {/* ✅ PROFIT STATEMENT STATUS - AzRoots Admins ONLY */}
