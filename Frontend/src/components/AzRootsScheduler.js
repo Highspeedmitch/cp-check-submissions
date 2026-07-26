@@ -7,6 +7,7 @@ import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
+import PageHeader from "./ui/PageHeader";
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -306,15 +307,19 @@ const events = assignments.map((assignment) => {
   
 
   return (
-    <div className="scheduler-container">
+    <div className="scheduler-container beta-scheduler-shell">
       <button onClick={() => navigate("/dashboard")} className="return-button">
         ← Return to Dashboard
       </button>
 
-      <h2 className="scheduler-title">Scheduler</h2>
+      <PageHeader
+        eyebrow="Admin tools"
+        title="Scheduler"
+        subtitle="Coordinate quality checks, maintenance, and cleaning assignments."
+      />
 
       {/* Form Section */}
-      <form onSubmit={handleSaveAssignment} className="assignment-form">
+      <form onSubmit={handleSaveAssignment} className="assignment-form beta-scheduler-form">
   <label>Property:</label>
   <select
     value={newAssignment.propertyName}

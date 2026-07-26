@@ -359,6 +359,163 @@
 .beta-template-add-field .beta-button { margin: 0; }
 .beta-template-custom-fields { display: grid; gap: 12px; margin-top: 20px; }
 .beta-template-checkbox { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+
+/* Registration */
+.beta-auth-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(15,126,242,.11), transparent 34%),
+    linear-gradient(180deg, #f8fafc 0%, var(--beta-bg) 100%);
+}
+.beta-register-shell { max-width: 1040px; }
+.beta-register-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, .85fr) minmax(0, 1.15fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-top: 24px;
+}
+.beta-register-intro {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 34px;
+  border-radius: var(--beta-radius);
+  background: linear-gradient(145deg, #0e2748, #123d70);
+  color: #fff;
+  box-shadow: var(--beta-shadow);
+}
+.beta-register-logo {
+  width: 66px;
+  height: 66px;
+  margin-bottom: 28px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.beta-register-intro .beta-eyebrow { color: #9fcaff; }
+.beta-register-intro h2 { margin: 6px 0 12px; font-size: clamp(25px, 3vw, 35px); line-height: 1.08; }
+.beta-register-intro > p:not(.beta-eyebrow) { color: #d6e5f6; line-height: 1.55; }
+.beta-register-intro ul { display: grid; gap: 11px; margin: 24px 0 0; padding: 0; list-style: none; }
+.beta-register-intro li { position: relative; padding-left: 25px; color: #edf6ff; }
+.beta-register-intro li::before { content: "✓"; position: absolute; left: 0; color: #69d39c; font-weight: 800; }
+.beta-register-card { margin-top: 0; padding: 30px; }
+.beta-role-toggle {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 20px 0;
+  padding: 14px;
+  border: 1px solid var(--beta-border);
+  border-radius: 10px;
+  background: var(--beta-soft-blue);
+  cursor: pointer;
+}
+.beta-role-toggle input { width: 18px; height: 18px; margin: 2px 0 0; flex: 0 0 auto; }
+.beta-role-toggle span { display: grid; gap: 4px; }
+.beta-role-toggle small { color: var(--beta-muted); font-weight: 400; }
+.beta-register-submit { width: 100%; margin-top: 22px; }
+.beta-register-signin { margin: 16px 0 0; color: var(--beta-muted); text-align: center; }
+.beta-register-signin button {
+  width: auto;
+  min-height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--beta-blue);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+/* Scheduler */
+.scheduler-container.beta-scheduler-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 30px 24px 64px;
+}
+.beta-scheduler-shell > .return-button {
+  width: auto;
+  min-height: 42px;
+  margin: 0 0 18px;
+  padding: 9px 14px;
+  border: 1px solid var(--beta-border);
+  background: #fff;
+  color: var(--beta-ink);
+  box-shadow: none;
+}
+.beta-scheduler-shell > .beta-page-header { margin-bottom: 24px; }
+.beta-scheduler-form {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 10px 16px;
+  margin-bottom: 24px;
+  padding: 24px;
+  border: 1px solid var(--beta-border);
+  border-radius: var(--beta-radius);
+  background: #fff;
+  box-shadow: var(--beta-shadow);
+}
+.beta-scheduler-form::before {
+  content: "Assignment details";
+  grid-column: 1 / -1;
+  margin-bottom: 8px;
+  color: var(--beta-ink);
+  font-size: 20px;
+  font-weight: 800;
+}
+.beta-scheduler-form label { align-self: center; color: var(--beta-muted); font-size: 13px; font-weight: 700; }
+.beta-scheduler-form input,
+.beta-scheduler-form select,
+.beta-scheduler-form textarea { width: 100%; margin: 0; }
+.beta-scheduler-form textarea { min-height: 90px; }
+.beta-scheduler-form .create-button,
+.beta-scheduler-form .delete-button {
+  grid-column: 2;
+  width: fit-content;
+  min-width: 180px;
+  margin: 4px 0 0;
+}
+.beta-scheduler-form .delete-button { background: var(--beta-danger); }
+.beta-scheduler-shell > .rbc-calendar {
+  min-height: 620px;
+  padding: 22px;
+  border: 1px solid var(--beta-border);
+  border-radius: var(--beta-radius);
+  background: #fff;
+  box-shadow: var(--beta-shadow);
+}
+.beta-scheduler-shell .rbc-toolbar { gap: 10px; margin-bottom: 18px; }
+.beta-scheduler-shell .rbc-toolbar button {
+  width: auto;
+  min-height: 38px;
+  margin: 0;
+  border-color: var(--beta-border);
+  background: #fff !important;
+  color: var(--beta-ink) !important;
+  box-shadow: none;
+}
+.beta-scheduler-shell .rbc-toolbar button.rbc-active {
+  background: var(--beta-blue) !important;
+  color: #fff !important;
+}
+.beta-scheduler-shell .rbc-event { border: 0; border-radius: 5px; background: var(--beta-blue); }
+.beta-scheduler-shell .rbc-today { background: var(--beta-soft-blue); }
+
+@media (max-width: 760px) {
+  .beta-register-layout { grid-template-columns: 1fr; }
+  .beta-register-intro { padding: 24px; }
+  .beta-register-logo { width: 54px; height: 54px; margin-bottom: 18px; }
+  .beta-register-card { padding: 20px; }
+  .scheduler-container.beta-scheduler-shell { padding: 20px 12px 44px; }
+  .beta-scheduler-form { grid-template-columns: 1fr; padding: 18px; }
+  .beta-scheduler-form::before,
+  .beta-scheduler-form .create-button,
+  .beta-scheduler-form .delete-button { grid-column: 1; }
+  .beta-scheduler-form .create-button,
+  .beta-scheduler-form .delete-button { width: 100%; }
+  .beta-scheduler-shell > .rbc-calendar { min-width: 680px; padding: 14px; }
+  .beta-scheduler-shell { overflow-x: auto; }
+}
 .beta-dialog-overlay {
   position: fixed;
   inset: 0;

@@ -1,6 +1,7 @@
 // Register.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PageHeader from "./ui/PageHeader";
 
 function Register() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ function Register() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,6 +47,7 @@ function Register() {
     }
 
     try {
+      setSubmitting(true);
       const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,44 +64,86 @@ function Register() {
     } catch (err) {
       console.error(err);
       setError("Error submitting registration. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="container">
-      <h2>Register</h2>
-      {message && <p className="success">{message}</p>}
-      {error && <p className="error">{error}</p>}
-      <form onSubmit={handleSubmit}>
-        <label>Organization Name:</label>
-        <input type="text" name="organizationName" onChange={handleChange} required />
+    <div className="beta-page beta-auth-page">
+      <main className="beta-page-shell beta-register-shell">
+        <PageHeader
+          onBack={() => navigate("/login")}
+          eyebrow="Inspectors Gadget"
+          title="Create your account"
+          subtitle="Join your organization and start managing property work in one place."
+        />
 
-        <label>Username:</label>
-        <input type="text" name="username" onChange={handleChange} required />
+        <div className="beta-register-layout">
+          <aside className="beta-register-intro">
+            <img src="/apple-touch-icon.png" alt="" className="beta-register-logo" />
+            <p className="beta-eyebrow">One connected workspace</p>
+            <h2>From property check to documented follow-up.</h2>
+            <p>Access assignments, submit inspection reports, monitor invoices, and keep property activity organized.</p>
+            <ul>
+              <li>Property-specific assignments</li>
+              <li>Timestamped inspection reporting</li>
+              <li>Invoice and notification visibility</li>
+            </ul>
+          </aside>
 
-        <label>Email:</label>
-        <input type="email" name="email" onChange={handleChange} required />
+          <section className="beta-panel beta-register-card">
+            {message && <p className="beta-alert success" role="status">{message}</p>}
+            {error && <p className="beta-alert error" role="alert">{error}</p>}
+            <form onSubmit={handleSubmit}>
+              <div className="beta-form-grid">
+                <label className="beta-form-field full">Organization name
+                  <input type="text" name="organizationName" value={formData.organizationName}
+                    onChange={handleChange} autoComplete="organization" required />
+                </label>
+                <label className="beta-form-field full">Your name
+                  <input type="text" name="username" value={formData.username}
+                    onChange={handleChange} autoComplete="name" required />
+                </label>
+                <label className="beta-form-field full">Email
+                  <input type="email" name="email" value={formData.email}
+                    onChange={handleChange} autoComplete="email" required />
+                </label>
+                <label className="beta-form-field">Password
+                  <input type="password" name="password" value={formData.password}
+                    onChange={handleChange} autoComplete="new-password" required />
+                </label>
+                <label className="beta-form-field">Confirm password
+                  <input type="password" name="confirmPassword" value={formData.confirmPassword}
+                    onChange={handleChange} autoComplete="new-password" required />
+                </label>
+              </div>
 
-        <label>Password:</label>
-        <input type="password" name="password" onChange={handleChange} required />
+              <label className="beta-role-toggle">
+                <input type="checkbox" checked={isAdmin} onChange={handleAdminToggle} />
+                <span>
+                  <strong>Register as an organization administrator</strong>
+                  <small>Requires the administrator passkey supplied during onboarding.</small>
+                </span>
+              </label>
 
-        <label>Confirm Password:</label>
-        <input type="password" name="confirmPassword" onChange={handleChange} required />
+              {isAdmin && (
+                <label className="beta-form-field">Administrator passkey
+                  <input type="password" name="adminPasskey" value={formData.adminPasskey}
+                    onChange={handleChange} autoComplete="off" required />
+                </label>
+              )}
 
-        {/* Toggle to register as admin */}
-        <label>
-          <input type="checkbox" checked={isAdmin} onChange={handleAdminToggle} />
-          Register as Admin
-        </label>
-        {isAdmin && (
-          <>
-            <label>Admin Passkey:</label>
-            <input type="text" name="adminPasskey" onChange={handleChange} required />
-          </>
-        )}
-
-        <button type="submit">Register</button>
-      </form>
+              <button type="submit" className="beta-button beta-register-submit" disabled={submitting}>
+                {submitting ? "Creating account…" : "Create Account"}
+              </button>
+              <p className="beta-register-signin">
+                Already registered? <button type="button" onClick={() => navigate("/login")}>Sign in</button>
+              </p>
+            </form>
+          </section>
+        </div>
+      </main>
     </div>
   );
 }
