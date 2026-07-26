@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Organization = require("../models/organization");
 const { managedProperties } = require("../services/propertyAccess");
+const { normalizePropertyEmails } = require("../services/propertyEmails");
 
 // ✅ Global Search for Properties (Admins Only)
 router.get("/search", async (req, res) => {
@@ -89,6 +90,40 @@ router.put("/:propertyId/region", async (req, res) => {
   } catch (error) {
     console.error("Error updating property region:", error);
     res.status(500).json({ error: "Server error updating property region." });
+  }
+});
+
+router.put("/:propertyId/emails", async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only organization administrators can update inspection recipients." });
+    }
+
+    const organization = await Organization.findOne({
+      _id: req.user.organizationId,
+      "properties._id": req.params.propertyId,
+    });
+    if (!organization) {
+      return res.status(404).json({ error: "Property not found in your organization." });
+    }
+
+    const property = organization.properties.id(req.params.propertyId);
+    property.emails = normalizePropertyEmails(req.body.emails);
+    await organization.save();
+
+    res.json({
+      message: "Inspection recipients updated.",
+      property: {
+        _id: property._id,
+        name: property.name,
+        emails: property.emails,
+      },
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({
+      error: status === 500 ? "Unable to update inspection recipients." : error.message,
+    });
   }
 });
 

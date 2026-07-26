@@ -164,6 +164,15 @@ const handleRegionFilter = async () => {
   const [removePasskey, setRemovePasskey] = useState("");
   const [propertyToRemove, setPropertyToRemove] = useState("");
 
+  // ----------- Property inspection recipients -----------
+  const [emailModalProperty, setEmailModalProperty] = useState(null);
+  const [propertyEmailDraft, setPropertyEmailDraft] = useState("");
+  const [propertyEmailError, setPropertyEmailError] = useState("");
+  const [propertyEmailMessage, setPropertyEmailMessage] = useState("");
+  const [propertyEmailSaving, setPropertyEmailSaving] = useState(false);
+  const propertyEmailInputRef = useRef(null);
+  const propertyEmailSavingRef = useRef(false);
+
   // ------------ Scheduler Flow -----------
   const [viewScheduler, setViewScheduler] = useState(false);
   const [assignments, setAssignments] = useState([]);
@@ -473,6 +482,83 @@ useEffect(() => {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [addPropertyFormVisible]);
+
+  const closePropertyEmailModal = () => {
+    if (propertyEmailSaving) return;
+    setEmailModalProperty(null);
+    setPropertyEmailDraft("");
+    setPropertyEmailError("");
+    setPropertyEmailMessage("");
+  };
+
+  const openPropertyEmailModal = (property) => {
+    setEmailModalProperty(property);
+    setPropertyEmailDraft((property.emails || []).join("\n"));
+    setPropertyEmailError("");
+    setPropertyEmailMessage("");
+  };
+
+  const handlePropertyEmailSave = async (event) => {
+    event.preventDefault();
+    if (!emailModalProperty || propertyEmailSaving) return;
+
+    const emails = propertyEmailDraft
+      .split(/[\n,;]+/)
+      .map((email) => email.trim())
+      .filter(Boolean);
+
+    propertyEmailSavingRef.current = true;
+    setPropertyEmailSaving(true);
+    setPropertyEmailError("");
+    setPropertyEmailMessage("");
+    try {
+      const result = await api.put(
+        `/api/properties/${emailModalProperty._id}/emails`,
+        { emails }
+      );
+      const updatedEmails = result.property.emails || [];
+      const applyUpdate = (items) => items.map((property) =>
+        property._id === emailModalProperty._id
+          ? { ...property, emails: updatedEmails }
+          : property
+      );
+      setProperties(applyUpdate);
+      setSidebarProperties(applyUpdate);
+      setEmailModalProperty((property) => ({ ...property, emails: updatedEmails }));
+      setPropertyEmailDraft(updatedEmails.join("\n"));
+      setPropertyEmailMessage("Inspection recipients updated.");
+    } catch (err) {
+      setPropertyEmailError(err.message || "Unable to update inspection recipients.");
+    } finally {
+      propertyEmailSavingRef.current = false;
+      setPropertyEmailSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!emailModalProperty) return undefined;
+
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    propertyEmailInputRef.current?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !propertyEmailSavingRef.current) {
+        setEmailModalProperty(null);
+        setPropertyEmailDraft("");
+        setPropertyEmailError("");
+        setPropertyEmailMessage("");
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [emailModalProperty]);
 
   // If viewScheduler flag is set, fetch assignments (for admin scheduler view)
   useEffect(() => {
@@ -1266,10 +1352,19 @@ useEffect(() => {
                         {isCompleted ? "Completed" : isManagement ? "Managed" : "Ready"}
                       </span>
                     </div>
-                    <div className="beta-card-actions">
+                    <div className="beta-card-actions beta-property-actions">
                       <button className="beta-button" onClick={() => openProperty(prop)}>
                         {isManagement ? "View Submissions" : "Start Inspection"}
                       </button>
+                      {role === "admin" && (
+                        <button
+                          type="button"
+                          className="beta-button secondary"
+                          onClick={() => openPropertyEmailModal(prop)}
+                        >
+                          Manage Emails
+                        </button>
+                      )}
                     </div>
 
                     {/* ✅ PROFIT STATEMENT STATUS - AzRoots Admins ONLY */}
@@ -1330,6 +1425,92 @@ useEffect(() => {
               })}
             </div>
             </section>
+            {emailModalProperty && (
+              <div
+                className="beta-dialog-overlay"
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget) closePropertyEmailModal();
+                }}
+              >
+                <form
+                  className="beta-dialog"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="property-email-title"
+                  aria-describedby="property-email-description"
+                  onSubmit={handlePropertyEmailSave}
+                >
+                  <div className="beta-dialog-header">
+                    <div>
+                      <span className="beta-eyebrow">Inspection delivery</span>
+                      <h2 id="property-email-title">Manage recipient emails</h2>
+                    </div>
+                    <button
+                      type="button"
+                      className="beta-dialog-close"
+                      aria-label="Close recipient email dialog"
+                      onClick={closePropertyEmailModal}
+                      disabled={propertyEmailSaving}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <p id="property-email-description" className="beta-dialog-copy">
+                    Inspection reports for <strong>{emailModalProperty.name}</strong> will be
+                    sent to these addresses. Enter one address per line, or separate them
+                    with commas.
+                  </p>
+                  <label className="beta-field" htmlFor="property-recipient-emails">
+                    <span>Recipient emails</span>
+                    <textarea
+                      ref={propertyEmailInputRef}
+                      id="property-recipient-emails"
+                      rows="6"
+                      value={propertyEmailDraft}
+                      onChange={(event) => {
+                        setPropertyEmailDraft(event.target.value);
+                        setPropertyEmailError("");
+                        setPropertyEmailMessage("");
+                      }}
+                      placeholder={"manager@example.com\noperations@example.com"}
+                      aria-invalid={Boolean(propertyEmailError)}
+                      aria-describedby={propertyEmailError ? "property-email-error" : undefined}
+                      disabled={propertyEmailSaving}
+                    />
+                  </label>
+                  <p className="beta-dialog-note">
+                    Leaving this empty removes all property-specific inspection recipients.
+                  </p>
+                  {propertyEmailError && (
+                    <p id="property-email-error" className="beta-alert error" role="alert">
+                      {propertyEmailError}
+                    </p>
+                  )}
+                  {propertyEmailMessage && (
+                    <p className="beta-alert success" role="status">
+                      {propertyEmailMessage}
+                    </p>
+                  )}
+                  <div className="beta-dialog-actions">
+                    <button
+                      type="button"
+                      className="beta-button secondary"
+                      onClick={closePropertyEmailModal}
+                      disabled={propertyEmailSaving}
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      className="beta-button"
+                      disabled={propertyEmailSaving}
+                    >
+                      {propertyEmailSaving ? "Saving…" : "Save Emails"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
             {/* Remove Property Modal (one combined) */}
             {removePropertyModalVisible && (
               <div className="modal-overlay">

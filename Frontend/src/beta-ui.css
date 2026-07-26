@@ -385,7 +385,9 @@
 .beta-dialog-close:hover { background: var(--beta-soft-blue); color: var(--beta-ink); box-shadow: none; }
 .beta-dialog-copy { margin: 14px 0 20px; color: var(--beta-muted); line-height: 1.5; }
 .beta-dialog .beta-field { display: grid; gap: 7px; font-weight: 700; }
-.beta-dialog .beta-field input { width: 100%; margin: 0; }
+.beta-dialog .beta-field input, .beta-dialog .beta-field textarea { width: 100%; margin: 0; }
+.beta-dialog .beta-field textarea { min-height: 132px; resize: vertical; }
+.beta-dialog-note { margin: 8px 0 0; color: var(--beta-muted); font-size: 13px; line-height: 1.4; }
 .beta-dialog-error { margin: 10px 0 0; color: var(--beta-danger); font-size: 14px; }
 .beta-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .beta-dialog-actions .beta-button { width: auto; min-width: 112px; margin: 0; }
@@ -451,4 +453,6 @@
   .beta-dialog { max-height: calc(100vh - 24px); padding: 20px; border-radius: 16px; }
   .beta-dialog-actions { flex-direction: column-reverse; }
   .beta-dialog-actions .beta-button { width: 100%; }
+  .beta-property-actions { flex-direction: column; }
+  .beta-property-actions .beta-button { width: 100%; flex-basis: auto; }
 }

@@ -11,32 +11,50 @@ const {
   invoiceSubmitted,
   invoiceStatusChanged,
 } = require("../services/notificationEvents");
+const {
+  evaluateOrganizationBillingAction,
+} = require("../services/billingPolicy");
 
 const router = express.Router();
 
 router.get("/properties", async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Admins only." });
-  const organization = await Organization.findById(req.user.organizationId).lean();
-  if (!organization || organization.orgType !== "COM") {
-    return res.status(404).json({ error: "Commercial organization not found." });
+  try {
+    const decision = await evaluateOrganizationBillingAction({
+      organizationId: req.user.organizationId,
+      action: "manage_property_billing",
+      user: req.user,
+    });
+    if (!decision.allowed) return res.status(403).json({ error: decision.reason });
+    const organization = decision.organization;
+    if (organization.orgType !== "COM") {
+      return res.status(404).json({ error: "Commercial organization not found." });
+    }
+    res.json(organization.properties.map((property) => ({
+      _id: property._id,
+      name: property.name,
+      propertyCode: property.propertyCode,
+      streetAddress: property.streetAddress,
+      defaultInspectionAmountCents: property.defaultInspectionAmountCents,
+      apMethod: property.apMethod,
+      apEmail: property.apEmail,
+      apPortal: property.apPortal,
+    })));
+  } catch (error) {
+    res.status(500).json({ error: "Unable to load property billing settings." });
   }
-  res.json(organization.properties.map((property) => ({
-    _id: property._id,
-    name: property.name,
-    propertyCode: property.propertyCode,
-    streetAddress: property.streetAddress,
-    defaultInspectionAmountCents: property.defaultInspectionAmountCents,
-    apMethod: property.apMethod,
-    apEmail: property.apEmail,
-    apPortal: property.apPortal,
-  })));
 });
 
 router.put("/properties/:propertyId", async (req, res) => {
   try {
-    if (req.user.role !== "admin") return res.status(403).json({ error: "Admins only." });
-    const organization = await Organization.findById(req.user.organizationId);
-    if (!organization || organization.orgType !== "COM") {
+    const decision = await evaluateOrganizationBillingAction({
+      organizationId: req.user.organizationId,
+      action: "manage_property_billing",
+      user: req.user,
+      propertyId: req.params.propertyId,
+    });
+    if (!decision.allowed) return res.status(403).json({ error: decision.reason });
+    const organization = decision.organization;
+    if (organization.orgType !== "COM") {
       return res.status(404).json({ error: "Commercial organization not found." });
     }
     const property = organization.properties.id(req.params.propertyId);
@@ -127,13 +145,25 @@ router.get("/", async (req, res) => {
 
 router.put("/:id/amount", async (req, res) => {
   try {
-    if (req.user.role === "admin") return res.status(403).json({ error: "The submitter sets the invoice amount." });
     const amountCents = Number(req.body.amountCents);
     if (!Number.isInteger(amountCents) || amountCents <= 0) {
       return res.status(400).json({ error: "Enter a valid amount." });
     }
+    const existingInvoice = await Invoice.findOne({
+      ...invoiceScope(req, req.params.id),
+      status: "unbilled",
+    });
+    if (!existingInvoice) return res.status(404).json({ error: "Editable invoice not found." });
+    const decision = await evaluateOrganizationBillingAction({
+      organizationId: req.user.organizationId,
+      action: "set_amount",
+      user: req.user,
+      invoice: existingInvoice,
+    });
+    if (!decision.allowed) return res.status(403).json({ error: decision.reason });
+
     const invoice = await Invoice.findOneAndUpdate(
-      { ...invoiceScope(req, req.params.id), status: "unbilled" },
+      { _id: existingInvoice._id, status: "unbilled" },
       { amountCents, amountSetBySubmitter: true, pdfKey: "" },
       { new: true }
     );
@@ -146,9 +176,15 @@ router.put("/:id/amount", async (req, res) => {
 
 router.post("/:id/generate", async (req, res) => {
   try {
-    if (req.user.role === "admin") return res.status(403).json({ error: "Only the submitter can generate this invoice." });
     const invoice = await Invoice.findOne({ ...invoiceScope(req, req.params.id), status: "unbilled" });
     if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+    const decision = await evaluateOrganizationBillingAction({
+      organizationId: req.user.organizationId,
+      action: "generate_invoice",
+      user: req.user,
+      invoice,
+    });
+    if (!decision.allowed) return res.status(403).json({ error: decision.reason });
     if (!invoice.amountCents) return res.status(400).json({ error: "Set an amount before generating the invoice." });
     if (!invoice.propertySnapshot.propertyCode) {
       return res.status(400).json({ error: "An admin must configure the property's billing code first." });
@@ -179,9 +215,16 @@ router.post("/:id/generate", async (req, res) => {
 
 router.post("/:id/submit", async (req, res) => {
   try {
-    if (req.user.role === "admin") return res.status(403).json({ error: "Only the submitter can send this invoice." });
     const invoice = await Invoice.findOne({ ...invoiceScope(req, req.params.id), status: "unbilled" });
-    if (!invoice || !invoice.pdfKey) return res.status(400).json({ error: "Generate the PDF before submitting it." });
+    if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+    const decision = await evaluateOrganizationBillingAction({
+      organizationId: req.user.organizationId,
+      action: "submit_invoice",
+      user: req.user,
+      invoice,
+    });
+    if (!decision.allowed) return res.status(403).json({ error: decision.reason });
+    if (!invoice.pdfKey) return res.status(400).json({ error: "Generate the PDF before submitting it." });
     const method = invoice.propertySnapshot.apMethod || "download";
     if (method === "email") {
       const destination = invoice.propertySnapshot.apEmail;
@@ -224,25 +267,16 @@ router.post("/:id/submit", async (req, res) => {
 
 router.post("/:id/mark-paid", async (req, res) => {
   try {
-    if (!["admin", "property_manager"].includes(req.user.role)) {
-      return res.status(403).json({ error: "Only organization administrators and property managers can update invoice status." });
-    }
-
     const query = { _id: req.params.id, organizationId: req.user.organizationId };
-    if (req.user.role === "property_manager") {
-      const organization = await Organization.findById(req.user.organizationId).lean();
-      if (!organization) return res.status(404).json({ error: "Organization not found." });
-      query.propertyId = {
-        $in: organization.properties
-          .filter((property) => property.propertyManagers?.some(
-            (id) => id.toString() === req.user.userId.toString()
-          ))
-          .map((property) => property._id),
-      };
-    }
-
     const invoice = await Invoice.findOne(query);
     if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+    const decision = await evaluateOrganizationBillingAction({
+      organizationId: req.user.organizationId,
+      action: "mark_paid",
+      user: req.user,
+      invoice,
+    });
+    if (!decision.allowed) return res.status(403).json({ error: decision.reason });
     if (invoice.status !== "submitted") return res.status(400).json({ error: "Only submitted invoices can be marked paid." });
     invoice.status = "paid";
     invoice.statusHistory.push({ status: "paid", changedBy: req.user.userId });

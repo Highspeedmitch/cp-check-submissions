@@ -78,6 +78,11 @@ const OrganizationSchema = new mongoose.Schema({
     required: true 
   },
   properties: { type: [PropertySchema], default: [] },
+  billingPolicyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "BillingPolicy",
+    default: null,
+  },
 });
 
 module.exports = mongoose.model('Organization', OrganizationSchema);

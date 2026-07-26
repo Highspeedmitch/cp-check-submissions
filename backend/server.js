@@ -19,6 +19,10 @@ const User = require('./models/user');
 const Submission = require('./models/submission'); // New Model for Submissions
 const Invoice = require('./models/invoice');
 const {
+  ensureOrganizationBillingPolicy,
+  createPolicySnapshot,
+} = require("./services/billingPolicy");
+const {
   MIN_SUBMISSION_MONTHS,
   MAX_SUBMISSION_MONTHS,
   parseSubmissionMonths,
@@ -526,6 +530,7 @@ try {
     const address = [
       property.streetAddress, property.suite, property.city, property.state, property.zip
     ].filter(Boolean).join(", ");
+    const { policy: billingPolicy } = await ensureOrganizationBillingPolicy(organizationId);
     await Invoice.create({
       organizationId,
       propertyId: property._id,
@@ -533,6 +538,7 @@ try {
       submitterId: req.user.userId,
       inspectionDate: submissionRecord.submittedAt,
       amountCents: property.defaultInspectionAmountCents || null,
+      policySnapshot: createPolicySnapshot(billingPolicy),
       propertySnapshot: {
         name: property.name,
         propertyCode: property.propertyCode,
