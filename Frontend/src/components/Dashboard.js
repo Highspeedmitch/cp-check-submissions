@@ -150,6 +150,7 @@ const handleRegionFilter = async () => {
   const [newPropLat, setNewPropLat] = useState("");
   const [newPropLng, setNewPropLng] = useState("");
   const [newPropAddress, setNewPropAddress] = useState("");
+  const [newPropBillingAddress, setNewPropBillingAddress] = useState("");
   const [newPropCode, setNewPropCode] = useState("");
   const [newPropDefaultAmount, setNewPropDefaultAmount] = useState("");
   const [newPropApMethod, setNewPropApMethod] = useState("download");
@@ -630,7 +631,8 @@ useEffect(() => {
         lng: parseFloat(newPropLng) || 0,
         ...(adminOrgType === "COM" && {
           propertyCode: newPropCode.trim(),
-          streetAddress: newPropAddress.trim(),
+          physicalAddress: newPropAddress.trim(),
+          billingAddress: newPropBillingAddress.trim(),
           defaultInspectionAmountCents: newPropDefaultAmount
             ? Math.round(Number(newPropDefaultAmount) * 100)
             : null,
@@ -650,6 +652,7 @@ useEffect(() => {
         setNewPropLat("");
         setNewPropLng("");
         setNewPropAddress("");
+        setNewPropBillingAddress("");
         setPropertyActionMessage("Property added successfully.");
         await fetchProperties();
       }
@@ -1685,7 +1688,7 @@ useEffect(() => {
               />
             </label>
             <label>
-              Address (will geocode):
+              Physical Property Address (will geocode):
               <input
                 type="text"
                 value={newPropAddress}
@@ -1694,6 +1697,15 @@ useEffect(() => {
             </label>
             {adminOrgType === "COM" && (
               <>
+                <label>
+                  Invoice Billing Address:
+                  <input
+                    type="text"
+                    required
+                    value={newPropBillingAddress}
+                    onChange={(e) => setNewPropBillingAddress(e.target.value)}
+                  />
+                </label>
                 <label>
                   Brokerage Property Code:
                   <input

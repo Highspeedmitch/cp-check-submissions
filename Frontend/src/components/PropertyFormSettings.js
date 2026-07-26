@@ -49,7 +49,7 @@ export default function PropertyFormSettings() {
   }, [property]);
 
   const geocodeAddress = async () => {
-    if (!propertyDetails?.streetAddress || geocoding) return;
+    if (!propertyDetails?.physicalAddress || geocoding) return;
     const mapboxToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
     if (!mapboxToken) {
       setError("Address lookup is temporarily unavailable.");
@@ -60,7 +60,7 @@ export default function PropertyFormSettings() {
     setMessage("");
     try {
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(propertyDetails.streetAddress)}.json?access_token=${mapboxToken}`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(propertyDetails.physicalAddress)}.json?access_token=${mapboxToken}`
       );
       const data = await response.json();
       if (!response.ok || !data.features?.length) {
@@ -174,9 +174,14 @@ export default function PropertyFormSettings() {
                   <input value={propertyDetails?.propertyCode || ""}
                     onChange={(event) => setPropertyDetails({ ...propertyDetails, propertyCode: event.target.value })} />
                 </label>
-                <label className="beta-form-field full">Property address
-                  <input value={propertyDetails?.streetAddress || ""}
-                    onChange={(event) => setPropertyDetails({ ...propertyDetails, streetAddress: event.target.value })} />
+                <label className="beta-form-field full">Physical property address
+                  <input value={propertyDetails?.physicalAddress || ""}
+                    onChange={(event) => setPropertyDetails({
+                      ...propertyDetails,
+                      physicalAddress: event.target.value,
+                      lat: "",
+                      lng: "",
+                    })} />
                 </label>
                 <label className="beta-form-field">Latitude
                   <input type="number" step="any" value={propertyDetails?.lat ?? ""}

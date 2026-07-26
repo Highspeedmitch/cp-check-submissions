@@ -57,6 +57,9 @@ const PropertySchema = new mongoose.Schema({
   },
   
   // ✅ NEW ADDRESS FIELDS
+  physicalAddress: { type: String, default: "" },
+  billingAddress: { type: String, default: "" },
+  // Legacy field retained for backwards-compatible billing reads.
   streetAddress: { type: String, default: "" },
   suite: { type: String, default: "" },
   city: { type: String, default: "" },

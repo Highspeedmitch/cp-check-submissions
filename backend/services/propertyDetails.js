@@ -1,7 +1,7 @@
 function normalizePropertyDetails(input, orgType) {
   const name = String(input.name || "").trim();
   const propertyCode = String(input.propertyCode || "").trim();
-  const streetAddress = String(input.streetAddress || "").trim();
+  const physicalAddress = String(input.physicalAddress || "").trim();
   const lat = input.lat === "" || input.lat === null || input.lat === undefined
     ? Number.NaN
     : Number(input.lat);
@@ -15,8 +15,8 @@ function normalizePropertyDetails(input, orgType) {
   if (orgType === "COM" && !propertyCode) {
     throw new Error("A property code is required for commercial properties.");
   }
-  if (!streetAddress) {
-    throw new Error("Property address is required.");
+  if (!physicalAddress) {
+    throw new Error("Physical property address is required.");
   }
   if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
     throw new Error("Enter a valid latitude.");
@@ -25,7 +25,7 @@ function normalizePropertyDetails(input, orgType) {
     throw new Error("Enter a valid longitude.");
   }
 
-  return { name, propertyCode, streetAddress, lat, lng };
+  return { name, propertyCode, physicalAddress, lat, lng };
 }
 
 module.exports = { normalizePropertyDetails };

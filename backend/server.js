@@ -22,6 +22,7 @@ const {
   ensureOrganizationBillingPolicy,
   createPolicySnapshot,
 } = require("./services/billingPolicy");
+const { resolveBillingAddress } = require("./services/propertyAddresses");
 const {
   resolvePropertyInspectionTemplate,
   createTemplateSnapshot,
@@ -574,9 +575,7 @@ try {
 
   console.log('✅ Submission saved in database');
   if (orgType === "COM") {
-    const address = [
-      property.streetAddress, property.suite, property.city, property.state, property.zip
-    ].filter(Boolean).join(", ");
+    const address = resolveBillingAddress(property);
     const { policy: billingPolicy } = await ensureOrganizationBillingPolicy(organizationId);
     await Invoice.create({
       organizationId,
@@ -1001,7 +1000,7 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     // 4) Extract property details (including accessInstructions and customFields for STR)
     const {
       name, lat, lng, emails, region, accessInstructions, customFields,
-      maintenanceInfo, generalInfo, propertyCode, streetAddress,
+      maintenanceInfo, generalInfo, propertyCode, physicalAddress, billingAddress,
       defaultInspectionAmountCents, apMethod, apEmail, apPortal,
       billingInstructions, purchaseOrder
     } = req.body;
@@ -1012,9 +1011,9 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
     // 5) Determine if this is an STR organization
     const isSTR = org.orgType === "STR";
     const isCOM = org.orgType === "COM";
-    if (isCOM && (!propertyCode || !streetAddress)) {
+    if (isCOM && (!propertyCode || !physicalAddress || !billingAddress)) {
       return res.status(400).json({
-        error: "Property code and billing address are required for commercial properties."
+        error: "Property code, physical address, and billing address are required for commercial properties."
       });
     }
 
@@ -1027,7 +1026,8 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
       region,
       ...(isCOM && {
         propertyCode: propertyCode.trim(),
-        streetAddress: streetAddress.trim(),
+        physicalAddress: physicalAddress.trim(),
+        billingAddress: billingAddress.trim(),
         defaultInspectionAmountCents: Number.isInteger(defaultInspectionAmountCents)
           ? defaultInspectionAmountCents
           : null,

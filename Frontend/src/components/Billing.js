@@ -183,7 +183,7 @@ export default function Billing() {
                       <input value={property.propertyCode || ""} onChange={(e) => updateProperty(property._id, "propertyCode", e.target.value)} />
                     </label>
                     <label className="beta-form-field">Billing address
-                      <input value={property.streetAddress || ""} onChange={(e) => updateProperty(property._id, "streetAddress", e.target.value)} />
+                      <input value={property.billingAddress || ""} onChange={(e) => updateProperty(property._id, "billingAddress", e.target.value)} />
                     </label>
                     <label className="beta-form-field">Suggested amount
                       <input type="number" min="0" step="0.01" value={property.defaultInspectionAmountDollars ?? ""}

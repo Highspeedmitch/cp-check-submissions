@@ -147,7 +147,7 @@ router.get("/:propertyId/details", async (req, res) => {
       _id: property._id,
       name: property.name,
       propertyCode: property.propertyCode,
-      streetAddress: property.streetAddress,
+      physicalAddress: property.physicalAddress,
       lat: property.lat,
       lng: property.lng,
     });
@@ -180,7 +180,7 @@ router.put("/:propertyId/details", async (req, res) => {
     const previousName = property.name;
     property.name = details.name;
     property.propertyCode = details.propertyCode;
-    property.streetAddress = details.streetAddress;
+    property.physicalAddress = details.physicalAddress;
     property.lat = details.lat;
     property.lng = details.lng;
     await organization.save();
@@ -211,7 +211,6 @@ router.put("/:propertyId/details", async (req, res) => {
         $set: {
           "propertySnapshot.name": details.name,
           "propertySnapshot.propertyCode": details.propertyCode,
-          "propertySnapshot.address": details.streetAddress,
         },
       }
     ));
@@ -223,7 +222,7 @@ router.put("/:propertyId/details", async (req, res) => {
         _id: property._id,
         name: property.name,
         propertyCode: property.propertyCode,
-        streetAddress: property.streetAddress,
+        physicalAddress: property.physicalAddress,
         lat: property.lat,
         lng: property.lng,
       },

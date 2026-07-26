@@ -14,11 +14,15 @@ const {
 const {
   evaluateOrganizationBillingAction,
 } = require("../services/billingPolicy");
+const { resolveBillingAddress } = require("../services/propertyAddresses");
 
 const router = express.Router();
 
 router.get("/properties", async (req, res) => {
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only organization administrators can manage billing settings." });
+    }
     const decision = await evaluateOrganizationBillingAction({
       organizationId: req.user.organizationId,
       action: "manage_property_billing",
@@ -33,7 +37,7 @@ router.get("/properties", async (req, res) => {
       _id: property._id,
       name: property.name,
       propertyCode: property.propertyCode,
-      streetAddress: property.streetAddress,
+      billingAddress: resolveBillingAddress(property),
       defaultInspectionAmountCents: property.defaultInspectionAmountCents,
       apMethod: property.apMethod,
       apEmail: property.apEmail,
@@ -46,6 +50,9 @@ router.get("/properties", async (req, res) => {
 
 router.put("/properties/:propertyId", async (req, res) => {
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only organization administrators can manage billing settings." });
+    }
     const decision = await evaluateOrganizationBillingAction({
       organizationId: req.user.organizationId,
       action: "manage_property_billing",
@@ -59,13 +66,13 @@ router.put("/properties/:propertyId", async (req, res) => {
     }
     const property = organization.properties.id(req.params.propertyId);
     if (!property) return res.status(404).json({ error: "Property not found." });
-    const { propertyCode, streetAddress, defaultInspectionAmountCents, apMethod, apEmail, apPortal } = req.body;
-    if (!propertyCode || !streetAddress) {
+    const { propertyCode, billingAddress, defaultInspectionAmountCents, apMethod, apEmail, apPortal } = req.body;
+    if (!propertyCode || !billingAddress) {
       return res.status(400).json({ error: "Property code and billing address are required." });
     }
     const previousDefaultAmountCents = property.defaultInspectionAmountCents;
     property.propertyCode = propertyCode.trim();
-    property.streetAddress = streetAddress.trim();
+    property.billingAddress = billingAddress.trim();
     property.defaultInspectionAmountCents = Number.isInteger(defaultInspectionAmountCents)
       ? defaultInspectionAmountCents
       : null;
@@ -88,7 +95,7 @@ router.put("/properties/:propertyId", async (req, res) => {
         $set: {
           amountCents: property.defaultInspectionAmountCents,
           "propertySnapshot.propertyCode": property.propertyCode,
-          "propertySnapshot.address": property.streetAddress,
+          "propertySnapshot.address": property.billingAddress,
           "propertySnapshot.apMethod": property.apMethod,
           "propertySnapshot.apEmail": property.apEmail,
           "propertySnapshot.apPortal": property.apPortal,
