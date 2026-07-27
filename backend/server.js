@@ -192,7 +192,7 @@ const limiter = rateLimit({
 
 app.use(limiter);
 app.use("/api", clientAuth);
-app.use("/api", authenticateToken, assignmentRoutes);
+app.use("/api", assignmentRoutes);
 /**
  * 🔹 Register a New Organization & Admin User & Check admin passkey
  */

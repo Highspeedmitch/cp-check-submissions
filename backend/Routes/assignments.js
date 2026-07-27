@@ -4,6 +4,7 @@ const Organization = require("../models/organization");
 const User = require("../models/user");
 const { managedProperties } = require("../services/propertyAccess");
 const { sendUserNotification } = require("../services/notifications");
+const authenticateToken = require("../middleware/authenticateToken");
 
 function createAssignmentHandlers({
   AssignmentModel = Assignment,
@@ -188,14 +189,25 @@ function createAssignmentHandlers({
   };
 }
 
-function createAssignmentRouter(dependencies) {
+function createAssignmentRouter(
+  dependencies,
+  routeAuthentication = authenticateToken
+) {
   const router = express.Router();
   const handlers = createAssignmentHandlers(dependencies);
-  router.post("/assignments", handlers.createAssignment);
-  router.get("/assignments", handlers.listAssignments);
-  router.get("/users", handlers.listSchedulerUsers);
-  router.delete("/assignments/:id", handlers.deleteAssignment);
-  router.put("/assignments/:id", handlers.updateAssignment);
+  router.post("/assignments", routeAuthentication, handlers.createAssignment);
+  router.get("/assignments", routeAuthentication, handlers.listAssignments);
+  router.get("/users", routeAuthentication, handlers.listSchedulerUsers);
+  router.delete(
+    "/assignments/:id",
+    routeAuthentication,
+    handlers.deleteAssignment
+  );
+  router.put(
+    "/assignments/:id",
+    routeAuthentication,
+    handlers.updateAssignment
+  );
   return router;
 }
 

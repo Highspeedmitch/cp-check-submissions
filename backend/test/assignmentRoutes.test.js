@@ -1,8 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const assignmentRouter = require("../Routes/assignments");
 const {
   createAssignmentHandlers,
+  createAssignmentRouter,
 } = require("../Routes/assignments");
 
 function response() {
@@ -35,6 +38,25 @@ test("assignment router preserves the existing scheduler API paths", () => {
     { path: "/assignments/:id", methods: ["delete"] },
     { path: "/assignments/:id", methods: ["put"] },
   ]);
+});
+
+test("authentication is scoped to assignment routes instead of the entire API", () => {
+  const routeAuthentication = (_req, _res, next) => next();
+  const router = createAssignmentRouter({}, routeAuthentication);
+
+  for (const layer of router.stack.filter((entry) => entry.route)) {
+    assert.equal(layer.route.stack[0].handle, routeAuthentication);
+  }
+
+  const serverSource = fs.readFileSync(
+    path.join(__dirname, "..", "server.js"),
+    "utf8"
+  );
+  assert.match(serverSource, /app\.use\("\/api", assignmentRoutes\);/);
+  assert.doesNotMatch(
+    serverSource,
+    /app\.use\("\/api", authenticateToken, assignmentRoutes\);/
+  );
 });
 
 test("assignment creation retains admin and organization scoping", async () => {
