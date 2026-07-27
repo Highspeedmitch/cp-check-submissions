@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   inspectionSubmitted,
+  assignmentCompleted,
   invoiceSubmitted,
   invoiceStatusChanged,
   bidRequestSubmitted,
@@ -12,6 +13,15 @@ const {
 test("inspection notifications link property managers to the property history", () => {
   const event = inspectionSubmitted("22 & Harrison", "submission-1");
   assert.equal(event.type, "inspection_submitted");
+  assert.equal(event.route, "/admin/submissions/22%20%26%20Harrison");
+  assert.equal(event.entityId, "submission-1");
+});
+
+test("assignment completion notifications identify scheduled work without exposing comments", () => {
+  const event = assignmentCompleted("22 & Harrison", "submission-1");
+  assert.equal(event.type, "assignment_completed");
+  assert.equal(event.title, "Scheduled inspection completed");
+  assert.match(event.body, /22 & Harrison/);
   assert.equal(event.route, "/admin/submissions/22%20%26%20Harrison");
   assert.equal(event.entityId, "submission-1");
 });

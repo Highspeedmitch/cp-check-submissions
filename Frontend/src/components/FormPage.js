@@ -14,15 +14,30 @@ export default function FormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [assignmentInstructions, setAssignmentInstructions] = useState("");
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective`)
-      .then((data) => {
+    const userId = localStorage.getItem("userId");
+    Promise.all([
+      api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective`),
+      api.get("/api/assignments").catch((assignmentError) => {
+        console.error("Unable to load assignment instructions:", assignmentError);
+        return [];
+      }),
+    ])
+      .then(([data, assignments]) => {
         if (!active) return;
         setTemplate(data);
         setResponses(Object.fromEntries(data.fields.map((field) => [field.key, ""])));
+        const assignment = Array.isArray(assignments)
+          ? assignments.find((item) => (
+            String(item.userId) === String(userId)
+            && item.propertyName === property
+          ))
+          : null;
+        setAssignmentInstructions(assignment?.oneTimeCheckRequest || "");
         setError("");
       })
       .catch((err) => active && setError(err.message))
@@ -171,6 +186,12 @@ export default function FormPage() {
 
         {loading && <div className="beta-empty-state">Loading inspection form…</div>}
         {error && <p className="beta-alert error" role="alert">{error}</p>}
+        {assignmentInstructions && !submitted && (
+          <section className="beta-assignment-note beta-inspection-assignment-note">
+            <strong>Special assignment instructions</strong>
+            <p>{assignmentInstructions}</p>
+          </section>
+        )}
 
         {submitted ? (
           <section className="beta-panel">

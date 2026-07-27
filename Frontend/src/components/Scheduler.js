@@ -207,6 +207,7 @@ function Scheduler() {
       userId: event.userId,
       startDate: moment(event.start).format("YYYY-MM-DDTHH:mm"),
       endDate: moment(event.end).format("YYYY-MM-DDTHH:mm"),
+      oneTimeCheckRequest: event.oneTimeCheckRequest || "",
     });
   };
 
@@ -235,6 +236,7 @@ const events = assignments.map((assignment) => {
       start: startDate,
       end: endDate,
       userId: assignment.userId,
+      oneTimeCheckRequest: assignment.oneTimeCheckRequest || "",
       allDay: true, // This flag tells react-big-calendar to treat this as an all-day event
     };
   });

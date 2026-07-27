@@ -908,6 +908,12 @@ useEffect(() => {
                       </div>
                       <span className="beta-status warning">Scheduled</span>
                     </div>
+                    {assignment.oneTimeCheckRequest && (
+                      <div className="beta-assignment-note">
+                        <strong>Special instructions</strong>
+                        <p>{assignment.oneTimeCheckRequest}</p>
+                      </div>
+                    )}
                     <div className="beta-card-actions">
                       {property && <button className="beta-button" onClick={() => openProperty(property)}>Start Inspection</button>}
                       {property?.lat && property?.lng && (

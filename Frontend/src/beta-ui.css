@@ -473,6 +473,17 @@
   margin: 4px 0 0;
 }
 .beta-scheduler-form .delete-button { background: var(--beta-danger); }
+.beta-assignment-note {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-left: 4px solid var(--beta-warning);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--beta-warning) 12%, var(--beta-surface));
+  color: var(--beta-ink);
+}
+.beta-assignment-note strong { display: block; margin-bottom: 4px; }
+.beta-assignment-note p { margin: 0; white-space: pre-wrap; }
+.beta-inspection-assignment-note { margin-bottom: 20px; }
 .beta-scheduler-shell > .rbc-calendar {
   min-height: 620px;
   padding: 22px;

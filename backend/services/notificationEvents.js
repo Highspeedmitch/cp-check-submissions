@@ -8,6 +8,16 @@ function inspectionSubmitted(propertyName, submissionId) {
   };
 }
 
+function assignmentCompleted(propertyName, submissionId) {
+  return {
+    type: "assignment_completed",
+    title: "Scheduled inspection completed",
+    body: `The scheduled inspection for ${propertyName} was completed.`,
+    route: `/admin/submissions/${encodeURIComponent(propertyName)}`,
+    entityId: submissionId,
+  };
+}
+
 function invoiceSubmitted(invoice) {
   return {
     type: "invoice_submitted",
@@ -60,6 +70,7 @@ function bidRequestStatusChanged(request) {
 
 module.exports = {
   inspectionSubmitted,
+  assignmentCompleted,
   invoiceSubmitted,
   invoiceStatusChanged,
   bidRequestSubmitted,

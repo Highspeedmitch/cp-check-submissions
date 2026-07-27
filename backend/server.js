@@ -44,7 +44,10 @@ const { v4: uuidv4 } = require('uuid');
 const admin = require("firebase-admin");
 const cookieParser = require("cookie-parser");
 const { sendUserNotification } = require("./services/notifications");
-const { inspectionSubmitted } = require("./services/notificationEvents");
+const {
+  inspectionSubmitted,
+  assignmentCompleted,
+} = require("./services/notificationEvents");
 const RefreshSession = require("./models/refreshSession");
 const {
   REFRESH_COOKIE,
@@ -556,8 +559,10 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
 // Ensure your token middleware has already populated req.user
 
 // Save submission record in DB (modified to include userId)
+let submissionRecord;
+let completedAssignment;
 try {
-  const submissionRecord = await Submission.create({
+  submissionRecord = await Submission.create({
     organizationId: organizationId,           // from req.user.organizationId
     userId: req.user.userId,                  // <-- NEW: add the userId from the token
     property: propertyName,
@@ -595,14 +600,38 @@ try {
       statusHistory: [{ status: "unbilled", changedBy: req.user.userId }],
     });
   }
+  completedAssignment = await Assignment.findOne({
+    organizationId,
+    propertyName,
+    userId: req.user.userId,
+  });
+
   const propertyManagerIds = [
     ...new Set((property.propertyManagers || []).map((id) => id.toString())),
   ];
-  propertyManagerIds.forEach((propertyManagerId) => {
+  let notificationRecipientIds = propertyManagerIds;
+  let notificationEvent = inspectionSubmitted(propertyName, submissionRecord._id);
+
+  if (completedAssignment) {
+    const organizationAdmins = await User.find({
+      organizationId,
+      role: "admin",
+      accountStatus: { $ne: "inactive" },
+    }).select("_id").lean();
+    notificationRecipientIds = [
+      ...new Set([
+        ...propertyManagerIds,
+        ...organizationAdmins.map((adminUser) => adminUser._id.toString()),
+      ]),
+    ];
+    notificationEvent = assignmentCompleted(propertyName, submissionRecord._id);
+  }
+
+  notificationRecipientIds.forEach((recipientUserId) => {
     sendUserNotification({
       organizationId,
-      userId: propertyManagerId,
-      ...inspectionSubmitted(propertyName, submissionRecord._id),
+      userId: recipientUserId,
+      ...notificationEvent,
     }).catch((notificationError) => {
       console.error("Inspection submission notification error:", notificationError);
     });
@@ -661,14 +690,9 @@ try {
     // **Cleanup temporary file**
     fs.unlinkSync(filePath);
 
-    // **Remove assignment if it exists**
-    const assignmentToRemove = await Assignment.findOne({
-      propertyName: propertyName,
-      userId: req.user.userId
-    });
-
-    if (assignmentToRemove) {
-      await Assignment.findByIdAndDelete(assignmentToRemove._id);
+    // **Remove the completed assignment if it exists**
+    if (completedAssignment) {
+      await Assignment.findByIdAndDelete(completedAssignment._id);
       console.log(`✅ Removed assignment for property ${propertyName}`);
     }
 
