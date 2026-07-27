@@ -11,7 +11,6 @@ import {
   useNotificationBadges,
 } from "../services/notificationCenter";
 import { api, apiUrl } from "../services/api";
-import { MILEAGE_TRACKING_ENABLED } from "../featureFlags";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -48,7 +47,6 @@ function Dashboard({ setUser }) {
 
   //search queries
   const [searchQuery, setSearchQuery] = useState("");
-  const [sidebarProperties, setSidebarProperties] = useState([]); // ✅ Separate from property cards
   const [regions, setRegions] = useState([]);         // Holds the list of available regions
   const [selectedRegion, setSelectedRegion] = useState(""); // Holds the currently selected region from the dropdown
 
@@ -57,18 +55,15 @@ function Dashboard({ setUser }) {
     if (!searchQuery.trim()) return;
   
     try {
-      setSidebarProperties([]); // ✅ Clear previous results before fetching
       const res = {
         data: await api.get(`/api/properties/search?q=${encodeURIComponent(searchQuery)}`),
       };
   
       if (Array.isArray(res.data)) {
-        setSidebarProperties(res.data); // ✅ Only set if it's an array
         setProperties(res.data);
         setPageIndex(0);
       } else {
         console.error("❌ Unexpected response format:", res.data);
-        setSidebarProperties([]); // ✅ Prevent crashes
       }
   
       setError(null);
@@ -173,11 +168,6 @@ const handleRegionFilter = async () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState("");
 
-  // ------------- Filtered Properties Modal -------------
-  const handlePropertyClick = (property) => {
-    setSelectedProperty(property);
-  };
-  
   // ------------- Profit Upload Status format -----------
   const [profitStatuses, setProfitStatuses] = useState({});
   useEffect(() => {
@@ -512,7 +502,6 @@ useEffect(() => {
           : property
       );
       setProperties(applyUpdate);
-      setSidebarProperties(applyUpdate);
       setEmailModalProperty((property) => ({ ...property, emails: updatedEmails }));
       setPropertyEmailDraft(updatedEmails.join("\n"));
       setPropertyEmailMessage("Inspection recipients updated.");
@@ -635,13 +624,6 @@ useEffect(() => {
     } finally {
       setPropertyActionBusy("");
     }
-  };
-
-  // ======================
-  // 7) Sidebar toggling, logout, etc.
-  // ======================
-  const toggleSidebar = () => {
-    setSidebarCollapsed((prev) => !prev);
   };
 
   const handleLogout = async () => {
@@ -826,7 +808,6 @@ useEffect(() => {
         onSearch={handleSearch}
         onClearSearch={() => {
           setSearchQuery("");
-          setSidebarProperties([]);
           fetchProperties();
         }}
         regions={regions}
@@ -856,395 +837,42 @@ useEffect(() => {
         onLogout={handleLogout}
         notificationBadges={notificationBadges}
       />
-      {/* Sidebar */}
-      <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-  <button className="sidebar-toggle" onClick={toggleSidebar}>
-    {sidebarCollapsed ? "☰" : "×"}
-  </button>
-  {!sidebarCollapsed && (
-    <>
-      <h2>{isManagement ? "Managed Properties" : "Checklist"}</h2>
-      {adminOrgType === "COM" && role !== "admin" && (
-        <button
-          className="Admin-tools-adtl"
-          onClick={() => navigate("/billing")}
-        >
-          Billing
-        </button>
-      )}
-      {role === "property_manager" && (
-        <button className="Admin-tools-adtl" onClick={() => navigate("/bid-requests")}>
-          Get A Bid
-        </button>
-      )}
-
-      {/* ✅ Managed Properties Section (Admins Only) */}
-      {isManagement && (
-        <>
-          <div className="search-section">
-            <input
-              type="text"
-              placeholder="Search properties..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <button className="Admin-tools-adtl" onClick={handleSearch}>
-              Search
-            </button>
-          </div>
-             {/* Clear Search Button (only shown when searchQuery has text) */}
-    {searchQuery && (
-      <p 
-        onClick={() => {
-          setSearchQuery("");
-          setSidebarProperties([]); // Clear search results
-        }} 
-        style={{
-          cursor: "pointer",
-          color: "#007bff",
-          textDecoration: "underline",
-          fontSize: "0.9em",
-          marginTop: "5px"
-        }}
-      >
-        Clear Search
-      </p>)}
-          <div className="region-section">
-          <label>Filter by</label>
-            <select
-              value={selectedRegion}
-              onChange={(e) => setSelectedRegion(e.target.value)}
-            >
-              <option value="">Region</option>
-              {regions.map((reg) => (
-                <option key={reg} value={reg}>
-                  {reg}
-                </option>
-              ))}
-            </select>
-            <button className="Admin-tools-adtl" onClick={handleRegionFilter}>
-              Filter
-            </button>
-          </div>
-
-          {error && <p className="error">{error}</p>}
-
-         {/* ✅ Show Search Results in a Clickable Box */}
-{isManagement && sidebarProperties.length > 0 ? (
-  <ul className="search-results-container">
-    {sidebarProperties.map((prop) => (
-      <li
-        key={prop._id}
-        className="search-result-item"
-        onClick={() => handlePropertyClick(prop)}
-        style={{
-          cursor: "pointer",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "5px",
-          margin: "5px 0",
-          backgroundColor: "#f9f9f9",
-        }}
-      >
-        <strong>{prop.name}</strong> - Region: {prop.region || "Uncategorized"}
-      </li>
-    ))}
-  </ul>
-) : (
-  <p style={{ fontStyle: "italic", color: "#888" }}>
-    🔍 Search or filter properties.
-  </p>
-)}
-{/* ✅ Modal for Admins to Choose Property Actions */}
-{selectedProperty && (
-  <div
-    className="property-modal"
-    onClick={(e) => {
-      if (e.target.classList.contains("property-modal")) {
-        setSelectedProperty(null); // Close modal when clicking outside
-      }
-    }}
-    style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100vh",
-      background: "rgba(0, 0, 0, 0.5)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 1000,
-    }}
-  >
-    <div className="modal-content" style={{
-      background: "#fff",
-      padding: "20px",
-      borderRadius: "10px",
-      textAlign: "center",
-      boxShadow: "0px 4px 6px rgba(0,0,0,0.1)"
-    }}>
-      <h3>{selectedProperty.name}</h3>
-      <button 
-        onClick={() => navigate(`/submissions/${selectedProperty._id}`)}
-        style={{
-          display: "block",
-          margin: "10px auto",
-          padding: "8px 15px",
-          background: "#007bff",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-        }}
-      >
-        📄 View Submissions
-      </button>
-      <button 
-        onClick={() => navigate(`/access-instructions/${selectedProperty._id}`)}
-        style={{
-          display: "block",
-          margin: "10px auto",
-          padding: "8px 15px",
-          background: "#28a745",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-        }}
-      >
-        🔑 View Access / Info
-      </button>
-      <button 
-        onClick={() => setSelectedProperty(null)}
-        style={{
-          display: "block",
-          margin: "10px auto",
-          padding: "8px 15px",
-          background: "#dc3545",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-        }}
-      >
-        ❌ Close
-      </button>
-    </div>
-  </div>
-)}
-
-        </>
-      )}
-
-      {/* ✅ Checklist Section for Non-Admins */}
-      {!isManagement && (
-        <ul>
-          {displayedProperties.map((prop) => (
-            <li
-              key={prop.name}
-              className={completedProperties.includes(prop.name) ? "completed" : ""}
+      {/* STR user action dialog */}
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Select an Action</h2>
+            <p>
+              What would you like to do for <strong>{selectedProperty}</strong>?
+            </p>
+            <button
+              className="modal-btn"
               onClick={() => {
-                if (isManagement) {
-                  if (adminOrgType === "STR") {
-                    navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
-                  } else {
-                    navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
-                  }
+                if (orgName === "AzRoots") {
+                  navigate(`/azr-access-instructions/${encodeURIComponent(selectedProperty)}`);
                 } else {
-                  switch (prop.orgType) {
-                    case "COM":
-                      navigate(`/form/${encodeURIComponent(prop.name)}`);
-                      break;
-                    case "RES":
-                      navigate(`/residential-form/${encodeURIComponent(prop.name)}`);
-                      break;
-                    case "LTR":
-                      navigate(`/long-term-rental-form/${encodeURIComponent(prop.name)}`);
-                      break;
-                    case "STR":
-                      setSelectedProperty(prop.name);
-                      setShowModal(true);
-                      break;
-                    default:
-                      navigate(`/form/${encodeURIComponent(prop.name)}`);
-                  }
+                  navigate(`/access-instructions/${encodeURIComponent(selectedProperty)}`);
                 }
+                setShowModal(false);
               }}
             >
-              {prop.name}
-            </li>
-          ))}
-        </ul>
-      )}
-
-            {/* My assignments (non-admin users) */}
-            {role !== "admin" && (
-              <div className="assignments-section">
-                <h3>My assignments</h3>
-                {assignments.length === 0 ? (
-                  <p>No assignments yet.</p>
-                ) : (
-                  <ul>
-                    {assignments.map((assignment) => (
-                      <li key={assignment._id}>
-                        {assignment.propertyName} -{" "}
-                        {new Date(assignment.startDate).toLocaleDateString()}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {/* Mileage toggle (temporarily disabled by feature flag) */}
-            {MILEAGE_TRACKING_ENABLED && role !== "admin" && (
-              <div className="mileage-tracking-toggle">
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={mileageTracking}
-                    onChange={handleMileageToggle}
-                  />
-                  <span className="slider"></span>
-                </label>
-                <span className="toggle-label">
-                  {mileageTracking
-                    ? `🚗 ${mileageCount ? mileageCount.toFixed(1) : "0"} mi`
-                    : "🚦 Off"}
-                </span>
-              </div>
-            )}
-
-            {/* Dark mode */}
-            <div className="dark-mode-toggle">
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={darkMode}
-                  onChange={() => setDarkMode((prev) => !prev)}
-                />
-                <span className="slider"></span>
-              </label>
-              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
-            </div>
-
-            {/* Admin Tools */}
-            {role === "admin" && (
-              <div className="tools-section" style={{ marginBottom: "-10px" }}>
-                <h3>Admin Tools</h3>
-
-                <button
-                  className="Admin-tools-primary"
-                  onClick={() => {
-                    setPasskeyPromptVisible(true);
-                    setPasskey("");
-                    setVerifiedAddPropertyPasskey("");
-                    setPasskeyError("");
-                    setPropertyActionError("");
-                    setPropertyActionMessage("");
-                  }}
-                >
-                  + Property
-                </button>
-
-                {adminOrgType === "STR" && (
-                  <button
-                    className="Admin-tools-primary"
-                    onClick={() => {
-                      // Show the single remove-property modal
-                      setRemovePropertyModalVisible(true);
-                      setRemovePasskey("");
-                      setPropertyToRemove("");
-                    }}
-                  >
-                    - Property
-                  </button>
-                )}
-
-                <button
-                  className="Admin-tools-adtl"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate("/scheduler", { state: { token } });
-                  }}
-                >
-                  Scheduler
-                </button>
-                {adminOrgType !== "COM" && (
-                  <button
-                    className="Admin-tools-adtl"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate("/payments", { state: { token } });
-                    }}
-                  >
-                    Payments
-                  </button>
-                )}
-                {adminOrgType === "COM" && (
-                  <button
-                    className="Admin-tools-adtl"
-                    onClick={() => navigate("/billing")}
-                  >
-                    Billing
-                  </button>
-                )}
-                {adminOrgType === "COM" && (
-                  <>
-                    <button className="Admin-tools-adtl" onClick={() => navigate("/admin/users")}>
-                      User Management
-                    </button>
-                    <button className="Admin-tools-adtl" onClick={() => navigate("/bid-requests")}>
-                      Bid Requests
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* STR user modal (read-only access instructions) */}
-        {showModal && (
-          <div className="modal-overlay">
-            <div className="modal">
-              <h2>Select an Action</h2>
-              <p>
-                What would you like to do for <strong>{selectedProperty}</strong>?
-              </p>
-                <button
-                className="modal-btn"
-                onClick={() => {
-                  // Redirect AzRoots users to AZRaccessinstructions instead of default AccessInstructions
-                  if (orgName === "AzRoots") {
-                    navigate(`/azr-access-instructions/${encodeURIComponent(selectedProperty)}`);
-                  } else {
-                    navigate(`/access-instructions/${encodeURIComponent(selectedProperty)}`);
-                  }
-                  setShowModal(false);
-                }}
-              >
-                Access / Info
-              </button>
-              <button
-                className="modal-btn"
-                onClick={() => {
-                  navigate(
-                    `/short-term-rental-form/${encodeURIComponent(selectedProperty)}`
-                  );
-                  setShowModal(false);
-                }}
-              >
-                Submit Form
-              </button>
-              <button className="modal-close" onClick={() => setShowModal(false)}>
-                Cancel
-              </button>
-            </div>
+              Access / Info
+            </button>
+            <button
+              className="modal-btn"
+              onClick={() => {
+                navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}`);
+                setShowModal(false);
+              }}
+            >
+              Submit Form
+            </button>
+            <button className="modal-close" onClick={() => setShowModal(false)}>
+              Cancel
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="beta-dashboard-main">
