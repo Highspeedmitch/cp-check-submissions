@@ -1,34 +1,46 @@
-import React, { useState, useEffect } from "react";
+import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
-import Dashboard from "./components/Dashboard";
-import ClientDashboard from "./components/ClientDashboard";
-import ClientProfitStatement from "./components/ClientProfitStatement"; // New component for profit statement view
-import ScheduleConsultation from "./components/ScheduleConsultation";   // New component for consultation scheduling
-import ClientRegistration from "./components/ClientRegistration";
-import FormPage from "./components/FormPage";
-import PropertyFormSettings from "./components/PropertyFormSettings";
-import OrganizationFormSettings from "./components/OrganizationFormSettings";
-import Register from "./components/Register";
-import PropertySelector from "./components/PropertySelector";
-import AdminSubmissions from "./components/AdminSubmissions";
-import ForgotPassword from "./components/ForgotPassword";
-import ResetPassword from "./components/ResetPassword";
-import AzRootsScheduler from "./components/AzRootsScheduler";
-import DefaultScheduler from "./components/Scheduler";
-import ResidentialForm from "./components/ResidentialForm";
-import LongTermRental from "./components/LongTermRental";
-import ShortTermRental from "./components/ShortTermRental";
-import AccessInstructions from "./components/AccessInstructions";
-import AZRaccessinstructions from "./components/AZRaccessinstructions";
-import Payments from "./components/Payments";
-import ProfitUpload from "./components/ProfitUpload";
 import PushNotifications from "./components/PushNotifications";
-import EditPropertyWrapper from "./components/EditPropertyWrapper";
-import Billing from "./components/Billing";
-import BidRequests from "./components/BidRequests";
-import UserManagement from "./components/UserManagement";
 import { restoreSession, tokenNeedsRefresh } from "./services/session";
+
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const ClientDashboard = lazy(() => import("./components/ClientDashboard"));
+const ClientProfitStatement = lazy(() => import("./components/ClientProfitStatement"));
+const ScheduleConsultation = lazy(() => import("./components/ScheduleConsultation"));
+const ClientRegistration = lazy(() => import("./components/ClientRegistration"));
+const FormPage = lazy(() => import("./components/FormPage"));
+const PropertyFormSettings = lazy(() => import("./components/PropertyFormSettings"));
+const OrganizationFormSettings = lazy(() => import("./components/OrganizationFormSettings"));
+const Register = lazy(() => import("./components/Register"));
+const PropertySelector = lazy(() => import("./components/PropertySelector"));
+const AdminSubmissions = lazy(() => import("./components/AdminSubmissions"));
+const ForgotPassword = lazy(() => import("./components/ForgotPassword"));
+const ResetPassword = lazy(() => import("./components/ResetPassword"));
+const AzRootsScheduler = lazy(() => import("./components/AzRootsScheduler"));
+const DefaultScheduler = lazy(() => import("./components/Scheduler"));
+const ResidentialForm = lazy(() => import("./components/ResidentialForm"));
+const LongTermRental = lazy(() => import("./components/LongTermRental"));
+const ShortTermRental = lazy(() => import("./components/ShortTermRental"));
+const AccessInstructions = lazy(() => import("./components/AccessInstructions"));
+const AZRaccessinstructions = lazy(() => import("./components/AZRaccessinstructions"));
+const Payments = lazy(() => import("./components/Payments"));
+const ProfitUpload = lazy(() => import("./components/ProfitUpload"));
+const EditPropertyWrapper = lazy(() => import("./components/EditPropertyWrapper"));
+const Billing = lazy(() => import("./components/Billing"));
+const BidRequests = lazy(() => import("./components/BidRequests"));
+const UserManagement = lazy(() => import("./components/UserManagement"));
+
+function RouteLoading() {
+  return (
+    <div className="beta-page">
+      <main className="beta-page-shell">
+        <div className="beta-empty-state" role="status">Loading page…</div>
+      </main>
+    </div>
+  );
+}
+
 function SchedulerWrapper() {
   // We check localStorage or a context/hook, whichever you prefer
   const role = localStorage.getItem("role");
@@ -107,7 +119,8 @@ function App() {
   return (
     <>
     <PushNotifications enabled={user === true} />
-    <Routes>
+    <Suspense fallback={<RouteLoading />}>
+      <Routes>
       <Route path="/" element={!user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login setUser={setUser} />} />
@@ -164,7 +177,8 @@ function App() {
       <Route path="/azr-access-instructions/:propertyName" element={<AZRaccessinstructions />} />
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+      </Routes>
+    </Suspense>
     </>
   );
 }

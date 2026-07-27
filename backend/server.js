@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const { generateChecklistPDF } = require('./pdfservice');
 const fs = require('fs');
-const path = require('path');
 const nodemailer = require('nodemailer');
 const moment = require('moment-timezone');
 const bcrypt = require('bcryptjs');
@@ -42,7 +41,6 @@ const clientAuth = require("./Routes/ClientAuth");
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 const admin = require("firebase-admin");
-const bodyParser = require('body-parser');
 const cookieParser = require("cookie-parser");
 const { sendUserNotification } = require("./services/notifications");
 const { inspectionSubmitted } = require("./services/notificationEvents");
@@ -129,8 +127,8 @@ function requireTrustedSessionOrigin(req, res, next) {
 }
 
 // Increase size limits for JSON and URL-encoded data
-app.use(bodyParser.json({ limit: '50mb' }));  // 50mb limit for JSON payloads
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));  // 50mb limit for URL-encoded data
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 
 
@@ -142,7 +140,6 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-app.use(express.json());
 app.set("trust proxy", 1);
 // ✅ Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -153,11 +150,10 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
  * 🔹 JWT Auth Middleware
  */
 // ✅ Admin-only payments route
-app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
+app.use("/admin", authenticateToken, requireAdmin, adminRoutes);
 
 // ✅ Middleware & Route Usage
 app.use("/api/mileage", authenticateToken, mileageTrackingRoutes);
-app.use("/admin", authenticateToken, adminRoutes);
 
 //search query
 const propertyRoutes = require("./Routes/properties");
