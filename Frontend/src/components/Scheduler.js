@@ -77,8 +77,6 @@ function Scheduler() {
       return;
     }
   
-    console.log("📌 Editing assignment:", editingAssignment);
-  
     const url = editingAssignment
       ? `https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`
       : "https://cp-check-submissions-dev-backend.onrender.com/api/assignments";
@@ -102,9 +100,6 @@ function Scheduler() {
     };
   
     try {
-      console.log("📤 Sending request to:", url, "Method:", method);
-      console.log("📤 Data being sent:", formattedAssignment);
-  
       const response = await fetch(url, {
         method,
         headers: {
@@ -115,21 +110,16 @@ function Scheduler() {
       });
   
       const data = await response.json();
-      console.log("📩 Server response:", data);
-  
       if (data.success) {
-        console.log("✅ Assignment saved successfully!");
         alert("✅ Assignment saved successfully!");
   
         // ✅ Refresh assignments immediately
-        console.log("🔄 Refreshing assignments...");
         fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
           .then((updatedAssignments) => {
-            console.log("📅 Updated assignments:", updatedAssignments);
             setAssignments(updatedAssignments);
           })
           .catch((err) => console.error("❌ Error refreshing assignments:", err));
@@ -138,7 +128,6 @@ function Scheduler() {
         setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
   
         // ✅ Send push notification
-        console.log("📢 Sending push notification to user...");
         const notifResponse = await fetch(
           "https://cp-check-submissions-dev-backend.onrender.com/api/send-push-notification",
           {
@@ -154,9 +143,7 @@ function Scheduler() {
           }
         );
   
-        const notifData = await notifResponse.json();
-        console.log("📩 Push notification response:", notifData);
-  
+        await notifResponse.json();
       } else {
         console.error("❌ Server error:", data);
         alert("❌ " + (data.error || "Failed to save assignment."));
@@ -209,8 +196,6 @@ function Scheduler() {
 
   // Handle Double Click (Edit Event)
   const handleEventDoubleClick = (event) => {
-    console.log("Editing event:", event);
-    
     // Find matching property
     const matchedProperty = properties.find(prop => prop.name === event.title.split(" - ")[0]); 
     const propertyName = matchedProperty ? matchedProperty.name : event.title; // Fallback if not found

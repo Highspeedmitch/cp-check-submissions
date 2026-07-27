@@ -52,7 +52,6 @@ useEffect(() => {
       }
 
       const data = await response.json();
-      console.log("📜 Assigned Properties from API:", data);
 
       setProperties(data);
       if (data.length > 0) setSelectedProperty(data[0]);

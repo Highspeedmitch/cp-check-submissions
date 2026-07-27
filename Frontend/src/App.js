@@ -95,18 +95,12 @@ function App() {
     
     // Fetch role AFTER user is confirmed logged in
     const storedRole = localStorage.getItem("role");
-    console.log("🔹 Retrieved role from localStorage:", storedRole);
-
     if (storedRole) {
       setRole(storedRole);
     } else {
-      console.warn("⚠️ Role is missing in localStorage, defaulting to 'user'");
       setRole("user");
     }
   }, [user]);
-
-  console.log("🔹 Final User State:", user);
-  console.log("🔹 Final Role State:", role);
 
   if (user === null) return null;
 

@@ -45,7 +45,6 @@ function STReditProperty() {
   // Fetch property details if propertyName is defined
   useEffect(() => {
     if (!propertyName) {
-      console.warn("⚠️ propertyName is undefined, skipping fetch...");
       return;
     }
     const fetchPropertyDetails = async () => {

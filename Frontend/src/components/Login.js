@@ -23,7 +23,6 @@ function Login({ setUser }) {
             navigate("/dashboard");
           }
         } else {        
-          console.warn("🔹 Token expired. Logging out.");
           localStorage.removeItem("token");
           localStorage.removeItem("role");
         }
@@ -37,6 +36,7 @@ function Login({ setUser }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       const response = await fetch(
         "https://cp-check-submissions-dev-backend.onrender.com/api/login",
@@ -49,7 +49,6 @@ function Login({ setUser }) {
       );
   
       const text = await response.text();
-      console.log("🔹 Raw API response:", text); // Debugging
       try {
         const data = JSON.parse(text);
         if (response.ok) {
@@ -58,9 +57,6 @@ function Login({ setUser }) {
   
           if (data.organizationId) {
             localStorage.setItem("organizationId", data.organizationId);
-            console.log("✅ organizationId stored:", data.organizationId);
-          } else {
-            console.warn("❌ organizationId missing in response.");
           }
   
           // Decode token to store userId
@@ -68,8 +64,6 @@ function Login({ setUser }) {
             const decoded = JSON.parse(atob(data.token.split(".")[1]));
             if (decoded.userId) {
               localStorage.setItem("userId", decoded.userId);
-            } else {
-              console.warn("No userId found in token payload.");
             }
           } catch (decodeError) {
             console.error("Error decoding token for userId:", decodeError);
@@ -87,15 +81,15 @@ function Login({ setUser }) {
             navigate("/dashboard");
           }          
         } else {
-          alert(data.message);
+          setError(data.message || "Unable to sign in.");
         }
       } catch (jsonError) {
-        console.error("❌ Unexpected response:", text);
-        alert("Unexpected server response. Please try again.");
+        console.error("Unexpected non-JSON login response.");
+        setError("Unexpected server response. Please try again.");
       }
     } catch (error) {
       console.error("❌ Login error:", error);
-      alert("Server error. Please try again.");
+      setError("Server error. Please try again.");
     }
   };
   

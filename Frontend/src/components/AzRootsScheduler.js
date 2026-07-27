@@ -16,19 +16,11 @@ function AzRootsScheduler() {
   const navigate = useNavigate();
   const location = useLocation();
   const token = location.state?.token || localStorage.getItem("token");
-  const [airbnbBookings, setAirbnbBookings] = useState([]); // ✅ Airbnb bookings
-  
-  const [assignees, setAssignees] = useState([]);//tbd
-  const [selectedAssignee, setSelectedAssignee] = useState("");//tbd
   const [assignments, setAssignments] = useState([]);
   const [properties, setProperties] = useState([]);
   const [users, setUsers] = useState([]);
-  const [date, setDate] = useState("");//tbd
-  const [time, setTime] = useState("");//tbd
-  const [message, setMessage] = useState("");//tbd
   const [contractors, setContractors] = useState([]);
   const [cleaners, setCleaners] = useState([]);
-  const [selectedProperty, setSelectedProperty] = useState(null);
   const role = localStorage.getItem("role");
   const orgName = localStorage.getItem("orgName");
   const [newAssignment, setNewAssignment] = useState({
@@ -73,28 +65,6 @@ function AzRootsScheduler() {
       .catch((err) => console.error("Error fetching properties:", err));
   }, [token]);
 
-  // ✅ Fetch Airbnb Bookings When Property is Selected
-  useEffect(() => {
-    if (!selectedProperty) return;
-
-    const fetchAirbnbBookings = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/airbnb-calendar/${selectedProperty}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const data = await response.json();
-        setAirbnbBookings(data); // ✅ Store Airbnb Bookings
-      } catch (error) {
-        console.error("Error fetching Airbnb calendar:", error);
-      }
-    };
-
-    fetchAirbnbBookings();
-  }, [selectedProperty]);
-
   // Fetch users (exclude admins)
   useEffect(() => {
     if (!token) return;
@@ -127,8 +97,6 @@ function AzRootsScheduler() {
     return;
   }
 
-    console.log("📌 Editing assignment:", editingAssignment);
-  
     const url = editingAssignment
   ? `https://cp-check-submissions-dev-backend.onrender.com/api/azroots-assignments/${editingAssignment._id}`
   : "https://cp-check-submissions-dev-backend.onrender.com/api/azroots-assignments";
@@ -154,9 +122,6 @@ function AzRootsScheduler() {
     };
   
     try {
-      console.log("📤 Sending request to:", url, "Method:", method);
-      console.log("📤 Data being sent:", formattedAssignment);
-  
       const response = await fetch(url, {
         method,
         headers: {
@@ -167,21 +132,16 @@ function AzRootsScheduler() {
       });
   
       const data = await response.json();
-      console.log("📩 Server response:", data);
-  
       if (data.success) {
-        console.log("✅ Assignment saved successfully!");
         alert("✅ Assignment saved successfully!");
   
         // ✅ Refresh assignments immediately
-        console.log("🔄 Refreshing assignments...");
         fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
           .then((updatedAssignments) => {
-            console.log("📅 Updated assignments:", updatedAssignments);
             setAssignments(updatedAssignments);
           })
           .catch((err) => console.error("❌ Error refreshing assignments:", err));
@@ -190,7 +150,6 @@ function AzRootsScheduler() {
         setNewAssignment({ propertyName: "", userId: "", eventType: "", startDate: "", endDate: "" });
   
         // ✅ Send push notification
-        console.log("📢 Sending push notification to user...");
         const notifResponse = await fetch(
           "https://cp-check-submissions-dev-backend.onrender.com/api/send-push-notification",
           {
@@ -206,9 +165,7 @@ function AzRootsScheduler() {
           }
         );
   
-        const notifData = await notifResponse.json();
-        console.log("📩 Push notification response:", notifData);
-  
+        await notifResponse.json();
       } else {
         console.error("❌ Server error:", data);
         alert("❌ " + (data.error || "Failed to save assignment."));
@@ -261,8 +218,6 @@ function AzRootsScheduler() {
 
   // Handle Double Click (Edit Event)
   const handleEventDoubleClick = (event) => {
-    console.log("Editing event:", event);
-    
     // Find matching property
     const matchedProperty = properties.find(prop => prop.name === event.title.split(" - ")[0]); 
     const propertyName = matchedProperty ? matchedProperty.name : event.title; // Fallback if not found

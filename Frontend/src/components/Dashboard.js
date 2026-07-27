@@ -1,5 +1,5 @@
 // Dashboard.js
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
 import axios from "axios";
@@ -47,7 +47,6 @@ function Dashboard({ setUser }) {
   const userId = localStorage.getItem("userId");
 
   //search queries
-  const [region, setRegion] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarProperties, setSidebarProperties] = useState([]); // ✅ Separate from property cards
   const [regions, setRegions] = useState([]);         // Holds the list of available regions
@@ -66,8 +65,6 @@ function Dashboard({ setUser }) {
         `https://cp-check-submissions-dev-backend.onrender.com/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
         getAuthConfig()
       );
-  
-      console.log("🔍 Search response:", res.data); // ✅ Debugging log
   
       if (Array.isArray(res.data)) {
         setSidebarProperties(res.data); // ✅ Only set if it's an array
@@ -175,7 +172,6 @@ const handleRegionFilter = async () => {
   const propertyEmailSavingRef = useRef(false);
 
   // ------------ Scheduler Flow -----------
-  const [viewScheduler, setViewScheduler] = useState(false);
   const [assignments, setAssignments] = useState([]);
 
   // ------------- STR user modal -------------
@@ -244,18 +240,7 @@ const handleRegionFilter = async () => {
   // ======================
   // 2) Fetch properties & submissions
   // ======================
-  useEffect(() => {
-    if (!token || isTokenExpired(token)) {
-      localStorage.clear();
-      if (setUser) setUser(false);
-      navigate("/login");
-      return;
-    }
-  
-    fetchProperties(); // ✅ This ensures properties load into main-content
-  
-  }, [token]); // Depend on `token`  
-  function fetchProperties() {
+  const fetchProperties = useCallback(() => {
     setLoading(true);
     fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
       method: "GET",
@@ -266,7 +251,7 @@ const handleRegionFilter = async () => {
         if (data.error) {
           setError(data.error);
         } else {
-          setProperties(data); // ✅ Loads properties for property cards
+          setProperties(data);
         }
         setLoading(false);
       })
@@ -275,7 +260,18 @@ const handleRegionFilter = async () => {
         setError("Failed to load properties");
         setLoading(false);
       });
-  }  
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || isTokenExpired(token)) {
+      localStorage.clear();
+      if (setUser) setUser(false);
+      navigate("/login");
+      return;
+    }
+
+    fetchProperties();
+  }, [fetchProperties, navigate, setUser, token]);
 
    // 🔹 Fetch available regions on mount
 useEffect(() => {
@@ -298,14 +294,7 @@ useEffect(() => {
   fetchRegions();
 }, [isManagement]);
 
-  // Fetch user assignments for non-admin users
-  useEffect(() => {
-    if (!isManagement) {
-      fetchUserAssignments();
-    }
-  }, [isManagement, token]);
-
-  function fetchUserAssignments() {
+  const fetchUserAssignments = useCallback(() => {
     if (!token) return;
     const userId = localStorage.getItem("userId");
     if (!userId) {
@@ -328,7 +317,14 @@ useEffect(() => {
         setAssignments(userAssignments);
       })
       .catch((err) => console.error("Error fetching assignments:", err));
-  }
+  }, [token]);
+
+  // Fetch user assignments for non-admin users
+  useEffect(() => {
+    if (!isManagement) {
+      fetchUserAssignments();
+    }
+  }, [fetchUserAssignments, isManagement]);
 
   // Fetch submissions to mark completed properties (for user role)
   useEffect(() => {
@@ -561,21 +557,6 @@ useEffect(() => {
     };
   }, [emailModalProperty]);
 
-  // If viewScheduler flag is set, fetch assignments (for admin scheduler view)
-  useEffect(() => {
-    if (viewScheduler) {
-      fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          setAssignments(data);
-        })
-        .catch((err) => console.error("Error fetching assignments:", err));
-    }
-  }, [viewScheduler, token]);
-
   // ======================
   // 5) Geocode address (Mapbox)
   // ======================
@@ -746,11 +727,7 @@ useEffect(() => {
         }
       );
       const data = await res.json();
-      if (!data.success) {
-        console.warn("⚠️ Could not start mileage tracking:", data.error);
-      } else {
-        console.log("✅ Mileage tracking started:", data.mileageRecord);
-      }
+      if (!data.success) setError(data.error || "Could not start mileage tracking.");
     } catch (error) {
       console.error("Error starting mileage tracking:", error);
     }

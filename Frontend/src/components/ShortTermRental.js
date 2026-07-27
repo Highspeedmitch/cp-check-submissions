@@ -100,7 +100,6 @@ function ShortTermRental() {
             );
       
             if (userAssignment) {
-              console.log("📌 One-Time Check Request:", userAssignment.oneTimeCheckRequest);
               setFormData((prev) => ({
                 ...prev,
                 oneTimeCheckRequest: userAssignment.oneTimeCheckRequest || "",

@@ -40,8 +40,6 @@ function AZRaccessinstructions() {
         }
 
         const data = await response.json();
-        console.log("✅ Property data received:", data);
-
         if (!data.accessCategories || data.accessCategories.length === 0) {
           setAccessCategories(DEFAULT_ACCESS_CATEGORIES);
         } else {

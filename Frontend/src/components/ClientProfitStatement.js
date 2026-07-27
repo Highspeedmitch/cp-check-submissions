@@ -44,6 +44,7 @@ function ClientProfitStatement() {
   return (
     <div className="profit-statement-container">
       <h1 className="profit-header">💰 Profit Statement</h1>
+      {error && <p className="beta-alert error" role="alert">{error}</p>}
 
       {profitData ? (
         <div className="profit-card">
