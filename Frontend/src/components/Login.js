@@ -101,10 +101,10 @@ function Login({ setUser }) {
       <div className="login-banner">
         <img
           src="/apple-touch-icon.png"
-          alt="Inspectors Gadget Logo"
+          alt="Afterlight logo"
           className="login-logo"
         />
-        <h1 className="brand-title">Inspectors Gadget</h1>
+        <h1 className="brand-title">Afterlight</h1>
       </div>
 
       {/* Login Form */}

@@ -3,11 +3,11 @@ self.addEventListener("push", (event) => {
   try {
     payload = event.data?.json() || {};
   } catch (error) {
-    payload = { title: "Inspectors' Gadget", body: event.data?.text() || "" };
+    payload = { title: "Afterlight", body: event.data?.text() || "" };
   }
 
   event.waitUntil(self.registration.showNotification(
-    payload.title || "Inspectors' Gadget",
+    payload.title || "Afterlight",
     {
       body: payload.body || "",
       icon: "/logo192.png",

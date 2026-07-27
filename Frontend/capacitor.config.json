@@ -1,6 +1,6 @@
 {
   "appId": "us.iGadget.app",
-  "appName": "iGadget",
+  "appName": "Afterlight",
   "webDir": "build",
   "plugins": {
     "FirebaseMessaging": {

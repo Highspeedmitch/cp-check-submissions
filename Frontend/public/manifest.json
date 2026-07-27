@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "short_name": "iGadget",
-  "name": "Inspectors' Gadget",
+  "short_name": "Afterlight",
+  "name": "Afterlight Property Intelligence",
   "icons": [
     {
       "src": "favicon-32.png",

@@ -75,7 +75,7 @@ function Register() {
       <main className="beta-page-shell beta-register-shell">
         <PageHeader
           onBack={() => navigate("/login")}
-          eyebrow="Inspectors Gadget"
+          eyebrow="Afterlight"
           title="Create your account"
           subtitle="Join your organization and start managing property work in one place."
         />
