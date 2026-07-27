@@ -12,6 +12,7 @@ import {
   useNotificationBadges,
 } from "../services/notificationCenter";
 import { api } from "../services/api";
+import { MILEAGE_TRACKING_ENABLED } from "../featureFlags";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
   try {
@@ -1105,8 +1106,8 @@ useEffect(() => {
               </div>
             )}
 
-            {/* Mileage toggle (non-admin) */}
-            {role !== "admin" && (
+            {/* Mileage toggle (temporarily disabled by feature flag) */}
+            {MILEAGE_TRACKING_ENABLED && role !== "admin" && (
               <div className="mileage-tracking-toggle">
                 <label className="switch">
                   <input

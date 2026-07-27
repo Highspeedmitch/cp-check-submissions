@@ -1,4 +1,5 @@
 import React from "react";
+import { MILEAGE_TRACKING_ENABLED } from "../../featureFlags";
 
 function NavButton({ active, children, onClick, badge = 0 }) {
   return (
@@ -121,7 +122,7 @@ export default function DashboardNavigation({
         )}
 
         <div className="beta-sidebar-footer">
-          {role !== "admin" && (
+          {MILEAGE_TRACKING_ENABLED && role !== "admin" && (
             <label className="beta-setting-row">
               <span>Mileage tracking</span>
               <input type="checkbox" checked={mileageTracking} onChange={onMileageToggle} />
