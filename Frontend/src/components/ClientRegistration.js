@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiUrl } from "../services/api";
 
 function ClientRegistration() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ function ClientRegistration() {
 
     // Send this data to a new route, e.g. POST /api/register-client
     try {
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/register-client", {
+      const response = await fetch(apiUrl("/api/register-client"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

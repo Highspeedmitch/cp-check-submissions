@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiUrl } from "../services/api";
 
 function Payments() {
   const [users, setUsers] = useState([]);
@@ -52,7 +53,7 @@ const [showSubmissionWarningModal, setShowSubmissionWarningModal] = useState(fal
 
   // ===== Fetch Users (Including YTD $) =====
   useEffect(() => {
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/users", {
+    fetch(apiUrl("/admin/users"), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -85,7 +86,7 @@ const [showSubmissionWarningModal, setShowSubmissionWarningModal] = useState(fal
     setTotalPayment(null);
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/admin/payment-summary/${userId}`,
+        apiUrl(`/admin/payment-summary/${userId}`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await response.json();
@@ -133,7 +134,7 @@ function logPayment() {
   function proceedWithPayment(allowSubmissionMismatch = false) {
     setProcessing(true);
     setError("");
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/admin/process-payment", {
+    fetch(apiUrl("/admin/process-payment"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

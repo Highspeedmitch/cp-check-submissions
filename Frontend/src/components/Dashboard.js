@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
-import axios from "axios";
 import { format } from "date-fns";
 import { logoutSession } from "../services/session";
 import DashboardNavigation from "./ui/DashboardNavigation";
@@ -11,7 +10,7 @@ import {
   useMarkNotificationsRead,
   useNotificationBadges,
 } from "../services/notificationCenter";
-import { api } from "../services/api";
+import { api, apiUrl } from "../services/api";
 import { MILEAGE_TRACKING_ENABLED } from "../featureFlags";
 // Utility: Check if JWT token is expired
 function isTokenExpired(token) {
@@ -53,19 +52,15 @@ function Dashboard({ setUser }) {
   const [regions, setRegions] = useState([]);         // Holds the list of available regions
   const [selectedRegion, setSelectedRegion] = useState(""); // Holds the currently selected region from the dropdown
 
-  const getAuthConfig = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-  });
   // Fetch properties by search query (only for sidebar)
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
   
     try {
       setSidebarProperties([]); // ✅ Clear previous results before fetching
-      const res = await axios.get(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/properties/search?q=${encodeURIComponent(searchQuery)}`,
-        getAuthConfig()
-      );
+      const res = {
+        data: await api.get(`/api/properties/search?q=${encodeURIComponent(searchQuery)}`),
+      };
   
       if (Array.isArray(res.data)) {
         setSidebarProperties(res.data); // ✅ Only set if it's an array
@@ -93,10 +88,9 @@ const handleRegionFilter = async () => {
   
   try {
     // Update the main property-cards state rather than sidebar results
-    const res = await axios.get(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/properties/region/${encodeURIComponent(selectedRegion)}`,
-      getAuthConfig()
-    );
+    const res = {
+      data: await api.get(`/api/properties/region/${encodeURIComponent(selectedRegion)}`),
+    };
     setProperties(res.data);
     setPageIndex(0);
     setError(null);
@@ -195,7 +189,7 @@ const handleRegionFilter = async () => {
 
       try {
         const response = await fetch(
-          "https://cp-check-submissions-dev-backend.onrender.com/api/profits/latest-statuses",
+          apiUrl("/api/profits/latest-statuses"),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -243,7 +237,7 @@ const handleRegionFilter = async () => {
   // ======================
   const fetchProperties = useCallback(() => {
     setLoading(true);
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
+    fetch(apiUrl("/api/properties"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -280,10 +274,7 @@ useEffect(() => {
     // Only admins should fetch regions
     if (isManagement) {
       try {
-        const res = await axios.get(
-          "https://cp-check-submissions-dev-backend.onrender.com/api/properties/regions",
-          getAuthConfig()
-        );
+        const res = { data: await api.get("/api/properties/regions") };
         setRegions(res.data); // store the unique regions
       } catch (err) {
         console.error("Error fetching regions:", err);
@@ -302,7 +293,7 @@ useEffect(() => {
       console.error("⚠️ No userId found in localStorage!");
       return;
     }
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+    fetch(apiUrl("/api/assignments"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -331,7 +322,7 @@ useEffect(() => {
   useEffect(() => {
     if (role === "user" && token && !isTokenExpired(token)) {
       fetch(
-        "https://cp-check-submissions-dev-backend.onrender.com/api/recent-submissions",
+        apiUrl("/api/recent-submissions"),
         {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
@@ -364,7 +355,7 @@ useEffect(() => {
     try {
       // Verify removal passkey
       const verifyResponse = await fetch(
-        "https://cp-check-submissions-dev-backend.onrender.com/api/verify-remove-passkey",
+        apiUrl("/api/verify-remove-passkey"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -379,7 +370,7 @@ useEffect(() => {
 
       // Passkey is valid, proceed with deletion
       const deleteResponse = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/property/${encodeURIComponent(propertyToRemove)}`,
+        apiUrl(`/api/admin/property/${encodeURIComponent(propertyToRemove)}`),
         {
           method: "DELETE",
           headers: {
@@ -714,7 +705,7 @@ useEffect(() => {
     // we just want to ensure a doc exists in DB
     try {
       const res = await fetch(
-        "https://cp-check-submissions-dev-backend.onrender.com/api/mileage/start",
+        apiUrl("/api/mileage/start"),
         {
           method: "POST",
           headers: {
@@ -769,7 +760,7 @@ useEffect(() => {
                   prev !== null ? prev + distance : distance
                 );
                 fetch(
-                  "https://cp-check-submissions-dev-backend.onrender.com/api/mileage/update",
+                  apiUrl("/api/mileage/update"),
                   {
                     method: "POST",
                     headers: {

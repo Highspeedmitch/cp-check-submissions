@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import { api, apiUrl } from "../services/api";
 
 function STReditProperty() {
   const { propertyName } = useParams();
@@ -30,11 +30,8 @@ function STReditProperty() {
   useEffect(() => {
     const fetchRegions = async () => {
       try {
-        const res = await axios.get(
-          "https://cp-check-submissions-dev-backend.onrender.com/api/properties/regions",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setExistingRegions(res.data);
+        const data = await api.get("/api/properties/regions");
+        setExistingRegions(data);
       } catch (err) {
         console.error("Error fetching regions:", err);
       }
@@ -50,7 +47,7 @@ function STReditProperty() {
     const fetchPropertyDetails = async () => {
       try {
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/properties/${encodeURIComponent(propertyName)}`,
+          apiUrl(`/api/properties/${encodeURIComponent(propertyName)}`),
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -97,7 +94,7 @@ function STReditProperty() {
 
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/admin/edit-property/${encodeURIComponent(propertyName)}`,
+        apiUrl(`/api/admin/edit-property/${encodeURIComponent(propertyName)}`),
         {
           method: "PUT",
           headers: {

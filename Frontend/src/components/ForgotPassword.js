@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { apiUrl } from "../services/api";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -9,7 +10,7 @@ function ForgotPassword() {
     setMessage(""); // Clear previous message
 
     try {
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/forgot-password", {
+      const response = await fetch(apiUrl("/api/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

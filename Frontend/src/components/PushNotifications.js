@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 import { useNavigate } from "react-router-dom";
+import { apiUrl } from "../services/api";
 
-const API = "https://cp-check-submissions-dev-backend.onrender.com/api/notifications";
+const API = apiUrl("/api/notifications");
 
 function getDeviceId() {
   let deviceId = localStorage.getItem("notificationDeviceId");

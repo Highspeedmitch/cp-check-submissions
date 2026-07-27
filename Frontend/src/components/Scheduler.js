@@ -5,6 +5,7 @@ import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css"; 
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css"; 
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
+import { apiUrl } from "../services/api";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
 import PageHeader from "./ui/PageHeader";
@@ -33,7 +34,7 @@ function Scheduler() {
   // Fetch assignments
   useEffect(() => {
     if (!token) return;
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+    fetch(apiUrl("/api/assignments"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -45,7 +46,7 @@ function Scheduler() {
   // Fetch properties
   useEffect(() => {
     if (!token) return;
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
+    fetch(apiUrl("/api/properties"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -57,7 +58,7 @@ function Scheduler() {
   // Fetch users (exclude admins)
   useEffect(() => {
     if (!token) return;
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/users", {
+    fetch(apiUrl("/api/users"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -78,8 +79,8 @@ function Scheduler() {
     }
   
     const url = editingAssignment
-      ? `https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`
-      : "https://cp-check-submissions-dev-backend.onrender.com/api/assignments";
+      ? apiUrl(`/api/assignments/${editingAssignment._id}`)
+      : apiUrl("/api/assignments");
   
     const method = editingAssignment ? "PUT" : "POST";
   
@@ -114,7 +115,7 @@ function Scheduler() {
         alert("✅ Assignment saved successfully!");
   
         // ✅ Refresh assignments immediately
-        fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+        fetch(apiUrl("/api/assignments"), {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -129,7 +130,7 @@ function Scheduler() {
   
         // ✅ Send push notification
         const notifResponse = await fetch(
-          "https://cp-check-submissions-dev-backend.onrender.com/api/send-push-notification",
+          apiUrl("/api/send-push-notification"),
           {
             method: "POST",
             headers: {
@@ -156,7 +157,7 @@ function Scheduler() {
   
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${event._id}`, {
+    fetch(apiUrl(`/api/assignments/${event._id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ startDate: start, endDate: end }),
@@ -176,7 +177,7 @@ function Scheduler() {
 
     if (!window.confirm("Are you sure you want to delete this assignment?")) return;
 
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`, {
+    fetch(apiUrl(`/api/assignments/${editingAssignment._id}`), {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     })

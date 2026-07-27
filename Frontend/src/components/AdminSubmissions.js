@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from "./ui/PageHeader";
 import { useMarkNotificationsRead } from "../services/notificationCenter";
+import { apiUrl } from "../services/api";
 
 function AdminSubmissions() {
   const { property } = useParams();
@@ -27,7 +28,7 @@ function AdminSubmissions() {
     setLoading(true);
     setError("");
 
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/admin/submissions/${encodeURIComponent(property)}?months=${months}`, {
+    fetch(apiUrl(`/api/admin/submissions/${encodeURIComponent(property)}?months=${months}`), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,

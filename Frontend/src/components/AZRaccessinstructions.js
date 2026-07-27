@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { apiUrl } from "../services/api";
 
 const DEFAULT_ACCESS_CATEGORIES = [
   { name: "Garage Door", checked: false, quantity: 0, details: [], photoUrls: [] },
@@ -28,7 +29,7 @@ function AZRaccessinstructions() {
       try {
         const encodedName = encodeURIComponent(propertyName);
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/azroots/properties/${encodedName}`,
+          apiUrl(`/api/azroots/properties/${encodedName}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -181,7 +182,7 @@ function AZRaccessinstructions() {
 
       const encodedName = encodeURIComponent(propertyName);
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/azroots/properties/${encodedName}`,
+        apiUrl(`/api/azroots/properties/${encodedName}`),
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },

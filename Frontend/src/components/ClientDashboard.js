@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { logoutSession } from "../services/session";
+import { apiUrl } from "../services/api";
 
 function ClientDashboard({ setUser }) {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ useEffect(() => {
   const fetchClientProperties = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/client/client-properties", {
+      const response = await fetch(apiUrl("/api/client/client-properties"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -67,7 +68,7 @@ useEffect(() => {
   const fetchOrgAdmins = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/org-admins", {
+      const response = await fetch(apiUrl("/api/org-admins"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 

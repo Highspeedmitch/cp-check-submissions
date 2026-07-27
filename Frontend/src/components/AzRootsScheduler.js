@@ -5,6 +5,7 @@ import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css"; 
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css"; 
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
+import { apiUrl } from "../services/api";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
 import PageHeader from "./ui/PageHeader";
@@ -44,7 +45,7 @@ function AzRootsScheduler() {
   // Fetch assignments
   useEffect(() => {
     if (!token) return;
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+    fetch(apiUrl("/api/assignments"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -56,7 +57,7 @@ function AzRootsScheduler() {
   // Fetch properties
   useEffect(() => {
     if (!token) return;
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/properties", {
+    fetch(apiUrl("/api/properties"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -69,7 +70,7 @@ function AzRootsScheduler() {
   useEffect(() => {
     if (!token) return;
   
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/users?roles=all", {
+    fetch(apiUrl("/api/users?roles=all"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -98,8 +99,8 @@ function AzRootsScheduler() {
   }
 
     const url = editingAssignment
-  ? `https://cp-check-submissions-dev-backend.onrender.com/api/azroots-assignments/${editingAssignment._id}`
-  : "https://cp-check-submissions-dev-backend.onrender.com/api/azroots-assignments";
+  ? apiUrl(`/api/azroots-assignments/${editingAssignment._id}`)
+  : apiUrl("/api/azroots-assignments");
 
   
     const method = editingAssignment ? "PUT" : "POST";
@@ -136,7 +137,7 @@ function AzRootsScheduler() {
         alert("✅ Assignment saved successfully!");
   
         // ✅ Refresh assignments immediately
-        fetch("https://cp-check-submissions-dev-backend.onrender.com/api/assignments", {
+        fetch(apiUrl("/api/assignments"), {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -151,7 +152,7 @@ function AzRootsScheduler() {
   
         // ✅ Send push notification
         const notifResponse = await fetch(
-          "https://cp-check-submissions-dev-backend.onrender.com/api/send-push-notification",
+          apiUrl("/api/send-push-notification"),
           {
             method: "POST",
             headers: {
@@ -178,7 +179,7 @@ function AzRootsScheduler() {
   
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${event._id}`, {
+    fetch(apiUrl(`/api/assignments/${event._id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ startDate: start, endDate: end }),
@@ -198,7 +199,7 @@ function AzRootsScheduler() {
 
     if (!window.confirm("Are you sure you want to delete this assignment?")) return;
 
-    fetch(`https://cp-check-submissions-dev-backend.onrender.com/api/assignments/${editingAssignment._id}`, {
+    fetch(apiUrl(`/api/assignments/${editingAssignment._id}`), {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     })

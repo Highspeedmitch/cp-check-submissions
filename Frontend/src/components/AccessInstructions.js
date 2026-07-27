@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { apiUrl } from "../services/api";
 
 function AccessInstructions() {
   const { propertyName } = useParams();
@@ -27,7 +28,7 @@ function AccessInstructions() {
   // ─────────────────────────────────────────────────────────────
   useEffect(() => {
     fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(propertyName)}`,
+      apiUrl(`/api/access-instructions/${encodeURIComponent(propertyName)}`),
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -62,7 +63,7 @@ function AccessInstructions() {
   // ─────────────────────────────────────────────────────────────
   const handleSaveClick = () => {
     fetch(
-      `https://cp-check-submissions-dev-backend.onrender.com/api/access-instructions/${encodeURIComponent(propertyName)}`,
+      apiUrl(`/api/access-instructions/${encodeURIComponent(propertyName)}`),
       {
         method: "PUT",
         headers: {
@@ -100,7 +101,7 @@ function AccessInstructions() {
   const handleAssignClient = () => {
     setAssignmentMessage(""); // reset any prior message
 
-    fetch("https://cp-check-submissions-dev-backend.onrender.com/api/client/assign-client", {
+    fetch(apiUrl("/api/client/assign-client"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

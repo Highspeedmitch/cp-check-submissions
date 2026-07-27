@@ -6,7 +6,6 @@ jest.mock("./components/Dashboard", () => () => <div>Dashboard</div>);
 jest.mock("./components/AzRootsScheduler", () => () => <div>AzRoots Scheduler</div>);
 jest.mock("./components/Scheduler", () => () => <div>Scheduler</div>);
 jest.mock("./components/ResidentialForm", () => () => <div>Residential Form</div>);
-jest.mock("axios", () => ({}));
 
 function renderApp(initialPath = "/") {
   return render(

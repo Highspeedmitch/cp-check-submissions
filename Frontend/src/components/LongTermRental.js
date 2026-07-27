@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { apiUrl } from "../services/api";
 
 function LongTermRental() {
   const { property } = useParams();
@@ -89,7 +90,7 @@ function LongTermRental() {
         }
       });
 
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/submit-form", {
+      const response = await fetch(apiUrl("/api/submit-form"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formDataToSend,

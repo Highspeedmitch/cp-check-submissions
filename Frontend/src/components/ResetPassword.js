@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiUrl } from "../services/api";
 
 function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -26,7 +27,7 @@ function ResetPassword() {
     }
 
     try {
-      const response = await fetch("https://cp-check-submissions-dev-backend.onrender.com/api/reset-password", {
+      const response = await fetch(apiUrl("/api/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword: password }),

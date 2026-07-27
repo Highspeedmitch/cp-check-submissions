@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { apiUrl } from "../services/api";
 
 function ProfitUpload() {
   const { propertyName } = useParams();
@@ -17,7 +18,7 @@ function ProfitUpload() {
     async function fetchProfitHistory() {
       try {
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyName}/history`,
+          apiUrl(`/api/profits/${propertyName}/history`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -48,7 +49,7 @@ function ProfitUpload() {
 
     try {
       const response = await fetch(
-        `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyName}/upload`,
+        apiUrl(`/api/profits/${propertyName}/upload`),
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },

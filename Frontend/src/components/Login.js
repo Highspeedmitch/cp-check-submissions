@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { storeAuthentication } from "../services/session";
+import { apiUrl } from "../services/api";
 
 function Login({ setUser }) {
   const [email, setEmail] = useState("");
@@ -39,7 +40,7 @@ function Login({ setUser }) {
     setError("");
     try {
       const response = await fetch(
-        "https://cp-check-submissions-dev-backend.onrender.com/api/login",
+        apiUrl("/api/login"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

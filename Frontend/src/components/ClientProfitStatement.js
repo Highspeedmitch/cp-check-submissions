@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { apiUrl } from "../services/api";
 
 function ClientProfitStatement() {
   const { propertyId } = useParams();
@@ -15,7 +16,7 @@ function ClientProfitStatement() {
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(
-          `https://cp-check-submissions-dev-backend.onrender.com/api/profits/${propertyId}`,
+          apiUrl(`/api/profits/${propertyId}`),
           {
             headers: { Authorization: `Bearer ${token}` },
           }

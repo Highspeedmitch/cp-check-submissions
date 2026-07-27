@@ -1,4 +1,4 @@
-import { api, ApiError } from "./api";
+import { api, apiUrl, ApiError, API_ORIGIN } from "./api";
 
 describe("api client", () => {
   beforeEach(() => {
@@ -20,6 +20,11 @@ describe("api client", () => {
     expect(options.headers.get("Authorization")).toBe("Bearer test-token");
     expect(options.headers.get("Content-Type")).toBe("application/json");
     expect(options.body).toBe(JSON.stringify({ name: "Property" }));
+  });
+
+  test("builds backend URLs from the configured API origin", () => {
+    expect(apiUrl("/api/properties")).toBe(`${API_ORIGIN}/api/properties`);
+    expect(apiUrl("api/properties")).toBe(`${API_ORIGIN}/api/properties`);
   });
 
   test("surfaces the backend error message", async () => {

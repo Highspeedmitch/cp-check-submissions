@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from "./ui/PageHeader";
+import { apiUrl } from "../services/api";
 
 function Register() {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ function Register() {
 
     try {
       setSubmitting(true);
-      const response = await fetch('https://cp-check-submissions-dev-backend.onrender.com/api/register', {
+      const response = await fetch(apiUrl("/api/register"), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

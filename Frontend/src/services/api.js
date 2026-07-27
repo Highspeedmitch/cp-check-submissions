@@ -17,6 +17,10 @@ function buildUrl(path) {
   return `${API_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+export function apiUrl(path) {
+  return buildUrl(path);
+}
+
 export async function apiRequest(path, options = {}) {
   const {
     body,
