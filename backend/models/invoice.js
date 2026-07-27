@@ -64,8 +64,11 @@ const InvoiceSchema = new mongoose.Schema({
     changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     changedAt: { type: Date, default: Date.now },
   }],
+  archivedAt: { type: Date, default: null, index: true },
+  archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
 }, { timestamps: true });
 
 InvoiceSchema.index({ organizationId: 1, submitterId: 1, status: 1, createdAt: -1 });
+InvoiceSchema.index({ organizationId: 1, archivedAt: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Invoice", InvoiceSchema);

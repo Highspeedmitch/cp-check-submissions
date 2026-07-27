@@ -20,6 +20,10 @@ export default function Billing() {
   const isOversight = role === "admin" || role === "property_manager";
   const [invoices, setInvoices] = useState([]);
   const [status, setStatus] = useState("");
+  const [view, setView] = useState("active");
+  const [submitterFilter, setSubmitterFilter] = useState("");
+  const [propertyFilter, setPropertyFilter] = useState("");
+  const [filterOptions, setFilterOptions] = useState({ users: [], properties: [] });
   const [amounts, setAmounts] = useState({});
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -29,11 +33,19 @@ export default function Billing() {
   useMarkNotificationsRead(NOTIFICATION_SECTIONS.billing);
 
   const setBusy = (key, value) => setBusyActions((current) => ({ ...current, [key]: value }));
+  const selectView = (nextView) => {
+    setView(nextView);
+    setStatus("");
+  };
 
   const loadInvoices = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      const data = await api.get(`/api/billing${status ? `?status=${status}` : ""}`);
+      const params = new URLSearchParams({ archive: view });
+      if (status) params.set("status", status);
+      if (isOversight && submitterFilter) params.set("submitterId", submitterFilter);
+      if (isOversight && propertyFilter) params.set("propertyId", propertyFilter);
+      const data = await api.get(`/api/billing?${params.toString()}`);
       setInvoices(data);
       setError("");
     } catch (err) {
@@ -41,10 +53,15 @@ export default function Billing() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [status]);
+  }, [isOversight, propertyFilter, status, submitterFilter, view]);
 
   useEffect(() => {
     loadInvoices(true);
+    const timer = setInterval(loadInvoices, 30000);
+    return () => clearInterval(timer);
+  }, [loadInvoices]);
+
+  useEffect(() => {
     if (role === "admin") {
       api.get("/api/billing/properties")
         .then((data) => Array.isArray(data) && setProperties(data.map((property) => ({
@@ -55,9 +72,15 @@ export default function Billing() {
         }))))
         .catch((err) => setError(err.message));
     }
-    const timer = setInterval(loadInvoices, 30000);
-    return () => clearInterval(timer);
-  }, [loadInvoices, role]);
+    if (isOversight) {
+      api.get("/api/billing/filter-options")
+        .then((data) => setFilterOptions({
+          users: Array.isArray(data?.users) ? data.users : [],
+          properties: Array.isArray(data?.properties) ? data.properties : [],
+        }))
+        .catch((err) => setError(err.message));
+    }
+  }, [isOversight, role]);
 
   function updateProperty(id, field, value) {
     setProperties(properties.map((property) =>
@@ -99,7 +122,14 @@ export default function Billing() {
         options.body
       );
       setError("");
-      setMessage(path === "submit" ? "Invoice submitted successfully." : path === "mark-paid" ? "Invoice marked paid." : path === "amount" ? "Invoice amount saved." : "");
+      setMessage(
+        path === "submit" ? "Invoice submitted successfully."
+          : path === "mark-paid" ? "Invoice marked paid."
+          : path === "amount" ? "Invoice amount saved."
+          : path === "archive" ? "Invoice archived."
+          : path === "restore" ? "Invoice restored."
+          : ""
+      );
       await loadInvoices();
       return data;
     } catch (err) {
@@ -151,6 +181,18 @@ export default function Billing() {
         {isOversight && invoice.status === "submitted" && (
           <button className="beta-button compact" disabled={isBusy("mark-paid")} onClick={() => action(invoice._id, "mark-paid")}>
             {isBusy("mark-paid") ? "Updating…" : "Mark Paid"}
+          </button>
+        )}
+        {view === "active" && invoice.status === "paid" && (
+          <button className="beta-button secondary compact" disabled={isBusy("archive")}
+            onClick={() => action(invoice._id, "archive", { method: "PUT" })}>
+            {isBusy("archive") ? "Archivingâ€¦" : "Archive Invoice"}
+          </button>
+        )}
+        {view === "archived" && (
+          <button className="beta-button secondary compact" disabled={isBusy("restore")}
+            onClick={() => action(invoice._id, "restore", { method: "PUT" })}>
+            {isBusy("restore") ? "Restoringâ€¦" : "Restore Invoice"}
           </button>
         )}
       </div>
@@ -215,14 +257,46 @@ export default function Billing() {
             <h2>Invoices</h2>
             <p>{invoices.length} {invoices.length === 1 ? "invoice" : "invoices"} in this view</p>
           </div>
-          <label className="beta-form-field">Status
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">All invoices</option>
-              <option value="unbilled">Unbilled</option>
-              <option value="submitted">Awaiting payment</option>
-              <option value="paid">Paid</option>
-            </select>
-          </label>
+        </div>
+        <div className="beta-tabs" aria-label="Invoice view">
+          <button className={view === "active" ? "active" : ""} onClick={() => selectView("active")}>
+            All
+          </button>
+          <button className={view === "archived" ? "active" : ""} onClick={() => selectView("archived")}>
+            Archived
+          </button>
+        </div>
+        <div className="beta-toolbar beta-filter-toolbar">
+          {view === "active" && (
+            <label className="beta-form-field">Status
+              <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="">All statuses</option>
+                <option value="unbilled">Unbilled</option>
+                <option value="submitted">Awaiting payment</option>
+                <option value="paid">Paid</option>
+              </select>
+            </label>
+          )}
+          {isOversight && (
+            <>
+              <label className="beta-form-field">Submitted by
+                <select value={submitterFilter} onChange={(e) => setSubmitterFilter(e.target.value)}>
+                  <option value="">All users</option>
+                  {filterOptions.users.map((user) => (
+                    <option key={user._id} value={user._id}>{user.username || user.email}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="beta-form-field">Property
+                <select value={propertyFilter} onChange={(e) => setPropertyFilter(e.target.value)}>
+                  <option value="">All properties</option>
+                  {filterOptions.properties.map((property) => (
+                    <option key={property._id} value={property._id}>{property.name}</option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
         </div>
 
         {error && <p className="beta-alert error">{error}</p>}
@@ -278,6 +352,7 @@ export default function Billing() {
                 <div><dt>Inspection date</dt><dd>{new Date(invoice.inspectionDate).toLocaleDateString()}</dd></div>
                 <div><dt>AP method</dt><dd>{invoice.propertySnapshot.apMethod || "download"}</dd></div>
                 {isOversight && <div><dt>Submitter</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
+                {invoice.archivedAt && <div><dt>Archived</dt><dd>{new Date(invoice.archivedAt).toLocaleDateString()}</dd></div>}
               </dl>
               {!isOversight && invoice.status === "unbilled" && (
                 <label className="beta-form-field">Invoice amount

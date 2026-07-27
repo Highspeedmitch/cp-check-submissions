@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
 const Invoice = require("../models/invoice");
@@ -114,24 +115,70 @@ function invoiceScope(req, id) {
   return scope;
 }
 
+async function visibleInvoiceScope(req) {
+  const scope = { organizationId: req.user.organizationId };
+  if (req.user.role === "property_manager") {
+    const organization = await Organization.findById(req.user.organizationId)
+      .select("properties._id properties.propertyManagers")
+      .lean();
+    scope.propertyId = {
+      $in: (organization?.properties || [])
+        .filter((property) => property.propertyManagers?.some(
+          (id) => id.toString() === req.user.userId.toString()
+        ))
+        .map((property) => property._id),
+    };
+  } else if (req.user.role !== "admin") {
+    scope.submitterId = req.user.userId;
+  }
+  return scope;
+}
+
+function validId(value) {
+  return !value || mongoose.Types.ObjectId.isValid(value);
+}
+
+router.get("/filter-options", async (req, res) => {
+  try {
+    if (!["admin", "property_manager"].includes(req.user.role)) {
+      return res.status(403).json({ error: "Invoice filters are available to administrators and property managers." });
+    }
+    const scope = await visibleInvoiceScope(req);
+    const [submitterIds, propertyIds, organization] = await Promise.all([
+      Invoice.distinct("submitterId", scope),
+      Invoice.distinct("propertyId", scope),
+      Organization.findById(req.user.organizationId).select("properties._id properties.name").lean(),
+    ]);
+    const users = await User.find({
+      _id: { $in: submitterIds },
+      organizationId: req.user.organizationId,
+    }).select("username email").sort({ username: 1 }).lean();
+    const visiblePropertyIds = new Set(propertyIds.map((id) => id.toString()));
+    const properties = (organization?.properties || [])
+      .filter((property) => visiblePropertyIds.has(property._id.toString()))
+      .map((property) => ({ _id: property._id, name: property.name }))
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    res.json({ users, properties });
+  } catch (error) {
+    res.status(500).json({ error: "Unable to load invoice filter options." });
+  }
+});
+
 router.get("/", async (req, res) => {
   try {
-    const query = { organizationId: req.user.organizationId };
-    if (req.user.role === "property_manager") {
-      const organization = await Organization.findById(req.user.organizationId).lean();
-      query.propertyId = {
-        $in: organization.properties
-          .filter((property) => property.propertyManagers?.some(
-            (id) => id.toString() === req.user.userId.toString()
-          ))
-          .map((property) => property._id),
-      };
-    } else if (req.user.role !== "admin") {
-      query.submitterId = req.user.userId;
+    if (!validId(req.query.submitterId) || !validId(req.query.propertyId)) {
+      return res.status(400).json({ error: "Invalid invoice filter." });
     }
+    const query = await visibleInvoiceScope(req);
+    query.archivedAt = req.query.archive === "archived" ? { $ne: null } : null;
     if (req.query.status) query.status = req.query.status;
+    if (["admin", "property_manager"].includes(req.user.role)) {
+      if (req.query.submitterId) query.submitterId = req.query.submitterId;
+      if (req.query.propertyId) query.propertyId = req.query.propertyId;
+    }
     const invoices = await Invoice.find(query)
       .populate("submitterId", "username email")
+      .populate("archivedBy", "username email")
       .sort({ createdAt: -1 })
       .lean();
     const result = invoices.map((invoice) => ({
@@ -147,6 +194,66 @@ router.get("/", async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: "Unable to load invoices." });
+  }
+});
+
+router.put("/:id/archive", async (req, res) => {
+  try {
+    if (!validId(req.params.id)) {
+      return res.status(400).json({ error: "Invalid invoice." });
+    }
+    const scope = await visibleInvoiceScope(req);
+    const invoice = await Invoice.findOneAndUpdate(
+      {
+        ...scope,
+        _id: req.params.id,
+        status: "paid",
+        archivedAt: null,
+      },
+      {
+        $set: {
+          archivedAt: new Date(),
+          archivedBy: req.user.userId,
+        },
+      },
+      { new: true }
+    );
+    if (!invoice) {
+      return res.status(400).json({ error: "Only a visible, paid invoice can be archived." });
+    }
+    res.json(invoice);
+  } catch (error) {
+    res.status(500).json({ error: "Unable to archive invoice." });
+  }
+});
+
+router.put("/:id/restore", async (req, res) => {
+  try {
+    if (!validId(req.params.id)) {
+      return res.status(400).json({ error: "Invalid invoice." });
+    }
+    const scope = await visibleInvoiceScope(req);
+    const invoice = await Invoice.findOneAndUpdate(
+      {
+        ...scope,
+        _id: req.params.id,
+        status: "paid",
+        archivedAt: { $ne: null },
+      },
+      {
+        $set: {
+          archivedAt: null,
+          archivedBy: null,
+        },
+      },
+      { new: true }
+    );
+    if (!invoice) {
+      return res.status(404).json({ error: "Archived invoice not found." });
+    }
+    res.json(invoice);
+  } catch (error) {
+    res.status(500).json({ error: "Unable to restore invoice." });
   }
 });
 
