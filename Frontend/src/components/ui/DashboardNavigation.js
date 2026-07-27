@@ -64,6 +64,9 @@ export default function DashboardNavigation({
         <nav>
           <p className="beta-nav-label">Workspace</p>
           <NavButton active badge={notificationBadges.dashboard} onClick={() => go("/dashboard")}>Dashboard</NavButton>
+          {isManagement && (
+            <NavButton onClick={() => go("/reporting")}>Reporting</NavButton>
+          )}
           {orgType === "COM" && role !== "client" && (
             <NavButton badge={notificationBadges.billing} onClick={() => go("/billing")}>Billing</NavButton>
           )}

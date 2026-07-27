@@ -115,6 +115,10 @@ const OrganizationSchema = new mongoose.Schema({
     ref: "InspectionTemplate",
     default: null,
   },
+  reportingTimezone: {
+    type: String,
+    default: "America/Phoenix",
+  },
 });
 
 module.exports = mongoose.model('Organization', OrganizationSchema);

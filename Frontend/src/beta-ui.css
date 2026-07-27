@@ -357,6 +357,93 @@
 .beta-template-custom-fields { display: grid; gap: 12px; margin-top: 20px; }
 .beta-template-checkbox { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 
+/* Reporting */
+.beta-reporting-page { max-width: 1280px; }
+.beta-report-filters {
+  justify-content: flex-start;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--beta-border);
+}
+.beta-report-filters .beta-form-field { min-width: 210px; }
+.beta-report-filters select { width: 100%; min-width: 210px; margin-top: 6px; }
+.beta-report-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+.beta-report-metric { display: grid; gap: 7px; }
+.beta-report-metric > span { color: var(--beta-muted); font-size: 13px; font-weight: 700; }
+.beta-report-metric > strong { font-size: clamp(26px, 3vw, 36px); line-height: 1; }
+.beta-report-metric > small { color: var(--beta-muted); }
+.beta-report-visuals {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
+  gap: 18px;
+}
+.beta-report-panel { min-width: 0; }
+.beta-report-chart {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  min-height: 260px;
+  padding-top: 16px;
+  overflow-x: auto;
+}
+.beta-report-chart-column {
+  display: grid;
+  grid-template-rows: 20px 170px 34px;
+  align-items: end;
+  flex: 1 0 34px;
+  min-width: 28px;
+  text-align: center;
+}
+.beta-report-chart-column > span { color: var(--beta-muted); font-size: 12px; }
+.beta-report-chart-track {
+  position: relative;
+  height: 170px;
+  border-bottom: 1px solid var(--beta-border);
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent 41px,
+    var(--beta-border) 42px
+  );
+}
+.beta-report-chart-bar {
+  position: absolute;
+  right: 14%;
+  bottom: 0;
+  left: 14%;
+  min-height: 0;
+  border-radius: 5px 5px 0 0;
+  background: var(--beta-blue);
+}
+.beta-report-chart-column small {
+  padding-top: 7px;
+  color: var(--beta-muted);
+  font-size: 11px;
+  white-space: pre-line;
+}
+.beta-report-issues { display: grid; gap: 15px; padding-top: 10px; }
+.beta-report-issue-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(90px, 1.4fr) 28px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.beta-report-issue-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--beta-soft-blue);
+}
+.beta-report-issue-bar { height: 100%; border-radius: inherit; background: var(--beta-blue); }
+.beta-report-issue-row > strong { text-align: right; }
+.beta-report-table-wrap { overflow-x: auto; }
+.beta-report-table-wrap .beta-data-table { min-width: 720px; }
+
 /* Registration */
 .beta-auth-page {
   min-height: 100vh;
@@ -643,4 +730,14 @@
   .beta-sticky-submit .beta-button { width: 100%; }
   .beta-template-add-field { grid-template-columns: 1fr; }
   .beta-template-add-field .beta-button { width: 100%; }
+  .beta-report-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .beta-report-visuals { grid-template-columns: 1fr; }
+  .beta-report-filters { align-items: stretch; }
+  .beta-report-filters .beta-form-field,
+  .beta-report-filters select { width: 100%; min-width: 0; }
+}
+
+@media (max-width: 480px) {
+  .beta-report-metrics { grid-template-columns: 1fr; }
+  .beta-report-issue-row { grid-template-columns: minmax(105px, 1fr) minmax(70px, 1fr) 24px; }
 }

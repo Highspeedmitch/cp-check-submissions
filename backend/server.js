@@ -170,6 +170,7 @@ app.use("/api/admin-users", authenticateToken, require("./Routes/adminUsers"));
 app.use("/api/bid-requests", authenticateToken, require("./Routes/bidRequests"));
 app.use("/api/notifications", authenticateToken, require("./Routes/notifications"));
 app.use("/api/inspection-templates", authenticateToken, require("./Routes/inspectionTemplates"));
+app.use("/api/reporting", authenticateToken, require("./Routes/reporting"));
 
 //client routes
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file

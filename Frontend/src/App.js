@@ -30,6 +30,7 @@ const EditPropertyWrapper = lazy(() => import("./components/EditPropertyWrapper"
 const Billing = lazy(() => import("./components/Billing"));
 const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
+const Reporting = lazy(() => import("./components/Reporting"));
 
 function RouteLoading() {
   return (
@@ -154,6 +155,7 @@ function App() {
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
       <Route path="/billing" element={user && role !== "client" ? <Billing /> : <Navigate to="/" />} />
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
+      <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />
       <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
 
       {/* Profit Uploads - Only for AzRoots Admins */}
