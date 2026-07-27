@@ -36,6 +36,7 @@ const authenticateToken = require('./middleware/authenticateToken');
 const { managedProperties, canAccessProperty } = require('./services/propertyAccess');
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 const adminRoutes = require("./Routes/admin");
+const assignmentRoutes = require("./Routes/assignments");
 const clientAuth = require("./Routes/ClientAuth");
 // AWS S3 and UUID Integration
 const AWS = require('aws-sdk');
@@ -191,6 +192,7 @@ const limiter = rateLimit({
 
 app.use(limiter);
 app.use("/api", clientAuth);
+app.use("/api", authenticateToken, assignmentRoutes);
 /**
  * 🔹 Register a New Organization & Admin User & Check admin passkey
  */
@@ -871,76 +873,6 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
-// Create a new assignment (scheduling an inspection)
-app.post('/api/assignments', authenticateToken, async (req, res) => {
-  try {
-    // Ensure only admins can create assignments
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    const { propertyName, userId, startDate, endDate, oneTimeCheckRequest } = req.body; // ✅ Destructure oneTimeCheckRequest
-
-    // ✅ Ensure `organizationId` is included
-    const organizationId = req.user.organizationId;
-    if (!organizationId) {
-      console.error("❌ Missing organizationId in request.");
-      return res.status(400).json({ error: "Missing organization ID" });
-    }
-    const assignedUser = await User.findOne({
-      _id: userId,
-      organizationId,
-      accountStatus: { $ne: "inactive" },
-    }).select("_id").lean();
-    if (!assignedUser) {
-      return res.status(400).json({ error: "Assigned user is not active in this organization." });
-    }
-
-    // ✅ Prevent duplicate assignments for the same property & time frame
-    const overlapping = await Assignment.findOne({
-      organizationId,
-      propertyName,
-      $or: [
-        { startDate: { $lte: new Date(endDate) }, endDate: { $gte: new Date(startDate) } }
-      ]
-    });
-
-    if (overlapping) {
-      return res.status(400).json({ error: "Overlapping assignment exists for this property." });
-    }
-
-    // ✅ Create and save assignment
-    const assignment = new Assignment({
-      organizationId, // ✅ Ensure this is stored in DB
-      propertyName,
-      userId,
-      startDate,
-      endDate,
-      oneTimeCheckRequest: oneTimeCheckRequest || "", // ✅ Default to empty string if not provided
-    });
-
-    await assignment.save();
-
-    console.log("✅ Assignment created successfully:", assignment);
-
-    sendUserNotification({
-      organizationId,
-      userId,
-      type: "assignment_created",
-      title: "New property inspection",
-      body: `${propertyName} was assigned to you.`,
-      route: "/dashboard",
-      entityId: assignment._id,
-    }).catch((error) => {
-      console.error("Assignment notification error:", error);
-    });
-    res.json({ success: true, message: "Assignment created successfully", assignment });
-
-  } catch (error) {
-    console.error("❌ Error creating assignment:", error);
-    res.status(500).json({ error: "Server error creating assignment" });
-  }
-});
 // ====== NEW ROUTES FOR PASSKEY AND ADD PROPERTY ======
 // Verify passkey route for adding properties
 app.post("/api/verify-passkey", (req, res) => {
@@ -1127,62 +1059,6 @@ app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, r
     res.status(500).json({ error: "Server error removing property" });
   }
 });
-// Get all assignments (optionally, you could filter by organization here)
-app.get('/api/assignments', authenticateToken, async (req, res) => {
-  try {
-    // ✅ Fetch assignments **only for the admin's organization**
-    const query = { organizationId: req.user.organizationId };
-    if (req.user.role === "property_manager") {
-      const organization = await Organization.findById(req.user.organizationId);
-      query.propertyName = { $in: managedProperties(organization, req.user).map((item) => item.name) };
-    }
-    const assignments = await Assignment.find(query).sort({ startDate: 1 });
-
-    if (!assignments.length) {
-      console.warn("⚠️ No assignments found for organization:", req.user.organizationId);
-    }
-
-    res.json(assignments);
-  } catch (error) {
-    console.error("❌ Error fetching assignments:", error);
-    res.status(500).json({ error: "Server error fetching assignments" });
-  }
-});
-/**
- * 🔹 Get All Users (Admin Only)
- */
-app.get("/api/users", authenticateToken, async (req, res) => {
-  try {
-    // Ensure only admins can fetch users
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "Forbidden - Admin only" });
-    }
-
-    // 1) Parse query param (e.g. ?roles=all)
-    const { roles } = req.query;
-
-    // 2) By default, we preserve your existing logic (only 'user')
-    let roleFilter = ["user"];
-
-    // 3) If the frontend wants all non-admin roles, they pass &roles=all
-    if (roles === "all") {
-      roleFilter = ["user", "contractor", "cleaner"];
-    }
-
-    // 4) Fetch from your org only, filtering by the relevant roles
-    const users = await User.find({
-      organizationId: req.user.organizationId,
-      role: { $in: roleFilter },
-    }).select("_id email role"); // note: also select 'role' if you want it returned
-
-    res.json(users);
-
-  } catch (error) {
-    console.error("❌ Error fetching users:", error);
-    res.status(500).json({ error: "Server error fetching users" });
-  }
-});
-
 //Get admins from a clients org
 app.get('/api/org-admins', authenticateToken, async (req, res) => {
   try {
@@ -1199,44 +1075,6 @@ app.get('/api/org-admins', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("❌ Error fetching organization admins:", error);
     res.status(500).json({ error: "Server error fetching organization admins" });
-  }
-});
-
-app.delete("/api/assignments/:id", authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deletedAssignment = await Assignment.findOneAndDelete({
-      _id: id,
-      organizationId: req.user.organizationId // ✅ Ensures only that org's admin can delete
-    });
-
-    if (!deletedAssignment) {
-      return res.status(404).json({ error: "Assignment not found" });
-    }
-
-    console.log(`✅ Assignment ${id} deleted successfully.`);
-    res.json({ success: true, message: "Assignment deleted successfully" });
-  } catch (error) {
-    console.error("❌ Error deleting assignment:", error);
-    res.status(500).json({ error: "Server error deleting assignment" });
-  }
-});
-app.put("/api/assignments/:id", authenticateToken, async (req, res) => {
-  try {
-    const assignment = await Assignment.findOneAndUpdate(
-      { _id: req.params.id, organizationId: req.user.organizationId },  // ✅ Ensures only that org can edit
-      req.body,
-      { new: true }
-    );
-    
-    if (!assignment) return res.status(404).json({ success: false, error: "Assignment not found" });
-
-    console.log("✅ Assignment updated:", assignment);
-    res.json({ success: true, assignment });
-
-  } catch (err) {
-    console.error("❌ Error updating assignment:", err);
-    res.status(500).json({ success: false, error: err.message });
   }
 });
 

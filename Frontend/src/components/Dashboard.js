@@ -159,6 +159,7 @@ const handleRegionFilter = async () => {
   const [propertyEmailMessage, setPropertyEmailMessage] = useState("");
   const [propertyEmailSaving, setPropertyEmailSaving] = useState(false);
   const propertyEmailInputRef = useRef(null);
+  
   const propertyEmailSavingRef = useRef(false);
 
   // ------------ Scheduler Flow -----------
