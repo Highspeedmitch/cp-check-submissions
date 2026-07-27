@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   reportingProperties,
   submissionIssueOccurrences,
+  hasReportableIssueResponses,
   averageMinuteOfDay,
   buildReportingSummary,
 } = require("../services/reporting");
@@ -57,6 +58,13 @@ test("issue reporting counts only yes responses for issue fields", () => {
   }]);
 });
 
+test("legacy submissions without stored checklist answers are not issue-reportable", () => {
+  assert.equal(hasReportableIssueResponses(submission({
+    submittedAt: "2026-07-01T04:00:00.000Z",
+    responses: {},
+  })), false);
+});
+
 test("average submission time uses the reporting timezone and handles midnight", () => {
   const minute = averageMinuteOfDay([
     "2026-07-01T06:50:00.000Z",
@@ -72,6 +80,11 @@ test("reporting summary applies property and submitter filters", () => {
   ];
   const report = buildReportingSummary({
     submissions: [
+      submission({
+        userId: "user-1",
+        submittedAt: "2026-06-20T04:15:00.000Z",
+        responses: {},
+      }),
       submission({
         userId: "user-1",
         submittedAt: "2026-07-20T04:15:00.000Z",
@@ -101,9 +114,11 @@ test("reporting summary applies property and submitter filters", () => {
     now: "2026-07-25T12:00:00.000Z",
   });
 
-  assert.equal(report.summary.submissionCount, 1);
+  assert.equal(report.summary.submissionCount, 2);
   assert.equal(report.summary.issuesPerInspection, 2);
   assert.equal(report.summary.distinctIssueTypes, 2);
+  assert.equal(report.summary.reportableIssueSubmissionCount, 1);
+  assert.equal(report.summary.unreportableIssueSubmissionCount, 1);
   assert.equal(report.submitters.length, 1);
   assert.equal(report.submitters[0].name, "Mitch");
   assert.deepEqual(report.issues.map((issue) => issue.label), [

@@ -50,14 +50,16 @@ function SubmissionActivity({ activity }) {
   );
 }
 
-function IssueBreakdown({ issues }) {
+function IssueBreakdown({ issues, reportableCount, submissionCount }) {
   const max = Math.max(...issues.map((issue) => issue.occurrences), 1);
   return (
     <section className="beta-panel beta-report-panel">
       <div className="beta-section-heading">
         <div>
           <h2>Most Common Issues</h2>
-          <p>Checklist fields marked with an issue.</p>
+          <p>
+            Checklist fields marked with an issue · Based on {reportableCount} of {submissionCount} submissions.
+          </p>
         </div>
       </div>
       {issues.length ? (
@@ -223,6 +225,14 @@ export default function Reporting() {
 
         {!loading && report && (
           <>
+            {report.summary.unreportableIssueSubmissionCount > 0 && (
+              <p className="beta-alert beta-report-coverage" role="status">
+                Issue analysis covers {report.summary.reportableIssueSubmissionCount} of{" "}
+                {report.summary.submissionCount} submissions. Older submissions created
+                before checklist response tracking are included in activity totals but
+                cannot be included in issue-level reporting.
+              </p>
+            )}
             <section className="beta-report-metrics" aria-label="Reporting summary">
               <MetricCard
                 label="Submissions"
@@ -237,12 +247,12 @@ export default function Reporting() {
               <MetricCard
                 label="Issues Per Inspection"
                 value={report.summary.issuesPerInspection.toFixed(1)}
-                context="Fields marked with an issue"
+                context={`Based on ${report.summary.reportableIssueSubmissionCount} reportable submissions`}
               />
               <MetricCard
                 label="Issue Types Observed"
                 value={report.summary.distinctIssueTypes}
-                context="Distinct checklist fields"
+                context={`Across ${report.summary.reportableIssueSubmissionCount} reportable submissions`}
               />
             </section>
 
@@ -250,7 +260,11 @@ export default function Reporting() {
 
             <div className="beta-report-visuals">
               <SubmissionActivity activity={report.monthlyActivity} />
-              <IssueBreakdown issues={report.issues} />
+              <IssueBreakdown
+                issues={report.issues}
+                reportableCount={report.summary.reportableIssueSubmissionCount}
+                submissionCount={report.summary.submissionCount}
+              />
             </div>
             <SubmitterActivity submitters={report.submitters} />
           </>

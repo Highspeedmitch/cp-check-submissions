@@ -376,6 +376,12 @@
 .beta-report-metric > span { color: var(--beta-muted); font-size: 13px; font-weight: 700; }
 .beta-report-metric > strong { font-size: clamp(26px, 3vw, 36px); line-height: 1; }
 .beta-report-metric > small { color: var(--beta-muted); }
+.beta-report-coverage {
+  margin: 20px 0 0;
+  border: 1px solid #f0cf8c;
+  background: var(--beta-warning-bg);
+  color: var(--beta-ink);
+}
 .beta-report-visuals {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);

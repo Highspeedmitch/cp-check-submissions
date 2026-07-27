@@ -32,6 +32,16 @@ function submissionIssueOccurrences(submission) {
     }));
 }
 
+function hasReportableIssueResponses(submission) {
+  const responses = submission.responses || {};
+  return issueFieldsForSubmission(submission).some((field) => (
+    field.type === "yes_no_issue"
+    && ["yes", "no"].includes(
+      String(responses[field.key] || "").trim().toLowerCase()
+    )
+  ));
+}
+
 function averageMinuteOfDay(dates, timezone) {
   if (!dates.length) return null;
   const zone = reportingTimezone(timezone);
@@ -86,7 +96,10 @@ function buildReportingSummary({
   ));
   const issueCounts = new Map();
   let totalIssues = 0;
-  scopedSubmissions.forEach((submission) => {
+  const reportableIssueSubmissions = scopedSubmissions.filter(
+    hasReportableIssueResponses
+  );
+  reportableIssueSubmissions.forEach((submission) => {
     submissionIssueOccurrences(submission).forEach((issue) => {
       totalIssues += 1;
       const current = issueCounts.get(issue.key) || {
@@ -147,10 +160,13 @@ function buildReportingSummary({
         scopedSubmissions.map((submission) => submission.submittedAt),
         timezone
       ),
-      issuesPerInspection: scopedSubmissions.length
-        ? Number((totalIssues / scopedSubmissions.length).toFixed(1))
+      issuesPerInspection: reportableIssueSubmissions.length
+        ? Number((totalIssues / reportableIssueSubmissions.length).toFixed(1))
         : 0,
       distinctIssueTypes: issueCounts.size,
+      reportableIssueSubmissionCount: reportableIssueSubmissions.length,
+      unreportableIssueSubmissionCount:
+        scopedSubmissions.length - reportableIssueSubmissions.length,
     },
     monthlyActivity: monthlyBuckets(scopedSubmissions, months, timezone, now),
     issues: [...issueCounts.values()]
@@ -177,6 +193,7 @@ module.exports = {
   reportingTimezone,
   reportingProperties,
   submissionIssueOccurrences,
+  hasReportableIssueResponses,
   averageMinuteOfDay,
   monthlyBuckets,
   buildReportingSummary,
