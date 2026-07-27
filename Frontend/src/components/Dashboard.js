@@ -1352,7 +1352,7 @@ useEffect(() => {
                           className="beta-button secondary"
                           onClick={() => navigate(`/property-form-settings/${encodeURIComponent(prop.name)}`)}
                         >
-                          {role === "property_manager" ? "Manage Details" : "Customize Form"}
+                          Manage Details
                         </button>
                       )}
                     </div>
