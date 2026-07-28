@@ -3,6 +3,7 @@ const webPush = require("web-push");
 const PushToken = require("../models/PushToken");
 const WebPushSubscription = require("../models/webPushSubscription");
 const Notification = require("../models/notification");
+const { getFrontendUrl } = require("../utils/frontendUrls");
 
 const webPushConfigured = Boolean(
   process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
@@ -82,8 +83,7 @@ async function sendUserNotification({
   }
 
   const tokens = devices.map((device) => device.token);
-  const frontendUrl = (process.env.FRONTEND_URL
-    || "https://cp-check-submissions-dev.onrender.com").replace(/\/$/, "");
+  const frontendUrl = getFrontendUrl();
   let successfulDevices = 0;
   let failedDevices = 0;
 

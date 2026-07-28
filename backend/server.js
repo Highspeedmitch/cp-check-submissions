@@ -59,6 +59,10 @@ const {
   revokeRefreshToken,
   revokeUserSessions,
 } = require("./services/authSessions");
+const {
+  getAllowedFrontendOrigins,
+  buildFrontendUrl,
+} = require("./utils/frontendUrls");
 //azrootsAssignments.js
 const azrootsAssignments = require("./Routes/azrootsAssignments"); // Import the new route
 //airbnb ical
@@ -111,10 +115,7 @@ const PORT = process.env.PORT || 10000;
 const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 
 // ✅ CORS configuration
-const allowedOrigins = [
-  "https://cp-check-submissions-dev.onrender.com",
-  process.env.FRONTEND_URL,
-].filter(Boolean);
+const allowedOrigins = getAllowedFrontendOrigins();
 app.use(cors({
   origin: allowedOrigins,
   methods: "GET,POST,PUT,DELETE",
@@ -731,7 +732,7 @@ app.post('/api/forgot-password', async (req, res) => {
             from: 'highspeedmitch@gmail.com',
             to: user.email,
             subject: 'Password Reset Request',
-            text: `Click the link to reset your password: https://cp-check-submissions-dev.onrender.com/reset-password?token=${resetToken}`
+            text: `Click the link to reset your password: ${buildFrontendUrl(`/reset-password?token=${encodeURIComponent(resetToken)}`)}`
         };
 
         await transporter.sendMail(mailOptions);

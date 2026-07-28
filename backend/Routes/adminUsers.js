@@ -1,6 +1,7 @@
 const express = require("express");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const { buildFrontendUrl } = require("../utils/frontendUrls");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
@@ -135,7 +136,7 @@ router.post("/:userId/send-password-reset", async (req, res) => {
       from: "highspeedmitch@gmail.com",
       to: user.email,
       subject: "Password Reset Request",
-      text: `Click the link to reset your password: https://cp-check-submissions-dev.onrender.com/reset-password?token=${resetToken}`,
+      text: `Click the link to reset your password: ${buildFrontendUrl(`/reset-password?token=${encodeURIComponent(resetToken)}`)}`,
     });
     await UserAudit.create({
       organizationId: req.user.organizationId,
