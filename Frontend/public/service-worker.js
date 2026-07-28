@@ -6,16 +6,22 @@ self.addEventListener("push", (event) => {
     payload = { title: "Afterlight", body: event.data?.text() || "" };
   }
 
-  event.waitUntil(self.registration.showNotification(
-    payload.title || "Afterlight",
-    {
-      body: payload.body || "",
-      icon: "/logo192.png",
-      badge: "/logo192.png",
-      data: { route: payload.route || "/dashboard" },
-      tag: payload.entityId || payload.type || undefined,
-    }
-  ));
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(
+      payload.title || "Afterlight",
+      {
+        body: payload.body || "",
+        icon: "/logo192.png",
+        badge: "/logo192.png",
+        data: { route: payload.route || "/dashboard" },
+        tag: payload.entityId || payload.type || undefined,
+      }
+    ),
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => clients.forEach((client) => {
+        client.postMessage({ type: "afterlight-notification-received" });
+      })),
+  ]));
 });
 
 self.addEventListener("notificationclick", (event) => {

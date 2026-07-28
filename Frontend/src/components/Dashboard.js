@@ -944,6 +944,10 @@ useEffect(() => {
             <div className="property-cards">
               {displayedProperties.map((prop) => {
                 const isCompleted = completedProperties.includes(prop.name);
+                const propertyActivityRoute =
+                  `/admin/submissions/${encodeURIComponent(prop.name)}`;
+                const hasNewActivity = isManagement
+                  && (notificationBadges.propertyActivityRoutes || []).includes(propertyActivityRoute);
 
                 return (
                   <div
@@ -955,8 +959,8 @@ useEffect(() => {
                         <h3>{prop.name}</h3>
                         <p>{isManagement ? "Inspection history and property activity" : "Property inspection checklist"}</p>
                       </div>
-                      <span className={`beta-status ${isCompleted ? "completed" : ""}`}>
-                        {isCompleted ? "Completed" : isManagement ? "Managed" : "Ready"}
+                      <span className={`beta-status ${hasNewActivity || isCompleted ? "completed" : ""}`}>
+                        {hasNewActivity ? "New!" : isCompleted ? "Completed" : isManagement ? "Managed" : "Ready"}
                       </span>
                     </div>
                     <div className="beta-card-actions beta-property-actions">

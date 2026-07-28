@@ -14,7 +14,7 @@ function AdminSubmissions() {
   const [error, setError] = useState("");
   const token = localStorage.getItem("token");
   useMarkNotificationsRead(
-    ["inspection_submitted"],
+    ["inspection_submitted", "assignment_completed"],
     `/admin/submissions/${encodeURIComponent(property)}`
   );
 

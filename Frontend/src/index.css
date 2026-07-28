@@ -458,6 +458,19 @@ button:hover {
   white-space: nowrap;
 }
 
+.notification-permission-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-permission-banner .notification-dismiss-button {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
 .submission-range-filter label {
   font-weight: 600;
 }

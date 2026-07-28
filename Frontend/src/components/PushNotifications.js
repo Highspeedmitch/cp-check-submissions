@@ -3,8 +3,21 @@ import { Capacitor } from "@capacitor/core";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 import { useNavigate } from "react-router-dom";
 import { apiUrl } from "../services/api";
+import {
+  clearNotificationBannerSnooze,
+  notificationBannerIsSnoozed,
+  snoozeNotificationBanner,
+} from "../services/notificationBanner";
 
 const API = apiUrl("/api/notifications");
+
+class NotificationSetupError extends Error {
+  constructor(message, status = "unavailable") {
+    super(message);
+    this.name = "NotificationSetupError";
+    this.status = status;
+  }
+}
 
 function getDeviceId() {
   let deviceId = localStorage.getItem("notificationDeviceId");
@@ -55,14 +68,20 @@ async function registerWebPush(requestPermission) {
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches
     || window.navigator.standalone === true;
   if (isAppleMobile && !isStandalone) {
-    throw new Error("On iPhone or iPad, add this app to your Home Screen before enabling notifications.");
+    throw new NotificationSetupError(
+      "On iPhone or iPad, add Afterlight to your Home Screen before enabling notifications.",
+      "install_required"
+    );
   }
   if (
     !("serviceWorker" in navigator) ||
     !("PushManager" in window) ||
     !("Notification" in window)
   ) {
-    throw new Error("Web Push is not available. On iPhone, add this app to your Home Screen first.");
+    throw new NotificationSetupError(
+      "Notifications are not supported in this browser.",
+      "unsupported"
+    );
   }
   let permission = window.Notification?.permission || "default";
   if (requestPermission && permission !== "granted") {
@@ -96,39 +115,64 @@ async function registerWebPush(requestPermission) {
 
 export default function PushNotifications({ enabled }) {
   const navigate = useNavigate();
-  const [permission, setPermission] = useState("unknown");
+  const [status, setStatus] = useState("checking");
   const [error, setError] = useState("");
+  const [snoozed, setSnoozed] = useState(
+    () => notificationBannerIsSnoozed(window.localStorage)
+  );
   const isNative = Capacitor.isNativePlatform();
 
   const register = useCallback(async (requestPermission = false) => {
     try {
+      setStatus(requestPermission ? "registering" : "checking");
       if (!isNative) {
         const result = await registerWebPush(requestPermission);
-        setPermission(result);
+        if (result === "granted") {
+          clearNotificationBannerSnooze(window.localStorage);
+          setSnoozed(false);
+          setStatus("enabled");
+        } else {
+          setStatus(result === "denied" ? "denied" : "needs_permission");
+        }
         setError("");
         return;
       }
 
       const supported = await FirebaseMessaging.isSupported();
       if (!supported.isSupported) {
-        setPermission("unsupported");
+        setStatus("unsupported");
         return;
       }
       let status = await FirebaseMessaging.checkPermissions();
       if (requestPermission && status.receive !== "granted") {
         status = await FirebaseMessaging.requestPermissions();
       }
-      setPermission(status.receive);
       if (status.receive === "granted") {
         const { token } = await FirebaseMessaging.getToken();
         await saveNativeToken(token);
+        clearNotificationBannerSnooze(window.localStorage);
+        setSnoozed(false);
+        setStatus("enabled");
         setError("");
+      } else {
+        setStatus(status.receive === "denied" ? "denied" : "needs_permission");
       }
     } catch (registrationError) {
-      setError(registrationError.message);
-      setPermission("unavailable");
+      console.warn("Notification setup did not complete:", registrationError);
+      const browserGranted = !isNative && window.Notification?.permission === "granted";
+      setError(registrationError.message || "Notification setup did not complete.");
+      setStatus(
+        browserGranted
+          ? "sync_error"
+          : registrationError.status || "unavailable"
+      );
     }
   }, [isNative]);
+
+  const dismiss = () => {
+    snoozeNotificationBanner(window.localStorage);
+    setSnoozed(true);
+  };
 
   useEffect(() => {
     if (!enabled || process.env.NODE_ENV === "test") return undefined;
@@ -139,6 +183,9 @@ export default function PushNotifications({ enabled }) {
       Promise.all([
         FirebaseMessaging.addListener("tokenReceived", ({ token }) => {
           saveNativeToken(token).catch((tokenError) => setError(tokenError.message));
+        }),
+        FirebaseMessaging.addListener("notificationReceived", () => {
+          window.dispatchEvent(new Event("afterlight-notification-received"));
         }),
         FirebaseMessaging.addListener("notificationActionPerformed", ({ notification }) => {
           const route = notification?.data?.route;
@@ -151,24 +198,51 @@ export default function PushNotifications({ enabled }) {
     }
 
     register(false);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") register(false);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       active = false;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       handles.forEach((handle) => handle.remove());
     };
   }, [enabled, isNative, navigate, register]);
 
-  if (!enabled || permission === "granted") return null;
+  if (
+    !enabled
+    || snoozed
+    || ["checking", "enabled", "unsupported"].includes(status)
+  ) {
+    return null;
+  }
+
+  const content = {
+    needs_permission: "Enable notifications to receive important workflow updates.",
+    registering: "Connecting notifications…",
+    denied: "Notifications are blocked in this browser. You can enable them in the browser's site settings.",
+    install_required: error,
+    sync_error: "Notifications are allowed, but this device could not be connected. You can retry now or continue without them.",
+    unavailable: error || "Notifications are temporarily unavailable.",
+  }[status] || error || "Notifications are temporarily unavailable.";
+
+  const canRetry = ["needs_permission", "sync_error", "unavailable"].includes(status);
 
   return (
     <aside className="notification-permission-banner" role="status">
-      <span>
-        {error || "Enable notifications to receive important workflow updates."}
-      </span>
-      {permission !== "denied" && (
-        <button type="button" onClick={() => register(true)}>
-          Enable Notifications
-        </button>
-      )}
+      <span>{content}</span>
+      <div className="notification-permission-actions">
+        {canRetry && (
+          <button type="button" onClick={() => register(true)}>
+            {status === "needs_permission" ? "Enable Notifications" : "Retry"}
+          </button>
+        )}
+        {status !== "registering" && (
+          <button type="button" className="notification-dismiss-button" onClick={dismiss}>
+            {status === "denied" ? "Dismiss" : "Not Now"}
+          </button>
+        )}
+      </div>
     </aside>
   );
 }
