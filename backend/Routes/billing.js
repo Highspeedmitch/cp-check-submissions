@@ -10,6 +10,7 @@ const { generateInvoicePDF } = require("../invoicePdfService");
 const { sendUserNotification } = require("../services/notifications");
 const {
   invoiceSubmitted,
+  invoiceSubmittedForPropertyManager,
   invoiceStatusChanged,
 } = require("../services/notificationEvents");
 const {
@@ -136,6 +137,35 @@ async function visibleInvoiceScope(req) {
 
 function validId(value) {
   return !value || mongoose.Types.ObjectId.isValid(value);
+}
+
+async function notifyPropertyManagersOfSubmittedInvoice(invoice, organizationId) {
+  const organization = await Organization.findById(organizationId)
+    .select("properties._id properties.propertyManagers")
+    .lean();
+  const property = (organization?.properties || []).find(
+    (item) => item._id.toString() === invoice.propertyId.toString()
+  );
+  const assignedIds = [...new Set(
+    (property?.propertyManagers || []).map((id) => id.toString())
+  )];
+  if (!assignedIds.length) return;
+
+  const activePropertyManagers = await User.find({
+    _id: { $in: assignedIds },
+    organizationId,
+    role: "property_manager",
+    accountStatus: { $ne: "inactive" },
+  }).select("_id").lean();
+  const event = invoiceSubmittedForPropertyManager(invoice);
+
+  await Promise.allSettled(activePropertyManagers.map((manager) =>
+    sendUserNotification({
+      organizationId,
+      userId: manager._id,
+      ...event,
+    })
+  ));
 }
 
 router.get("/filter-options", async (req, res) => {
@@ -371,6 +401,12 @@ router.post("/:id/submit", async (req, res) => {
       ...invoiceSubmitted(invoice),
     }).catch((notificationError) => {
       console.error("Invoice submission notification error:", notificationError);
+    });
+    notifyPropertyManagersOfSubmittedInvoice(
+      invoice,
+      req.user.organizationId
+    ).catch((notificationError) => {
+      console.error("Property manager invoice notification error:", notificationError);
     });
     res.json(invoice);
   } catch (error) {

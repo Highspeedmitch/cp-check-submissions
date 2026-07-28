@@ -6,12 +6,13 @@ import {
 test("groups only unread notifications into their destination sections", () => {
   expect(groupUnreadNotifications([
     { type: "invoice_status_changed", readAt: null },
+    { type: "invoice_submitted_for_review", readAt: null },
     { type: "invoice_submitted", readAt: "2026-07-25T00:00:00Z" },
     { type: "bid_request_received", readAt: null },
     { type: "inspection_submitted", readAt: null },
     { type: "assignment_completed", readAt: null },
     { type: "unknown_event", readAt: null },
-  ])).toEqual({ dashboard: 2, billing: 1, bids: 1 });
+  ])).toEqual({ dashboard: 2, billing: 2, bids: 1 });
 });
 
 test("identifies properties with unread inspection activity", () => {

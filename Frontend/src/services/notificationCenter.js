@@ -3,7 +3,12 @@ import { api } from "./api";
 
 export const NOTIFICATION_SECTIONS = {
   dashboard: ["assignment_created", "inspection_submitted", "assignment_completed"],
-  billing: ["invoice_submitted", "invoice_status_changed", "payment_processed"],
+  billing: [
+    "invoice_submitted",
+    "invoice_submitted_for_review",
+    "invoice_status_changed",
+    "payment_processed",
+  ],
   bids: ["bid_request_submitted", "bid_request_received", "bid_request_status_changed"],
 };
 

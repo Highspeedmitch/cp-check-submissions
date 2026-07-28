@@ -28,6 +28,16 @@ function invoiceSubmitted(invoice) {
   };
 }
 
+function invoiceSubmittedForPropertyManager(invoice) {
+  return {
+    type: "invoice_submitted_for_review",
+    title: "Property invoice submitted",
+    body: `An invoice for ${invoice.propertySnapshot.name} has been submitted for payment.`,
+    route: "/billing",
+    entityId: invoice._id,
+  };
+}
+
 function invoiceStatusChanged(invoice) {
   return {
     type: "invoice_status_changed",
@@ -72,6 +82,7 @@ module.exports = {
   inspectionSubmitted,
   assignmentCompleted,
   invoiceSubmitted,
+  invoiceSubmittedForPropertyManager,
   invoiceStatusChanged,
   bidRequestSubmitted,
   bidRequestReceived,

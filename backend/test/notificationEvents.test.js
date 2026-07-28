@@ -4,6 +4,7 @@ const {
   inspectionSubmitted,
   assignmentCompleted,
   invoiceSubmitted,
+  invoiceSubmittedForPropertyManager,
   invoiceStatusChanged,
   bidRequestSubmitted,
   bidRequestReceived,
@@ -33,6 +34,11 @@ test("invoice events confirm submission and describe a later status change", () 
     propertySnapshot: { name: "Broadway Center" },
   };
   assert.match(invoiceSubmitted(invoice).body, /submitted successfully/);
+  const managerEvent = invoiceSubmittedForPropertyManager(invoice);
+  assert.equal(managerEvent.type, "invoice_submitted_for_review");
+  assert.equal(managerEvent.route, "/billing");
+  assert.equal(managerEvent.entityId, "invoice-1");
+  assert.match(managerEvent.body, /submitted for payment/);
   assert.match(invoiceStatusChanged(invoice).body, /now paid/);
 });
 
