@@ -15,3 +15,22 @@ export function snoozeNotificationBanner(storage, now = Date.now()) {
 export function clearNotificationBannerSnooze(storage) {
   storage?.removeItem(NOTIFICATION_BANNER_SNOOZE_KEY);
 }
+
+export function withNotificationSetupTimeout(
+  promise,
+  message,
+  timeoutMs = 15000,
+  timerApi = window
+) {
+  let timeout;
+  const deadline = new Promise((_, reject) => {
+    timeout = timerApi.setTimeout(() => {
+      const error = new Error(message);
+      error.name = "NotificationSetupError";
+      error.status = "unavailable";
+      reject(error);
+    }, timeoutMs);
+  });
+  return Promise.race([promise, deadline])
+    .finally(() => timerApi.clearTimeout(timeout));
+}

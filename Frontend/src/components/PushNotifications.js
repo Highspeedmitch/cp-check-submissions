@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,7 @@ import {
   clearNotificationBannerSnooze,
   notificationBannerIsSnoozed,
   snoozeNotificationBanner,
+  withNotificationSetupTimeout,
 } from "../services/notificationBanner";
 
 const API = apiUrl("/api/notifications");
@@ -89,26 +90,39 @@ async function registerWebPush(requestPermission) {
   }
   if (permission !== "granted") return permission;
 
-  const registration = await navigator.serviceWorker.register("/service-worker.js");
-  const keyResponse = await fetch(`${API}/web-push-key`, {
-    headers: authHeaders(),
-  });
+  const registration = await withNotificationSetupTimeout(
+    navigator.serviceWorker.register("/service-worker.js"),
+    "The notification service took too long to start. Please try again."
+  );
+  const keyResponse = await withNotificationSetupTimeout(
+    fetch(`${API}/web-push-key`, { headers: authHeaders() }),
+    "The notification configuration request timed out. Please try again."
+  );
   const { publicKey } = await responseBody(keyResponse, "Web Push is not configured.");
-  let subscription = await registration.pushManager.getSubscription();
+  let subscription = await withNotificationSetupTimeout(
+    registration.pushManager.getSubscription(),
+    "The browser did not return its notification subscription. Please try again."
+  );
   if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
+    subscription = await withNotificationSetupTimeout(
+      registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      }),
+      "The browser could not finish enabling notifications. Please try again."
+    );
   }
-  const saveResponse = await fetch(`${API}/web-subscriptions`, {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({
-      subscription: subscription.toJSON(),
-      deviceId: getDeviceId(),
+  const saveResponse = await withNotificationSetupTimeout(
+    fetch(`${API}/web-subscriptions`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        subscription: subscription.toJSON(),
+        deviceId: getDeviceId(),
+      }),
     }),
-  });
+    "Afterlight could not finish saving this device. Please try again."
+  );
   await responseBody(saveResponse, "Unable to register Web Push.");
   return permission;
 }
@@ -120,13 +134,16 @@ export default function PushNotifications({ enabled }) {
   const [snoozed, setSnoozed] = useState(
     () => notificationBannerIsSnoozed(window.localStorage)
   );
+  const registrationAttempt = useRef(0);
   const isNative = Capacitor.isNativePlatform();
 
   const register = useCallback(async (requestPermission = false) => {
+    const attempt = ++registrationAttempt.current;
     try {
       setStatus(requestPermission ? "registering" : "checking");
       if (!isNative) {
         const result = await registerWebPush(requestPermission);
+        if (attempt !== registrationAttempt.current) return;
         if (result === "granted") {
           clearNotificationBannerSnooze(window.localStorage);
           setSnoozed(false);
@@ -139,6 +156,7 @@ export default function PushNotifications({ enabled }) {
       }
 
       const supported = await FirebaseMessaging.isSupported();
+      if (attempt !== registrationAttempt.current) return;
       if (!supported.isSupported) {
         setStatus("unsupported");
         return;
@@ -147,9 +165,11 @@ export default function PushNotifications({ enabled }) {
       if (requestPermission && status.receive !== "granted") {
         status = await FirebaseMessaging.requestPermissions();
       }
+      if (attempt !== registrationAttempt.current) return;
       if (status.receive === "granted") {
         const { token } = await FirebaseMessaging.getToken();
         await saveNativeToken(token);
+        if (attempt !== registrationAttempt.current) return;
         clearNotificationBannerSnooze(window.localStorage);
         setSnoozed(false);
         setStatus("enabled");
@@ -158,6 +178,7 @@ export default function PushNotifications({ enabled }) {
         setStatus(status.receive === "denied" ? "denied" : "needs_permission");
       }
     } catch (registrationError) {
+      if (attempt !== registrationAttempt.current) return;
       console.warn("Notification setup did not complete:", registrationError);
       const browserGranted = !isNative && window.Notification?.permission === "granted";
       setError(registrationError.message || "Notification setup did not complete.");
@@ -170,6 +191,7 @@ export default function PushNotifications({ enabled }) {
   }, [isNative]);
 
   const dismiss = () => {
+    registrationAttempt.current += 1;
     snoozeNotificationBanner(window.localStorage);
     setSnoozed(true);
   };
@@ -237,11 +259,9 @@ export default function PushNotifications({ enabled }) {
             {status === "needs_permission" ? "Enable Notifications" : "Retry"}
           </button>
         )}
-        {status !== "registering" && (
-          <button type="button" className="notification-dismiss-button" onClick={dismiss}>
-            {status === "denied" ? "Dismiss" : "Not Now"}
-          </button>
-        )}
+        <button type="button" className="notification-dismiss-button" onClick={dismiss}>
+          {status === "denied" ? "Dismiss" : "Not Now"}
+        </button>
       </div>
     </aside>
   );

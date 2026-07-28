@@ -4,6 +4,7 @@ import {
   notificationBannerIsSnoozed,
   snoozeNotificationBanner,
   clearNotificationBannerSnooze,
+  withNotificationSetupTimeout,
 } from "./notificationBanner";
 
 function memoryStorage() {
@@ -34,4 +35,22 @@ test("successful notification setup clears a prior snooze", () => {
   clearNotificationBannerSnooze(storage);
 
   expect(notificationBannerIsSnoozed(storage)).toBe(false);
+});
+
+test("notification setup cannot remain pending indefinitely", async () => {
+  jest.useFakeTimers();
+  const pending = new Promise(() => {});
+  const result = withNotificationSetupTimeout(
+    pending,
+    "Notification setup timed out.",
+    1000
+  );
+
+  jest.advanceTimersByTime(1000);
+
+  await expect(result).rejects.toMatchObject({
+    message: "Notification setup timed out.",
+    status: "unavailable",
+  });
+  jest.useRealTimers();
 });
