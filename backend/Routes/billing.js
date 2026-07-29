@@ -443,8 +443,7 @@ router.post("/:id/generate", async (req, res) => {
     if (!invoice.invoiceNumber) {
       invoice.invoiceNumber = `${invoice.propertySnapshot.propertyCode}-${Date.now()}`;
     }
-    const submitter = await User.findById(req.user.userId).select("username email").lean();
-    const buffer = await generateInvoicePDF(invoice, submitter);
+    const buffer = await generateInvoicePDF(invoice);
     const key = `${req.user.organizationId}/invoices/${uuidv4()}-${invoice.invoiceNumber}.pdf`;
     await s3.upload({
       Bucket: process.env.S3_BUCKET_NAME,

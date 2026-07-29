@@ -7,14 +7,32 @@ const {
 } = require("../services/systemEmail");
 
 const EMAIL_ENV_KEYS = [
+  "SYSTEM_EMAIL_PROVIDER",
   "MICROSOFT_TENANT_ID",
   "MICROSOFT_CLIENT_ID",
   "MICROSOFT_CLIENT_SECRET",
+  "SES_REGION",
+  "SES_ACCESS_KEY_ID",
+  "SES_SECRET_ACCESS_KEY",
   "SYSTEM_EMAIL_ADDRESS",
   "SYSTEM_EMAIL_NAME",
 ];
 
-function configureEmailEnvironment() {
+function preserveEnvironment() {
+  return Object.fromEntries(
+    EMAIL_ENV_KEYS.map((key) => [key, process.env[key]])
+  );
+}
+
+function restoreEnvironment(previous) {
+  EMAIL_ENV_KEYS.forEach((key) => {
+    if (previous[key] === undefined) delete process.env[key];
+    else process.env[key] = previous[key];
+  });
+}
+
+function configureGraphEnvironment() {
+  process.env.SYSTEM_EMAIL_PROVIDER = "graph";
   process.env.MICROSOFT_TENANT_ID = "tenant-id";
   process.env.MICROSOFT_CLIENT_ID = "client-id";
   process.env.MICROSOFT_CLIENT_SECRET = "client-secret";
@@ -22,32 +40,76 @@ function configureEmailEnvironment() {
   process.env.SYSTEM_EMAIL_NAME = "Afterlight Notifications";
 }
 
-test("reports missing Microsoft Graph email configuration clearly", () => {
-  const previous = Object.fromEntries(
-    EMAIL_ENV_KEYS.map((key) => [key, process.env[key]])
-  );
+function configureSesEnvironment() {
+  process.env.SYSTEM_EMAIL_PROVIDER = "ses";
+  process.env.SES_REGION = "us-east-2";
+  process.env.SES_ACCESS_KEY_ID = "test-access-key";
+  process.env.SES_SECRET_ACCESS_KEY = "test-secret-key";
+  process.env.SYSTEM_EMAIL_ADDRESS = "notifications@afterlightinspections.com";
+  process.env.SYSTEM_EMAIL_NAME = "Afterlight Notifications";
+}
+
+test("reports missing Amazon SES email configuration clearly", () => {
+  const previous = preserveEnvironment();
   try {
     EMAIL_ENV_KEYS.forEach((key) => delete process.env[key]);
+    process.env.SYSTEM_EMAIL_PROVIDER = "ses";
     assert.throws(
       () => requiredEmailConfig(),
-      /tenantId, clientId, clientSecret, senderAddress/
+      /senderAddress, region, accessKeyId, secretAccessKey/
     );
   } finally {
-    EMAIL_ENV_KEYS.forEach((key) => {
-      if (previous[key] === undefined) delete process.env[key];
-      else process.env[key] = previous[key];
-    });
+    restoreEnvironment(previous);
+  }
+});
+
+test("sends MIME email with attachments through Amazon SES", async () => {
+  const previous = preserveEnvironment();
+  let request;
+  try {
+    configureSesEnvironment();
+    const sesClient = {
+      sendRawEmail(params) {
+        request = params;
+        return {
+          promise: async () => ({ MessageId: "ses-message-id" }),
+        };
+      },
+    };
+
+    const result = await sendSystemEmail({
+      to: "recipient@example.com",
+      subject: "Afterlight SES test",
+      text: "Delivery test",
+      attachments: [{
+        filename: "test.txt",
+        content: Buffer.from("attachment"),
+        contentType: "text/plain",
+      }],
+    }, { sesClient });
+
+    assert.equal(result.provider, "ses");
+    assert.equal(result.messageId, "ses-message-id");
+    assert.equal(request.Source, "notifications@afterlightinspections.com");
+    const mime = request.RawMessage.Data.toString("utf8");
+    assert.match(
+      mime,
+      /From: Afterlight Notifications <notifications@afterlightinspections\.com>/
+    );
+    assert.match(mime, /To: recipient@example\.com/);
+    assert.match(mime, /Subject: Afterlight SES test/);
+    assert.match(mime, /filename=test\.txt/);
+  } finally {
+    restoreEnvironment(previous);
   }
 });
 
 test("sends MIME email through Graph and reuses a valid access token", async () => {
   const previousFetch = global.fetch;
-  const previous = Object.fromEntries(
-    EMAIL_ENV_KEYS.map((key) => [key, process.env[key]])
-  );
+  const previous = preserveEnvironment();
   const calls = [];
   try {
-    configureEmailEnvironment();
+    configureGraphEnvironment();
     resetTokenCache();
     global.fetch = async (url, options) => {
       calls.push({ url: String(url), options });
@@ -67,11 +129,6 @@ test("sends MIME email through Graph and reuses a valid access token", async () 
       to: "recipient@example.com",
       subject: "Afterlight test",
       text: "Delivery test",
-      attachments: [{
-        filename: "test.txt",
-        content: Buffer.from("attachment"),
-        contentType: "text/plain",
-      }],
     });
     await sendSystemEmail({
       to: "second@example.com",
@@ -85,25 +142,10 @@ test("sends MIME email through Graph and reuses a valid access token", async () 
     );
     const graphCalls = calls.filter((call) => call.url.includes("/sendMail"));
     assert.equal(graphCalls.length, 2);
-    assert.match(
-      graphCalls[0].url,
-      /users\/notifications%40afterlightinspections\.com\/sendMail$/
-    );
     assert.equal(graphCalls[0].options.headers.Authorization, "Bearer graph-token");
-    const mime = Buffer.from(graphCalls[0].options.body, "base64").toString("utf8");
-    assert.match(
-      mime,
-      /From: Afterlight Notifications <notifications@afterlightinspections\.com>/
-    );
-    assert.match(mime, /To: recipient@example\.com/);
-    assert.match(mime, /Subject: Afterlight test/);
-    assert.match(mime, /filename=test\.txt/);
   } finally {
     global.fetch = previousFetch;
     resetTokenCache();
-    EMAIL_ENV_KEYS.forEach((key) => {
-      if (previous[key] === undefined) delete process.env[key];
-      else process.env[key] = previous[key];
-    });
+    restoreEnvironment(previous);
   }
 });

@@ -1,9 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { generateInvoicePDF } = require("../invoicePdfService");
+const {
+  generateInvoicePDF,
+  invoiceHeaderLines,
+  INVOICE_VENDOR_NAME,
+} = require("../invoicePdfService");
 
-test("generates a valid PDF invoice buffer", async () => {
-  const buffer = await generateInvoicePDF({
+const invoice = {
     invoiceNumber: "TEST-1",
     propertySnapshot: {
       name: "Test Property",
@@ -13,10 +16,18 @@ test("generates a valid PDF invoice buffer", async () => {
     },
     inspectionDate: new Date("2026-02-10T12:00:00Z"),
     amountCents: 7500,
-  }, {
-    username: "Test Contractor",
-    email: "contractor@example.com",
-  });
+};
+
+test("invoice header presents Afterlight without submitter identity", () => {
+  const lines = invoiceHeaderLines(invoice);
+
+  assert.equal(INVOICE_VENDOR_NAME, "Afterlight Inspections");
+  assert.ok(lines.includes("From: Afterlight Inspections"));
+  assert.equal(lines.some((line) => /contractor|submitter|@/i.test(line)), false);
+});
+
+test("generates a valid PDF invoice buffer", async () => {
+  const buffer = await generateInvoicePDF(invoice);
 
   assert.equal(buffer.subarray(0, 4).toString(), "%PDF");
   assert.ok(buffer.length > 1000);

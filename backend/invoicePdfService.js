@@ -1,11 +1,20 @@
 const PDFDocument = require("pdfkit");
+const INVOICE_VENDOR_NAME = "Afterlight Inspections";
 
 function money(cents) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })
     .format(cents / 100);
 }
 
-function generateInvoicePDF(invoice, submitter) {
+function invoiceHeaderLines(invoice) {
+  return [
+    `Invoice: ${invoice.invoiceNumber}`,
+    `Invoice date: ${new Date().toLocaleDateString("en-US")}`,
+    `From: ${INVOICE_VENDOR_NAME}`,
+  ];
+}
+
+function generateInvoicePDF(invoice) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     const doc = new PDFDocument({ size: "LETTER", margin: 54 });
@@ -16,11 +25,8 @@ function generateInvoicePDF(invoice, submitter) {
     const property = invoice.propertySnapshot;
     doc.fontSize(22).text("PROPERTY INSPECTION INVOICE", { align: "center" });
     doc.moveDown();
-    doc.fontSize(11)
-      .text(`Invoice: ${invoice.invoiceNumber}`)
-      .text(`Invoice date: ${new Date().toLocaleDateString("en-US")}`)
-      .text(`Submitted by: ${submitter.username || submitter.email}`)
-      .text(`Submitter email: ${submitter.email}`);
+    doc.fontSize(11);
+    invoiceHeaderLines(invoice).forEach((line) => doc.text(line));
     doc.moveDown();
     doc.fontSize(14).text("Bill To", { underline: true });
     doc.fontSize(11)
@@ -52,4 +58,8 @@ function generateInvoicePDF(invoice, submitter) {
   });
 }
 
-module.exports = { generateInvoicePDF };
+module.exports = {
+  generateInvoicePDF,
+  invoiceHeaderLines,
+  INVOICE_VENDOR_NAME,
+};
