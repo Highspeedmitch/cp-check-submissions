@@ -19,3 +19,7 @@ test("bid archival is stored independently from review status", () => {
   assert.equal(bid.status, "approved");
   assert.ok(bid.archivedAt instanceof Date);
 });
+
+test("pricing estimates are excluded from bid queries unless explicitly selected", () => {
+  assert.equal(BidRequest.schema.path("pricingEstimate").options.select, false);
+});

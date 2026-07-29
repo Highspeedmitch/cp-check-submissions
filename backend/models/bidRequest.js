@@ -16,6 +16,23 @@ const BidRequestSchema = new mongoose.Schema({
     required: true,
   },
   knownIssues: { type: String, default: "" },
+  pricingEstimate: {
+    type: {
+      version: { type: Number, required: true },
+      estimatedPerVisitCents: { type: Number, required: true, min: 0 },
+      estimatedMonthlyCents: { type: Number, default: null, min: 0 },
+      requiresManualReview: { type: Boolean, default: false },
+      manualReviewReasons: [{ type: String }],
+      inputs: {
+        normalizedSquareFeet: Number,
+        complexityModifier: Number,
+        visitsPerMonth: Number,
+        frequencyMultiplier: Number,
+        knownIssuesProvided: Boolean,
+      },
+    },
+    select: false,
+  },
   attachmentKey: { type: String, required: true },
   attachmentName: { type: String, required: true },
   status: {

@@ -5,6 +5,7 @@ const BidRequest = require("../models/bidRequest");
 const User = require("../models/user");
 const s3 = require("../awsConfig");
 const { sendUserNotification } = require("../services/notifications");
+const { estimateBidPricing } = require("../services/bidPricing");
 const {
   bidRequestSubmitted,
   bidRequestReceived,
@@ -28,7 +29,9 @@ router.get("/", async (req, res) => {
   } else {
     query.requestedBy = req.user.userId;
   }
-  const requests = await BidRequest.find(query)
+  let requestQuery = BidRequest.find(query);
+  if (req.user.role === "admin") requestQuery = requestQuery.select("+pricingEstimate");
+  const requests = await requestQuery
     .populate("requestedBy", "username email")
     .populate("archivedBy", "username email")
     .sort({ createdAt: -1 })
@@ -49,6 +52,12 @@ router.post("/", upload.single("attachment"), async (req, res) => {
       return res.status(403).json({ error: "Property managers only." });
     }
     if (!req.file) return res.status(400).json({ error: "A lot-dimensions attachment is required." });
+    const pricingEstimate = estimateBidPricing({
+      grossSquareFeet: req.body.grossSquareFeet,
+      propertyType: req.body.propertyType,
+      serviceFrequency: req.body.serviceFrequency,
+      hasKnownIssues: Boolean(String(req.body.knownIssues || "").trim()),
+    });
     const key = `${req.user.organizationId}/bid-requests/${uuidv4()}-${req.file.originalname}`;
     await s3.upload({
       Bucket: process.env.S3_BUCKET_NAME,
@@ -65,6 +74,7 @@ router.post("/", upload.single("attachment"), async (req, res) => {
       address: req.body.address,
       serviceFrequency: req.body.serviceFrequency,
       knownIssues: req.body.knownIssues,
+      pricingEstimate,
       attachmentKey: key,
       attachmentName: req.file.originalname,
       activity: [{ action: "created", changedBy: req.user.userId }],
@@ -93,7 +103,12 @@ router.post("/", upload.single("attachment"), async (req, res) => {
     }).catch((notificationError) => {
       console.error("Unable to resolve bid request administrators:", notificationError);
     });
-    res.status(201).json(request);
+    res.status(201).json({
+      _id: request._id,
+      status: request.status,
+      address: request.address,
+      createdAt: request.createdAt,
+    });
   } catch (error) {
     console.error("Bid request error:", error);
     res.status(400).json({ error: error.message || "Unable to submit bid request." });

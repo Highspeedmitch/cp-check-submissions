@@ -185,6 +185,18 @@ export default function BidRequests() {
             <p>{request.propertyType.replaceAll("_", " ")} · {request.serviceFrequency.replace("_", "-")}</p>
             {request.requestedBy && <p>Requested by: {request.requestedBy.username || request.requestedBy.email}</p>}
             <p>Known issues: {request.knownIssues || "None provided"}</p>
+            {role === "admin" && request.pricingEstimate && (
+              <div className="beta-card-callout">
+                <strong>Internal estimated pricing</strong>
+                <p>
+                  ${(request.pricingEstimate.estimatedPerVisitCents / 100).toLocaleString()} per visit
+                  {request.pricingEstimate.estimatedMonthlyCents != null
+                    && ` · $${(request.pricingEstimate.estimatedMonthlyCents / 100).toLocaleString()} monthly`}
+                </p>
+                {request.pricingEstimate.requiresManualReview
+                  && <p className="beta-alert warning">Manual pricing review required.</p>}
+              </div>
+            )}
             <a className="beta-link-button" href={request.attachmentUrl} target="_blank" rel="noreferrer">View lot attachment</a>
             {request.archivedAt && (
               <p>Archived {new Date(request.archivedAt).toLocaleDateString()}
