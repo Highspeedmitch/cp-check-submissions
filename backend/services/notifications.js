@@ -10,7 +10,8 @@ const webPushConfigured = Boolean(
 );
 if (webPushConfigured) {
   webPush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:highspeedmitch@gmail.com",
+    process.env.VAPID_SUBJECT
+      || `mailto:${process.env.SYSTEM_EMAIL_ADDRESS || "notifications@afterlightinspections.com"}`,
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );

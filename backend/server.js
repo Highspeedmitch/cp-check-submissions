@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const { generateChecklistPDF } = require('./pdfservice');
 const fs = require('fs');
-const nodemailer = require('nodemailer');
 const moment = require('moment-timezone');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -12,6 +11,7 @@ const mongoose = require('mongoose');
 const crypto = require('crypto'); // For password reset if needed
 const rateLimit = require('express-rate-limit'); // For security
 const Assignment = require('./models/assignment');
+const { sendSystemEmail } = require("./services/systemEmail");
 // ✅ Import your models
 const Organization = require('./models/organization');
 const User = require('./models/user');
@@ -490,7 +490,12 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     if (property.emails && property.emails.length > 0) {
       recipientEmails = property.emails;
     } else {
-      recipientEmails = ["highspeedmitch@gmail.com"]; // Fallback email
+      const fallbackEmail =
+        process.env.INSPECTION_FALLBACK_EMAIL || process.env.SYSTEM_EMAIL_ADDRESS;
+      if (!fallbackEmail) {
+        throw new Error("No property recipients or inspection fallback email are configured.");
+      }
+      recipientEmails = [fallbackEmail];
     }
 
     console.log(`📨 Sending email to: ${recipientEmails.join(", ")}`);
@@ -668,24 +673,14 @@ try {
         console.warn("⚠️ Unknown organization type, defaulting to generic subject.");
     }
 
-    // **Send Email with PDF Attachment**
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: 'highspeedmitch@gmail.com',
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
     const mailOptions = {
-      from: 'highspeedmitch@gmail.com',
       to: recipientEmails.join(","),
       subject: emailSubject,
       text: emailBody,
       attachments: [{ filename: fileName, content: pdfBuffer }],
     };
 
-    await transporter.sendMail(mailOptions)
+    await sendSystemEmail(mailOptions)
       .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
       .catch(err => console.error('❌ Error sending email:', err));
 
@@ -722,20 +717,13 @@ app.post('/api/forgot-password', async (req, res) => {
         user.resetPasswordExpires = Date.now() + 3600000; // 1 hour expiration
         await user.save();
 
-        // Email the reset link
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: 'highspeedmitch@gmail.com', pass: process.env.EMAIL_PASS }
-        });
-
         const mailOptions = {
-            from: 'highspeedmitch@gmail.com',
             to: user.email,
             subject: 'Password Reset Request',
             text: `Click the link to reset your password: ${buildFrontendUrl(`/reset-password?token=${encodeURIComponent(resetToken)}`)}`
         };
 
-        await transporter.sendMail(mailOptions);
+        await sendSystemEmail(mailOptions);
         res.json({ message: 'Password reset link sent to your email.' });
 
     } catch (error) {

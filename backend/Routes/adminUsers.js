@@ -1,6 +1,5 @@
 const express = require("express");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const Organization = require("../models/organization");
 const User = require("../models/user");
@@ -10,6 +9,7 @@ const {
   isValidAccountStatus,
 } = require("../utils/accountStatus");
 const { revokeUserSessions } = require("../services/authSessions");
+const { sendSystemEmail } = require("../services/systemEmail");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "contractor", "cleaner"];
@@ -128,12 +128,7 @@ router.post("/:userId/send-password-reset", async (req, res) => {
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 3600000;
     await user.save();
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: "highspeedmitch@gmail.com", pass: process.env.EMAIL_PASS },
-    });
-    await transporter.sendMail({
-      from: "highspeedmitch@gmail.com",
+    await sendSystemEmail({
       to: user.email,
       subject: "Password Reset Request",
       text: `Click the link to reset your password: ${buildFrontendUrl(`/reset-password?token=${encodeURIComponent(resetToken)}`)}`,

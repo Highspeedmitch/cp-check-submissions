@@ -1,6 +1,5 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
 const Invoice = require("../models/invoice");
 const User = require("../models/user");
@@ -19,16 +18,9 @@ const {
 } = require("../services/billingPolicy");
 const { resolveBillingAddress } = require("../services/propertyAddresses");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
+const { sendSystemEmail } = require("../services/systemEmail");
 
 const router = express.Router();
-const EMAIL_FROM = process.env.EMAIL_FROM || "highspeedmitch@gmail.com";
-
-function mailTransporter() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: EMAIL_FROM, pass: process.env.EMAIL_PASS },
-  });
-}
 
 function escapeHtml(value) {
   return String(value || "")
@@ -207,9 +199,8 @@ async function emailPropertyManagersForReview(invoice, managers) {
     style: "currency",
     currency: "USD",
   }).format(invoice.amountCents / 100);
-  await mailTransporter().sendMail({
-    from: EMAIL_FROM,
-    to: EMAIL_FROM,
+  await sendSystemEmail({
+    to: process.env.SYSTEM_EMAIL_ADDRESS,
     bcc: recipients.join(","),
     subject: `Review requested: invoice ${invoice.invoiceNumber}`,
     text: [
@@ -248,8 +239,7 @@ async function sendApprovedInvoiceToAp(invoice, confirmationNumber = "") {
       style: "currency",
       currency: "USD",
     }).format(invoice.amountCents / 100);
-    await mailTransporter().sendMail({
-      from: EMAIL_FROM,
+    await sendSystemEmail({
       to: destination,
       subject: `Approved property inspection invoice ${invoice.invoiceNumber}`,
       text: [
