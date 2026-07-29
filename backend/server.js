@@ -3,7 +3,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { generateChecklistPDF } = require('./pdfservice');
-const fs = require('fs');
 const moment = require('moment-timezone');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -520,19 +519,18 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     console.log("📷 Processed Photo Buffers:", photoBuffers);
 
     // **Generate PDF**
-    let pdfStream, filePath, fileName;
+    let pdfBuffer, fileName;
     try {
       const pdfGenerationResult = await generateChecklistPDF(
         submissionData,
         photoBuffers,
         effectiveInspectionTemplate
       );
-      pdfStream = pdfGenerationResult.pdfStream;
-      filePath = pdfGenerationResult.filePath;
+      pdfBuffer = pdfGenerationResult.pdfBuffer;
       fileName = pdfGenerationResult.fileName;
 
-      if (!pdfStream || typeof pdfStream.pipe !== 'function') {
-        throw new Error('PDF generation failed - no valid stream received');
+      if (!pdfBuffer?.length) {
+        throw new Error('PDF generation failed - no content received');
       }
     } catch (error) {
       console.error('❌ PDF Generation Error:', error);
@@ -541,13 +539,7 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
 
     // **Upload PDF to AWS S3**
     let uploadResult;
-    let pdfBuffer;  // Declare pdfBuffer in the outer scope for later use
     try {
-      if (!filePath || !fs.existsSync(filePath)) {
-        throw new Error('File path is invalid or does not exist');
-      }
-
-      pdfBuffer = fs.readFileSync(filePath);
       uploadResult = await uploadToS3(pdfBuffer, fileName, organizationId, propertyName);
       
       if (!uploadResult || !uploadResult.Location) {
@@ -680,12 +672,9 @@ try {
       attachments: [{ filename: fileName, content: pdfBuffer }],
     };
 
-    await sendSystemEmail(mailOptions)
+    sendSystemEmail(mailOptions)
       .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
       .catch(err => console.error('❌ Error sending email:', err));
-
-    // **Cleanup temporary file**
-    fs.unlinkSync(filePath);
 
     // **Remove the completed assignment if it exists**
     if (completedAssignment) {
@@ -767,12 +756,21 @@ app.post('/api/reset-password', async (req, res) => {
  */
 app.get('/api/recent-submissions', authenticateToken, async (req, res) => {
   try {
-    const query = { organizationId: req.user.organizationId };
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const query = {
+      organizationId: req.user.organizationId,
+      submittedAt: { $gte: thirtyDaysAgo },
+    };
     if (req.user.role === "property_manager") {
-      const organization = await Organization.findById(req.user.organizationId);
+      const organization = await Organization.findById(req.user.organizationId)
+        .select("properties.name properties.propertyManagers")
+        .lean();
       query.property = { $in: managedProperties(organization, req.user).map((item) => item.name) };
     }
     const submissions = await Submission.find(query)
+      .select("property submittedAt")
+      .lean()
       .sort({ submittedAt: -1 });
 
     res.json(submissions);

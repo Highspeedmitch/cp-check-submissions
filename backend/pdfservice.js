@@ -1,8 +1,4 @@
 const PDFDocument = require('pdfkit');
-const fs = require('fs');
-const path = require('path');
-
-const pdfStorageDir = path.join(__dirname, 'pdfstore');
 
 const COLORS = {
   navy: '#17324D',
@@ -585,16 +581,10 @@ function renderLegacyReport(doc, orgType, formData, photoBuffers, displayStamp) 
 function generateChecklistPDF(formData, photoBuffers, template = null) {
   return new Promise((resolve, reject) => {
     try {
-      if (!fs.existsSync(pdfStorageDir)) {
-        fs.mkdirSync(pdfStorageDir, { recursive: true });
-      }
-
       const sourceDate = formData?.submittedAt ? new Date(formData.submittedAt) : new Date();
       const safeSourceDate = Number.isNaN(sourceDate.getTime()) ? new Date() : sourceDate;
       const { filenameStamp, displayStamp } = getAZTimestamps(safeSourceDate);
       const fileName = `checklist-${filenameStamp}.pdf`;
-      const filePath = path.join(pdfStorageDir, fileName);
-      const pdfStream = fs.createWriteStream(filePath);
       const doc = new PDFDocument({
         size: 'LETTER',
         margin: 44,
@@ -606,7 +596,10 @@ function generateChecklistPDF(formData, photoBuffers, template = null) {
         },
       });
 
-      doc.pipe(pdfStream);
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve({ pdfBuffer: Buffer.concat(chunks), fileName }));
+      doc.on('error', reject);
       const orgType = cleanValue(formData.orgType || 'COM').toUpperCase();
       if (orgType === 'COM') {
         renderCommercialReport(doc, formData, photoBuffers, displayStamp, template);
@@ -614,12 +607,6 @@ function generateChecklistPDF(formData, photoBuffers, template = null) {
         renderLegacyReport(doc, orgType, formData, photoBuffers, displayStamp);
       }
       doc.end();
-
-      pdfStream.on('finish', () => {
-        resolve({ pdfStream: fs.createReadStream(filePath), filePath, fileName });
-      });
-      pdfStream.on('error', reject);
-      doc.on('error', reject);
     } catch (error) {
       reject(error);
     }

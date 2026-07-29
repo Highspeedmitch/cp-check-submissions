@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiUrl } from "../services/api";
+import { appendOptimizedPhotos } from "../services/photoUpload";
 
 function LongTermRental() {
   const { property } = useParams();
@@ -81,14 +82,7 @@ function LongTermRental() {
       formDataToSend.append("selectedProperty", property);
 
       // Append photos
-      Object.keys(formData.photos).forEach((field) => {
-        const files = formData.photos[field];
-        if (Array.isArray(files)) {
-          files.forEach((file) => {
-            formDataToSend.append("photos", file);
-          });
-        }
-      });
+      await appendOptimizedPhotos(formDataToSend, formData.photos);
 
       const response = await fetch(apiUrl("/api/submit-form"), {
         method: "POST",

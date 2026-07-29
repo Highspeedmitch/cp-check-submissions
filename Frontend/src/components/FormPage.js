@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
+import { appendOptimizedPhotos } from "../services/photoUpload";
 import PageHeader from "./ui/PageHeader";
 
 export default function FormPage() {
@@ -83,14 +84,7 @@ export default function FormPage() {
         }
       });
       payload.append("selectedProperty", property);
-      Object.entries(photos).forEach(([fieldKey, files]) => {
-        files.forEach((file) => {
-          payload.append(
-            "photos",
-            new File([file], `${fieldKey}-${file.name}`, { type: file.type })
-          );
-        });
-      });
+      await appendOptimizedPhotos(payload, photos);
       const result = await api.post("/api/submit-form", payload);
       setMessage(result.message || "Inspection submitted successfully.");
       setSubmitted(true);

@@ -1,6 +1,5 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const fs = require("fs");
 const { generateChecklistPDF } = require("../pdfservice");
 
 test("generates a COM checklist PDF from an effective inspection template", async () => {
@@ -31,11 +30,6 @@ test("generates a COM checklist PDF from an effective inspection template", asyn
     property_notes: "Follow up with the property manager.",
   }, [], template);
 
-  try {
-    const buffer = fs.readFileSync(result.filePath);
-    assert.equal(buffer.subarray(0, 4).toString(), "%PDF");
-    assert.ok(buffer.length > 1000);
-  } finally {
-    if (fs.existsSync(result.filePath)) fs.unlinkSync(result.filePath);
-  }
+  assert.equal(result.pdfBuffer.subarray(0, 4).toString(), "%PDF");
+  assert.ok(result.pdfBuffer.length > 1000);
 });

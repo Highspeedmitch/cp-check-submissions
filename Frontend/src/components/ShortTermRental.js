@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiUrl } from "../services/api";
+import { appendOptimizedPhotos } from "../services/photoUpload";
 // Helper component: Displays uploaded file names
 const FileNameList = ({ fieldName, formData }) => {
     if (!formData.photos || !formData.photos[fieldName]) return null; // Prevents crash
@@ -180,14 +181,7 @@ function ShortTermRental() {
         formDataToSend.append(`custom_${key}`, formData.customFields[key]);
       });
       // Append Photos
-      Object.keys(formData.photos).forEach((field) => {
-        const files = formData.photos[field];
-        if (Array.isArray(files)) {
-          files.forEach((file) => {
-            formDataToSend.append("photos", file);
-          });
-        }
-      });
+      await appendOptimizedPhotos(formDataToSend, formData.photos);
   
       const response = await fetch(apiUrl("/api/submit-form"), {
         method: "POST",
