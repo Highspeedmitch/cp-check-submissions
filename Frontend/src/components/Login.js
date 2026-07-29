@@ -79,7 +79,9 @@ function Login({ setUser }) {
           if (setUser) setUser(true);
   
           // ✅ Navigate based on role
-          if (data.role === "client") {
+          if (data.platformRole === "platform_admin") {
+            navigate("/platform");
+          } else if (data.role === "client") {
             localStorage.setItem("role", "client");
             navigate("/client/dashboard");
           } else {

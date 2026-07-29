@@ -31,6 +31,16 @@ test("access tokens expire in approximately two hours", () => {
   assert.ok(payload.exp - payload.iat <= 7200);
 });
 
+test("normal authentication retains platform privilege without assuming an organization", () => {
+  const user = { ...userFixture(), platformRole: "platform_admin" };
+  const response = authResponse(user, "test-secret");
+  const payload = jwt.verify(response.token, "test-secret");
+  assert.equal(response.platformRole, "platform_admin");
+  assert.equal(response.assumedOrganization, false);
+  assert.equal(payload.platformRole, "platform_admin");
+  assert.equal(payload.assumedOrganization, undefined);
+});
+
 test("refresh cookies are HTTP-only and use production cross-site protections", () => {
   const previousRender = process.env.RENDER;
   process.env.RENDER = "true";

@@ -37,6 +37,7 @@ function accessTokenPayload(user) {
     email: user.email,
     organizationId: organization._id,
     role: user.role,
+    platformRole: user.platformRole || null,
     userId: user._id,
     tokenVersion: user.tokenVersion || 0,
     orgType: organization.orgType,
@@ -51,6 +52,8 @@ function authResponse(user, secretKey) {
     orgName: user.organizationId.name,
     orgType: payload.orgType,
     role: payload.role,
+    platformRole: payload.platformRole,
+    assumedOrganization: false,
   };
 }
 

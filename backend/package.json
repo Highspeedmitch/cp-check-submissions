@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "grant-platform-admin": "node scripts/grantPlatformAdmin.js"
   },
   "keywords": [],
   "author": "",

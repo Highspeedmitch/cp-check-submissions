@@ -35,3 +35,23 @@ test("authentication metadata is stored and cleared together", () => {
   expect(localStorage.getItem("token")).toBeNull();
   expect(localStorage.getItem("role")).toBeNull();
 });
+
+test("assumed organization metadata is stored and cleared", () => {
+  const token = tokenWithExpiration(Math.floor(Date.now() / 1000) + 3600);
+  storeAuthentication({
+    token,
+    orgName: "Tenant",
+    organizationId: "org-2",
+    orgType: "STR",
+    role: "admin",
+    platformRole: "platform_admin",
+    assumedOrganization: true,
+    platformSessionId: "session-1",
+  });
+  expect(localStorage.getItem("platformRole")).toBe("platform_admin");
+  expect(localStorage.getItem("assumedOrganization")).toBe("true");
+  expect(localStorage.getItem("platformSessionId")).toBe("session-1");
+  clearAuthentication();
+  expect(localStorage.getItem("platformRole")).toBeNull();
+  expect(localStorage.getItem("platformSessionId")).toBeNull();
+});

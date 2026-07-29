@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./components/Login";
 import PushNotifications from "./components/PushNotifications";
+import AssumedAccessBanner from "./components/AssumedAccessBanner";
 import { restoreSession, tokenNeedsRefresh } from "./services/session";
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
@@ -31,6 +32,7 @@ const InvoiceReview = lazy(() => import("./components/InvoiceReview"));
 const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
 const Reporting = lazy(() => import("./components/Reporting"));
+const PlatformDashboard = lazy(() => import("./components/PlatformDashboard"));
 
 function RouteLoading() {
   return (
@@ -82,11 +84,15 @@ function InvoiceReviewRoute({ user, role }) {
 function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
+  const [platformRole, setPlatformRole] = useState(null);
+  const [assumedOrganization, setAssumedOrganization] = useState(false);
 
   useEffect(() => {
     const handleSessionCleared = () => {
       setUser(false);
       setRole(null);
+      setPlatformRole(null);
+      setAssumedOrganization(false);
     };
     window.addEventListener("auth-session-cleared", handleSessionCleared);
     return () => window.removeEventListener("auth-session-cleared", handleSessionCleared);
@@ -95,6 +101,8 @@ function App() {
   useEffect(() => {
     if (user === false) {
       setRole(null);
+      setPlatformRole(null);
+      setAssumedOrganization(false);
       return;
     }
     const token = localStorage.getItem("token");
@@ -105,6 +113,10 @@ function App() {
       restoreSession().then((authenticated) => {
         setUser(authenticated);
         setRole(authenticated ? localStorage.getItem("role") || "user" : null);
+        setPlatformRole(authenticated ? localStorage.getItem("platformRole") : null);
+        setAssumedOrganization(
+          authenticated && localStorage.getItem("assumedOrganization") === "true"
+        );
       });
       return;
     }
@@ -112,6 +124,8 @@ function App() {
     if (!token) {
       setUser(false);
       setRole(null);
+      setPlatformRole(null);
+      setAssumedOrganization(false);
       return;
     }
 
@@ -124,25 +138,39 @@ function App() {
     } else {
       setRole("user");
     }
+    setPlatformRole(localStorage.getItem("platformRole"));
+    setAssumedOrganization(localStorage.getItem("assumedOrganization") === "true");
   }, [user]);
 
   if (user === null) return null;
 
   return (
     <>
-    <PushNotifications enabled={user === true} />
+    <AssumedAccessBanner />
+    <PushNotifications enabled={user === true && (!platformRole || assumedOrganization)} />
     <Suspense fallback={<RouteLoading />}>
       <Routes>
-      <Route path="/" element={!user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" />} />
+      <Route path="/" element={!user
+        ? <Login setUser={setUser} />
+        : <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login setUser={setUser} />} />
+      <Route path="/login" element={user
+        ? <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />
+        : <Login setUser={setUser} />} />
+      <Route path="/platform" element={
+        user && platformRole === "platform_admin" && !assumedOrganization
+          ? <PlatformDashboard />
+          : <Navigate to="/" />
+      } />
 
       {/* ✅ Ensure Clients Redirect Correctly */}
       <Route
         path="/dashboard"
         element={
           user
-            ? role === "client"
+            ? platformRole && !assumedOrganization
+              ? <Navigate to="/platform" />
+              : role === "client"
               ? <Navigate to="/client/dashboard" />
               : <Dashboard setUser={setUser} />
             : <Navigate to="/" />
