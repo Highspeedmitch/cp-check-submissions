@@ -25,3 +25,18 @@ test("new invoices are active by default", () => {
   assert.equal(invoice.archivedAt, null);
   assert.equal(invoice.archivedBy, null);
 });
+
+test("invoice review workflow states and audit fields are retained", () => {
+  const reviewerId = "507f191e810c19729de860ed";
+  const invoice = new Invoice({
+    status: "pending_review",
+    review: {
+      requestedBy: reviewerId,
+      requestedAt: new Date("2026-07-28T12:00:00Z"),
+    },
+  });
+  assert.equal(invoice.validateSync()?.errors?.status, undefined);
+  assert.equal(invoice.status, "pending_review");
+  assert.equal(invoice.review.requestedBy.toString(), reviewerId);
+  assert.equal(invoice.review.decision, "");
+});

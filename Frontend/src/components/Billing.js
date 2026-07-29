@@ -10,13 +10,23 @@ function dollars(cents) {
 }
 
 function statusLabel(status) {
-  if (status === "submitted") return "Awaiting Payment";
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  const labels = {
+    unbilled: "Draft",
+    pending_review: "Awaiting PM Review",
+    declined: "Needs Revision",
+    approving: "Sending to AP",
+    submitted: "Sent to AP",
+    failed: "AP Delivery Failed",
+    paid: "Paid",
+    void: "Void",
+  };
+  return labels[status] || status;
 }
 
 export default function Billing() {
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
+  const isPropertyManager = role === "property_manager";
   const isOversight = role === "admin" || role === "property_manager";
   const [invoices, setInvoices] = useState([]);
   const [status, setStatus] = useState("");
@@ -123,12 +133,14 @@ export default function Billing() {
       );
       setError("");
       setMessage(
-        path === "submit" ? "Invoice submitted successfully."
+        data?.warning || (path === "submit" ? "Invoice sent to the property manager for review."
+          : path === "approve" ? "Invoice approved and sent to AP."
+          : path === "decline" ? "Invoice declined and returned to the submitter."
           : path === "mark-paid" ? "Invoice marked paid."
           : path === "amount" ? "Invoice amount saved."
           : path === "archive" ? "Invoice archived."
           : path === "restore" ? "Invoice restored."
-          : ""
+          : "")
       );
       await loadInvoices();
       return data;
@@ -158,11 +170,21 @@ export default function Billing() {
     if (data?.pdfUrl) window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
   }
 
+  async function decline(invoice) {
+    const reason = window.prompt("Why is this invoice being declined? The submitter will use this to revise it.");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      setError("A decline reason is required.");
+      return;
+    }
+    await action(invoice._id, "decline", { body: { reason: reason.trim() } });
+  }
+
   function InvoiceActions({ invoice }) {
     const isBusy = (path) => Boolean(busyActions[`${invoice._id}:${path}`]);
     return (
       <div className="beta-table-actions">
-        {!isOversight && invoice.status === "unbilled" && (
+        {!isOversight && ["unbilled", "declined"].includes(invoice.status) && (
           <>
             <button className="beta-button secondary compact" disabled={isBusy("amount")} onClick={() => saveAmount(invoice)}>
               {isBusy("amount") ? "Saving…" : "Save Amount"}
@@ -170,13 +192,28 @@ export default function Billing() {
             <button className="beta-button secondary compact" disabled={isBusy("generate")} onClick={() => generate(invoice)}>
               {isBusy("generate") ? "Generating…" : "Review PDF"}
             </button>
-            {invoice.pdfUrl && <button className="beta-button compact" disabled={isBusy("submit")} onClick={() => action(invoice._id, "submit")}>
-              {isBusy("submit") ? "Submitting…" : "Submit to AP"}
+            {invoice.status === "unbilled" && invoice.pdfUrl && <button className="beta-button compact" disabled={isBusy("submit")} onClick={() => action(invoice._id, "submit")}>
+              {isBusy("submit") ? "Sending…" : "Send for Approval"}
             </button>}
           </>
         )}
         {invoice.pdfUrl && (
           <a className="beta-link-button" href={invoice.pdfUrl} target="_blank" rel="noreferrer">View PDF</a>
+        )}
+        {isPropertyManager && invoice.status === "pending_review" && (
+          <>
+            <button className="beta-button compact" disabled={isBusy("approve")} onClick={() => action(invoice._id, "approve")}>
+              {isBusy("approve") ? "Sending…" : "Approve & Send to AP"}
+            </button>
+            <button className="beta-button danger compact" disabled={isBusy("decline")} onClick={() => decline(invoice)}>
+              {isBusy("decline") ? "Declining…" : "Decline"}
+            </button>
+          </>
+        )}
+        {isPropertyManager && invoice.status === "failed" && (
+          <button className="beta-button compact" disabled={isBusy("approve")} onClick={() => action(invoice._id, "approve")}>
+            {isBusy("approve") ? "Retrying…" : "Retry AP Delivery"}
+          </button>
         )}
         {isOversight && invoice.status === "submitted" && (
           <button className="beta-button compact" disabled={isBusy("mark-paid")} onClick={() => action(invoice._id, "mark-paid")}>
@@ -271,8 +308,11 @@ export default function Billing() {
             <label className="beta-form-field">Status
               <select value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="">All statuses</option>
-                <option value="unbilled">Unbilled</option>
-                <option value="submitted">Awaiting payment</option>
+                <option value="unbilled">Draft</option>
+                <option value="pending_review">Awaiting PM review</option>
+                <option value="declined">Needs revision</option>
+                <option value="submitted">Sent to AP</option>
+                <option value="failed">AP delivery failed</option>
                 <option value="paid">Paid</option>
               </select>
             </label>
@@ -319,13 +359,17 @@ export default function Billing() {
                   <td>{new Date(invoice.inspectionDate).toLocaleDateString()}</td>
                   {isOversight && <td>{invoice.submitterId?.username || invoice.submitterId?.email}</td>}
                   <td>
-                    {!isOversight && invoice.status === "unbilled"
+                    {!isOversight && ["unbilled", "declined"].includes(invoice.status)
                       ? <input className="beta-amount-input" type="number" min="0" step="0.01"
                           value={amounts[invoice._id] ?? (invoice.amountCents ? invoice.amountCents / 100 : "")}
                           onChange={(e) => setAmounts({ ...amounts, [invoice._id]: e.target.value })} />
                       : <strong>{dollars(invoice.amountCents)}</strong>}
                   </td>
-                  <td><span className={`beta-status ${invoice.status}`}>{statusLabel(invoice.status)}</span></td>
+                  <td>
+                    <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice.status)}</span>
+                    {invoice.review?.declineReason && <><br/><small>{invoice.review.declineReason}</small></>}
+                    {invoice.delivery?.error && <><br/><small>{invoice.delivery.error}</small></>}
+                  </td>
                   <td>{invoice.propertySnapshot.apMethod || "download"}</td>
                   <td><InvoiceActions invoice={invoice} /></td>
                 </tr>
@@ -352,9 +396,11 @@ export default function Billing() {
                 <div><dt>Inspection date</dt><dd>{new Date(invoice.inspectionDate).toLocaleDateString()}</dd></div>
                 <div><dt>AP method</dt><dd>{invoice.propertySnapshot.apMethod || "download"}</dd></div>
                 {isOversight && <div><dt>Submitter</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
+                {invoice.review?.declineReason && <div><dt>Decline reason</dt><dd>{invoice.review.declineReason}</dd></div>}
+                {invoice.delivery?.error && <div><dt>Delivery error</dt><dd>{invoice.delivery.error}</dd></div>}
                 {invoice.archivedAt && <div><dt>Archived</dt><dd>{new Date(invoice.archivedAt).toLocaleDateString()}</dd></div>}
               </dl>
-              {!isOversight && invoice.status === "unbilled" && (
+              {!isOversight && ["unbilled", "declined"].includes(invoice.status) && (
                 <label className="beta-form-field">Invoice amount
                   <input type="number" min="0" step="0.01"
                     value={amounts[invoice._id] ?? (invoice.amountCents ? invoice.amountCents / 100 : "")}

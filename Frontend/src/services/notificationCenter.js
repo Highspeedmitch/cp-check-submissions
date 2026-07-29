@@ -6,6 +6,7 @@ export const NOTIFICATION_SECTIONS = {
   billing: [
     "invoice_submitted",
     "invoice_submitted_for_review",
+    "invoice_review_changed",
     "invoice_status_changed",
     "payment_processed",
   ],

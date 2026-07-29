@@ -1,12 +1,12 @@
 const BillingPolicy = require("../models/billingPolicy");
 const Organization = require("../models/organization");
 
-const DEFAULT_POLICY_VERSION = 1;
+const DEFAULT_POLICY_VERSION = 2;
 
 function defaultPolicyDefinition(organizationId) {
   return {
     organizationId,
-    name: "Standard submitter-controlled billing",
+    name: "Standard property-manager approval",
     version: DEFAULT_POLICY_VERSION,
     active: true,
     amount: {
@@ -18,8 +18,8 @@ function defaultPolicyDefinition(organizationId) {
       maximumCents: null,
     },
     approval: {
-      mode: "none",
-      authorizedRoles: [],
+      mode: "always",
+      authorizedRoles: ["property_manager"],
       requireManagedProperty: true,
       threshold: {
         amountCents: null,
@@ -32,7 +32,7 @@ function defaultPolicyDefinition(organizationId) {
     submission: {
       allowedRoles: ["submitter"],
       excludedRoles: ["admin"],
-      approvalRequiredBeforeSubmission: false,
+      approvalRequiredBeforeSubmission: true,
     },
     administration: {
       billingSettingsRoles: ["admin"],
@@ -56,7 +56,22 @@ async function ensureOrganizationBillingPolicy(organizationId) {
       organizationId,
       active: true,
     });
-    if (assignedPolicy) return { organization, policy: assignedPolicy };
+    if (assignedPolicy) {
+      if (assignedPolicy.version === 1
+        && assignedPolicy.name === "Standard submitter-controlled billing") {
+        const upgradedPolicy = await BillingPolicy.findOneAndUpdate(
+          { organizationId, version: DEFAULT_POLICY_VERSION },
+          { $setOnInsert: defaultPolicyDefinition(organizationId) },
+          { new: true, upsert: true, setDefaultsOnInsert: true }
+        );
+        assignedPolicy.active = false;
+        await assignedPolicy.save();
+        organization.billingPolicyId = upgradedPolicy._id;
+        await organization.save();
+        return { organization, policy: upgradedPolicy };
+      }
+      return { organization, policy: assignedPolicy };
+    }
   }
 
   const existingActive = await BillingPolicy.findOne({
@@ -64,6 +79,19 @@ async function ensureOrganizationBillingPolicy(organizationId) {
     active: true,
   }).sort({ version: -1 });
   if (existingActive) {
+    if (existingActive.version === 1
+      && existingActive.name === "Standard submitter-controlled billing") {
+      const upgradedPolicy = await BillingPolicy.findOneAndUpdate(
+        { organizationId, version: DEFAULT_POLICY_VERSION },
+        { $setOnInsert: defaultPolicyDefinition(organizationId) },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+      existingActive.active = false;
+      await existingActive.save();
+      organization.billingPolicyId = upgradedPolicy._id;
+      await organization.save();
+      return { organization, policy: upgradedPolicy };
+    }
     organization.billingPolicyId = existingActive._id;
     await organization.save();
     return { organization, policy: existingActive };
@@ -98,6 +126,19 @@ function evaluatePolicyAction({ policy, action, user, invoice, property }) {
     return policy.administration.billingSettingsRoles.includes(user.role)
       ? { allowed: true }
       : { allowed: false, reason: "Your role cannot manage property billing." };
+  }
+
+  if (action === "review_invoice") {
+    if (policy.approval.mode === "none"
+      || !policy.approval.authorizedRoles.includes(user.role)) {
+      return { allowed: false, reason: "Your role cannot review this invoice." };
+    }
+    if (user.role === "property_manager"
+      && policy.approval.requireManagedProperty
+      && !isManagedProperty(property, user)) {
+      return { allowed: false, reason: "Property managers can only review properties assigned to them." };
+    }
+    return { allowed: true };
   }
 
   if (["set_amount", "generate_invoice", "submit_invoice"].includes(action)) {

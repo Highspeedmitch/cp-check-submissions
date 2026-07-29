@@ -60,13 +60,36 @@ test("default billing policy preserves manual payment updates for admins and ass
   }).allowed, false);
 });
 
+test("default billing policy requires an assigned property manager to review invoices", () => {
+  const policy = currentPolicy();
+  const property = { propertyManagers: ["pm-1"] };
+  assert.equal(evaluatePolicyAction({
+    policy,
+    action: "review_invoice",
+    user: { role: "property_manager", userId: "pm-1" },
+    property,
+  }).allowed, true);
+  assert.equal(evaluatePolicyAction({
+    policy,
+    action: "review_invoice",
+    user: { role: "property_manager", userId: "pm-2" },
+    property,
+  }).allowed, false);
+  assert.equal(evaluatePolicyAction({
+    policy,
+    action: "review_invoice",
+    user: { role: "admin", userId: "admin-1" },
+    property,
+  }).allowed, false);
+});
+
 test("policy snapshots retain the rules used to create an invoice", () => {
   const policy = currentPolicy();
   const snapshot = createPolicySnapshot(policy);
 
-  assert.equal(snapshot.policyVersion, 1);
+  assert.equal(snapshot.policyVersion, 2);
   assert.equal(snapshot.amountControl, "submitter_editable");
-  assert.equal(snapshot.approvalMode, "none");
+  assert.equal(snapshot.approvalMode, "always");
   assert.deepEqual(snapshot.submissionAllowedRoles, ["submitter"]);
   assert.deepEqual(snapshot.paymentManualUpdateRoles, ["admin", "property_manager"]);
 });

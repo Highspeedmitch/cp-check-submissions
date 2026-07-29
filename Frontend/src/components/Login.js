@@ -1,6 +1,6 @@
 // Login.js
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { storeAuthentication } from "../services/session";
 import { apiUrl } from "../services/api";
 
@@ -9,6 +9,11 @@ function Login({ setUser }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedReturnTo = new URLSearchParams(location.search).get("returnTo");
+  const returnTo = requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//")
+    ? requestedReturnTo
+    : "";
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -21,7 +26,7 @@ function Login({ setUser }) {
           if (decoded.role === "client") {
             navigate("/client/dashboard");
           } else {
-            navigate("/dashboard");
+            navigate(returnTo || "/dashboard");
           }
         } else {        
           localStorage.removeItem("token");
@@ -33,7 +38,7 @@ function Login({ setUser }) {
         localStorage.removeItem("role");
       }
     }
-  }, [navigate]);
+  }, [navigate, returnTo]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -79,7 +84,7 @@ function Login({ setUser }) {
             navigate("/client/dashboard");
           } else {
             localStorage.setItem("role", data.role || "user");
-            navigate("/dashboard");
+            navigate(returnTo || "/dashboard");
           }          
         } else {
           setError(data.message || "Unable to sign in.");

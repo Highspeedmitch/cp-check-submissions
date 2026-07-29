@@ -262,7 +262,8 @@
   text-transform: capitalize;
 }
 .beta-status.success, .beta-status.paid, .beta-status.completed, .beta-status.approved { background: var(--beta-success-bg); color: var(--beta-success); }
-.beta-status.warning, .beta-status.submitted, .beta-status.pending { background: var(--beta-warning-bg); color: var(--beta-warning); }
+.beta-status.warning, .beta-status.submitted, .beta-status.pending, .beta-status.pending_review,
+.beta-status.approving { background: var(--beta-warning-bg); color: var(--beta-warning); }
 .beta-status.declined, .beta-status.failed { background: #fff0f1; color: var(--beta-danger); }
 
 .beta-page-shell { max-width: 1120px; margin: 0 auto; padding: 34px 24px 64px; }

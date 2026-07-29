@@ -47,9 +47,23 @@ const InvoiceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["unbilled", "submitted", "paid", "failed", "void"],
+    enum: ["unbilled", "pending_review", "declined", "approving", "submitted", "paid", "failed", "void"],
     default: "unbilled",
     index: true,
+  },
+  review: {
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    requestedAt: { type: Date, default: null },
+    emailSentAt: { type: Date, default: null },
+    emailError: { type: String, default: "" },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    reviewedAt: { type: Date, default: null },
+    decision: {
+      type: String,
+      enum: ["", "approved", "declined"],
+      default: "",
+    },
+    declineReason: { type: String, default: "" },
   },
   pdfKey: { type: String, default: "" },
   delivery: {

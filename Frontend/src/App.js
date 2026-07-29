@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./components/Login";
 import PushNotifications from "./components/PushNotifications";
 import { restoreSession, tokenNeedsRefresh } from "./services/session";
@@ -28,6 +28,7 @@ const Payments = lazy(() => import("./components/Payments"));
 const ProfitUpload = lazy(() => import("./components/ProfitUpload"));
 const EditPropertyWrapper = lazy(() => import("./components/EditPropertyWrapper"));
 const Billing = lazy(() => import("./components/Billing"));
+const InvoiceReview = lazy(() => import("./components/InvoiceReview"));
 const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
 const Reporting = lazy(() => import("./components/Reporting"));
@@ -66,6 +67,17 @@ function AccessInstructionsWrapper() {
   } else {
     return <AccessInstructions />;
   }
+}
+
+function InvoiceReviewRoute({ user, role }) {
+  const location = useLocation();
+  if (!user) {
+    const returnTo = `${location.pathname}${location.search}`;
+    return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
+  }
+  return role === "property_manager"
+    ? <InvoiceReview />
+    : <Navigate to="/billing" replace />;
 }
 
 function App() {
@@ -154,6 +166,7 @@ function App() {
       {/* Payments Page - Only Admins */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
       <Route path="/billing" element={user && role !== "client" ? <Billing /> : <Navigate to="/" />} />
+      <Route path="/billing/review/:id" element={<InvoiceReviewRoute user={user} role={role} />} />
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
       <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />
       <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />

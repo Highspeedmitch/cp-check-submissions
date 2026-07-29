@@ -21,8 +21,8 @@ function assignmentCompleted(propertyName, submissionId) {
 function invoiceSubmitted(invoice) {
   return {
     type: "invoice_submitted",
-    title: "Invoice submitted",
-    body: `Your invoice for ${invoice.propertySnapshot.name} was submitted successfully.`,
+    title: "Invoice sent for review",
+    body: `Your invoice for ${invoice.propertySnapshot.name} was sent to the property manager for review.`,
     route: "/billing",
     entityId: invoice._id,
   };
@@ -31,8 +31,21 @@ function invoiceSubmitted(invoice) {
 function invoiceSubmittedForPropertyManager(invoice) {
   return {
     type: "invoice_submitted_for_review",
-    title: "Property invoice submitted",
-    body: `An invoice for ${invoice.propertySnapshot.name} has been submitted for payment.`,
+    title: "Invoice awaiting review",
+    body: `An invoice for ${invoice.propertySnapshot.name} is ready for your review.`,
+    route: `/billing/review/${invoice._id}`,
+    entityId: invoice._id,
+  };
+}
+
+function invoiceReviewChanged(invoice, decision) {
+  const approved = decision === "approved";
+  return {
+    type: "invoice_review_changed",
+    title: approved ? "Invoice approved" : "Invoice needs revision",
+    body: approved
+      ? `Your invoice for ${invoice.propertySnapshot.name} was approved and sent to AP.`
+      : `Your invoice for ${invoice.propertySnapshot.name} was declined and needs your attention.`,
     route: "/billing",
     entityId: invoice._id,
   };
@@ -83,6 +96,7 @@ module.exports = {
   assignmentCompleted,
   invoiceSubmitted,
   invoiceSubmittedForPropertyManager,
+  invoiceReviewChanged,
   invoiceStatusChanged,
   bidRequestSubmitted,
   bidRequestReceived,
