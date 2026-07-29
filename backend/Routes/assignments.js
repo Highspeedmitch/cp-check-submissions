@@ -22,6 +22,7 @@ function createAssignmentHandlers({
       const {
         propertyName,
         userId,
+        eventType,
         startDate,
         endDate,
         oneTimeCheckRequest,
@@ -30,6 +31,10 @@ function createAssignmentHandlers({
       if (!organizationId) {
         console.error("Missing organizationId in assignment request.");
         return res.status(400).json({ error: "Missing organization ID" });
+      }
+      const validEventTypes = ["QA Check", "Maintenance", "Cleaning"];
+      if (eventType && !validEventTypes.includes(eventType)) {
+        return res.status(400).json({ error: "Invalid assignment event type." });
       }
 
       const assignedUser = await UserModel.findOne({
@@ -61,6 +66,7 @@ function createAssignmentHandlers({
         organizationId,
         propertyName,
         userId,
+        eventType,
         startDate,
         endDate,
         oneTimeCheckRequest: oneTimeCheckRequest || "",

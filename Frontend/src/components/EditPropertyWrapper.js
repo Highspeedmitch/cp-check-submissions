@@ -12,7 +12,7 @@ function EditPropertyWrapper() {
     // If AzRoots => show advanced instructions
     return <AZRaccessinstructions />;
   } else {
-    // Otherwise => show the old STReditProperty
+    // Other organizations use the standard short-term-rental editor.
     return <STReditProperty />;
   }
 }

@@ -13,7 +13,6 @@ const FormPage = lazy(() => import("./components/FormPage"));
 const PropertyFormSettings = lazy(() => import("./components/PropertyFormSettings"));
 const OrganizationFormSettings = lazy(() => import("./components/OrganizationFormSettings"));
 const Register = lazy(() => import("./components/Register"));
-const PropertySelector = lazy(() => import("./components/PropertySelector"));
 const AdminSubmissions = lazy(() => import("./components/AdminSubmissions"));
 const ForgotPassword = lazy(() => import("./components/ForgotPassword"));
 const ResetPassword = lazy(() => import("./components/ResetPassword"));
@@ -150,7 +149,6 @@ function App() {
         }
       />
 
-      <Route path="/property-selector" element={user ? <PropertySelector /> : <Navigate to="/" />} />
       <Route path="/form/:property" element={user ? <FormPage /> : <Navigate to="/" />} />
       <Route path="/property-form-settings/:property" element={user ? <PropertyFormSettings /> : <Navigate to="/" />} />
       <Route path="/organization-form-settings" element={user ? <OrganizationFormSettings /> : <Navigate to="/" />} />
@@ -161,8 +159,6 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={<SchedulerWrapper />} />
-      {/*<Route path="/access-instructions/:propertyName" element={<AccessInstructions />} />*/}
-
       {/* Payments Page - Only Admins */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
       <Route path="/billing" element={user && role !== "client" ? <Billing /> : <Navigate to="/" />} />
@@ -177,10 +173,8 @@ function App() {
       {/* Client Dashboard - Only for Clients */}
       <Route path="/client/dashboard" element={user && role === "client" ? <ClientDashboard setUser={setUser} /> : <Navigate to="/" />} />
       
-      {/* New: Client Profit Statement Route */}
       <Route path="/client/profit-statement/:propertyId" element={user && role === "client" ? <ClientProfitStatement /> : <Navigate to="/" />} />
 
-      {/* New: Client Consultation Scheduling Route */}
       <Route path="/client/schedule-consultation" element={user && role === "client" ? <ScheduleConsultation /> : <Navigate to="/" />} />
 
       {/* Client Registration */}

@@ -99,8 +99,8 @@ function AzRootsScheduler() {
   }
 
     const url = editingAssignment
-  ? apiUrl(`/api/azroots-assignments/${editingAssignment._id}`)
-  : apiUrl("/api/azroots-assignments");
+  ? apiUrl(`/api/assignments/${editingAssignment._id}`)
+  : apiUrl("/api/assignments");
 
   
     const method = editingAssignment ? "PUT" : "POST";

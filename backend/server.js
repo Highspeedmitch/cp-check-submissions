@@ -62,8 +62,6 @@ const {
   getAllowedFrontendOrigins,
   buildFrontendUrl,
 } = require("./utils/frontendUrls");
-//azrootsAssignments.js
-const azrootsAssignments = require("./Routes/azrootsAssignments"); // Import the new route
 //airbnb ical
 const airbnbCalendar = require("./Routes/airbnbCalendar"); // Import Airbnb route
 //azroots properties
@@ -176,8 +174,6 @@ app.use("/api/reporting", authenticateToken, require("./Routes/reporting"));
 const clientRoutes = require("./Routes/ClientRoutes"); // Import the route file
 app.use("/api/client", authenticateToken, clientRoutes); // Mount under /api/client
 
-//azrootsAssignments
-app.use("/api/azroots-assignments", azrootsAssignments); // Register it
 
 //airnbnb integration
 app.use("/api/airbnb-calendar", airbnbCalendar); // Register it
@@ -253,17 +249,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-app.post('/api/legacy-save-subscription-disabled', authenticateToken, async (req, res) => {
-  const subscription = req.body;
-  try {
-    // Assuming your User model has a "pushSubscription" field
-    await User.findByIdAndUpdate(req.user.userId, { pushSubscription: subscription });
-    res.status(201).json({ message: 'Subscription saved.' });
-  } catch (err) {
-    console.error('Error saving subscription:', err);
-    res.status(500).json({ error: 'Error saving subscription.' });
-  }
-});
 /**
  * 🔹 User Login (Returns JWT)
  */
@@ -885,7 +870,6 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
-// ====== NEW ROUTES FOR PASSKEY AND ADD PROPERTY ======
 // Verify passkey route for adding properties
 app.post("/api/verify-passkey", (req, res) => {
   try {
@@ -900,7 +884,6 @@ app.post("/api/verify-passkey", (req, res) => {
     res.status(500).json({ message: "Server error verifying passkey" });
   }
 });
-// ***** New: Verify removal passkey route *****
 app.post("/api/verify-remove-passkey", (req, res) => {
   try {
     // rename this to match the front-end
@@ -1088,22 +1071,6 @@ app.get('/api/org-admins', authenticateToken, async (req, res) => {
     console.error("❌ Error fetching organization admins:", error);
     res.status(500).json({ error: "Server error fetching organization admins" });
   }
-});
-
-app.post("/api/legacy-register-push-token-disabled", authenticateToken, async (req, res) => {
-    try {
-        const { userId, token } = req.body;
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ error: "User not found" });
-
-        user.pushSubscription = token;
-        await user.save();
-
-        res.json({ success: true, message: "Push token stored" });
-    } catch (error) {
-        console.error("❌ Error storing push token:", error);
-        res.status(500).json({ error: "Server error storing push token" });
-    }
 });
 
 app.get('/api/properties/:propertyName', authenticateToken, async (req, res) => {

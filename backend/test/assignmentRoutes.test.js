@@ -108,6 +108,7 @@ test("assignment creation retains admin and organization scoping", async () => {
     body: {
       propertyName: "Broadway Center",
       userId: "user-1",
+      eventType: "Maintenance",
       startDate: "2026-07-28T01:00:00.000Z",
       endDate: "2026-07-28T02:00:00.000Z",
       oneTimeCheckRequest: "Check rear lighting",
@@ -124,6 +125,7 @@ test("assignment creation retains admin and organization scoping", async () => {
   assert.equal(overlapQuery.organizationId, "org-1");
   assert.equal(overlapQuery.propertyName, "Broadway Center");
   assert.equal(savedAssignment.organizationId, "org-1");
+  assert.equal(savedAssignment.eventType, "Maintenance");
   assert.equal(notification.userId, "user-1");
   assert.equal(notification.type, "assignment_created");
 });
