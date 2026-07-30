@@ -23,6 +23,7 @@ function ensureSpace(doc, height) {
 
 function generateProspectAssessmentPDF({ assessment, photoBuffers = [] }) {
   return new Promise((resolve, reject) => {
+    const reportIdentity = assessment.businessName || assessment.propertyAddress || "Prospective Property";
     const doc = new PDFDocument({ size: "LETTER", margin: 44, bufferPages: true });
     const chunks = [];
     doc.on("data", (chunk) => chunks.push(chunk));
@@ -34,7 +35,7 @@ function generateProspectAssessmentPDF({ assessment, photoBuffers = [] }) {
       .text(assessment.templateSnapshot.title, 44, 38, { width: 510 });
     doc.font("Helvetica").fontSize(10).text("Prepared by Afterlight", 44, 76);
     doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(17)
-      .text(assessment.businessName, 44, 145);
+      .text(reportIdentity, 44, 145);
     doc.fillColor(SLATE).font("Helvetica").fontSize(10)
       .text(assessment.propertyAddress, 44, 172);
     doc.text(`Assessment date: ${new Date(assessment.createdAt).toLocaleDateString("en-US")}`, 44, 190);
@@ -77,7 +78,7 @@ function generateProspectAssessmentPDF({ assessment, photoBuffers = [] }) {
       doc.moveDown(0.6);
     });
 
-    addFooter(doc, assessment.businessName);
+    addFooter(doc, reportIdentity);
     doc.end();
   });
 }

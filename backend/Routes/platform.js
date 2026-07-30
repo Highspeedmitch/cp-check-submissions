@@ -67,8 +67,8 @@ router.put("/prospect-template", authenticateToken, requirePlatformAdmin, async 
       if (!identityField) {
         return res.status(400).json({ error: "Business name and property address fields cannot be removed." });
       }
-      identityField.required = true;
       identityField.locked = true;
+      if (identityKey === "propertyAddress") identityField.required = true;
     }
     const template = await getProspectTemplate();
     template.name = name;
@@ -111,8 +111,8 @@ router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
       });
       const businessName = String(responses.businessName || req.body.businessName || "").trim();
       const propertyAddress = String(responses.propertyAddress || req.body.propertyAddress || "").trim();
-      if (!businessName || !propertyAddress) {
-        return res.status(400).json({ error: "Business name and property address are required." });
+      if (!propertyAddress) {
+        return res.status(400).json({ error: "Property address is required." });
       }
       const missing = template.fields.find((field) => field.required && !responses[field.key]);
       if (missing) return res.status(400).json({ error: `${missing.label} is required.` });
@@ -137,7 +137,10 @@ router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
       ));
       const assessmentData = { businessName, propertyAddress, responses, templateSnapshot: snapshot, createdAt };
       const pdfBuffer = await generateProspectAssessmentPDF({ assessment: assessmentData, photoBuffers });
-      const safeName = businessName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) || "property";
+      const safeName = (businessName || propertyAddress)
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 60) || "property";
       const pdfFileName = `${safeName}-exterior-assessment.pdf`;
       const pdfKey = `platform/prospect-assessments/${crypto.randomUUID()}-${pdfFileName}`;
       await s3.upload({

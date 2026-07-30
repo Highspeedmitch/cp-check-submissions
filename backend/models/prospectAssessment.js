@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const ProspectAssessmentSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
-  businessName: { type: String, required: true, trim: true },
+  businessName: { type: String, default: "", trim: true },
   propertyAddress: { type: String, required: true, trim: true },
   responses: { type: mongoose.Schema.Types.Mixed, default: {} },
   templateSnapshot: { type: mongoose.Schema.Types.Mixed, required: true },

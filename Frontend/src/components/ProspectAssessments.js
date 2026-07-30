@@ -109,7 +109,8 @@ export default function ProspectAssessments() {
           {!assessments.length && <div className="beta-empty-state">No active prospect assessments.</div>}
           {assessments.map((item) => (
             <article className="beta-card" key={item._id}>
-              <h3>{item.businessName}</h3><p>{item.propertyAddress}</p>
+              <h3>{item.businessName || item.propertyAddress}</h3>
+              {item.businessName && <p>{item.propertyAddress}</p>}
               <p>Created {new Date(item.createdAt).toLocaleDateString()}</p>
               <p>Purges {new Date(item.expiresAt).toLocaleDateString()}</p>
               <button className="beta-button compact" onClick={() => download(item._id)}>Download PDF</button>{" "}
