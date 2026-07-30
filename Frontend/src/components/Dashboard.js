@@ -6,6 +6,11 @@ import { format } from "date-fns";
 import { logoutSession } from "../services/session";
 import DashboardNavigation from "./ui/DashboardNavigation";
 import PageHeader from "./ui/PageHeader";
+import AssignmentSection from "./dashboard/AssignmentSection";
+import DashboardPagination from "./dashboard/DashboardPagination";
+import PropertySection from "./dashboard/PropertySection";
+import InspectionLauncherDialog from "./dashboard/dialogs/InspectionLauncherDialog";
+import RemovePropertyDialog from "./dashboard/dialogs/RemovePropertyDialog";
 import {
   useMarkNotificationsRead,
   useNotificationBadges,
@@ -840,39 +845,21 @@ useEffect(() => {
       />
       {/* STR user action dialog */}
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h2>Select an Action</h2>
-            <p>
-              What would you like to do for <strong>{selectedProperty}</strong>?
-            </p>
-            <button
-              className="modal-btn"
-              onClick={() => {
-                if (orgName === "AzRoots") {
-                  navigate(`/azr-access-instructions/${encodeURIComponent(selectedProperty)}`);
-                } else {
-                  navigate(`/access-instructions/${encodeURIComponent(selectedProperty)}`);
-                }
-                setShowModal(false);
-              }}
-            >
-              Access / Info
-            </button>
-            <button
-              className="modal-btn"
-              onClick={() => {
-                navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}`);
-                setShowModal(false);
-              }}
-            >
-              Submit Form
-            </button>
-            <button className="modal-close" onClick={() => setShowModal(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
+        <InspectionLauncherDialog
+          propertyName={selectedProperty}
+          onAccessInfo={() => {
+            const route = orgName === "AzRoots"
+              ? "/azr-access-instructions/"
+              : "/access-instructions/";
+            navigate(`${route}${encodeURIComponent(selectedProperty)}`);
+            setShowModal(false);
+          }}
+          onSubmitForm={() => {
+            navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}`);
+            setShowModal(false);
+          }}
+          onClose={() => setShowModal(false)}
+        />
       )}
 
       {/* Main Content */}
@@ -888,43 +875,13 @@ useEffect(() => {
           actions={<button type="button" className="beta-back-link" onClick={handleLogout}>Log out</button>}
         />
 
-        {!isManagement && assignments.length > 0 && (
-          <section className="beta-section">
-            <div className="beta-section-heading">
-              <div>
-                <h2>My Assignments</h2>
-                <p>Your scheduled property work.</p>
-              </div>
-            </div>
-            <div className="beta-assignment-grid">
-              {assignments.slice(0, 4).map((assignment) => {
-                const property = properties.find((item) => item.name === assignment.propertyName);
-                return (
-                  <article className="beta-assignment-card" key={assignment._id}>
-                    <div className="beta-card-header">
-                      <div>
-                        <h3>{assignment.propertyName}</h3>
-                        <p>{new Date(assignment.startDate).toLocaleDateString()}</p>
-                      </div>
-                      <span className="beta-status warning">Scheduled</span>
-                    </div>
-                    {assignment.oneTimeCheckRequest && (
-                      <div className="beta-assignment-note">
-                        <strong>Special instructions</strong>
-                        <p>{assignment.oneTimeCheckRequest}</p>
-                      </div>
-                    )}
-                    <div className="beta-card-actions">
-                      {property && <button className="beta-button" onClick={() => openProperty(property)}>Start Inspection</button>}
-                      {property?.lat && property?.lng && (
-                        <button className="beta-button secondary" onClick={() => openNativeMaps(property.lat, property.lng)}>Navigate</button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
+        {!isManagement && (
+          <AssignmentSection
+            assignments={assignments}
+            properties={properties}
+            onOpenProperty={openProperty}
+            onNavigate={openNativeMaps}
+          />
         )}
 
         {loading ? (
@@ -933,118 +890,32 @@ useEffect(() => {
           <p className="error">{error}</p>
         ) : (
           <>
-            <section className="beta-section">
-              <div className="beta-section-heading">
-                <div>
-                  <h2>{isManagement ? "All Managed Properties" : "All Properties"}</h2>
-                  <p>{isManagement ? "Review inspections and property activity." : "Select a property to begin an inspection."}</p>
-                </div>
-              </div>
-            {/* Property Cards */}
-            <div className="property-cards">
-              {displayedProperties.map((prop) => {
-                const isCompleted = completedProperties.includes(prop.name);
-                const propertyActivityRoute =
-                  `/admin/submissions/${encodeURIComponent(prop.name)}`;
-                const hasNewActivity = isManagement
-                  && (notificationBadges.propertyActivityRoutes || []).includes(propertyActivityRoute);
-
-                return (
-                  <div
-                    key={prop.name}
-                    className="beta-property-card"
-                  >
-                    <div className="beta-card-header">
-                      <div>
-                        <h3>{prop.name}</h3>
-                        <p>{isManagement ? "Inspection history and property activity" : "Property inspection checklist"}</p>
-                      </div>
-                      <span className={`beta-status ${hasNewActivity || isCompleted ? "completed" : ""}`}>
-                        {hasNewActivity ? "New!" : isCompleted ? "Completed" : isManagement ? "Managed" : "Ready"}
-                      </span>
-                    </div>
-                    <div className="beta-card-actions beta-property-actions">
-                      <button className="beta-button" onClick={() => openProperty(prop)}>
-                        {isManagement ? "View Submissions" : "Start Inspection"}
-                      </button>
-                      {role === "admin" && (
-                        <button
-                          type="button"
-                          className="beta-button secondary"
-                          onClick={() => openPropertyEmailModal(prop)}
-                        >
-                          Manage Emails
-                        </button>
-                      )}
-                      {isManagement && adminOrgType === "COM" && (
-                        <button
-                          type="button"
-                          className="beta-button secondary"
-                          onClick={() => navigate(`/property-form-settings/${encodeURIComponent(prop.name)}`)}
-                        >
-                          Manage Details
-                        </button>
-                      )}
-                    </div>
-
-                    {/* ✅ PROFIT STATEMENT STATUS - AzRoots Admins ONLY */}
-                    {role === "admin" && orgName === "AzRoots" && (
-                      <p>
-                        Profit Statement for {format(new Date(), "MMM")}:{" "}
-                        {profitStatuses[prop._id] || "❌"}
-                      </p>
-                    )}
-
-                    {/* If STR admin => Show "Access / Info" button, but NOT "Remove" */}
-                    {role === "admin" && adminOrgType === "STR" && (
-                      <button
-                        className="access-instructions-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const orgName = localStorage.getItem("orgName");
-
-                          if (orgName === "AzRoots") {
-                            navigate(`/azr-access-instructions/${encodeURIComponent(prop.name)}`);
-                          } else {
-                            navigate(`/access-instructions/${encodeURIComponent(prop.name)}`);
-                          }
-                        }}
-                      >
-                        Access / Info
-                      </button>
-                    )}
-
-                    {/* If admin is NOT STR => Show "Remove" button */}
-                    {role === "admin" && adminOrgType !== "STR" && (
-                      <button
-                        className="remove-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPropertyToRemove(prop.name);
-                          setRemovePropertyModalVisible(true);
-                        }}
-                      >
-                        Remove
-                      </button>
-                    )}
-
-                    {/* If user => show "Navigate" if lat/lng exist */}
-                    {role !== "admin" && prop.lat && prop.lng && (
-                      <button
-                        className="navigate-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openNativeMaps(prop.lat, prop.lng);
-                        }}
-                      >
-                        Navigate
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            </section>
+            <PropertySection
+              properties={displayedProperties}
+              completedProperties={completedProperties}
+              isManagement={isManagement}
+              role={role}
+              orgName={orgName}
+              orgType={adminOrgType}
+              notificationBadges={notificationBadges}
+              profitStatuses={profitStatuses}
+              onOpenProperty={openProperty}
+              onManageEmails={openPropertyEmailModal}
+              onManageDetails={(property) =>
+                navigate(`/property-form-settings/${encodeURIComponent(property.name)}`)
+              }
+              onAccessInfo={(property) => {
+                const route = orgName === "AzRoots"
+                  ? "/azr-access-instructions/"
+                  : "/access-instructions/";
+                navigate(`${route}${encodeURIComponent(property.name)}`);
+              }}
+              onRemove={(property) => {
+                setPropertyToRemove(property.name);
+                setRemovePropertyModalVisible(true);
+              }}
+              onNavigate={openNativeMaps}
+            />
             {emailModalProperty && (
               <div
                 className="beta-dialog-overlay"
@@ -1133,62 +1004,28 @@ useEffect(() => {
             )}
             {/* Remove Property Modal (one combined) */}
             {removePropertyModalVisible && (
-              <div className="modal-overlay">
-                <div className="modal">
-                  <h2>Remove Property</h2>
-                  <p>Select the property you wish to remove:</p>
-                  <select
-                    value={propertyToRemove}
-                    onChange={(e) => setPropertyToRemove(e.target.value)}
-                  >
-                    <option value="">-- Select Property --</option>
-                    {properties.map((prop) => (
-                      <option key={prop.name} value={prop.name}>
-                        {prop.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <label style={{ marginTop: "1rem", display: "block" }}>
-                    Enter Removal Passkey:
-                    <input
-                      type="password"
-                      value={removePasskey}
-                      onChange={(e) => setRemovePasskey(e.target.value)}
-                    />
-                  </label>
-
-                  <div style={{ marginTop: "10px" }}>
-                    <button
-                      onClick={handleRemoveProperty}
-                      className="payments-button"
-                    >
-                      Confirm Removal
-                    </button>
-                    <button
-                      onClick={() => {
-                        setRemovePropertyModalVisible(false);
-                        setRemovePasskey("");
-                        setPropertyToRemove("");
-                      }}
-                      className="payments-button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <RemovePropertyDialog
+                properties={properties}
+                propertyName={propertyToRemove}
+                passkey={removePasskey}
+                busy={propertyActionBusy === "remove"}
+                onPropertyChange={setPropertyToRemove}
+                onPasskeyChange={setRemovePasskey}
+                onConfirm={handleRemoveProperty}
+                onClose={() => {
+                  setRemovePropertyModalVisible(false);
+                  setRemovePasskey("");
+                  setPropertyToRemove("");
+                }}
+              />
             )}
 
-            {/* Pagination Controls */}
-            <div className="pagination-controls" style={{ marginTop: "1rem" }}>
-              {canGoPrev && (
-                <button onClick={handlePrevPage} style={{ marginRight: "10px" }}>
-                  Previous
-                </button>
-              )}
-              {canGoNext && <button onClick={handleNextPage}>Next</button>}
-            </div>
+            <DashboardPagination
+              canGoPrevious={canGoPrev}
+              canGoNext={canGoNext}
+              onPrevious={handlePrevPage}
+              onNext={handleNextPage}
+            />
           </>
         )}
 
