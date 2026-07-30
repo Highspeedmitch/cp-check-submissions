@@ -12,7 +12,7 @@ function client() {
   return new OktaAuth({
     issuer,
     clientId,
-    redirectUri: `${window.location.origin}/login/okta/callback`,
+    redirectUri: `${window.location.origin}/login/callback`,
     scopes: ["openid", "profile", "email"],
     pkce: true,
     tokenManager: { storage: "sessionStorage" },

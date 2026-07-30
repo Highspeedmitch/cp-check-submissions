@@ -159,6 +159,7 @@ function App() {
       <Route path="/login" element={user
         ? <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />
         : <Login setUser={setUser} />} />
+      <Route path="/login/callback" element={<OktaCallback setUser={setUser} />} />
       <Route path="/login/okta/callback" element={<OktaCallback setUser={setUser} />} />
       <Route path="/platform" element={
         user && platformRole === "platform_admin" && !assumedOrganization
