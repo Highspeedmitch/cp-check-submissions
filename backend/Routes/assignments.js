@@ -105,6 +105,8 @@ function createAssignmentHandlers({
           $in: managedPropertiesForUser(organization, req.user)
             .map((property) => property.name),
         };
+      } else if (req.user.role !== "admin") {
+        query.userId = req.user.userId;
       }
 
       const assignments = await AssignmentModel.find(query).sort({ startDate: 1 });
@@ -144,6 +146,9 @@ function createAssignmentHandlers({
 
   async function deleteAssignment(req, res) {
     try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const deletedAssignment = await AssignmentModel.findOneAndDelete({
         _id: req.params.id,
         organizationId: req.user.organizationId,
@@ -164,12 +169,30 @@ function createAssignmentHandlers({
 
   async function updateAssignment(req, res) {
     try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const allowedFields = [
+        "propertyName",
+        "userId",
+        "eventType",
+        "startDate",
+        "endDate",
+        "oneTimeCheckRequest",
+        "status",
+        "notes",
+      ];
+      const changes = Object.fromEntries(
+        allowedFields
+          .filter((field) => Object.prototype.hasOwnProperty.call(req.body, field))
+          .map((field) => [field, req.body[field]])
+      );
       const assignment = await AssignmentModel.findOneAndUpdate(
         {
           _id: req.params.id,
           organizationId: req.user.organizationId,
         },
-        req.body,
+        changes,
         { new: true }
       );
       if (!assignment) {

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require("../models/user");
 const PlatformSession = require("../models/platformSession");
-const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
+const { getJwtSecret } = require("../config/security");
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -10,7 +10,15 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ message: "Access denied. No token provided." });
   }
   
-  jwt.verify(token, SECRET_KEY, async (err, user) => {
+  let secretKey;
+  try {
+    secretKey = getJwtSecret();
+  } catch (error) {
+    console.error("Authentication configuration error:", error.message);
+    return res.status(500).json({ message: "Authentication is unavailable." });
+  }
+
+  jwt.verify(token, secretKey, async (err, user) => {
     if (err) {
       return res.status(403).json({ message: "Invalid token" });
     }

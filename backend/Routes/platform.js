@@ -20,9 +20,9 @@ const {
   createAssumedAccessResponse,
 } = require("../services/platformAccess");
 const { getPlatformOrganizationMetrics } = require("../services/platformMetrics");
+const { getJwtSecret } = require("../config/security");
 
 const router = express.Router();
-const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const prospectUpload = multer({
   storage: multer.memoryStorage(),
@@ -214,7 +214,7 @@ router.post("/organizations/:organizationId/assume", authenticateToken, requireP
       user,
       organization,
       platformSessionId: platformSession._id,
-      secretKey: SECRET_KEY,
+      secretKey: getJwtSecret(),
     }));
   } catch (error) {
     console.error("Organization assumption error:", error);
@@ -239,7 +239,7 @@ router.post("/exit", authenticateToken, async (req, res) => {
     if (!user?.organizationId) {
       return res.status(500).json({ error: "Unable to restore the platform account." });
     }
-    return res.json(authResponse(user, SECRET_KEY));
+    return res.json(authResponse(user, getJwtSecret()));
   } catch (error) {
     console.error("Organization assumption exit error:", error);
     return res.status(500).json({ error: "Unable to exit the organization." });

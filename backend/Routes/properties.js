@@ -78,7 +78,10 @@ router.put("/:propertyId/region", async (req, res) => {
     const { region } = req.body;
 
     // Find the organization
-    const organization = await Organization.findOne({ "properties._id": propertyId });
+    const organization = await Organization.findOne({
+      _id: req.user.organizationId,
+      "properties._id": propertyId,
+    });
     if (!organization) {
       return res.status(404).json({ error: "Property not found." });
     }

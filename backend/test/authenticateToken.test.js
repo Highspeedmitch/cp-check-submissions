@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
+process.env.JWT_SECRET = "test-only-authentication-secret";
 const User = require("../models/user");
 const authenticateToken = require("../middleware/authenticateToken");
 
@@ -38,7 +39,10 @@ test("accepts an active user when the token version matches", async () => {
       }),
     }),
   });
-  const token = jwt.sign({ userId: "user-1", tokenVersion: 2 }, "supersecuresecret");
+  const token = jwt.sign(
+    { userId: "user-1", tokenVersion: 2 },
+    process.env.JWT_SECRET
+  );
   const req = { headers: { authorization: `Bearer ${token}` } };
   const res = {
     status: () => res,

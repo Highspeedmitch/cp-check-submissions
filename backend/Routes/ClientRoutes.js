@@ -66,7 +66,9 @@ router.get("/communications/:propertyId", async (req, res) => {
     }
     
     // Ensure the client is assigned (owner) of this property.
-    if (!property.clientOwners?.some(clientId => clientId.toString() === req.user.id)) {
+    if (!property.clientOwners?.some(
+      (clientId) => clientId.toString() === req.user.userId.toString()
+    )) {
       return res.status(403).json({ error: "You are not assigned to this property." });
     }
     

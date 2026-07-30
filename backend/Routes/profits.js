@@ -22,6 +22,7 @@ const s3 = new AWS.S3();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype !== "application/pdf") {
       return cb(new Error("Only PDFs are allowed."));
@@ -162,7 +163,17 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
     const propId = new mongoose.Types.ObjectId(propertyId);
     console.log("✅ Converted to ObjectId:", propId);
 
-    const profit = await Profit.findOne({ propertyId: propId });
+    const property = organization.properties.id(propId);
+    if (!property?.clientOwners?.some(
+      (ownerId) => ownerId.toString() === req.user.userId.toString()
+    )) {
+      return res.status(403).json({ error: "You are not assigned to this property." });
+    }
+
+    const profit = await Profit.findOne({
+      propertyId: propId,
+      organizationId: req.user.organizationId,
+    });
 
     if (!profit) {
       console.error("❌ No profit data found for property:", propId);
@@ -194,8 +205,25 @@ router.get("/:propertyId/latest", authenticateToken, async (req, res) => {
     }
     const propId = new mongoose.Types.ObjectId(propertyId);
 
-    // 2) Query for the Profit doc
-    const latestProfit = await Profit.findOne({ propertyId: propId }).sort({ uploadedAt: -1 });
+    if (!["admin", "client"].includes(req.user.role)) {
+      return res.status(403).json({ error: "Profit statement access denied." });
+    }
+    const organization = await Organization.findById(req.user.organizationId);
+    const property = organization?.properties.id(propId);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found in your organization." });
+    }
+    if (req.user.role === "client" && !property.clientOwners?.some(
+      (ownerId) => ownerId.toString() === req.user.userId.toString()
+    )) {
+      return res.status(403).json({ error: "You are not assigned to this property." });
+    }
+
+    // 2) Query for the tenant-scoped Profit doc
+    const latestProfit = await Profit.findOne({
+      propertyId: propId,
+      organizationId: req.user.organizationId,
+    }).sort({ uploadedAt: -1 });
 
     if (!latestProfit) {
       return res.status(404).json({ error: "No profit statement found for this property." });
@@ -210,6 +238,9 @@ router.get("/:propertyId/latest", authenticateToken, async (req, res) => {
 
 router.get("/:propertyName/history", authenticateToken, async (req, res) => {
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only admins can view profit history." });
+    }
     const { propertyName } = req.params;
     const decodedName = decodeURIComponent(propertyName).trim().toLowerCase();
     const org = await Organization.findById(req.user.organizationId);
@@ -224,6 +255,7 @@ router.get("/:propertyName/history", authenticateToken, async (req, res) => {
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
     
     const profits = await Profit.find({
+      organizationId: req.user.organizationId,
       propertyId: property._id,
       uploadedAt: { $gte: twelveMonthsAgo }
     }).sort({ uploadedAt: -1 });

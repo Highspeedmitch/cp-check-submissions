@@ -187,6 +187,27 @@ test("property managers only list assignments for managed properties", async () 
   });
 });
 
+test("ordinary users only list their own assignments", async () => {
+  let assignmentQuery;
+  const handlers = createAssignmentHandlers({
+    AssignmentModel: {
+      find(query) {
+        assignmentQuery = query;
+        return { async sort() { return []; } };
+      },
+    },
+  });
+
+  await handlers.listAssignments({
+    user: { role: "user", userId: "user-1", organizationId: "org-1" },
+  }, response());
+
+  assert.deepEqual(assignmentQuery, {
+    organizationId: "org-1",
+    userId: "user-1",
+  });
+});
+
 test("scheduler user lookup retains organization and role filters", async () => {
   let userQuery;
   const users = [{ _id: "user-1", role: "user" }];
@@ -270,4 +291,47 @@ test("assignment deletion remains scoped to the authenticated organization", asy
     success: true,
     message: "Assignment deleted successfully",
   });
+});
+
+test("non-admin users cannot update or delete assignments", async () => {
+  const handlers = createAssignmentHandlers();
+  const updateResponse = response();
+  const deleteResponse = response();
+  const request = {
+    user: { role: "user", userId: "user-1", organizationId: "org-1" },
+    params: { id: "assignment-1" },
+    body: { status: "completed" },
+  };
+
+  await handlers.updateAssignment(request, updateResponse);
+  await handlers.deleteAssignment(request, deleteResponse);
+
+  assert.equal(updateResponse.statusCode, 403);
+  assert.deepEqual(updateResponse.body, { error: "Forbidden" });
+  assert.equal(deleteResponse.statusCode, 403);
+  assert.deepEqual(deleteResponse.body, { error: "Forbidden" });
+});
+
+test("assignment updates discard tenant and audit fields from request bodies", async () => {
+  let changes;
+  const handlers = createAssignmentHandlers({
+    AssignmentModel: {
+      async findOneAndUpdate(_query, update) {
+        changes = update;
+        return { _id: "assignment-1", ...update };
+      },
+    },
+  });
+
+  await handlers.updateAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    params: { id: "assignment-1" },
+    body: {
+      status: "completed",
+      organizationId: "org-2",
+      createdAt: "forged",
+    },
+  }, response());
+
+  assert.deepEqual(changes, { status: "completed" });
 });

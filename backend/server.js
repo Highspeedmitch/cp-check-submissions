@@ -1,5 +1,7 @@
 // server.js
 require('dotenv').config();
+const { getJwtSecret, validateRuntimeConfig } = require("./config/security");
+validateRuntimeConfig();
 const express = require('express');
 const cors = require('cors');
 const { generateChecklistPDF } = require('./pdfservice');
@@ -33,6 +35,10 @@ const {
 } = require('./utils/submissionRange');
 const authenticateToken = require('./middleware/authenticateToken');
 const { managedProperties, canAccessProperty } = require('./services/propertyAccess');
+const {
+  isManagementRole,
+  buildSubmissionQuery,
+} = require("./services/submissionAccess");
 const mileageTrackingRoutes = require("./Routes/mileageTracking");
 const adminRoutes = require("./Routes/admin");
 const assignmentRoutes = require("./Routes/assignments");
@@ -109,7 +115,7 @@ const uploadToS3 = (fileContent, fileName, organizationId, propertyName) => {
 // Initialize Express App
 const app = express();
 const PORT = process.env.PORT || 10000;
-const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
+const SECRET_KEY = getJwtSecret();
 
 // ✅ CORS configuration
 const allowedOrigins = getAllowedFrontendOrigins();
@@ -747,16 +753,10 @@ app.get('/api/recent-submissions', authenticateToken, async (req, res) => {
   try {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const query = {
-      organizationId: req.user.organizationId,
-      submittedAt: { $gte: thirtyDaysAgo },
-    };
-    if (req.user.role === "property_manager") {
-      const organization = await Organization.findById(req.user.organizationId)
-        .select("properties.name properties.propertyManagers")
-        .lean();
-      query.property = { $in: managedProperties(organization, req.user).map((item) => item.name) };
-    }
+    const query = await buildSubmissionQuery({
+      user: req.user,
+      submittedAfter: thirtyDaysAgo,
+    });
     const submissions = await Submission.find(query)
       .select("property submittedAt")
       .lean()
@@ -774,11 +774,7 @@ app.get('/api/recent-submissions', authenticateToken, async (req, res) => {
  */
 app.get('/api/submissions', authenticateToken, async (req, res) => {
   try {
-    const query = { organizationId: req.user.organizationId };
-    if (req.user.role === "property_manager") {
-      const organization = await Organization.findById(req.user.organizationId);
-      query.property = { $in: managedProperties(organization, req.user).map((item) => item.name) };
-    }
+    const query = await buildSubmissionQuery({ user: req.user });
     const submissions = await Submission.find(query)
       .sort({ submittedAt: -1 });
 
@@ -819,6 +815,9 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
  */
 app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) => {
   try {
+    if (!isManagementRole(req.user)) {
+      return res.status(403).json({ error: "Management access required." });
+    }
     const { property } = req.params;
     const months = parseSubmissionMonths(req.query.months);
     if (months === null) {
