@@ -1,6 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
-import { appendOptimizedPhotos } from "../services/photoUpload";
+import { appendOptimizedPhotos, mergePhotoSelection } from "../services/photoUpload";
+
+function PhotoPreview({ file, onRemove }) {
+  const previewUrl = useMemo(() => URL.createObjectURL(file), [file]);
+  useEffect(() => () => URL.revokeObjectURL(previewUrl), [previewUrl]);
+  return (
+    <div style={{ width: 92 }}>
+      <img src={previewUrl} alt={file.name || "Selected photo"}
+        style={{ width: 92, height: 72, objectFit: "cover", borderRadius: 6 }} />
+      <button type="button" className="beta-text-button" onClick={onRemove}>Remove</button>
+    </div>
+  );
+}
 
 function newField(label, type) {
   const base = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 35);
@@ -40,6 +52,14 @@ export default function ProspectAssessments() {
   useEffect(() => { load(); }, []);
 
   const setResponse = (key, value) => setResponses((current) => ({ ...current, [key]: value }));
+  const addPhotos = (fieldKey, fileList) => {
+    const selectedFiles = Array.from(fileList || []);
+    if (!selectedFiles.length) return;
+    setPhotos((current) => ({
+      ...current,
+      [fieldKey]: mergePhotoSelection(current[fieldKey], selectedFiles),
+    }));
+  };
   const updateField = (key, changes) => setTemplate((current) => ({
     ...current,
     fields: current.fields.map((field) => field.key === key ? { ...field, ...changes } : field),
@@ -140,12 +160,19 @@ export default function ProspectAssessments() {
                     value={responses[`${field.key}Description`] || ""}
                     onChange={(event) => setResponse(`${field.key}Description`, event.target.value)} />
                   {field.allowPhotos && <>
+                    <strong>Photos for: {field.reportLabel || field.label}</strong>
                     <input key={`${field.key}-${photos[field.key]?.length || 0}`} type="file" accept="image/*" multiple
-                      onChange={(event) => setPhotos((current) => ({
-                        ...current,
-                        [field.key]: [...(current[field.key] || []), ...event.target.files].slice(0, 6),
-                      }))} />
+                      onChange={(event) => addPhotos(field.key, event.currentTarget.files)} />
                     <small>{photos[field.key]?.length || 0} of 6 photos attached. Select again to add more.</small>
+                    {photos[field.key]?.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                      {photos[field.key].map((file, index) => (
+                        <PhotoPreview key={`${file.name}-${file.lastModified}-${index}`} file={file}
+                          onRemove={() => setPhotos((current) => ({
+                            ...current,
+                            [field.key]: current[field.key].filter((_item, photoIndex) => photoIndex !== index),
+                          }))} />
+                      ))}
+                    </div>}
                     {photos[field.key]?.length > 0 && <button type="button" className="beta-text-button"
                       onClick={() => setPhotos((current) => ({ ...current, [field.key]: [] }))}>
                       Clear section photos

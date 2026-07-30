@@ -52,3 +52,10 @@ export async function appendOptimizedPhotos(formData, photoGroups) {
     }
   }
 }
+
+export function mergePhotoSelection(currentFiles, selectedFiles, maxFiles = 6) {
+  return [
+    ...(Array.isArray(currentFiles) ? currentFiles : []),
+    ...Array.from(selectedFiles || []),
+  ].slice(0, maxFiles);
+}
