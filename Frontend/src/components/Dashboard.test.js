@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 import { api } from "../services/api";
@@ -12,6 +12,7 @@ jest.mock("@capacitor/geolocation", () => ({
 jest.mock("../services/api", () => ({
   api: {
     get: jest.fn(),
+    post: jest.fn(),
     put: jest.fn(),
   },
   apiUrl: (path) => path,
@@ -52,6 +53,8 @@ function renderDashboard(role) {
 beforeEach(() => {
   localStorage.clear();
   api.get.mockResolvedValue([]);
+  api.post.mockResolvedValue({ valid: false });
+  api.put.mockResolvedValue({ property: { ...property, emails: [] } });
   global.fetch = jest.fn(async (url) => {
     const data = String(url).includes("latest-statuses")
       ? { statuses: {} }
@@ -93,4 +96,42 @@ test("submitter retains a single inspection action", async () => {
   expect(screen.getAllByRole("heading", { name: property.name })).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Start Inspection" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Manage Details" })).not.toBeInTheDocument();
+});
+
+test("admin can update property inspection recipients through the extracted dialog", async () => {
+  api.put.mockResolvedValue({
+    property: { ...property, emails: ["manager@example.com", "ops@example.com"] },
+  });
+  renderDashboard("admin");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Manage Emails" }));
+  const recipientInput = screen.getByLabelText("Recipient emails");
+  fireEvent.change(recipientInput, {
+    target: { value: "manager@example.com\nops@example.com" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save Emails" }));
+
+  await waitFor(() => {
+    expect(api.put).toHaveBeenCalledWith(
+      "/api/properties/property-1/emails",
+      { emails: ["manager@example.com", "ops@example.com"] }
+    );
+  });
+  expect(await screen.findByText("Inspection recipients updated.")).toBeInTheDocument();
+});
+
+test("valid admin passkey opens the reducer-backed add property form", async () => {
+  api.post.mockResolvedValue({ valid: true });
+  renderDashboard("admin");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Add Property" }));
+  fireEvent.change(screen.getByLabelText("Organization passkey"), {
+    target: { value: "test-passkey" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(await screen.findByRole("heading", { name: "Add New Property" })).toBeInTheDocument();
+  expect(api.post).toHaveBeenCalledWith("/api/verify-passkey", {
+    passkey: "test-passkey",
+  });
 });

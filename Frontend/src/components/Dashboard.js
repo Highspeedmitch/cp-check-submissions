@@ -1,5 +1,5 @@
 // Dashboard.js
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
 import { format } from "date-fns";
@@ -11,6 +11,9 @@ import DashboardPagination from "./dashboard/DashboardPagination";
 import PropertySection from "./dashboard/PropertySection";
 import InspectionLauncherDialog from "./dashboard/dialogs/InspectionLauncherDialog";
 import RemovePropertyDialog from "./dashboard/dialogs/RemovePropertyDialog";
+import AdminVerificationDialog from "./dashboard/dialogs/AdminVerificationDialog";
+import PropertyRecipientsDialog from "./dashboard/dialogs/PropertyRecipientsDialog";
+import AddPropertyForm from "./dashboard/AddPropertyForm";
 import {
   useMarkNotificationsRead,
   useNotificationBadges,
@@ -130,26 +133,9 @@ const handleRegionFilter = async () => {
 
   // ----------- "Add Property" Admin Flow -----------
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
-  const [passkey, setPasskey] = useState("");
   const [verifiedAddPropertyPasskey, setVerifiedAddPropertyPasskey] = useState("");
-  const [passkeyError, setPasskeyError] = useState("");
-  const [passkeyVerifying, setPasskeyVerifying] = useState(false);
-  const passkeyInputRef = useRef(null);
-  const addPropertyFormRef = useRef(null);
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
-  const [newPropName, setNewPropName] = useState("");
-  const [newPropEmails, setNewPropEmails] = useState("");
-  const [newPropLat, setNewPropLat] = useState("");
-  const [newPropLng, setNewPropLng] = useState("");
-  const [newPropAddress, setNewPropAddress] = useState("");
-  const [newPropBillingAddress, setNewPropBillingAddress] = useState("");
-  const [newPropCode, setNewPropCode] = useState("");
-  const [newPropDefaultAmount, setNewPropDefaultAmount] = useState("");
-  const [newPropApMethod, setNewPropApMethod] = useState("download");
-  const [newPropApDestination, setNewPropApDestination] = useState("");
-  const [propertyActionError, setPropertyActionError] = useState("");
   const [propertyActionMessage, setPropertyActionMessage] = useState("");
-  const [propertyActionBusy, setPropertyActionBusy] = useState("");
 
   // ----------- "Remove Property" Admin Flow -----------
   // We have a single modal for removing property + passkey.
@@ -159,13 +145,6 @@ const handleRegionFilter = async () => {
 
   // ----------- Property inspection recipients -----------
   const [emailModalProperty, setEmailModalProperty] = useState(null);
-  const [propertyEmailDraft, setPropertyEmailDraft] = useState("");
-  const [propertyEmailError, setPropertyEmailError] = useState("");
-  const [propertyEmailMessage, setPropertyEmailMessage] = useState("");
-  const [propertyEmailSaving, setPropertyEmailSaving] = useState(false);
-  const propertyEmailInputRef = useRef(null);
-  
-  const propertyEmailSavingRef = useRef(false);
 
   // ------------ Scheduler Flow -----------
   const [assignments, setAssignments] = useState([]);
@@ -397,238 +376,81 @@ useEffect(() => {
   // 4) Add Property Logic
   // ======================
   const closePasskeyPrompt = () => {
-    if (passkeyVerifying) return;
     setPasskeyPromptVisible(false);
-    setPasskey("");
     setVerifiedAddPropertyPasskey("");
-    setPasskeyError("");
   };
 
-  const handlePasskeySubmit = async (event) => {
-    event?.preventDefault();
-    if (!passkey.trim() || passkeyVerifying) return;
-
-    setPasskeyVerifying(true);
-    setPasskeyError("");
-
-    try {
-      const data = await api.post("/api/verify-passkey", { passkey });
-
-      if (!data.valid) {
-        setPasskeyError("That passkey is not valid. Please try again.");
-        return;
-      }
-
+  const verifyAddPropertyPasskey = async (passkey) => {
+    const data = await api.post("/api/verify-passkey", { passkey });
+    if (data.valid) {
       setVerifiedAddPropertyPasskey(passkey);
       setPasskeyPromptVisible(false);
-      setPasskey("");
       setAddPropertyFormVisible(true);
-    } catch (err) {
-      console.error("Error verifying passkey:", err);
-      setPasskeyError("We could not verify the passkey. Please try again.");
-    } finally {
-      setPasskeyVerifying(false);
+      return true;
     }
-  };
-
-  useEffect(() => {
-    if (!passkeyPromptVisible) return undefined;
-
-    const previouslyFocused = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    passkeyInputRef.current?.focus();
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setPasskeyPromptVisible(false);
-        setPasskey("");
-        setVerifiedAddPropertyPasskey("");
-        setPasskeyError("");
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previouslyFocused?.focus?.();
-    };
-  }, [passkeyPromptVisible]);
-
-  useEffect(() => {
-    if (!addPropertyFormVisible) return undefined;
-
-    const frame = window.requestAnimationFrame(() => {
-      addPropertyFormRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [addPropertyFormVisible]);
-
-  const closePropertyEmailModal = () => {
-    if (propertyEmailSaving) return;
-    setEmailModalProperty(null);
-    setPropertyEmailDraft("");
-    setPropertyEmailError("");
-    setPropertyEmailMessage("");
+    return false;
   };
 
   const openPropertyEmailModal = (property) => {
     setEmailModalProperty(property);
-    setPropertyEmailDraft((property.emails || []).join("\n"));
-    setPropertyEmailError("");
-    setPropertyEmailMessage("");
   };
 
-  const handlePropertyEmailSave = async (event) => {
-    event.preventDefault();
-    if (!emailModalProperty || propertyEmailSaving) return;
-
-    const emails = propertyEmailDraft
-      .split(/[\n,;]+/)
-      .map((email) => email.trim())
-      .filter(Boolean);
-
-    propertyEmailSavingRef.current = true;
-    setPropertyEmailSaving(true);
-    setPropertyEmailError("");
-    setPropertyEmailMessage("");
-    try {
-      const result = await api.put(
-        `/api/properties/${emailModalProperty._id}/emails`,
-        { emails }
-      );
-      const updatedEmails = result.property.emails || [];
-      const applyUpdate = (items) => items.map((property) =>
-        property._id === emailModalProperty._id
-          ? { ...property, emails: updatedEmails }
-          : property
-      );
-      setProperties(applyUpdate);
-      setEmailModalProperty((property) => ({ ...property, emails: updatedEmails }));
-      setPropertyEmailDraft(updatedEmails.join("\n"));
-      setPropertyEmailMessage("Inspection recipients updated.");
-    } catch (err) {
-      setPropertyEmailError(err.message || "Unable to update inspection recipients.");
-    } finally {
-      propertyEmailSavingRef.current = false;
-      setPropertyEmailSaving(false);
-    }
+  const savePropertyEmails = async (emails) => {
+    const result = await api.put(
+      `/api/properties/${emailModalProperty._id}/emails`,
+      { emails }
+    );
+    const updatedEmails = result.property.emails || [];
+    setProperties((items) => items.map((property) =>
+      property._id === emailModalProperty._id
+        ? { ...property, emails: updatedEmails }
+        : property
+    ));
+    setEmailModalProperty((property) => ({ ...property, emails: updatedEmails }));
+    return updatedEmails;
   };
 
-  useEffect(() => {
-    if (!emailModalProperty) return undefined;
-
-    const previouslyFocused = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    propertyEmailInputRef.current?.focus();
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !propertyEmailSavingRef.current) {
-        setEmailModalProperty(null);
-        setPropertyEmailDraft("");
-        setPropertyEmailError("");
-        setPropertyEmailMessage("");
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previouslyFocused?.focus?.();
-    };
-  }, [emailModalProperty]);
-
   // ======================
-  // 5) Geocode address (Mapbox)
+  // 5) Submit new property (admin only)
   // ======================
-  async function handleGeocodeAddress(e) {
-    e.preventDefault();
-    if (!newPropAddress) {
-      return alert("Please enter an address to geocode.");
-    }
-    const mapboxToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
-    if (!mapboxToken) {
-      console.error("REACT_APP_MAPBOX_ACCESS_TOKEN is not configured.");
-      return alert("Address lookup is temporarily unavailable.");
-    }
-    const baseUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
-    const url = `${baseUrl}${encodeURIComponent(newPropAddress)}.json?access_token=${mapboxToken}`;
-
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.features && data.features.length > 0) {
-        const [lng, lat] = data.features[0].center;
-        setNewPropLat(lat.toString());
-        setNewPropLng(lng.toString());
-        alert(`Geocoded to: ${lat}, ${lng}`);
-      } else {
-        alert("No geocoding results found. Please refine the address.");
-      }
-    } catch (error) {
-      console.error("Geocoding error:", error);
-      alert("Error geocoding address. Check console.");
-    }
-  }
-
-  // ======================
-  // 6) Submit new property (admin only)
-  // ======================
-  const handleCreateProperty = async () => {
-    if (propertyActionBusy) return;
-    setPropertyActionBusy("create");
-    setPropertyActionError("");
+  const handleCreateProperty = async (form) => {
     setPropertyActionMessage("");
     try {
-      const emailsArray = newPropEmails
+      const emailsArray = form.emails
         .split(",")
         .map((email) => email.trim())
         .filter(Boolean);
 
       await api.post("/api/admin/add-property", {
         passkey: verifiedAddPropertyPasskey,
-        name: newPropName,
+        name: form.name,
         emails: emailsArray,
-        lat: parseFloat(newPropLat) || 0,
-        lng: parseFloat(newPropLng) || 0,
+        lat: parseFloat(form.lat) || 0,
+        lng: parseFloat(form.lng) || 0,
         ...(adminOrgType === "COM" && {
-          propertyCode: newPropCode.trim(),
-          physicalAddress: newPropAddress.trim(),
-          billingAddress: newPropBillingAddress.trim(),
-          defaultInspectionAmountCents: newPropDefaultAmount
-            ? Math.round(Number(newPropDefaultAmount) * 100)
+          propertyCode: form.propertyCode.trim(),
+          physicalAddress: form.address.trim(),
+          billingAddress: form.billingAddress.trim(),
+          defaultInspectionAmountCents: form.defaultAmount
+            ? Math.round(Number(form.defaultAmount) * 100)
             : null,
-          apMethod: newPropApMethod,
-          apEmail: newPropApMethod === "email" ? newPropApDestination.trim() : "",
-          apPortal: newPropApMethod === "portal" ? newPropApDestination.trim() : "",
+          apMethod: form.apMethod,
+          apEmail: form.apMethod === "email" ? form.apDestination.trim() : "",
+          apPortal: form.apMethod === "portal" ? form.apDestination.trim() : "",
         }),
       });
       if (adminOrgType === "STR") {
         setVerifiedAddPropertyPasskey("");
-        navigate(`/admin/edit-property/${encodeURIComponent(newPropName)}`);
+        navigate(`/admin/edit-property/${encodeURIComponent(form.name)}`);
       } else {
         setAddPropertyFormVisible(false);
         setVerifiedAddPropertyPasskey("");
-        setNewPropName("");
-        setNewPropEmails("");
-        setNewPropLat("");
-        setNewPropLng("");
-        setNewPropAddress("");
-        setNewPropBillingAddress("");
         setPropertyActionMessage("Property added successfully.");
         await fetchProperties();
       }
     } catch (err) {
       console.error("Error creating property:", err);
-      setPropertyActionError(err.message || "Unable to create the property.");
-    } finally {
-      setPropertyActionBusy("");
+      throw err;
     }
   };
 
@@ -823,10 +645,7 @@ useEffect(() => {
         onAddProperty={() => {
           setSidebarCollapsed(false);
           setPasskeyPromptVisible(true);
-          setPasskey("");
           setVerifiedAddPropertyPasskey("");
-          setPasskeyError("");
-          setPropertyActionError("");
           setPropertyActionMessage("");
         }}
         onRemoveProperty={() => {
@@ -917,90 +736,11 @@ useEffect(() => {
               onNavigate={openNativeMaps}
             />
             {emailModalProperty && (
-              <div
-                className="beta-dialog-overlay"
-                onMouseDown={(event) => {
-                  if (event.target === event.currentTarget) closePropertyEmailModal();
-                }}
-              >
-                <form
-                  className="beta-dialog"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="property-email-title"
-                  aria-describedby="property-email-description"
-                  onSubmit={handlePropertyEmailSave}
-                >
-                  <div className="beta-dialog-header">
-                    <div>
-                      <span className="beta-eyebrow">Inspection delivery</span>
-                      <h2 id="property-email-title">Manage recipient emails</h2>
-                    </div>
-                    <button
-                      type="button"
-                      className="beta-dialog-close"
-                      aria-label="Close recipient email dialog"
-                      onClick={closePropertyEmailModal}
-                      disabled={propertyEmailSaving}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <p id="property-email-description" className="beta-dialog-copy">
-                    Inspection reports for <strong>{emailModalProperty.name}</strong> will be
-                    sent to these addresses. Enter one address per line, or separate them
-                    with commas.
-                  </p>
-                  <label className="beta-field" htmlFor="property-recipient-emails">
-                    <span>Recipient emails</span>
-                    <textarea
-                      ref={propertyEmailInputRef}
-                      id="property-recipient-emails"
-                      rows="6"
-                      value={propertyEmailDraft}
-                      onChange={(event) => {
-                        setPropertyEmailDraft(event.target.value);
-                        setPropertyEmailError("");
-                        setPropertyEmailMessage("");
-                      }}
-                      placeholder={"manager@example.com\noperations@example.com"}
-                      aria-invalid={Boolean(propertyEmailError)}
-                      aria-describedby={propertyEmailError ? "property-email-error" : undefined}
-                      disabled={propertyEmailSaving}
-                    />
-                  </label>
-                  <p className="beta-dialog-note">
-                    Leaving this empty removes all property-specific inspection recipients.
-                  </p>
-                  {propertyEmailError && (
-                    <p id="property-email-error" className="beta-alert error" role="alert">
-                      {propertyEmailError}
-                    </p>
-                  )}
-                  {propertyEmailMessage && (
-                    <p className="beta-alert success" role="status">
-                      {propertyEmailMessage}
-                    </p>
-                  )}
-                  <div className="beta-dialog-actions">
-                    <button
-                      type="button"
-                      className="beta-button secondary"
-                      onClick={closePropertyEmailModal}
-                      disabled={propertyEmailSaving}
-                    >
-                      Close
-                    </button>
-                    <button
-                      type="submit"
-                      className="beta-button"
-                      disabled={propertyEmailSaving}
-                    >
-                      {propertyEmailSaving ? "Saving…" : "Save Emails"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+              <PropertyRecipientsDialog
+                property={emailModalProperty}
+                onSave={savePropertyEmails}
+                onClose={() => setEmailModalProperty(null)}
+              />
             )}
             {/* Remove Property Modal (one combined) */}
             {removePropertyModalVisible && (
@@ -1008,7 +748,7 @@ useEffect(() => {
                 properties={properties}
                 propertyName={propertyToRemove}
                 passkey={removePasskey}
-                busy={propertyActionBusy === "remove"}
+                busy={false}
                 onPropertyChange={setPropertyToRemove}
                 onPasskeyChange={setRemovePasskey}
                 onConfirm={handleRemoveProperty}
@@ -1031,193 +771,26 @@ useEffect(() => {
 
         {/* Passkey prompt for adding property */}
         {passkeyPromptVisible && (
-          <div
-            className="beta-dialog-overlay"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) closePasskeyPrompt();
-            }}
-          >
-            <form
-              className="beta-dialog"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="add-property-passkey-title"
-              aria-describedby="add-property-passkey-description"
-              onSubmit={handlePasskeySubmit}
-            >
-              <div className="beta-dialog-header">
-                <div>
-                  <span className="beta-eyebrow">Admin verification</span>
-                  <h2 id="add-property-passkey-title">Add a new property</h2>
-                </div>
-                <button
-                  type="button"
-                  className="beta-dialog-close"
-                  aria-label="Close passkey dialog"
-                  onClick={closePasskeyPrompt}
-                  disabled={passkeyVerifying}
-                >
-                  ×
-                </button>
-              </div>
-              <p id="add-property-passkey-description" className="beta-dialog-copy">
-                Enter your organization passkey to continue to property setup.
-              </p>
-              <label className="beta-field" htmlFor="add-property-passkey">
-                <span>Organization passkey</span>
-                <input
-                  ref={passkeyInputRef}
-                  id="add-property-passkey"
-                  type="password"
-                  autoComplete="current-password"
-                  value={passkey}
-                  onChange={(event) => {
-                    setPasskey(event.target.value);
-                    if (passkeyError) setPasskeyError("");
-                  }}
-                  aria-invalid={Boolean(passkeyError)}
-                  aria-describedby={passkeyError ? "passkey-error" : undefined}
-                  disabled={passkeyVerifying}
-                />
-              </label>
-              {passkeyError && (
-                <p id="passkey-error" className="beta-dialog-error" role="alert">
-                  {passkeyError}
-                </p>
-              )}
-              <div className="beta-dialog-actions">
-                <button
-                  type="button"
-                  className="beta-button secondary"
-                  onClick={closePasskeyPrompt}
-                  disabled={passkeyVerifying}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="beta-button"
-                  disabled={!passkey.trim() || passkeyVerifying}
-                >
-                  {passkeyVerifying ? "Verifying…" : "Continue"}
-                </button>
-              </div>
-            </form>
-          </div>
+          <AdminVerificationDialog
+            onVerify={verifyAddPropertyPasskey}
+            onClose={closePasskeyPrompt}
+          />
         )}
 
-        {propertyActionError && (
-          <p className="beta-alert error" role="alert">{propertyActionError}</p>
-        )}
         {propertyActionMessage && (
           <p className="beta-alert success" role="status">{propertyActionMessage}</p>
         )}
 
         {/* Show Add Property Form if passkey verified */}
         {addPropertyFormVisible && (
-          <div className="add-property-form" ref={addPropertyFormRef}>
-            <h3>Add New Property</h3>
-            <label>
-              Property Name:
-              <input
-                type="text"
-                value={newPropName}
-                onChange={(e) => setNewPropName(e.target.value)}
-              />
-            </label>
-            <label>
-              Emails (comma-separated):
-              <textarea
-                value={newPropEmails}
-                onChange={(e) => setNewPropEmails(e.target.value)}
-              />
-            </label>
-            <label>
-              Physical Property Address (will geocode):
-              <input
-                type="text"
-                value={newPropAddress}
-                onChange={(e) => setNewPropAddress(e.target.value)}
-              />
-            </label>
-            {adminOrgType === "COM" && (
-              <>
-                <label>
-                  Invoice Billing Address:
-                  <input
-                    type="text"
-                    required
-                    value={newPropBillingAddress}
-                    onChange={(e) => setNewPropBillingAddress(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Brokerage Property Code:
-                  <input
-                    type="text"
-                    required
-                    value={newPropCode}
-                    onChange={(e) => setNewPropCode(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Default Check Amount (optional):
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={newPropDefaultAmount}
-                    onChange={(e) => setNewPropDefaultAmount(e.target.value)}
-                  />
-                </label>
-                <label>
-                  AP Delivery:
-                  <select
-                    value={newPropApMethod}
-                    onChange={(e) => setNewPropApMethod(e.target.value)}
-                  >
-                    <option value="download">Manual download</option>
-                    <option value="email">Email</option>
-                    <option value="portal">AP portal</option>
-                  </select>
-                </label>
-                {newPropApMethod !== "download" && (
-                  <label>
-                    {newPropApMethod === "email" ? "AP Email:" : "AP Portal / Instructions:"}
-                    <input
-                      type={newPropApMethod === "email" ? "email" : "text"}
-                      value={newPropApDestination}
-                      onChange={(e) => setNewPropApDestination(e.target.value)}
-                    />
-                  </label>
-                )}
-              </>
-            )}
-            <button onClick={handleGeocodeAddress} style={{ marginBottom: "1rem" }}>
-              Geocode
-            </button>
-            <div style={{ marginBottom: "1rem" }}>
-              <small>Lat: {newPropLat || "N/A"}</small>
-              <br />
-              <small>Lng: {newPropLng || "N/A"}</small>
-            </div>
-            <button
-              onClick={handleCreateProperty}
-              disabled={propertyActionBusy === "create"}
-            >
-              {propertyActionBusy === "create" ? "Creating…" : "Create"}
-            </button>
-            <button
-              disabled={propertyActionBusy === "create"}
-              onClick={() => {
-                setAddPropertyFormVisible(false);
-                setVerifiedAddPropertyPasskey("");
-                setPropertyActionError("");
-              }}
-            >
-              Close
-            </button>
-          </div>
+          <AddPropertyForm
+            orgType={adminOrgType}
+            onCreate={handleCreateProperty}
+            onClose={() => {
+              setAddPropertyFormVisible(false);
+              setVerifiedAddPropertyPasskey("");
+            }}
+          />
         )}
       </div>
     </div>
