@@ -17,6 +17,8 @@ function PropertyCard({
   onRemove,
   onNavigate,
 }) {
+  const isUnassigned =
+    role === "admin" && (property.propertyManagers || []).length === 0;
   return (
     <div className="beta-property-card">
       <div className="beta-card-header">
@@ -28,11 +30,15 @@ function PropertyCard({
               : "Property inspection checklist"}
           </p>
         </div>
-        <span className={`beta-status ${hasNewActivity || isCompleted ? "completed" : ""}`}>
+        <span className={`beta-status ${
+          hasNewActivity || isCompleted ? "completed" : isUnassigned ? "declined" : ""
+        }`}>
           {hasNewActivity
             ? "New!"
             : isCompleted
               ? "Completed"
+              : isUnassigned
+                ? "Unassigned"
               : isManagement
                 ? "Managed"
                 : "Ready"}

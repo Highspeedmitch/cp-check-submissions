@@ -6,7 +6,9 @@ function managedProperties(organization, user) {
     );
   }
   if (["user", "contractor", "cleaner"].includes(user.role)) {
-    return organization.properties;
+    return organization.properties.filter(
+      (property) => (property.propertyManagers || []).length > 0
+    );
   }
   if (user.role === "client") {
     return organization.properties.filter((property) =>
@@ -23,7 +25,9 @@ function canAccessProperty(property, user) {
       (id) => id.toString() === user.userId.toString()
     ));
   }
-  if (["user", "contractor", "cleaner"].includes(user.role)) return true;
+  if (["user", "contractor", "cleaner"].includes(user.role)) {
+    return (property.propertyManagers || []).length > 0;
+  }
   if (user.role === "client") {
     return Boolean(property.clientOwners?.some(
       (id) => id.toString() === user.userId.toString()

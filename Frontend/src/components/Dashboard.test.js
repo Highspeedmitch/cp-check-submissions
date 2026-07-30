@@ -77,6 +77,7 @@ test("admin dashboard renders one property card with admin management actions", 
   expect(screen.getByRole("button", { name: "View Submissions" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Manage Emails" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Manage Details" })).toBeInTheDocument();
+  expect(screen.getByText("Unassigned")).toHaveClass("declined");
   expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
 });
 
@@ -123,6 +124,17 @@ test("admin can update property inspection recipients through the extracted dial
 
 test("valid admin passkey opens the reducer-backed add property form", async () => {
   api.post.mockResolvedValue({ grant: "test-grant" });
+  api.get.mockImplementation(async (path) => path === "/api/admin-users"
+    ? {
+        users: [{
+          _id: "pm-1",
+          username: "Pat Manager",
+          email: "pat@example.com",
+          role: "property_manager",
+          accountStatus: "active",
+        }],
+      }
+    : []);
   renderDashboard("admin");
 
   fireEvent.click(await screen.findByRole("button", { name: "Add Property" }));
@@ -132,6 +144,9 @@ test("valid admin passkey opens the reducer-backed add property form", async () 
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
   expect(await screen.findByRole("heading", { name: "Add New Property" })).toBeInTheDocument();
+  expect(
+    await screen.findByRole("option", { name: "Pat Manager (pat@example.com)" })
+  ).toBeInTheDocument();
   expect(api.post).toHaveBeenCalledWith("/api/organization-security/grants", {
     purpose: "add_property",
     passkey: "test-passkey",

@@ -38,3 +38,20 @@ test("unknown roles receive no property access by default", () => {
   assert.deepEqual(managedProperties({ properties }, user), []);
   assert.equal(canAccessProperty(properties[0], user), false);
 });
+
+test("operational users cannot access unassigned properties", () => {
+  const assigned = {
+    name: "Assigned",
+    propertyManagers: [{ toString: () => "pm-1" }],
+  };
+  const unassigned = { name: "Unassigned", propertyManagers: [] };
+  const user = { role: "user", userId: "user-1" };
+
+  assert.deepEqual(
+    managedProperties({ properties: [assigned, unassigned] }, user)
+      .map((property) => property.name),
+    ["Assigned"]
+  );
+  assert.equal(canAccessProperty(assigned, user), true);
+  assert.equal(canAccessProperty(unassigned, user), false);
+});

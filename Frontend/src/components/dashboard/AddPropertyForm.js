@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer, useRef, useState } from "react";
+import { api } from "../../services/api";
 
 const initialForm = {
   name: "",
@@ -11,6 +12,7 @@ const initialForm = {
   defaultAmount: "",
   apMethod: "download",
   apDestination: "",
+  propertyManagerId: "",
 };
 
 function formReducer(state, action) {
@@ -28,6 +30,7 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
   const [form, dispatch] = useReducer(formReducer, initialForm);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [propertyManagers, setPropertyManagers] = useState([]);
   const formRef = useRef(null);
 
   useEffect(() => {
@@ -35,6 +38,18 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    api.get("/api/admin-users")
+      .then((data) => {
+        setPropertyManagers(
+          (data.users || []).filter(
+            (user) => user.role === "property_manager" && user.accountStatus !== "inactive"
+          )
+        );
+      })
+      .catch(() => setError("Unable to load property managers."));
   }, []);
 
   const setField = (name) => (event) => {
@@ -107,6 +122,20 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
       <label>
         Physical Property Address (will geocode):
         <input type="text" value={form.address} onChange={setField("address")} />
+      </label>
+      <label>
+        Assign to property manager (optional):
+        <select
+          value={form.propertyManagerId}
+          onChange={setField("propertyManagerId")}
+        >
+          <option value="">Leave unassigned</option>
+          {propertyManagers.map((manager) => (
+            <option key={manager._id} value={manager._id}>
+              {manager.username} ({manager.email})
+            </option>
+          ))}
+        </select>
       </label>
       {orgType === "COM" && (
         <>

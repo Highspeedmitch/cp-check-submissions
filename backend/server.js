@@ -388,6 +388,7 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
       lat: p.lat,
       lng: p.lng,
       emails: p.emails,
+      propertyManagers: p.propertyManagers || [],
       orgType: org.orgType,  // ✅ Now added!
     }));
 
@@ -903,7 +904,7 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
       name, lat, lng, emails, region, accessInstructions, customFields,
       maintenanceInfo, generalInfo, propertyCode, physicalAddress, billingAddress,
       defaultInspectionAmountCents, apMethod, apEmail, apPortal,
-      billingInstructions, purchaseOrder
+      billingInstructions, purchaseOrder, propertyManagerId
     } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Property name is required" });
@@ -917,6 +918,20 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
         error: "Property code, physical address, and billing address are required for commercial properties."
       });
     }
+    let assignedPropertyManager = null;
+    if (propertyManagerId) {
+      assignedPropertyManager = await User.findOne({
+        _id: propertyManagerId,
+        organizationId: org._id,
+        role: "property_manager",
+        accountStatus: { $ne: "inactive" },
+      }).select("_id").lean();
+      if (!assignedPropertyManager) {
+        return res.status(400).json({
+          error: "Select an active property manager from this organization.",
+        });
+      }
+    }
 
      // 6) Create the property
      const newProperty = {
@@ -924,6 +939,7 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
       lat,
       lng,
       emails: emails || [],
+      propertyManagers: assignedPropertyManager ? [assignedPropertyManager._id] : [],
       region,
       ...(isCOM && {
         propertyCode: propertyCode.trim(),
