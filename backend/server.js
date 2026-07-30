@@ -1175,3 +1175,14 @@ app.put('/api/access-instructions/:propertyName', authenticateToken, async (req,
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+
+const { purgeExpiredProspectAssessments } = require("./services/prospectRetention");
+purgeExpiredProspectAssessments().catch((error) =>
+  console.error("Initial prospect assessment cleanup error:", error)
+);
+const prospectCleanupTimer = setInterval(() => {
+  purgeExpiredProspectAssessments().catch((error) =>
+    console.error("Prospect assessment cleanup error:", error)
+  );
+}, 6 * 60 * 60 * 1000);
+prospectCleanupTimer.unref();

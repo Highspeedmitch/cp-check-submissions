@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { storeAuthentication, logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
+import ProspectAssessments from "./ProspectAssessments";
 
 export default function PlatformDashboard() {
   const navigate = useNavigate();
@@ -115,6 +116,7 @@ export default function PlatformDashboard() {
                 ))}
               </div>
             </section>
+            <ProspectAssessments />
           </>
         )}
       </main>
