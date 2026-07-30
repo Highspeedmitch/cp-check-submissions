@@ -139,8 +139,18 @@ export default function ProspectAssessments() {
                   <textarea placeholder={field.descriptionLabel || "Describe the opportunity"}
                     value={responses[`${field.key}Description`] || ""}
                     onChange={(event) => setResponse(`${field.key}Description`, event.target.value)} />
-                  {field.allowPhotos && <input type="file" accept="image/*" multiple
-                    onChange={(event) => setPhotos((current) => ({ ...current, [field.key]: [...event.target.files] }))} />}
+                  {field.allowPhotos && <>
+                    <input key={`${field.key}-${photos[field.key]?.length || 0}`} type="file" accept="image/*" multiple
+                      onChange={(event) => setPhotos((current) => ({
+                        ...current,
+                        [field.key]: [...(current[field.key] || []), ...event.target.files].slice(0, 6),
+                      }))} />
+                    <small>{photos[field.key]?.length || 0} of 6 photos attached. Select again to add more.</small>
+                    {photos[field.key]?.length > 0 && <button type="button" className="beta-text-button"
+                      onClick={() => setPhotos((current) => ({ ...current, [field.key]: [] }))}>
+                      Clear section photos
+                    </button>}
+                  </>}
                 </>}
               </>}
             </div>

@@ -24,7 +24,7 @@ const SECRET_KEY = process.env.JWT_SECRET || "supersecuresecret";
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const prospectUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { files: 10, fileSize: 8 * 1024 * 1024 },
+  limits: { files: 20, fileSize: 8 * 1024 * 1024 },
   fileFilter: (_req, file, callback) =>
     callback(file.mimetype.startsWith("image/") ? null : new Error("Only images are supported."),
       file.mimetype.startsWith("image/")),

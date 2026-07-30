@@ -1,4 +1,5 @@
 const PDFDocument = require('pdfkit');
+const fs = require('fs');
 
 const COLORS = {
   navy: '#17324D',
@@ -156,7 +157,11 @@ function groupPhotos(photoBuffers) {
   return grouped;
 }
 
-function drawBrandMark(doc, x, y) {
+function drawBrandMark(doc, x, y, logoPath = '') {
+  if (logoPath && fs.existsSync(logoPath)) {
+    doc.image(logoPath, x, y, { fit: [42, 42], align: 'center', valign: 'center' });
+    return;
+  }
   doc.save();
   doc.lineWidth(2.2).strokeColor(COLORS.white);
   doc.roundedRect(x, y, 42, 42, 7).stroke();
@@ -168,10 +173,10 @@ function drawBrandMark(doc, x, y) {
   doc.restore();
 }
 
-function drawPrimaryHeader(doc) {
+function drawPrimaryHeader(doc, options = {}) {
   const width = doc.page.width;
   doc.rect(0, 0, width, 88).fill(COLORS.navy);
-  drawBrandMark(doc, 44, 23);
+  drawBrandMark(doc, 44, 23, options.logoPath);
   doc
     .fillColor(COLORS.white)
     .font('Helvetica-Bold')
@@ -180,13 +185,13 @@ function drawPrimaryHeader(doc) {
   doc
     .font('Helvetica')
     .fontSize(8.5)
-    .text('PROPERTY INSPECTION REPORT', 102, 53, { characterSpacing: 1.6 });
+    .text(options.headerSubtitle || 'PROPERTY INSPECTION REPORT', 102, 53, { characterSpacing: 1.6 });
 }
 
-function drawContinuationHeader(doc, propertyName, sectionTitle) {
+function drawContinuationHeader(doc, propertyName, sectionTitle, options = {}) {
   const width = doc.page.width;
   doc.rect(0, 0, width, 64).fill(COLORS.navy);
-  drawBrandMark(doc, 42, 12);
+  drawBrandMark(doc, 42, 12, options.logoPath);
   doc
     .fillColor(COLORS.white)
     .font('Helvetica-Bold')
@@ -243,7 +248,7 @@ function drawSummaryCard(doc, x, y, width, count, label, status) {
     .text(label, x + 45, y + 31, { width: width - 52, align: 'center', characterSpacing: 0.3 });
 }
 
-function drawCommercialOverview(doc, formData, displayStamp, results, template) {
+function drawCommercialOverview(doc, formData, displayStamp, results, template, options = {}) {
   const left = 44;
   const contentWidth = doc.page.width - 88;
   const propertyName = cleanValue(formData.selectedProperty || formData.property || formData.businessName) || 'Commercial Property';
@@ -257,12 +262,12 @@ function drawCommercialOverview(doc, formData, displayStamp, results, template) 
   );
   const overallStatus = counts.attention > 0 ? 'attention' : counts.not_assessed > 0 ? 'not_assessed' : 'ok';
 
-  drawPrimaryHeader(doc);
+  drawPrimaryHeader(doc, options);
   doc
     .fillColor(COLORS.navyDark)
     .font('Helvetica-Bold')
     .fontSize(19)
-    .text('Monthly Commercial Property Inspection', left, 108, { width: contentWidth });
+    .text(options.reportTitle || 'Monthly Commercial Property Inspection', left, 108, { width: contentWidth });
 
   const metaY = 145;
   const labelWidth = 63;
@@ -288,14 +293,19 @@ function drawCommercialOverview(doc, formData, displayStamp, results, template) 
   drawSummaryCard(doc, left + cardWidth + gap, summaryY, cardWidth, counts.attention, 'NEED ATTENTION', 'attention');
   drawSummaryCard(doc, left + (cardWidth + gap) * 2, summaryY, cardWidth, counts.not_assessed, 'NOT ASSESSED', 'not_assessed');
 
-  drawResultsTable(doc, results, left, 287, contentWidth);
+  drawResultsTable(doc, results, left, 287, contentWidth, options);
   drawObservationSummary(doc, formData, left, 664, contentWidth, template);
+  if (options.notice) {
+    doc.fillColor(COLORS.muted).font('Helvetica').fontSize(6.5)
+      .text(options.notice, left, 196, { width: contentWidth, align: 'center', height: 9, ellipsis: true });
+  }
 
   return { propertyName, counts };
 }
 
-function drawResultsTable(doc, results, x, y, width) {
-  doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(13).text('Inspection Results', x, y);
+function drawResultsTable(doc, results, x, y, width, options = {}) {
+  doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(13)
+    .text(options.resultsTitle || 'Inspection Results', x, y);
   const tableY = y + 23;
   const headerHeight = 23;
   const rowHeight = Math.min(25, Math.max(18, 340 / Math.max(results.length, 1)));
@@ -366,17 +376,22 @@ function drawObservationSummary(doc, formData, x, y, width, template) {
     .text(truncate(summary, 190), x + 11, y + 32, { width: width - 22, height: 25, ellipsis: true });
 }
 
-function addDetailPage(doc, propertyName) {
+function addDetailPage(doc, propertyName, options = {}) {
   doc.addPage();
-  return drawContinuationHeader(doc, propertyName, 'Findings & Photo Evidence');
+  return drawContinuationHeader(
+    doc,
+    propertyName,
+    options.detailTitle || 'Findings & Photo Evidence',
+    options
+  );
 }
 
-function ensureDetailSpace(doc, y, needed, propertyName) {
+function ensureDetailSpace(doc, y, needed, propertyName, options = {}) {
   if (y + needed <= doc.page.height - 58) return y;
-  return addDetailPage(doc, propertyName);
+  return addDetailPage(doc, propertyName, options);
 }
 
-function drawDetailNotes(doc, formData, propertyName, startY, template) {
+function drawDetailNotes(doc, formData, propertyName, startY, template, options = {}) {
   const configuredNotes = template?.fields?.filter((field) =>
     ['text', 'textarea'].includes(field.type)
     && !['businessName', 'propertyAddress'].includes(field.key)
@@ -396,7 +411,7 @@ function drawDetailNotes(doc, formData, propertyName, startY, template) {
   y += 25;
   notes.forEach((note) => {
     const textHeight = Math.max(18, doc.font('Helvetica').fontSize(9).heightOfString(note.value, { width: doc.page.width - 112 }));
-    y = ensureDetailSpace(doc, y, textHeight + 42, propertyName);
+    y = ensureDetailSpace(doc, y, textHeight + 42, propertyName, options);
     doc.roundedRect(44, y, doc.page.width - 88, textHeight + 28, 5).fillAndStroke(COLORS.panel, COLORS.line);
     doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(9).text(note.label, 56, y + 10);
     doc.fillColor(COLORS.slate).font('Helvetica').fontSize(9).text(note.value, 56, y + 27, { width: doc.page.width - 112 });
@@ -430,9 +445,9 @@ function drawPhotoCard(doc, buffer, x, y, width, caption) {
   return cardHeight;
 }
 
-function drawFindingSection(doc, result, buffers, propertyName, startY) {
+function drawFindingSection(doc, result, buffers, propertyName, startY, options = {}) {
   const contentWidth = doc.page.width - 88;
-  let y = ensureDetailSpace(doc, startY, 78, propertyName);
+  let y = ensureDetailSpace(doc, startY, 78, propertyName, options);
   doc.rect(44, y, 4, 37).fill(COLORS.orange);
   doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(11).text(result.label, 57, y + 1, { width: 290 });
   drawBadge(doc, doc.page.width - 143, y, 99, 'ATTENTION', 'attention');
@@ -451,7 +466,7 @@ function drawFindingSection(doc, result, buffers, propertyName, startY) {
   const gap = 12;
   const cardWidth = (contentWidth - gap) / 2;
   for (let index = 0; index < buffers.length; index += 2) {
-    y = ensureDetailSpace(doc, y, 192, propertyName);
+    y = ensureDetailSpace(doc, y, 192, propertyName, options);
     drawPhotoCard(doc, buffers[index], 44, y, cardWidth, `${result.label} · Photo ${index + 1}`);
     if (buffers[index + 1]) {
       drawPhotoCard(doc, buffers[index + 1], 44 + cardWidth + gap, y, cardWidth, `${result.label} · Photo ${index + 2}`);
@@ -461,17 +476,17 @@ function drawFindingSection(doc, result, buffers, propertyName, startY) {
   return y + 4;
 }
 
-function drawUnmatchedPhotoSection(doc, fieldName, buffers, propertyName, startY) {
+function drawUnmatchedPhotoSection(doc, fieldName, buffers, propertyName, startY, options = {}) {
   const result = {
     key: fieldName,
     label: humanizeFieldName(fieldName),
     status: 'attention',
     description: 'Additional submitted photo evidence.',
   };
-  return drawFindingSection(doc, result, buffers, propertyName, startY);
+  return drawFindingSection(doc, result, buffers, propertyName, startY, options);
 }
 
-function drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName, template) {
+function drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName, template, options = {}) {
   const attentionResults = results.filter((result) => result.status === 'attention');
   const hasNotes = template?.fields
     ? template.fields.some((field) =>
@@ -485,24 +500,25 @@ function drawCommercialDetails(doc, formData, results, groupedPhotos, propertyNa
   const shouldRender = attentionResults.length > 0 || hasNotes || unmatchedPhotoFields.length > 0;
   if (!shouldRender) return;
 
-  let y = addDetailPage(doc, propertyName);
-  y = drawDetailNotes(doc, formData, propertyName, y, template);
+  let y = addDetailPage(doc, propertyName, options);
+  y = drawDetailNotes(doc, formData, propertyName, y, template, options);
 
   if (attentionResults.length > 0) {
-    y = ensureDetailSpace(doc, y, 30, propertyName);
-    doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(13).text('Items Requiring Attention', 44, y);
+    y = ensureDetailSpace(doc, y, 30, propertyName, options);
+    doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(13)
+      .text(options.findingsTitle || 'Items Requiring Attention', 44, y);
     y += 28;
     attentionResults.forEach((result) => {
-      y = drawFindingSection(doc, result, groupedPhotos[result.key] || [], propertyName, y);
+      y = drawFindingSection(doc, result, groupedPhotos[result.key] || [], propertyName, y, options);
     });
   }
 
   unmatchedPhotoFields.forEach((fieldName) => {
-    y = drawUnmatchedPhotoSection(doc, fieldName, groupedPhotos[fieldName], propertyName, y);
+    y = drawUnmatchedPhotoSection(doc, fieldName, groupedPhotos[fieldName], propertyName, y, options);
   });
 }
 
-function drawPageFooters(doc, propertyName) {
+function drawPageFooters(doc, propertyName, options = {}) {
   const range = doc.bufferedPageRange();
   for (let index = range.start; index < range.start + range.count; index += 1) {
     doc.switchToPage(index);
@@ -516,7 +532,7 @@ function drawPageFooters(doc, propertyName) {
       .fillColor(COLORS.slate)
       .font('Helvetica')
       .fontSize(7.5)
-      .text(`${propertyName}  •  Monthly Inspection`, 44, y, { width: 280 });
+      .text(`${propertyName}  |  ${options.footerLabel || 'Monthly Inspection'}`, 44, y, { width: 340 });
     doc.text(`Page ${index - range.start + 1} of ${range.count}`, doc.page.width - 145, y, { width: 101, align: 'right' });
     doc
       .fillColor(COLORS.muted)
@@ -526,12 +542,15 @@ function drawPageFooters(doc, propertyName) {
   }
 }
 
-function renderCommercialReport(doc, formData, photoBuffers, displayStamp, template) {
-  const results = getCommercialResults(formData, template);
+function renderCommercialReport(doc, formData, photoBuffers, displayStamp, template, options = {}) {
+  const allResults = getCommercialResults(formData, template);
+  const results = options.onlyAssessed
+    ? allResults.filter((result) => result.status !== 'not_assessed')
+    : allResults;
   const groupedPhotos = groupPhotos(photoBuffers);
-  const { propertyName } = drawCommercialOverview(doc, formData, displayStamp, results, template);
-  drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName, template);
-  drawPageFooters(doc, propertyName);
+  const { propertyName } = drawCommercialOverview(doc, formData, displayStamp, results, template, options);
+  drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName, template, options);
+  drawPageFooters(doc, propertyName, options);
 }
 
 function renderLegacyReport(doc, orgType, formData, photoBuffers, displayStamp) {
@@ -578,7 +597,7 @@ function renderLegacyReport(doc, orgType, formData, photoBuffers, displayStamp) 
   });
 }
 
-function generateChecklistPDF(formData, photoBuffers, template = null) {
+function generateChecklistPDF(formData, photoBuffers, template = null, options = {}) {
   return new Promise((resolve, reject) => {
     try {
       const sourceDate = formData?.submittedAt ? new Date(formData.submittedAt) : new Date();
@@ -602,7 +621,7 @@ function generateChecklistPDF(formData, photoBuffers, template = null) {
       doc.on('error', reject);
       const orgType = cleanValue(formData.orgType || 'COM').toUpperCase();
       if (orgType === 'COM') {
-        renderCommercialReport(doc, formData, photoBuffers, displayStamp, template);
+        renderCommercialReport(doc, formData, photoBuffers, displayStamp, template, options);
       } else {
         renderLegacyReport(doc, orgType, formData, photoBuffers, displayStamp);
       }
