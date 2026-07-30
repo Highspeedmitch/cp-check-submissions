@@ -1,18 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "../services/api";
-import { appendOptimizedPhotos, mergePhotoSelection } from "../services/photoUpload";
-
-function PhotoPreview({ file, onRemove }) {
-  const previewUrl = useMemo(() => URL.createObjectURL(file), [file]);
-  useEffect(() => () => URL.revokeObjectURL(previewUrl), [previewUrl]);
-  return (
-    <div style={{ width: 92 }}>
-      <img src={previewUrl} alt={file.name || "Selected photo"}
-        style={{ width: 92, height: 72, objectFit: "cover", borderRadius: 6 }} />
-      <button type="button" className="beta-text-button" onClick={onRemove}>Remove</button>
-    </div>
-  );
-}
+import { appendOptimizedPhotos } from "../services/photoUpload";
+import MultiPhotoField from "./ui/MultiPhotoField";
+import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
 
 function newField(label, type) {
   const base = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 35);
@@ -36,6 +26,7 @@ export default function ProspectAssessments() {
   const [message, setMessage] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newType, setNewType] = useState("yes_no_issue");
+  const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
 
   const load = async () => {
     try {
@@ -52,14 +43,6 @@ export default function ProspectAssessments() {
   useEffect(() => { load(); }, []);
 
   const setResponse = (key, value) => setResponses((current) => ({ ...current, [key]: value }));
-  const addPhotos = (fieldKey, fileList) => {
-    const selectedFiles = Array.from(fileList || []);
-    if (!selectedFiles.length) return;
-    setPhotos((current) => ({
-      ...current,
-      [fieldKey]: mergePhotoSelection(current[fieldKey], selectedFiles),
-    }));
-  };
   const updateField = (key, changes) => setTemplate((current) => ({
     ...current,
     fields: current.fields.map((field) => field.key === key ? { ...field, ...changes } : field),
@@ -74,7 +57,7 @@ export default function ProspectAssessments() {
       formData.append("responses", JSON.stringify(responses));
       await appendOptimizedPhotos(formData, photos);
       await api.post("/api/platform/prospect-assessments", formData);
-      setResponses({}); setPhotos({});
+      setResponses({}); setPhotos({}); setCommentPhotosEnabled(false);
       setMessage("Assessment created. The PDF is available in the repository for 30 days.");
       setView("repository");
       await load();
@@ -146,8 +129,15 @@ export default function ProspectAssessments() {
           {(template.fields || []).map((field) => (
             <div className="beta-form-field" key={field.key}>
               <label>{field.label}{field.required ? " *" : ""}</label>
-              {field.type === "textarea" && <textarea required={field.required} value={responses[field.key] || ""}
-                onChange={(event) => setResponse(field.key, event.target.value)} />}
+              {field.type === "textarea" && <>
+                <textarea required={field.required} value={responses[field.key] || ""}
+                  onChange={(event) => setResponse(field.key, event.target.value)} />
+                {field.key === "additionalComments" && <OptionalCommentPhotos
+                  enabled={commentPhotosEnabled}
+                  onEnabledChange={setCommentPhotosEnabled}
+                  files={photos.additionalComments || []}
+                  onChange={(files) => setPhotos((current) => ({ ...current, additionalComments: files }))} />}
+              </>}
               {field.type === "text" && <input required={field.required} value={responses[field.key] || ""}
                 onChange={(event) => setResponse(field.key, event.target.value)} />}
               {field.type === "yes_no_issue" && <>
@@ -160,23 +150,9 @@ export default function ProspectAssessments() {
                     value={responses[`${field.key}Description`] || ""}
                     onChange={(event) => setResponse(`${field.key}Description`, event.target.value)} />
                   {field.allowPhotos && <>
-                    <strong>Photos for: {field.reportLabel || field.label}</strong>
-                    <input key={`${field.key}-${photos[field.key]?.length || 0}`} type="file" accept="image/*" multiple
-                      onChange={(event) => addPhotos(field.key, event.currentTarget.files)} />
-                    <small>{photos[field.key]?.length || 0} of 6 photos attached. Select again to add more.</small>
-                    {photos[field.key]?.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                      {photos[field.key].map((file, index) => (
-                        <PhotoPreview key={`${file.name}-${file.lastModified}-${index}`} file={file}
-                          onRemove={() => setPhotos((current) => ({
-                            ...current,
-                            [field.key]: current[field.key].filter((_item, photoIndex) => photoIndex !== index),
-                          }))} />
-                      ))}
-                    </div>}
-                    {photos[field.key]?.length > 0 && <button type="button" className="beta-text-button"
-                      onClick={() => setPhotos((current) => ({ ...current, [field.key]: [] }))}>
-                      Clear section photos
-                    </button>}
+                    <MultiPhotoField fieldKey={field.key} label={field.reportLabel || field.label}
+                      files={photos[field.key] || []}
+                      onChange={(files) => setPhotos((current) => ({ ...current, [field.key]: files }))} />
                   </>}
                 </>}
               </>}

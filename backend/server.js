@@ -399,7 +399,12 @@ let lastSubmission = null;
 // Multer Configuration for Storing Images in Memory
 const multer = require('multer');
 const storage = multer.memoryStorage(); // Store files in memory before processing
-const upload = multer({ storage: storage }); // Initialize Multer
+const upload = multer({
+  storage,
+  limits: { files: 30, fileSize: 5 * 1024 * 1024 },
+});
+const { extractPhotoFieldName } = require("./utils/photoFieldName");
+const { isAllowedTemplatePhotoField } = require("./services/inspectionPhotoAccess");
 
 // Update the /submit-form route to accept multiple files
 app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), async (req, res) => {
@@ -489,11 +494,9 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
     let photoBuffers = [];
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
-        const extractedFieldName = file.originalname.split('-')[0]; // Extracts the field name
+        const extractedFieldName = extractPhotoFieldName(file.originalname);
         const fieldAllowed = !effectiveInspectionTemplate
-          || effectiveInspectionTemplate.fields.some(
-            (field) => field.key === extractedFieldName && field.allowPhotos
-          );
+          || isAllowedTemplatePhotoField(effectiveInspectionTemplate.fields, extractedFieldName);
         if (fieldAllowed) {
           photoBuffers.push({
             fieldName: extractedFieldName,

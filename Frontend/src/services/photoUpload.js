@@ -48,7 +48,7 @@ export async function appendOptimizedPhotos(formData, photoGroups) {
   for (const [fieldName, files] of Object.entries(photoGroups)) {
     for (const file of files || []) {
       const optimized = await optimizePhoto(file);
-      formData.append("photos", optimized, `${fieldName}-${optimized.name}`);
+      formData.append("photos", optimized, `${encodeURIComponent(fieldName)}--${optimized.name}`);
     }
   }
 }

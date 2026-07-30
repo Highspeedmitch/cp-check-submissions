@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { appendOptimizedPhotos } from "../services/photoUpload";
 import PageHeader from "./ui/PageHeader";
+import MultiPhotoField from "./ui/MultiPhotoField";
+import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
 
 export default function FormPage() {
   const { property } = useParams();
@@ -16,6 +18,7 @@ export default function FormPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [assignmentInstructions, setAssignmentInstructions] = useState("");
+  const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -61,15 +64,6 @@ export default function FormPage() {
     setResponses((current) => ({ ...current, [key]: value }));
   };
 
-  const handleFileChange = (event, fieldKey) => {
-    const selected = [...(event.target.files || [])];
-    if (!selected.length) return;
-    setPhotos((current) => ({
-      ...current,
-      [fieldKey]: [...(current[fieldKey] || []), ...selected],
-    }));
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!template || submitting) return;
@@ -112,14 +106,17 @@ export default function FormPage() {
 
     if (field.type === "textarea") {
       return (
-        <label className="beta-form-field full" key={field.key}>
-          {field.label}
-          <textarea
-            value={responses[field.key] || ""}
+        <div className="beta-form-field full" key={field.key}>
+          <label>{field.label}</label>
+          <textarea value={responses[field.key] || ""}
             onChange={(event) => setResponse(field.key, event.target.value)}
-            required={field.required}
-          />
-        </label>
+            required={field.required} />
+          {field.key === "additionalComments" && <OptionalCommentPhotos
+            enabled={commentPhotosEnabled}
+            onEnabledChange={setCommentPhotosEnabled}
+            files={photos.additionalComments || []}
+            onChange={(files) => setPhotos((current) => ({ ...current, additionalComments: files }))} />}
+        </div>
       );
     }
 
@@ -148,19 +145,9 @@ export default function FormPage() {
               />
             </label>
             {field.allowPhotos && (
-              <label className="beta-form-field">
-                Add photos
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  multiple
-                  onChange={(event) => handleFileChange(event, field.key)}
-                />
-                {(photos[field.key] || []).map((file, index) => (
-                  <small key={`${file.name}-${index}`}>{file.name}</small>
-                ))}
-              </label>
+              <MultiPhotoField fieldKey={field.key} label={field.reportLabel || field.label}
+                files={photos[field.key] || []}
+                onChange={(files) => setPhotos((current) => ({ ...current, [field.key]: files }))} />
             )}
           </div>
         )}

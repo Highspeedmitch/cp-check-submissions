@@ -12,6 +12,8 @@ const s3 = require("../awsConfig");
 const { generateProspectAssessmentPDF } = require("../prospectPdfService");
 const { DEFAULT_COM_FIELDS, validateFields } = require("../services/inspectionTemplates");
 const { purgeExpiredProspectAssessments } = require("../services/prospectRetention");
+const { extractPhotoFieldName } = require("../utils/photoFieldName");
+const { isAllowedTemplatePhotoField } = require("../services/inspectionPhotoAccess");
 const { authResponse } = require("../services/authSessions");
 const {
   ASSUMED_ACCESS_MS,
@@ -130,11 +132,11 @@ router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
         fields: template.fields.map((field) => field.toObject()),
       };
       const photoBuffers = (req.files || []).map((file) => ({
-        fieldName: file.originalname.split("-")[0],
+        fieldName: extractPhotoFieldName(file.originalname),
         imageBuffer: file.buffer,
-      })).filter((photo) => snapshot.fields.some((field) =>
-        field.key === photo.fieldName && field.allowPhotos
-      ));
+      })).filter((photo) =>
+        isAllowedTemplatePhotoField(snapshot.fields, photo.fieldName)
+      );
       const assessmentData = { businessName, propertyAddress, responses, templateSnapshot: snapshot, createdAt };
       const pdfBuffer = await generateProspectAssessmentPDF({ assessment: assessmentData, photoBuffers });
       const safeName = (businessName || propertyAddress)

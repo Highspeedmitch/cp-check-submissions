@@ -2,21 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiUrl } from "../services/api";
 import { appendOptimizedPhotos } from "../services/photoUpload";
-// Helper component: Displays uploaded file names
-const FileNameList = ({ fieldName, formData }) => {
-    if (!formData.photos || !formData.photos[fieldName]) return null; // Prevents crash
-    const fileArray = formData.photos[fieldName];
-  
-    return (
-      <>
-        {fileArray.map((file, idx) => (
-          <div key={idx} style={{ marginTop: "4px", fontSize: "0.9em", color: "#999" }}>
-            {file.name}
-          </div>
-        ))}
-      </>
-    );
-  };
+import MultiPhotoField from "./ui/MultiPhotoField";
+import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
     
 function ShortTermRental() {
   const { property } = useParams();
@@ -43,6 +30,7 @@ function ShortTermRental() {
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
   const [orgType, setOrgType] = useState(""); // ✅ Add orgType state
+  const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
 
 
   useEffect(() => {
@@ -124,31 +112,10 @@ function ShortTermRental() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e, fieldName) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setFormData((prev) => {
-      const updatedPhotos = { ...prev.photos };
-
-      if (!updatedPhotos[fieldName]) {
-        updatedPhotos[fieldName] = [];
-      }
-
-      for (let i = 0; i < files.length; i++) {
-        const originalFile = files[i];
-        const newFile = new File([originalFile], `${fieldName}-${originalFile.name}`, {
-          type: originalFile.type,
-        });
-        updatedPhotos[fieldName].push(newFile);
-      }
-
-      return {
-        ...prev,
-        photos: updatedPhotos,
-      };
-    });
-  };
+  const setFieldPhotos = (fieldName, files) => setFormData((prev) => ({
+    ...prev,
+    photos: { ...prev.photos, [fieldName]: files },
+  }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -241,8 +208,9 @@ function ShortTermRental() {
               {formData.toiletriesStocked === "yes" && (
                     <>
                 <textarea name="toiletriesStockedDescription" onChange={handleChange} placeholder="Describe the issue" />
-                <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "toiletriesStocked")} />
-                <FileNameList fieldName="toiletriesStocked" formData={formData} />
+                <MultiPhotoField fieldKey="toiletriesStocked" label="Toiletries need re-stocked"
+                  files={formData.photos.toiletriesStocked || []}
+                  onChange={(files) => setFieldPhotos("toiletriesStocked", files)} />
             </>
             )}
 
@@ -259,8 +227,9 @@ function ShortTermRental() {
               {formData.furnitureCorrect === "yes" && (
                 <>
                   <textarea name="furnitureCorrectDescription" onChange={handleChange} placeholder="Describe the issue" />
-                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "furnitureCorrect")} />
-                  <FileNameList fieldName="furnitureCorrect" formData={formData} />
+                  <MultiPhotoField fieldKey="furnitureCorrect" label="Furniture placement"
+                    files={formData.photos.furnitureCorrect || []}
+                    onChange={(files) => setFieldPhotos("furnitureCorrect", files)} />
                 </>
               )}
             </div>
@@ -276,8 +245,9 @@ function ShortTermRental() {
               {formData.checkoutProcedure === "no" && (
                 <>
                   <textarea name="checkoutProcedureDescription" onChange={handleChange} placeholder="Describe the issue" />
-                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "checkoutProcedure")} />
-                  <FileNameList fieldName="checkoutProcedure" formData={formData} />
+                  <MultiPhotoField fieldKey="checkoutProcedure" label="Checkout procedure"
+                    files={formData.photos.checkoutProcedure || []}
+                    onChange={(files) => setFieldPhotos("checkoutProcedure", files)} />
                 </>
               )}
             </div>
@@ -293,8 +263,9 @@ function ShortTermRental() {
               {formData.propertyDamage === "yes" && (
                 <>
                   <textarea name="propertyDamageDescription" onChange={handleChange} placeholder="Describe the issue" />
-                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "propertyDamage")} />
-                  <FileNameList fieldName="propertyDamage" formData={formData} />
+                  <MultiPhotoField fieldKey="propertyDamage" label="Property damage"
+                    files={formData.photos.propertyDamage || []}
+                    onChange={(files) => setFieldPhotos("propertyDamage", files)} />
                 </>
               )}
             </div>
@@ -351,16 +322,9 @@ function ShortTermRental() {
           required
         />
         {/* Require File Upload if "Yes" is selected */}
-        <input
-          type="file"
-          accept="image/*"
-          capture="camera"
-          multiple
-          onChange={(e) => handleFileChange(e, question.name)}
-          required
-        />
-        {/* Show file names if uploaded */}
-        <FileNameList fieldName={question.name} formData={formData} />
+        <MultiPhotoField fieldKey={question.name} label={question.name}
+          files={formData.photos[question.name] || []}
+          onChange={(files) => setFieldPhotos(question.name, files)} />
       </>
     )}
   </>
@@ -380,6 +344,10 @@ function ShortTermRental() {
           {/* Other Text Areas */}
           <label>Additional Comments:</label>
           <textarea name="additionalComments" onChange={handleChange} />
+          <OptionalCommentPhotos enabled={commentPhotosEnabled}
+            onEnabledChange={setCommentPhotosEnabled}
+            files={formData.photos.additionalComments || []}
+            onChange={(files) => setFieldPhotos("additionalComments", files)} />
 
           <button type="submit" className="submit button">
             Submit Checklist

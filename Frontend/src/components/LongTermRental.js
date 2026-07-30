@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiUrl } from "../services/api";
 import { appendOptimizedPhotos } from "../services/photoUpload";
+import MultiPhotoField from "./ui/MultiPhotoField";
+import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
 
 function LongTermRental() {
   const { property } = useParams();
@@ -24,6 +26,7 @@ function LongTermRental() {
 
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
+  const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
 
   // Handle changes for standard text/textarea/select fields
   const handleChange = (e) => {
@@ -31,35 +34,10 @@ function LongTermRental() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  /**
-   * Handle multiple file uploads for a given field.
-   * Stores an array of files in formData.photos[fieldName].
-   */
-  const handleFileChange = (e, fieldName) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setFormData((prev) => {
-      const updatedPhotos = { ...prev.photos };
-
-      if (!updatedPhotos[fieldName]) {
-        updatedPhotos[fieldName] = [];
-      }
-
-      for (let i = 0; i < files.length; i++) {
-        const originalFile = files[i];
-        const newFile = new File([originalFile], `${fieldName}-${originalFile.name}`, {
-          type: originalFile.type,
-        });
-        updatedPhotos[fieldName].push(newFile);
-      }
-
-      return {
-        ...prev,
-        photos: updatedPhotos,
-      };
-    });
-  };
+  const setFieldPhotos = (fieldName, files) => setFormData((prev) => ({
+    ...prev,
+    photos: { ...prev.photos, [fieldName]: files },
+  }));
 
   /**
    * Submit form data and files to backend
@@ -103,20 +81,6 @@ function LongTermRental() {
     }
   };
 
-  // Renders uploaded file names
-  const FileNameList = ({ fieldName }) => {
-    const fileArray = formData.photos[fieldName] || [];
-    return (
-      <>
-        {fileArray.map((file, idx) => (
-          <div key={idx} style={{ marginTop: "4px", fontSize: "0.9em", color: "#999" }}>
-            {file.name}
-          </div>
-        ))}
-      </>
-    );
-  };
-
   return (
     <div className="container">
       <h1>{property} – Long-Term Rental Inspection Checklist</h1>
@@ -155,8 +119,9 @@ function LongTermRental() {
               {formData.toiletriesStocked === "yes" && (
                 <>
                   <textarea name="toiletriesStockedDescription" onChange={handleChange} placeholder="Describe the issue" />
-                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "toiletriesStocked")} />
-                  <FileNameList fieldName="toiletriesStocked" />
+                  <MultiPhotoField fieldKey="toiletriesStocked" label="Toiletries need re-stocked"
+                    files={formData.photos.toiletriesStocked || []}
+                    onChange={(files) => setFieldPhotos("toiletriesStocked", files)} />
                 </>
               )}
             </div>
@@ -172,8 +137,9 @@ function LongTermRental() {
               {formData.furnitureCorrect === "yes" && (
                 <>
                   <textarea name="furnitureCorrectDescription" onChange={handleChange} placeholder="Describe the issue" />
-                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "furnitureCorrect")} />
-                  <FileNameList fieldName="furnitureCorrect" />
+                  <MultiPhotoField fieldKey="furnitureCorrect" label="Furniture placement"
+                    files={formData.photos.furnitureCorrect || []}
+                    onChange={(files) => setFieldPhotos("furnitureCorrect", files)} />
                 </>
               )}
             </div>
@@ -189,8 +155,9 @@ function LongTermRental() {
               {formData.checkoutProcedure === "no" && (
                 <>
                   <textarea name="checkoutProcedureDescription" onChange={handleChange} placeholder="Describe the issue" />
-                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "checkoutProcedure")} />
-                  <FileNameList fieldName="checkoutProcedure" />
+                  <MultiPhotoField fieldKey="checkoutProcedure" label="Checkout procedure"
+                    files={formData.photos.checkoutProcedure || []}
+                    onChange={(files) => setFieldPhotos("checkoutProcedure", files)} />
                 </>
               )}
             </div>
@@ -206,8 +173,9 @@ function LongTermRental() {
               {formData.propertyDamage === "yes" && (
                 <>
                   <textarea name="propertyDamageDescription" onChange={handleChange} placeholder="Describe the issue" />
-                  <input type="file" accept="image/*" capture="camera" multiple onChange={(e) => handleFileChange(e, "propertyDamage")} />
-                  <FileNameList fieldName="propertyDamage" />
+                  <MultiPhotoField fieldKey="propertyDamage" label="Property damage"
+                    files={formData.photos.propertyDamage || []}
+                    onChange={(files) => setFieldPhotos("propertyDamage", files)} />
                 </>
               )}
             </div>
@@ -216,6 +184,10 @@ function LongTermRental() {
           {/* Other Text Areas */}
           <label>Additional Comments:</label>
           <textarea name="additionalComments" onChange={handleChange} />
+          <OptionalCommentPhotos enabled={commentPhotosEnabled}
+            onEnabledChange={setCommentPhotosEnabled}
+            files={formData.photos.additionalComments || []}
+            onChange={(files) => setFieldPhotos("additionalComments", files)} />
 
           <button type="submit" className="submit button">
             Submit Checklist
