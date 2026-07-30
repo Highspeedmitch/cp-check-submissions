@@ -133,7 +133,7 @@ const handleRegionFilter = async () => {
 
   // ----------- "Add Property" Admin Flow -----------
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
-  const [verifiedAddPropertyPasskey, setVerifiedAddPropertyPasskey] = useState("");
+  const [addPropertyGrant, setAddPropertyGrant] = useState("");
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
   const [propertyActionMessage, setPropertyActionMessage] = useState("");
 
@@ -328,39 +328,16 @@ useEffect(() => {
       return;
     }
     try {
-      // Verify removal passkey
-      const verifyResponse = await fetch(
-        apiUrl("/api/verify-remove-passkey"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ removePasskey }),
-        }
+      const verification = await api.post("/api/organization-security/grants", {
+        purpose: "remove_property",
+        passkey: removePasskey,
+      });
+      await api.delete(
+        `/api/admin/property/${encodeURIComponent(propertyToRemove)}`,
+        { body: { adminActionGrant: verification.grant } }
       );
-      const verifyData = await verifyResponse.json();
-      if (!verifyData.valid) {
-        alert("❌ Invalid passkey. Cannot remove property.");
-        return;
-      }
-
-      // Passkey is valid, proceed with deletion
-      const deleteResponse = await fetch(
-        apiUrl(`/api/admin/property/${encodeURIComponent(propertyToRemove)}`),
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      const deleteData = await deleteResponse.json();
-      if (deleteResponse.ok) {
-        alert(`✅ Property "${propertyToRemove}" removed successfully!`);
-        fetchProperties(); // Refresh list
-      } else {
-        alert(deleteData.error || "❌ Error removing property.");
-      }
+      alert(`✅ Property "${propertyToRemove}" removed successfully!`);
+      fetchProperties();
     } catch (error) {
       console.error("Error removing property:", error);
       alert("❌ Server error removing property.");
@@ -377,18 +354,18 @@ useEffect(() => {
   // ======================
   const closePasskeyPrompt = () => {
     setPasskeyPromptVisible(false);
-    setVerifiedAddPropertyPasskey("");
+    setAddPropertyGrant("");
   };
 
   const verifyAddPropertyPasskey = async (passkey) => {
-    const data = await api.post("/api/verify-passkey", { passkey });
-    if (data.valid) {
-      setVerifiedAddPropertyPasskey(passkey);
-      setPasskeyPromptVisible(false);
-      setAddPropertyFormVisible(true);
-      return true;
-    }
-    return false;
+    const data = await api.post("/api/organization-security/grants", {
+      purpose: "add_property",
+      passkey,
+    });
+    setAddPropertyGrant(data.grant);
+    setPasskeyPromptVisible(false);
+    setAddPropertyFormVisible(true);
+    return true;
   };
 
   const openPropertyEmailModal = (property) => {
@@ -422,7 +399,7 @@ useEffect(() => {
         .filter(Boolean);
 
       await api.post("/api/admin/add-property", {
-        passkey: verifiedAddPropertyPasskey,
+        adminActionGrant: addPropertyGrant,
         name: form.name,
         emails: emailsArray,
         lat: parseFloat(form.lat) || 0,
@@ -440,11 +417,11 @@ useEffect(() => {
         }),
       });
       if (adminOrgType === "STR") {
-        setVerifiedAddPropertyPasskey("");
+        setAddPropertyGrant("");
         navigate(`/admin/edit-property/${encodeURIComponent(form.name)}`);
       } else {
         setAddPropertyFormVisible(false);
-        setVerifiedAddPropertyPasskey("");
+        setAddPropertyGrant("");
         setPropertyActionMessage("Property added successfully.");
         await fetchProperties();
       }
@@ -645,7 +622,7 @@ useEffect(() => {
         onAddProperty={() => {
           setSidebarCollapsed(false);
           setPasskeyPromptVisible(true);
-          setVerifiedAddPropertyPasskey("");
+          setAddPropertyGrant("");
           setPropertyActionMessage("");
         }}
         onRemoveProperty={() => {
@@ -788,7 +765,7 @@ useEffect(() => {
             onCreate={handleCreateProperty}
             onClose={() => {
               setAddPropertyFormVisible(false);
-              setVerifiedAddPropertyPasskey("");
+              setAddPropertyGrant("");
             }}
           />
         )}

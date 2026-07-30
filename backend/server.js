@@ -68,6 +68,7 @@ const {
   getAllowedFrontendOrigins,
   buildFrontendUrl,
 } = require("./utils/frontendUrls");
+const { consumeGrant } = require("./services/organizationPasskeys");
 //airbnb ical
 const airbnbCalendar = require("./Routes/airbnbCalendar"); // Import Airbnb route
 //azroots properties
@@ -171,6 +172,7 @@ app.use("/api/properties", authenticateToken, propertyRoutes);
 app.use("/api/profits", require("./Routes/profits"));
 app.use("/api/billing", authenticateToken, require("./Routes/billing"));
 app.use("/api/admin-users", authenticateToken, require("./Routes/adminUsers"));
+app.use("/api/organization-security", authenticateToken, require("./Routes/organizationSecurity"));
 app.use("/api/bid-requests", authenticateToken, require("./Routes/bidRequests"));
 app.use("/api/notifications", authenticateToken, require("./Routes/notifications"));
 app.use("/api/inspection-templates", authenticateToken, require("./Routes/inspectionTemplates"));
@@ -873,34 +875,6 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
     res.status(500).json({ message: "Failed to retrieve submissions." });
   }
 });
-// Verify passkey route for adding properties
-app.post("/api/verify-passkey", (req, res) => {
-  try {
-    const { passkey } = req.body;
-    if (passkey === process.env.ADD_PROPERTY_PASSKEY) {
-      return res.json({ valid: true });
-    } else {
-      return res.json({ valid: false });
-    }
-  } catch (error) {
-    console.error("❌ Error verifying passkey:", error);
-    res.status(500).json({ message: "Server error verifying passkey" });
-  }
-});
-app.post("/api/verify-remove-passkey", (req, res) => {
-  try {
-    // rename this to match the front-end
-    const { removePasskey } = req.body;
-    if (removePasskey === process.env.REMOVE_PROPERTY_PASSKEY) {
-      return res.json({ valid: true });
-    } else {
-      return res.json({ valid: false });
-    }
-  } catch (error) {
-    console.error("❌ Error verifying removal passkey:", error);
-    res.status(500).json({ message: "Server error verifying removal passkey" });
-  }
-});
 // Admin add-property route
 app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
   try {
@@ -909,16 +883,19 @@ app.post("/api/admin/add-property", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    // 2) Validate passkey
-    if (req.body.passkey !== process.env.ADD_PROPERTY_PASSKEY) {
-      return res.status(403).json({ error: "Invalid passkey" });
-    }
-
     // 3) Fetch organization details
     const orgId = req.user.organizationId;
     const org = await Organization.findById(orgId);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
+    }
+    if (!await consumeGrant({
+      organization: org,
+      userId: req.user.userId,
+      purpose: "add_property",
+      token: req.body.adminActionGrant,
+    })) {
+      return res.status(403).json({ error: "Administrative verification expired or is invalid." });
     }
 
     // 4) Extract property details (including accessInstructions and customFields for STR)
@@ -1038,6 +1015,14 @@ app.delete("/api/admin/property/:propertyName", authenticateToken, async (req, r
     const org = await Organization.findById(orgId);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
+    }
+    if (!await consumeGrant({
+      organization: org,
+      userId: req.user.userId,
+      purpose: "remove_property",
+      token: req.body.adminActionGrant,
+    })) {
+      return res.status(403).json({ error: "Administrative verification expired or is invalid." });
     }
 
     const decodedPropertyName = decodeURIComponent(req.params.propertyName);

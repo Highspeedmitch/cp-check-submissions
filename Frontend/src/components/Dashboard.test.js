@@ -14,6 +14,7 @@ jest.mock("../services/api", () => ({
     get: jest.fn(),
     post: jest.fn(),
     put: jest.fn(),
+    delete: jest.fn(),
   },
   apiUrl: (path) => path,
 }));
@@ -53,7 +54,7 @@ function renderDashboard(role) {
 beforeEach(() => {
   localStorage.clear();
   api.get.mockResolvedValue([]);
-  api.post.mockResolvedValue({ valid: false });
+  api.post.mockResolvedValue({ grant: "test-grant" });
   api.put.mockResolvedValue({ property: { ...property, emails: [] } });
   global.fetch = jest.fn(async (url) => {
     const data = String(url).includes("latest-statuses")
@@ -121,7 +122,7 @@ test("admin can update property inspection recipients through the extracted dial
 });
 
 test("valid admin passkey opens the reducer-backed add property form", async () => {
-  api.post.mockResolvedValue({ valid: true });
+  api.post.mockResolvedValue({ grant: "test-grant" });
   renderDashboard("admin");
 
   fireEvent.click(await screen.findByRole("button", { name: "Add Property" }));
@@ -131,7 +132,8 @@ test("valid admin passkey opens the reducer-backed add property form", async () 
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
   expect(await screen.findByRole("heading", { name: "Add New Property" })).toBeInTheDocument();
-  expect(api.post).toHaveBeenCalledWith("/api/verify-passkey", {
+  expect(api.post).toHaveBeenCalledWith("/api/organization-security/grants", {
+    purpose: "add_property",
     passkey: "test-passkey",
   });
 });

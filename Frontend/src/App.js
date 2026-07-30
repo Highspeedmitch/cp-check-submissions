@@ -13,6 +13,7 @@ const ClientRegistration = lazy(() => import("./components/ClientRegistration"))
 const FormPage = lazy(() => import("./components/FormPage"));
 const PropertyFormSettings = lazy(() => import("./components/PropertyFormSettings"));
 const OrganizationFormSettings = lazy(() => import("./components/OrganizationFormSettings"));
+const OrganizationSecurity = lazy(() => import("./components/OrganizationSecurity"));
 const Register = lazy(() => import("./components/Register"));
 const AdminSubmissions = lazy(() => import("./components/AdminSubmissions"));
 const ForgotPassword = lazy(() => import("./components/ForgotPassword"));
@@ -180,6 +181,11 @@ function App() {
       <Route path="/form/:property" element={user ? <FormPage /> : <Navigate to="/" />} />
       <Route path="/property-form-settings/:property" element={user ? <PropertyFormSettings /> : <Navigate to="/" />} />
       <Route path="/organization-form-settings" element={user ? <OrganizationFormSettings /> : <Navigate to="/" />} />
+      <Route path="/organization-security" element={
+        user && role === "admin" && !assumedOrganization
+          ? <OrganizationSecurity />
+          : <Navigate to="/" />
+      } />
       <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />
       <Route path="/long-term-rental-form/:property" element={user ? <LongTermRental /> : <Navigate to="/" />} />
       <Route path="/short-term-rental-form/:property" element={user ? <ShortTermRental /> : <Navigate to="/" />} />

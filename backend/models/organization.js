@@ -119,6 +119,16 @@ const OrganizationSchema = new mongoose.Schema({
     type: String,
     default: "America/Phoenix",
   },
+  security: {
+    adminActionPasskeyHash: { type: String, default: "" },
+    adminActionPasskeyVersion: { type: Number, default: 0 },
+    adminActionPasskeyRotatedAt: { type: Date, default: null },
+    adminActionPasskeyRotatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+  },
 });
 
 module.exports = mongoose.model('Organization', OrganizationSchema);
