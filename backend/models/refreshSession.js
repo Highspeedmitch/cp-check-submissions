@@ -11,6 +11,7 @@ const RefreshSessionSchema = new mongoose.Schema({
   replacedByHash: { type: String, default: "" },
   userAgent: { type: String, default: "" },
   ipAddress: { type: String, default: "" },
+  mfaAuthenticatedAt: { type: Date, default: null },
 }, { timestamps: true });
 
 RefreshSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

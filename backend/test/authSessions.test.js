@@ -41,6 +41,23 @@ test("normal authentication retains platform privilege without assuming an organ
   assert.equal(payload.assumedOrganization, undefined);
 });
 
+test("MFA authentication time is carried in access tokens and refresh sessions", async () => {
+  const mfaAuthenticatedAt = new Date("2026-07-30T12:00:00.000Z");
+  const response = authResponse(userFixture(), "test-secret", { mfaAuthenticatedAt });
+  const payload = jwt.verify(response.token, "test-secret");
+  assert.equal(payload.mfaAuthenticatedAt, mfaAuthenticatedAt.toISOString());
+
+  let saved;
+  await createRefreshSession({
+    user: userFixture(),
+    req: { get: () => "test-agent", ip: "127.0.0.1" },
+    res: { cookie: () => {} },
+    mfaAuthenticatedAt,
+    model: { create: async (record) => { saved = record; } },
+  });
+  assert.equal(saved.mfaAuthenticatedAt, mfaAuthenticatedAt);
+});
+
 test("refresh cookies are HTTP-only and use production cross-site protections", () => {
   const previousRender = process.env.RENDER;
   process.env.RENDER = "true";

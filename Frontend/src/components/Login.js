@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { storeAuthentication } from "../services/session";
 import { apiUrl } from "../services/api";
+import { beginOktaLogin, oktaConfigured } from "../services/okta";
 
 function Login({ setUser }) {
   const [email, setEmail] = useState("");
@@ -88,6 +89,8 @@ function Login({ setUser }) {
             localStorage.setItem("role", data.role || "user");
             navigate(returnTo || "/dashboard");
           }          
+        } else if (data.code === "OKTA_REQUIRED") {
+          await beginOktaLogin({ loginHint: email.toLowerCase(), returnTo });
         } else {
           setError(data.message || "Unable to sign in.");
         }
@@ -133,6 +136,16 @@ function Login({ setUser }) {
           />
           <button type="submit">Login</button>
         </form>
+        {oktaConfigured && (
+          <button
+            type="button"
+            className="register-btn"
+            onClick={() => beginOktaLogin({ loginHint: email.toLowerCase(), returnTo })
+              .catch((loginError) => setError(loginError.message))}
+          >
+            Sign in with Okta
+          </button>
+        )}
 
         {/* Forgot Password Link */}
         <div className="link-container">

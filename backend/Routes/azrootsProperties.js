@@ -7,10 +7,16 @@ const mongoose = require("mongoose");
 
 const authenticateToken = require("../middleware/authenticateToken");
 const Organization = require("../models/organization"); // adjust the path as needed
+const { uploadLimiter } = require("../middleware/rateLimits");
+const { imageFileFilter, rejectInvalidSignatures } = require("../utils/uploadSecurity");
 
 // 1) Configure Multer storage (memory)
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { files: 30, fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
 
 // 2) Configure AWS S3
 AWS.config.update({
@@ -79,8 +85,9 @@ router.get("/:propertyName", authenticateToken, async (req, res) => {
  * - Maintenance categories
  * - Photos for each sub-item
  */
-router.put("/:propertyName", authenticateToken, upload.any(), async (req, res) => {
+router.put("/:propertyName", authenticateToken, uploadLimiter, upload.any(), async (req, res) => {
   try {
+    rejectInvalidSignatures(req.files);
     // 1) Check user is an AzRoots admin
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Forbidden: Admin only" });

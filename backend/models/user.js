@@ -13,6 +13,7 @@ const UserSchema = new mongoose.Schema({
     default: null,
     index: true,
   },
+  oktaSubject: { type: String, default: "", index: true },
   accountStatus: { type: String, enum: ["active", "inactive"], default: "active", index: true },
   tokenVersion: { type: Number, default: 0 },
   lastPaidDate: { type: Date, default: null },

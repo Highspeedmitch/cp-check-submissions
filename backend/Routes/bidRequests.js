@@ -6,6 +6,8 @@ const User = require("../models/user");
 const s3 = require("../awsConfig");
 const { sendUserNotification } = require("../services/notifications");
 const { estimateBidPricing } = require("../services/bidPricing");
+const { uploadLimiter } = require("../middleware/rateLimits");
+const { hasValidFileSignature } = require("../utils/uploadSecurity");
 const {
   bidRequestSubmitted,
   bidRequestReceived,
@@ -46,12 +48,15 @@ router.get("/", async (req, res) => {
   })));
 });
 
-router.post("/", upload.single("attachment"), async (req, res) => {
+router.post("/", uploadLimiter, upload.single("attachment"), async (req, res) => {
   try {
     if (req.user.role !== "property_manager") {
       return res.status(403).json({ error: "Property managers only." });
     }
     if (!req.file) return res.status(400).json({ error: "A lot-dimensions attachment is required." });
+    if (!hasValidFileSignature(req.file)) {
+      return res.status(400).json({ error: "The uploaded attachment is invalid." });
+    }
     const pricingEstimate = estimateBidPricing({
       grossSquareFeet: req.body.grossSquareFeet,
       propertyType: req.body.propertyType,

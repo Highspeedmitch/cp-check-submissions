@@ -21,15 +21,15 @@ const {
 } = require("../services/platformAccess");
 const { getPlatformOrganizationMetrics } = require("../services/platformMetrics");
 const { getJwtSecret } = require("../config/security");
+const { uploadLimiter } = require("../middleware/rateLimits");
+const { imageFileFilter, rejectInvalidSignatures } = require("../utils/uploadSecurity");
 
 const router = express.Router();
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const prospectUpload = multer({
   storage: multer.memoryStorage(),
   limits: { files: 20, fileSize: 8 * 1024 * 1024 },
-  fileFilter: (_req, file, callback) =>
-    callback(file.mimetype.startsWith("image/") ? null : new Error("Only images are supported."),
-      file.mimetype.startsWith("image/")),
+  fileFilter: imageFileFilter,
 });
 
 async function getProspectTemplate() {
@@ -100,8 +100,9 @@ router.get("/prospect-assessments", authenticateToken, requirePlatformAdmin, asy
 });
 
 router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
-  prospectUpload.array("photos", 10), async (req, res) => {
+  uploadLimiter, prospectUpload.array("photos", 10), async (req, res) => {
     try {
+      rejectInvalidSignatures(req.files);
       const template = await getProspectTemplate();
       const submitted = JSON.parse(req.body.responses || "{}");
       const responses = {};
@@ -188,6 +189,13 @@ router.delete("/prospect-assessments/:id", authenticateToken, requirePlatformAdm
 
 router.post("/organizations/:organizationId/assume", authenticateToken, requirePlatformAdmin, async (req, res) => {
   try {
+    const mfaTime = new Date(req.user.mfaAuthenticatedAt || 0).getTime();
+    if (!mfaTime || Date.now() - mfaTime > 15 * 60 * 1000) {
+      return res.status(428).json({
+        code: "OKTA_REAUTH_REQUIRED",
+        error: "Reauthenticate with Okta before entering an organization.",
+      });
+    }
     const reason = String(req.body.reason || "").trim();
     if (!reason) return res.status(400).json({ error: "A reason is required." });
     if (reason.length > 200) return res.status(400).json({ error: "Reason must be 200 characters or fewer." });

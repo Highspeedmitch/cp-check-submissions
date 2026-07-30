@@ -9,7 +9,6 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
     const { propertyId } = req.params;
     const airbnbIcalUrl = `https://www.airbnb.com/calendar/ical/${propertyId}.ics`; // Replace with actual URL structure
 
-    console.log("🔍 Fetching iCal data from:", airbnbIcalUrl);
     
     const data = await ical.fromURL(airbnbIcalUrl);
     
@@ -22,7 +21,6 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
         allDay: true,
       }));
 
-    console.log("📅 Airbnb Bookings:", events);
     res.json(events);
   } catch (error) {
     console.error("❌ Error fetching Airbnb iCal data:", error);

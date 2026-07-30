@@ -139,7 +139,6 @@ router.get("/client-properties", async (req, res) => {
       return res.status(403).json({ error: "Only clients can view properties." });
     }
     
-    console.log("🔍 Client ID in Request:", req.user.userId);
     
     const orgId = new mongoose.Types.ObjectId(req.user.organizationId);
     // Use the correct client ID field from the JWT (ensure this matches your token payload)
@@ -147,7 +146,6 @@ router.get("/client-properties", async (req, res) => {
     
     // Log all organization properties before filtering
     const org = await Organization.findById(orgId);
-    console.log("🏠 All Properties Before Filtering:", org.properties);
     
     // Use $ifNull to default missing clientOwners to an empty array
     const assignedProperties = await Organization.aggregate([
@@ -167,7 +165,6 @@ router.get("/client-properties", async (req, res) => {
       { $addFields: { propertyId: { $toString: "$_id" } } }
     ]);
     
-    console.log("🏠 Assigned Properties After Filtering:", assignedProperties);
     res.json(assignedProperties);
   } catch (error) {
     console.error("Error fetching client properties:", error);

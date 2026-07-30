@@ -9,6 +9,8 @@ const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
 const mongoose = require("mongoose");
 const { getLatestProfitStatuses } = require("../services/profitStatuses");
+const { uploadLimiter } = require("../middleware/rateLimits");
+const { hasValidFileSignature } = require("../utils/uploadSecurity");
 // AWS S3 Configuration
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -53,15 +55,17 @@ router.get("/latest-statuses", authenticateToken, async (req, res) => {
   }
 });
 
-router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf"), async (req, res) => {
+router.post("/:propertyName/upload", authenticateToken, uploadLimiter, upload.single("profitPdf"), async (req, res) => {
   try {
     let { propertyName } = req.params;
     const { monthlyProfit } = req.body;
     
-    console.log("Received monthlyProfit (raw):", monthlyProfit);
     
     if (!req.file) {
       return res.status(400).json({ error: "PDF file is required." });
+    }
+    if (!hasValidFileSignature(req.file)) {
+      return res.status(400).json({ error: "The uploaded PDF is invalid." });
     }
 
     if (req.user.role !== "admin") {
@@ -75,15 +79,11 @@ router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf
 
     // Decode and normalize the property name
     propertyName = decodeURIComponent(propertyName).trim();
-    console.log("Decoded propertyName:", propertyName);
 
     const property = organization.properties.find(
       (p) => p.name.trim().toLowerCase() === propertyName.toLowerCase()
     );
     if (!property) {
-      console.log("Property not found. Available properties:",
-        organization.properties.map(p => p.name)
-      );
       return res.status(404).json({ error: "Property not found in your organization." });
     }
 
@@ -113,7 +113,6 @@ router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf
     
     // Convert profit amount to a number
     const newMonthlyProfit = Number(monthlyProfit);
-    console.log("Converted monthlyProfit:", newMonthlyProfit);
     if (isNaN(newMonthlyProfit)) {
       return res.status(400).json({ error: "Invalid profit amount." });
     } 
@@ -141,7 +140,6 @@ router.post("/:propertyName/upload", authenticateToken, upload.single("profitPdf
 router.get("/:propertyId", authenticateToken, async (req, res) => {
   try {
     const { propertyId } = req.params;
-    console.log("🔍 Received propertyId from request:", propertyId);
 
     if (req.user.role !== "client") {
       return res.status(403).json({ error: "Only clients can view profit statements." });
@@ -161,7 +159,6 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
 
     // Convert to ObjectId before querying
     const propId = new mongoose.Types.ObjectId(propertyId);
-    console.log("✅ Converted to ObjectId:", propId);
 
     const property = organization.properties.id(propId);
     if (!property?.clientOwners?.some(
@@ -180,7 +177,6 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "No profit data found for this property." });
     }
 
-    console.log("✅ Profit data found:", profit);
     res.json(profit);
   } catch (error) {
     console.error("🔥 Server error fetching profit data:", error);
@@ -188,12 +184,6 @@ router.get("/:propertyId", authenticateToken, async (req, res) => {
   }
 });
 
-console.log("🔹 Registered API Routes:");
-router.stack.forEach(layer => {
-  if (layer.route) {
-    console.log(layer.route.path);
-  }
-});
 
 router.get("/:propertyId/latest", authenticateToken, async (req, res) => {
   try {

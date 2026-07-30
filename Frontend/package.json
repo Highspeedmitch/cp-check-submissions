@@ -11,6 +11,7 @@
         "@capacitor/geolocation": "^7.0.0",
         "@capacitor/ios": "^7.0.1",
         "@mapbox/mapbox-gl-directions": "^4.3.1",
+        "@okta/okta-auth-js": "^8.0.1",
         "@testing-library/jest-dom": "^5.17.0",
         "@testing-library/user-event": "^13.5.0",
         "ajv": "^8.17.1",

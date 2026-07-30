@@ -12,6 +12,8 @@ function OrganizationSecurity() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mfaPassword, setMfaPassword] = useState("");
+  const [mfaSaving, setMfaSaving] = useState(false);
 
   useEffect(() => {
     api.get("/api/organization-security")
@@ -45,6 +47,30 @@ function OrganizationSecurity() {
     }
   };
 
+  const saveMfaPolicy = async (event) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setMfaSaving(true);
+    try {
+      const updated = await api.put("/api/organization-security/mfa-policy", {
+        currentPassword: mfaPassword,
+        requireMfaForAllUsers: !status.requireMfaForAllUsers,
+      });
+      setStatus((current) => ({ ...current, ...updated }));
+      setMfaPassword("");
+      setMessage(
+        updated.requireMfaForAllUsers
+          ? "Okta MFA is now required for every organization user."
+          : "Okta MFA remains required for administrators and is optional for other users."
+      );
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setMfaSaving(false);
+    }
+  };
+
   return (
     <div className="beta-page">
       <main className="beta-page-shell">
@@ -57,6 +83,52 @@ function OrganizationSecurity() {
             </button>
           }
         />
+        <section className="beta-section">
+          <div className="beta-section-heading">
+            <div>
+              <h2>Okta multi-factor authentication</h2>
+              <p>
+                Organization and platform administrators always use Okta MFA. You can also
+                require it for property managers, submitters, and other organization users.
+              </p>
+            </div>
+          </div>
+          {status && (
+            <>
+              <p className="beta-dialog-note">
+                {status.oktaConfigured
+                  ? status.requireMfaForAllUsers
+                    ? "Required for all organization users"
+                    : "Required for administrators; optional for other users"
+                  : "Okta has not been configured for this deployment"}
+              </p>
+              <form className="add-property-form" onSubmit={saveMfaPolicy}>
+                <label>
+                  Confirm your account password:
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={mfaPassword}
+                    onChange={(event) => setMfaPassword(event.target.value)}
+                    required
+                    disabled={!status.oktaConfigured}
+                  />
+                </label>
+                <button
+                  className="beta-button"
+                  type="submit"
+                  disabled={mfaSaving || !status.oktaConfigured}
+                >
+                  {mfaSaving
+                    ? "Saving…"
+                    : status.requireMfaForAllUsers
+                      ? "Make MFA optional for non-admins"
+                      : "Require MFA for all users"}
+                </button>
+              </form>
+            </>
+          )}
+        </section>
         <section className="beta-section">
           <div className="beta-section-heading">
             <div>

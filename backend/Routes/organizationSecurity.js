@@ -5,6 +5,7 @@ const Organization = require("../models/organization");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
 const { issueGrant } = require("../services/organizationPasskeys");
+const { oktaConfig } = require("../services/oktaAuth");
 
 const router = express.Router();
 const verificationLimiter = rateLimit({
@@ -33,6 +34,41 @@ router.get("/", async (req, res) => {
     configured: Boolean(organization.security?.adminActionPasskeyHash),
     version: organization.security?.adminActionPasskeyVersion || 0,
     rotatedAt: organization.security?.adminActionPasskeyRotatedAt || null,
+    oktaConfigured: oktaConfig().configured,
+    requireMfaForAllUsers: Boolean(organization.security?.requireMfaForAllUsers),
+    administratorsAlwaysRequireMfa: true,
+  });
+});
+
+router.put("/mfa-policy", verificationLimiter, async (req, res) => {
+  if (!oktaConfig().configured) {
+    return res.status(503).json({ error: "Okta must be configured before MFA enforcement can be enabled." });
+  }
+  const currentPassword = String(req.body.currentPassword || "");
+  const user = await User.findOne({
+    _id: req.user.userId,
+    organizationId: req.user.organizationId,
+    role: "admin",
+  });
+  if (!user || !await bcrypt.compare(currentPassword, user.password)) {
+    return res.status(403).json({ error: "Account password confirmation failed." });
+  }
+  const organization = await Organization.findById(req.user.organizationId);
+  organization.security.requireMfaForAllUsers = Boolean(req.body.requireMfaForAllUsers);
+  await Promise.all([
+    organization.save(),
+    UserAudit.create({
+      organizationId: organization._id,
+      targetUserId: user._id,
+      changedBy: user._id,
+      action: "organization_mfa_policy_updated",
+      changes: { requireMfaForAllUsers: organization.security.requireMfaForAllUsers },
+    }),
+  ]);
+  res.json({
+    oktaConfigured: true,
+    requireMfaForAllUsers: organization.security.requireMfaForAllUsers,
+    administratorsAlwaysRequireMfa: true,
   });
 });
 

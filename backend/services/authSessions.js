@@ -31,7 +31,7 @@ function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE, settings);
 }
 
-function accessTokenPayload(user) {
+function accessTokenPayload(user, authentication = {}) {
   const organization = user.organizationId;
   return {
     email: user.email,
@@ -41,11 +41,14 @@ function accessTokenPayload(user) {
     userId: user._id,
     tokenVersion: user.tokenVersion || 0,
     orgType: organization.orgType,
+    ...(authentication.mfaAuthenticatedAt
+      ? { mfaAuthenticatedAt: authentication.mfaAuthenticatedAt }
+      : {}),
   };
 }
 
-function authResponse(user, secretKey) {
-  const payload = accessTokenPayload(user);
+function authResponse(user, secretKey, authentication = {}) {
+  const payload = accessTokenPayload(user, authentication);
   return {
     token: jwt.sign(payload, secretKey, { expiresIn: ACCESS_TOKEN_LIFETIME }),
     organizationId: payload.organizationId,
@@ -57,7 +60,9 @@ function authResponse(user, secretKey) {
   };
 }
 
-async function createRefreshSession({ user, req, res, expiresAt, model = RefreshSession }) {
+async function createRefreshSession({
+  user, req, res, expiresAt, mfaAuthenticatedAt, model = RefreshSession,
+}) {
   const token = newRefreshToken();
   const absoluteExpiry = expiresAt || new Date(
     Date.now() + REFRESH_SESSION_DAYS * 24 * 60 * 60 * 1000
@@ -70,6 +75,7 @@ async function createRefreshSession({ user, req, res, expiresAt, model = Refresh
     expiresAt: absoluteExpiry,
     userAgent: req.get?.("user-agent") || "",
     ipAddress: req.ip || "",
+    mfaAuthenticatedAt: mfaAuthenticatedAt || null,
   });
   res.cookie(REFRESH_COOKIE, token, cookieSettings(absoluteExpiry));
   return absoluteExpiry;

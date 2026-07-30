@@ -120,6 +120,7 @@ const OrganizationSchema = new mongoose.Schema({
     default: "America/Phoenix",
   },
   security: {
+    requireMfaForAllUsers: { type: Boolean, default: false },
     adminActionPasskeyHash: { type: String, default: "" },
     adminActionPasskeyVersion: { type: Number, default: 0 },
     adminActionPasskeyRotatedAt: { type: Date, default: null },

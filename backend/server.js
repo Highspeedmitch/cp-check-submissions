@@ -10,7 +10,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const crypto = require('crypto'); // For password reset if needed
-const rateLimit = require('express-rate-limit'); // For security
+const {
+  apiLimiter,
+  loginLimiter,
+  accountRecoveryLimiter,
+  registrationLimiter,
+  uploadLimiter,
+} = require("./middleware/rateLimits");
 const Assignment = require('./models/assignment');
 const { sendSystemEmail } = require("./services/systemEmail");
 // ✅ Import your models
@@ -69,6 +75,7 @@ const {
   buildFrontendUrl,
 } = require("./utils/frontendUrls");
 const { consumeGrant } = require("./services/organizationPasskeys");
+const { oktaConfig, requiresOkta, verifyOktaIdentity } = require("./services/oktaAuth");
 //airbnb ical
 const airbnbCalendar = require("./Routes/airbnbCalendar"); // Import Airbnb route
 //azroots properties
@@ -117,6 +124,7 @@ const uploadToS3 = (fileContent, fileName, organizationId, propertyName) => {
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SECRET_KEY = getJwtSecret();
+app.set("trust proxy", 1);
 
 // ✅ CORS configuration
 const allowedOrigins = getAllowedFrontendOrigins();
@@ -126,6 +134,7 @@ app.use(cors({
   allowedHeaders: "Content-Type,Authorization",
   credentials: true,
 }));
+app.use("/api", apiLimiter);
 
 function requireTrustedSessionOrigin(req, res, next) {
   const origin = req.get("origin");
@@ -149,7 +158,6 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-app.set("trust proxy", 1);
 // ✅ Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ MongoDB Connected"))
@@ -190,22 +198,12 @@ app.use("/api/airbnb-calendar", airbnbCalendar); // Register it
 app.use("/api/azroots/properties", authenticateToken, azrootsProperties);
 
 
-/**
- * 🔹 Rate Limiting Middleware (Optional but Recommended)
- */
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again after 15 minutes."
-});
-
-app.use(limiter);
 app.use("/api", clientAuth);
 app.use("/api", assignmentRoutes);
 /**
  * 🔹 Register a New Organization & Admin User & Check admin passkey
  */
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', registrationLimiter, async (req, res) => {
   try {
     const { organizationName, username, email, password, properties, adminPasskey } = req.body;
 
@@ -261,7 +259,7 @@ app.post('/api/register', async (req, res) => {
 /**
  * 🔹 User Login (Returns JWT)
  */
-app.post('/api/login', requireTrustedSessionOrigin, async (req, res) => {
+app.post('/api/login', loginLimiter, requireTrustedSessionOrigin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -290,6 +288,15 @@ app.post('/api/login', requireTrustedSessionOrigin, async (req, res) => {
       return res.status(500).json({ message: "Organization type not found for this organization." });
     }
 
+    if (requiresOkta(user, user.organizationId)) {
+      const config = oktaConfig();
+      return res.status(428).json({
+        code: "OKTA_REQUIRED",
+        message: "Complete secure sign-in with Okta.",
+        okta: { issuer: config.issuer, clientId: config.clientIds[0] },
+      });
+    }
+
     const authentication = authResponse(user, SECRET_KEY);
     await createRefreshSession({ user, req, res });
 
@@ -302,6 +309,40 @@ app.post('/api/login', requireTrustedSessionOrigin, async (req, res) => {
   } catch (error) {
     console.error("❌ Login error:", error);
     res.status(500).json({ message: "Server error during login." });
+  }
+});
+
+app.post("/api/auth/okta", loginLimiter, requireTrustedSessionOrigin, async (req, res) => {
+  try {
+    const claims = await verifyOktaIdentity({ idToken: String(req.body.idToken || "") });
+    const email = String(claims.email || claims.preferred_username || "").trim().toLowerCase();
+    const subject = String(claims.sub || "");
+    if (!email || !subject) {
+      return res.status(401).json({ message: "Okta did not provide a usable identity." });
+    }
+    const user = await User.findOne({ email }).populate("organizationId");
+    if (!user || !user.organizationId || user.accountStatus === "inactive") {
+      return res.status(403).json({ message: "This Okta identity is not authorized for Afterlight." });
+    }
+    if (user.oktaSubject && user.oktaSubject !== subject) {
+      return res.status(403).json({ message: "This account is linked to a different Okta identity." });
+    }
+    if (!user.oktaSubject) {
+      user.oktaSubject = subject;
+      await user.save();
+    }
+    const mfaAuthenticatedAt = new Date(
+      Number(claims.auth_time || Math.floor(Date.now() / 1000)) * 1000
+    );
+    const authenticationContext = { mfaAuthenticatedAt };
+    await createRefreshSession({ user, req, res, mfaAuthenticatedAt });
+    return res.json({
+      message: "Login successful",
+      ...authResponse(user, SECRET_KEY, authenticationContext),
+    });
+  } catch (error) {
+    console.error("Okta authentication failed:", error.message);
+    return res.status(401).json({ message: "Secure sign-in could not be verified." });
   }
 });
 
@@ -351,10 +392,13 @@ app.post("/api/auth/refresh", requireTrustedSessionOrigin, async (req, res) => {
         expiresAt: session.expiresAt,
         userAgent: req.get("user-agent") || "",
         ipAddress: req.ip || "",
+        mfaAuthenticatedAt: session.mfaAuthenticatedAt || null,
       }),
     ]);
     res.cookie(REFRESH_COOKIE, replacementToken, cookieSettings(session.expiresAt));
-    res.json(authResponse(user, SECRET_KEY));
+    res.json(authResponse(user, SECRET_KEY, {
+      mfaAuthenticatedAt: session.mfaAuthenticatedAt || undefined,
+    }));
   } catch (error) {
     console.error("Refresh session error:", error);
     res.status(500).json({ message: "Unable to refresh session." });
@@ -392,7 +436,6 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
       orgType: org.orgType,  // ✅ Now added!
     }));
 
-    console.log("Properties with orgType:", properties);
     res.json(properties);
   } catch (error) {
     console.error("❌ Error fetching properties:", error);
@@ -411,15 +454,17 @@ const storage = multer.memoryStorage(); // Store files in memory before processi
 const upload = multer({
   storage,
   limits: { files: 30, fileSize: 5 * 1024 * 1024 },
+  fileFilter: require("./utils/uploadSecurity").imageFileFilter,
 });
+const { rejectInvalidSignatures } = require("./utils/uploadSecurity");
 const { extractPhotoFieldName } = require("./utils/photoFieldName");
 const { isAllowedTemplatePhotoField } = require("./services/inspectionPhotoAccess");
 
 // Update the /submit-form route to accept multiple files
-app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), async (req, res) => {
+app.post('/api/submit-form', authenticateToken, uploadLimiter, upload.array('photos', 10), async (req, res) => {
   try {
+    rejectInvalidSignatures(req.files);
     const data = req.body;
-    console.log('✅ Form Data Received:', data);
 
     const propertyName = data.selectedProperty || data.property;
     if (!propertyName) {
@@ -436,7 +481,6 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
 
     // Extract the organization type (COM, LTR, RES, STR)
     const orgType = org.orgType;
-    console.log(`📌 Organization Type: ${orgType}`);
 
     // Find the property in the organization
     const property = org.properties.find(p => p.name === propertyName);
@@ -497,7 +541,6 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
       recipientEmails = [fallbackEmail];
     }
 
-    console.log(`📨 Sending email to: ${recipientEmails.join(", ")}`);
 
     // **Ensure photos are correctly linked to fields**
     let photoBuffers = [];
@@ -514,7 +557,6 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
         }
       });
     }
-    console.log("📷 Processed Photo Buffers:", photoBuffers);
 
     // **Generate PDF**
     let pdfBuffer, fileName;
@@ -544,7 +586,6 @@ app.post('/api/submit-form', authenticateToken, upload.array('photos', 10), asyn
         throw new Error('S3 Upload failed');
       }
       
-      console.log('✅ PDF uploaded to S3:', uploadResult.Location);
     } catch (error) {
       console.error('❌ PDF Upload Error:', error);
       return res.status(500).json({ message: 'PDF upload failed' });
@@ -571,7 +612,6 @@ try {
       : null,
   });
 
-  console.log('✅ Submission saved in database');
   if (orgType === "COM") {
     const address = resolveBillingAddress(property);
     const { policy: billingPolicy } = await ensureOrganizationBillingPolicy(organizationId);
@@ -671,7 +711,7 @@ try {
     };
 
     sendSystemEmail(mailOptions)
-      .then(() => console.log(`✅ Email sent to ${recipientEmails}`))
+      .then(() => console.log("Inspection notification email sent."))
       .catch(err => console.error('❌ Error sending email:', err));
 
     // **Remove the completed assignment if it exists**
@@ -689,7 +729,7 @@ try {
 });
 
 // Step 1: Forgot Password Route
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', accountRecoveryLimiter, async (req, res) => {
     try {
         const { email } = req.body;
         const user = await User.findOne({ email });
@@ -720,7 +760,7 @@ app.post('/api/forgot-password', async (req, res) => {
 });
 
 // Step 2: Reset Password Route
-app.post('/api/reset-password', async (req, res) => {
+app.post('/api/reset-password', accountRecoveryLimiter, async (req, res) => {
   const { token, newPassword } = req.body;
 
   try {
@@ -790,7 +830,6 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
       // Decode the entire pathname to get the raw key (with literal spaces)
       const rawKey = decodeURIComponent(encodedKey);
       
-      console.log("Raw key:", rawKey); // For debugging – should match the key in S3 exactly
 
       const params = {
         Bucket: process.env.S3_BUCKET_NAME,
@@ -855,7 +894,6 @@ app.get('/api/admin/submissions/:property', authenticateToken, async (req, res) 
       // Decode the entire key to get the raw key (with literal spaces)
       const rawKey = decodeURIComponent(encodedKey);
 
-      console.log("Extracted key:", rawKey); // Debug: should match what you see in S3
 
       const params = {
         Bucket: process.env.S3_BUCKET_NAME,
