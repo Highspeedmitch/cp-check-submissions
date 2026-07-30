@@ -20,8 +20,17 @@ function client() {
 }
 
 export async function beginOktaLogin({ loginHint = "", returnTo = "" } = {}) {
+  const challengeResponse = await fetch(apiUrl("/api/auth/okta/challenge"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  });
+  const challenge = await challengeResponse.json();
+  if (!challengeResponse.ok || !challenge.nonce) {
+    throw new Error(challenge.message || "Unable to start secure sign-in.");
+  }
   sessionStorage.setItem("afterlightOktaReturnTo", returnTo || "");
-  await client().signInWithRedirect({ loginHint });
+  await client().signInWithRedirect({ loginHint, nonce: challenge.nonce });
 }
 
 export async function completeOktaLogin() {

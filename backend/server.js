@@ -76,6 +76,24 @@ const {
 } = require("./utils/frontendUrls");
 const { consumeGrant } = require("./services/organizationPasskeys");
 const { oktaConfig, requiresOkta, verifyOktaIdentity } = require("./services/oktaAuth");
+const OKTA_NONCE_COOKIE = "ig_okta_nonce";
+
+function oktaNonceCookieSettings() {
+  const secure = process.env.NODE_ENV === "production" || Boolean(process.env.RENDER);
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? "none" : "lax",
+    path: "/api/auth/okta",
+    maxAge: 10 * 60 * 1000,
+  };
+}
+
+function clearOktaNonceCookie(res) {
+  const settings = oktaNonceCookieSettings();
+  delete settings.maxAge;
+  res.clearCookie(OKTA_NONCE_COOKIE, settings);
+}
 //airbnb ical
 const airbnbCalendar = require("./Routes/airbnbCalendar"); // Import Airbnb route
 //azroots properties
@@ -312,9 +330,23 @@ app.post('/api/login', loginLimiter, requireTrustedSessionOrigin, async (req, re
   }
 });
 
+app.post("/api/auth/okta/challenge", loginLimiter, requireTrustedSessionOrigin, (req, res) => {
+  if (!oktaConfig().configured) {
+    return res.status(503).json({ message: "Okta authentication is not configured." });
+  }
+  const nonce = crypto.randomBytes(32).toString("base64url");
+  res.cookie(OKTA_NONCE_COOKIE, nonce, oktaNonceCookieSettings());
+  return res.json({ nonce });
+});
+
 app.post("/api/auth/okta", loginLimiter, requireTrustedSessionOrigin, async (req, res) => {
   try {
-    const claims = await verifyOktaIdentity({ idToken: String(req.body.idToken || "") });
+    const expectedNonce = String(req.cookies[OKTA_NONCE_COOKIE] || "");
+    const claims = await verifyOktaIdentity({
+      idToken: String(req.body.idToken || ""),
+      expectedNonce,
+    });
+    clearOktaNonceCookie(res);
     const email = String(claims.email || claims.preferred_username || "").trim().toLowerCase();
     const subject = String(claims.sub || "");
     if (!email || !subject) {
@@ -341,6 +373,7 @@ app.post("/api/auth/okta", loginLimiter, requireTrustedSessionOrigin, async (req
       ...authResponse(user, SECRET_KEY, authenticationContext),
     });
   } catch (error) {
+    clearOktaNonceCookie(res);
     console.error("Okta authentication failed:", error.message);
     return res.status(401).json({ message: "Secure sign-in could not be verified." });
   }

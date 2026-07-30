@@ -14,14 +14,15 @@ function requiresOkta(user, organization, env = process.env) {
     || Boolean(organization?.security?.requireMfaForAllUsers);
 }
 
-async function verifyOktaIdentity({ idToken, env = process.env }) {
+async function verifyOktaIdentity({ idToken, expectedNonce, env = process.env }) {
   const config = oktaConfig(env);
   if (!config.configured) throw new Error("Okta authentication is not configured.");
+  if (!expectedNonce) throw new Error("Okta authentication challenge is missing or expired.");
   const verifier = new OktaJwtVerifier({ issuer: config.issuer });
   let lastError;
   for (const clientId of config.clientIds) {
     try {
-      const jwt = await verifier.verifyIdToken(idToken, clientId);
+      const jwt = await verifier.verifyIdToken(idToken, clientId, expectedNonce);
       return jwt.claims;
     } catch (error) {
       lastError = error;

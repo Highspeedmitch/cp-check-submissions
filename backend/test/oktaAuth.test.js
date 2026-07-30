@@ -32,3 +32,11 @@ test("organization policy controls non-admin Okta enforcement", () => {
 test("Okta enforcement remains off until deployment configuration is complete", () => {
   assert.equal(requiresOkta({ role: "admin" }, {}, {}), false);
 });
+
+test("identity verification requires a server-issued nonce", async () => {
+  const { verifyOktaIdentity } = require("../services/oktaAuth");
+  await assert.rejects(
+    verifyOktaIdentity({ idToken: "not-a-token", env: configured }),
+    /challenge is missing or expired/
+  );
+});
