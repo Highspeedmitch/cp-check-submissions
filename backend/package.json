@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test",
+    "worker:inspections": "node inspectionWorker.js",
     "grant-platform-admin": "node scripts/grantPlatformAdmin.js"
   },
   "keywords": [],

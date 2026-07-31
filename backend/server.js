@@ -179,9 +179,9 @@ function requireTrustedSessionOrigin(req, res, next) {
   next();
 }
 
-// Increase size limits for JSON and URL-encoded data
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Photos upload directly to object storage. API metadata should remain small.
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
 app.use(cookieParser());
 
 
@@ -197,6 +197,13 @@ function requireAdmin(req, res, next) {
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Error:", err));
+
+mongoose.connection.once("open", () => {
+  if (String(process.env.RUN_INSPECTION_WORKER || "true").toLowerCase() !== "false") {
+    require("./services/inspectionWorker").startInspectionWorker();
+    console.log("Inspection job worker started in the web process.");
+  }
+});
 
 /**
  * 🔹 JWT Auth Middleware
@@ -219,6 +226,7 @@ app.use("/api/organization-security", authenticateToken, require("./Routes/organ
 app.use("/api/bid-requests", authenticateToken, require("./Routes/bidRequests"));
 app.use("/api/notifications", authenticateToken, require("./Routes/notifications"));
 app.use("/api/inspection-templates", authenticateToken, require("./Routes/inspectionTemplates"));
+app.use("/api/inspection-jobs", authenticateToken, require("./Routes/inspectionJobs"));
 app.use("/api/reporting", authenticateToken, require("./Routes/reporting"));
 app.use("/api/platform", require("./Routes/platform"));
 

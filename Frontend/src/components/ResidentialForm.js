@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
-import { appendOptimizedPhotos } from "../services/photoUpload";
+import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import PageHeader from "./ui/PageHeader";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
@@ -21,6 +21,7 @@ export default function ResidentialForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [progress, setProgress] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
 
   const setResponse = (key, value) =>
@@ -31,12 +32,20 @@ export default function ResidentialForm() {
     setSubmitting(true);
     setError("");
     try {
-      const payload = new FormData();
-      Object.entries(responses).forEach(([key, value]) => payload.append(key, value));
-      payload.append("selectedProperty", property);
-      payload.append("orgType", "RES");
-      await appendOptimizedPhotos(payload, photos);
-      await api.post("/api/submit-form", payload);
+      const result = await submitInspectionJob({
+        api,
+        property,
+        orgType: "RES",
+        responses,
+        photoGroups: photos,
+        onProgress: ({ phase, completed, total }) => {
+          if (phase === "preparing") setProgress("Preparing photo uploads…");
+          if (phase === "uploading") setProgress(`Uploading photo ${completed} of ${total}…`);
+          if (phase === "queued") setProgress("Report queued for processing…");
+          if (phase === "processing") setProgress("Generating report…");
+        },
+      });
+      if (result.status === "failed") throw new Error(result.error || "Report processing failed.");
       setSubmitted(true);
     } catch (requestError) {
       setError(requestError.message || "Unable to submit the inspection.");
@@ -52,6 +61,7 @@ export default function ResidentialForm() {
           title="Residential Property Inspection Checklist"
           subtitle="Complete the inspection and attach photographic evidence for any concerns." />
         {error && <p className="beta-alert error">{error}</p>}
+        {submitting && progress && <p className="beta-alert" role="status">{progress}</p>}
         {submitted ? <section className="beta-panel">
           <h2>Inspection complete</h2>
           <button className="beta-button" onClick={() => navigate("/dashboard")}>Return to Dashboard</button>

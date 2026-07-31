@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
-import { appendOptimizedPhotos } from "../services/photoUpload";
+import { submitInspectionJob } from "../services/photoUpload";
 import PageHeader from "./ui/PageHeader";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
@@ -19,6 +19,13 @@ export default function FormPage() {
   const [error, setError] = useState("");
   const [assignmentInstructions, setAssignmentInstructions] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
+
+  const updateProgress = ({ phase, completed, total }) => {
+    if (phase === "preparing") setMessage("Preparing secure photo uploads…");
+    if (phase === "uploading") setMessage(`Uploading photo ${completed} of ${total}…`);
+    if (phase === "queued") setMessage("Photos uploaded. Your report is queued for processing.");
+    if (phase === "processing") setMessage("Generating your inspection report…");
+  };
 
   useEffect(() => {
     let active = true;
@@ -70,17 +77,25 @@ export default function FormPage() {
     setSubmitting(true);
     setError("");
     try {
-      const payload = new FormData();
+      const payload = {};
       template.fields.forEach((field) => {
-        payload.append(field.key, responses[field.key] || "");
+        payload[field.key] = responses[field.key] || "";
         if (field.type === "yes_no_issue") {
-          payload.append(`${field.key}Description`, responses[`${field.key}Description`] || "");
+          payload[`${field.key}Description`] = responses[`${field.key}Description`] || "";
         }
       });
-      payload.append("selectedProperty", property);
-      await appendOptimizedPhotos(payload, photos);
-      const result = await api.post("/api/submit-form", payload);
-      setMessage(result.message || "Inspection submitted successfully.");
+      const result = await submitInspectionJob({
+        api,
+        property,
+        orgType: "COM",
+        responses: payload,
+        photoGroups: photos,
+        onProgress: updateProgress,
+      });
+      if (result.status === "failed") throw new Error(result.error || "Report processing failed.");
+      setMessage(result.status === "completed"
+        ? "Inspection submitted and report generated successfully."
+        : "Inspection uploaded and queued. Processing will continue in the background.");
       setSubmitted(true);
     } catch (err) {
       setError(err.message || "Unable to submit the inspection.");
@@ -193,6 +208,7 @@ export default function FormPage() {
               </section>
             ))}
             <div className="beta-sticky-submit">
+              {submitting && message && <span role="status">{message}</span>}
               <button className="beta-button" type="submit" disabled={submitting}>
                 {submitting ? "Submitting…" : "Submit Checklist"}
               </button>

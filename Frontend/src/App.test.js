@@ -22,7 +22,7 @@ beforeEach(() => {
 test("shows the login screen when there is no authenticated user", async () => {
   renderApp();
 
-  expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
 });
 
 test("shows the dashboard for an authenticated non-client user", async () => {

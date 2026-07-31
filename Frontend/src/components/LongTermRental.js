@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { apiUrl } from "../services/api";
-import { appendOptimizedPhotos } from "../services/photoUpload";
+import { api } from "../services/api";
+import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
 
@@ -27,6 +27,7 @@ function LongTermRental() {
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Handle changes for standard text/textarea/select fields
   const handleChange = (e) => {
@@ -44,40 +45,34 @@ function LongTermRental() {
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
-      const token = localStorage.getItem("token");
-      const formDataToSend = new FormData();
+      const { photos, ...responses } = formData;
 
-      // Append all text fields
-      Object.keys(formData).forEach((key) => {
-        if (key !== "photos") {
-          formDataToSend.append(key, formData[key]);
-        }
+      const result = await submitInspectionJob({
+        api,
+        property,
+        orgType: "LTR",
+        responses,
+        photoGroups: photos,
+        onProgress: ({ phase, completed, total }) => {
+          if (phase === "preparing") setMessage("Preparing photo uploads…");
+          if (phase === "uploading") setMessage(`Uploading photo ${completed} of ${total}…`);
+          if (phase === "queued") setMessage("Report queued for processing…");
+          if (phase === "processing") setMessage("Generating report…");
+        },
       });
 
-      // ✅ Ensure orgType is included
-      formDataToSend.append("orgType", "LTR");
-      formDataToSend.append("selectedProperty", property);
-
-      // Append photos
-      await appendOptimizedPhotos(formDataToSend, formData.photos);
-
-      const response = await fetch(apiUrl("/api/submit-form"), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formDataToSend,
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message);
-        setSubmitted(true);
-      } else {
-        alert("Error: " + data.message);
-      }
+      if (result.status === "failed") throw new Error(result.error || "Report processing failed.");
+      setMessage(result.status === "completed"
+        ? "Inspection submitted and report generated successfully."
+        : "Inspection uploaded and queued for background processing.");
+      setSubmitted(true);
     } catch (error) {
       console.error("Error submitting form:", error);
-      alert("Error submitting form. Please try again.");
+      alert(error.message || "Error submitting form. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -189,8 +184,8 @@ function LongTermRental() {
             files={formData.photos.additionalComments || []}
             onChange={(files) => setFieldPhotos("additionalComments", files)} />
 
-          <button type="submit" className="submit button">
-            Submit Checklist
+          <button type="submit" className="submit button" disabled={submitting}>
+            {submitting ? message || "Submitting…" : "Submit Checklist"}
           </button>
         </form>
       )}

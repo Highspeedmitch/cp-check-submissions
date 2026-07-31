@@ -59,3 +59,114 @@ export function mergePhotoSelection(currentFiles, selectedFiles, maxFiles = 6) {
     ...Array.from(selectedFiles || []),
   ].slice(0, maxFiles);
 }
+
+function idempotencyKey() {
+  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `inspection_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function flattenPhotoGroups(photoGroups = {}) {
+  return Object.entries(photoGroups).flatMap(([fieldName, files]) =>
+    Array.from(files || []).map((file) => ({ fieldName, file }))
+  );
+}
+
+function inspectionDraftIdentity({ property, orgType, responses, photos }) {
+  return JSON.stringify({
+    property,
+    orgType,
+    responses,
+    photos: photos.map(({ fieldName, file }) => ({
+      fieldName,
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified,
+    })),
+  });
+}
+
+function draftIdempotency(property, fingerprint) {
+  const storageKey = `afterlight:inspection-draft:${property}`;
+  try {
+    const existing = JSON.parse(window.sessionStorage.getItem(storageKey) || "null");
+    if (existing?.fingerprint === fingerprint && existing?.key) {
+      return { storageKey, key: existing.key };
+    }
+    const key = idempotencyKey();
+    window.sessionStorage.setItem(storageKey, JSON.stringify({ fingerprint, key }));
+    return { storageKey, key };
+  } catch (_error) {
+    return { storageKey: "", key: idempotencyKey() };
+  }
+}
+
+async function uploadToSignedPost(upload, file) {
+  const body = new FormData();
+  Object.entries(upload.fields || {}).forEach(([key, value]) => body.append(key, value));
+  body.append("Content-Type", file.type);
+  body.append("file", file, file.name);
+  const response = await fetch(upload.url, { method: "POST", body });
+  if (!response.ok) {
+    throw new Error(`Photo upload failed with status ${response.status}.`);
+  }
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+export async function waitForInspectionJob(api, jobId, options = {}) {
+  const timeoutMs = options.timeoutMs || 120000;
+  const pollMs = options.pollMs || 1500;
+  const startedAt = Date.now();
+  let current;
+  while (Date.now() - startedAt < timeoutMs) {
+    current = await api.get(`/api/inspection-jobs/${jobId}`);
+    options.onProgress?.({ phase: current.status, job: current });
+    if (["completed", "failed"].includes(current.status)) return current;
+    await delay(pollMs);
+  }
+  return current || { jobId, status: "queued" };
+}
+
+export async function submitInspectionJob({
+  api,
+  property,
+  orgType,
+  responses,
+  photoGroups,
+  onProgress,
+}) {
+  const photos = flattenPhotoGroups(photoGroups);
+  const fingerprint = inspectionDraftIdentity({ property, orgType, responses, photos });
+  const draft = draftIdempotency(property, fingerprint);
+  onProgress?.({ phase: "preparing", total: photos.length });
+  const prepared = await api.post("/api/inspection-jobs", {
+    property,
+    orgType,
+    responses,
+    idempotencyKey: draft.key,
+    photos: photos.map(({ fieldName, file }) => ({ fieldName, fileName: file.name })),
+  });
+
+  if (prepared.status === "uploading") {
+    if (prepared.uploads.length !== photos.length) {
+      throw new Error("The server returned an incomplete photo upload plan.");
+    }
+    for (let index = 0; index < photos.length; index += 1) {
+      const optimized = await optimizePhoto(photos[index].file);
+      await uploadToSignedPost(prepared.uploads[index], optimized);
+      onProgress?.({ phase: "uploading", completed: index + 1, total: photos.length });
+    }
+    await api.post(`/api/inspection-jobs/${prepared.jobId}/complete-uploads`, {});
+  }
+
+  onProgress?.({ phase: "queued", jobId: prepared.jobId });
+  const result = await waitForInspectionJob(api, prepared.jobId, { onProgress });
+  if (draft.storageKey && ["completed", "failed"].includes(result.status)) {
+    window.sessionStorage.removeItem(draft.storageKey);
+  }
+  return result;
+}
