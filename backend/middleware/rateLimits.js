@@ -23,6 +23,12 @@ const loginLimiter = limiter({
   message: "Too many sign-in attempts. Please try again later.",
 });
 
+const mfaLimiter = limiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  message: "Too many MFA attempts. Please try again later.",
+});
+
 const accountRecoveryLimiter = limiter({
   windowMs: 60 * 60 * 1000,
   limit: 5,
@@ -45,6 +51,7 @@ const uploadLimiter = limiter({
 module.exports = {
   apiLimiter,
   loginLimiter,
+  mfaLimiter,
   accountRecoveryLimiter,
   registrationLimiter,
   uploadLimiter,

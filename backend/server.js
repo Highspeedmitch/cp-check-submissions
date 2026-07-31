@@ -13,6 +13,7 @@ const crypto = require('crypto'); // For password reset if needed
 const {
   apiLimiter,
   loginLimiter,
+  mfaLimiter,
   accountRecoveryLimiter,
   registrationLimiter,
   uploadLimiter,
@@ -22,6 +23,7 @@ const { sendSystemEmail } = require("./services/systemEmail");
 // ✅ Import your models
 const Organization = require('./models/organization');
 const User = require('./models/user');
+const UserAudit = require('./models/userAudit');
 const Submission = require('./models/submission'); // New Model for Submissions
 const Invoice = require('./models/invoice');
 const {
@@ -60,6 +62,7 @@ const {
   assignmentCompleted,
 } = require("./services/notificationEvents");
 const RefreshSession = require("./models/refreshSession");
+const MfaChallenge = require("./models/mfaChallenge");
 const {
   REFRESH_COOKIE,
   hashToken,
@@ -76,6 +79,20 @@ const {
 } = require("./utils/frontendUrls");
 const { consumeGrant } = require("./services/organizationPasskeys");
 const { oktaConfig, requiresOkta, verifyOktaIdentity } = require("./services/oktaAuth");
+const {
+  CHALLENGE_LIFETIME_MS,
+  config: totpConfig,
+  requiresTotp,
+  encrypt: encryptMfaValue,
+  newTotpEnrollment,
+  enrollmentQrDataUrl,
+  verifyTotp,
+  randomChallengeToken,
+  hashChallengeToken,
+  hashRecoveryCode,
+  generateRecoveryCodes,
+} = require("./services/totpMfa");
+totpConfig();
 const OKTA_NONCE_COOKIE = "ig_okta_nonce";
 
 function oktaNonceCookieSettings() {
@@ -306,6 +323,26 @@ app.post('/api/login', loginLimiter, requireTrustedSessionOrigin, async (req, re
       return res.status(500).json({ message: "Organization type not found for this organization." });
     }
 
+    if (requiresTotp(user, user.organizationId)) {
+      const challengeToken = randomChallengeToken();
+      const enrollmentRequired = !user.mfa?.totpEnabled;
+      await MfaChallenge.create({
+        userId: user._id,
+        organizationId: user.organizationId._id,
+        tokenHash: hashChallengeToken(challengeToken),
+        purpose: enrollmentRequired ? "enrollment" : "login",
+        expiresAt: new Date(Date.now() + CHALLENGE_LIFETIME_MS),
+      });
+      return res.status(202).json({
+        code: enrollmentRequired ? "MFA_ENROLLMENT_REQUIRED" : "MFA_REQUIRED",
+        message: enrollmentRequired
+          ? "Set up an authenticator to continue."
+          : "Enter the code from your authenticator app.",
+        challengeToken,
+        expiresInSeconds: Math.floor(CHALLENGE_LIFETIME_MS / 1000),
+      });
+    }
+
     if (requiresOkta(user, user.organizationId)) {
       const config = oktaConfig();
       return res.status(428).json({
@@ -327,6 +364,174 @@ app.post('/api/login', loginLimiter, requireTrustedSessionOrigin, async (req, re
   } catch (error) {
     console.error("❌ Login error:", error);
     res.status(500).json({ message: "Server error during login." });
+  }
+});
+
+async function activeMfaChallenge(challengeToken, purpose) {
+  return MfaChallenge.findOne({
+    tokenHash: hashChallengeToken(challengeToken),
+    purpose,
+    consumedAt: null,
+    expiresAt: { $gt: new Date() },
+    attempts: { $lt: 8 },
+  }).select("+pendingSecretEncrypted");
+}
+
+async function finishMfaLogin({ user, req, res }) {
+  const mfaAuthenticatedAt = new Date();
+  await createRefreshSession({ user, req, res, mfaAuthenticatedAt });
+  return res.json({
+    message: "Login successful",
+    ...authResponse(user, SECRET_KEY, { mfaAuthenticatedAt }),
+  });
+}
+
+app.post("/api/auth/mfa/enrollment/start", mfaLimiter, requireTrustedSessionOrigin, async (req, res) => {
+  try {
+    const challengeToken = String(req.body.challengeToken || "");
+    const challenge = await activeMfaChallenge(challengeToken, "enrollment");
+    if (!challenge) return res.status(401).json({ message: "MFA enrollment expired. Sign in again." });
+    const user = await User.findById(challenge.userId).select("email accountStatus");
+    if (!user || user.accountStatus === "inactive") {
+      return res.status(403).json({ message: "Account is unavailable." });
+    }
+    const enrollment = newTotpEnrollment(user.email);
+    challenge.pendingSecretEncrypted = encryptMfaValue(enrollment.secret);
+    await challenge.save();
+    return res.json({
+      qrCodeDataUrl: await enrollmentQrDataUrl(enrollment.uri),
+      manualKey: enrollment.secret.match(/.{1,4}/g).join(" "),
+      issuer: "Afterlight",
+      accountName: user.email,
+    });
+  } catch (error) {
+    console.error("MFA enrollment start error:", error.message);
+    return res.status(500).json({ message: "Unable to start MFA enrollment." });
+  }
+});
+
+app.post("/api/auth/mfa/enrollment/confirm", mfaLimiter, requireTrustedSessionOrigin, async (req, res) => {
+  try {
+    const challengeToken = String(req.body.challengeToken || "");
+    const challenge = await activeMfaChallenge(challengeToken, "enrollment");
+    if (!challenge?.pendingSecretEncrypted) {
+      return res.status(401).json({ message: "MFA enrollment expired. Sign in again." });
+    }
+    const verification = verifyTotp({
+      encryptedSecret: challenge.pendingSecretEncrypted,
+      code: req.body.code,
+    });
+    if (!verification.valid) {
+      challenge.attempts += 1;
+      await challenge.save();
+      return res.status(401).json({ message: "Invalid authenticator code." });
+    }
+    const consumed = await MfaChallenge.findOneAndUpdate(
+      { _id: challenge._id, consumedAt: null },
+      { $set: { consumedAt: new Date() } },
+      { new: true }
+    );
+    if (!consumed) return res.status(401).json({ message: "MFA enrollment was already completed." });
+    const recovery = generateRecoveryCodes();
+    const user = await User.findOneAndUpdate(
+      { _id: challenge.userId, accountStatus: { $ne: "inactive" } },
+      { $set: {
+        "mfa.totpEnabled": true,
+        "mfa.totpSecretEncrypted": challenge.pendingSecretEncrypted,
+        "mfa.enrolledAt": new Date(),
+        "mfa.lastVerifiedAt": new Date(),
+        "mfa.lastUsedCounter": verification.counter,
+        "mfa.recoveryCodeHashes": recovery.hashes,
+      } },
+      { new: true }
+    ).populate("organizationId");
+    if (!user?.organizationId) return res.status(403).json({ message: "Account is unavailable." });
+    await UserAudit.create({
+      organizationId: user.organizationId._id,
+      targetUserId: user._id,
+      changedBy: user._id,
+      action: "totp_mfa_enrolled",
+      changes: { recoveryCodeCount: recovery.codes.length },
+    });
+    const mfaAuthenticatedAt = new Date();
+    await createRefreshSession({ user, req, res, mfaAuthenticatedAt });
+    return res.json({
+      message: "MFA enrollment complete.",
+      recoveryCodes: recovery.codes,
+      ...authResponse(user, SECRET_KEY, { mfaAuthenticatedAt }),
+    });
+  } catch (error) {
+    console.error("MFA enrollment confirmation error:", error.message);
+    return res.status(500).json({ message: "Unable to complete MFA enrollment." });
+  }
+});
+
+app.post("/api/auth/mfa/verify", mfaLimiter, requireTrustedSessionOrigin, async (req, res) => {
+  try {
+    const challengeToken = String(req.body.challengeToken || "");
+    const challenge = await activeMfaChallenge(challengeToken, "login");
+    if (!challenge) return res.status(401).json({ message: "MFA verification expired. Sign in again." });
+    const user = await User.findOne({
+      _id: challenge.userId,
+      accountStatus: { $ne: "inactive" },
+    }).select("+mfa.totpSecretEncrypted +mfa.recoveryCodeHashes").populate("organizationId");
+    if (!user?.organizationId || !user.mfa?.totpEnabled) {
+      return res.status(403).json({ message: "MFA is not available for this account." });
+    }
+
+    const supplied = String(req.body.code || "");
+    const recoveryHash = hashRecoveryCode(supplied);
+    const recoveryIndex = user.mfa.recoveryCodeHashes.indexOf(recoveryHash);
+    let update;
+    let userFilter = { _id: user._id };
+    let usedRecoveryCode = false;
+    if (recoveryIndex >= 0) {
+      usedRecoveryCode = true;
+      userFilter["mfa.recoveryCodeHashes"] = recoveryHash;
+      update = { $pull: { "mfa.recoveryCodeHashes": recoveryHash }, $set: { "mfa.lastVerifiedAt": new Date() } };
+    } else {
+      const verification = verifyTotp({
+        encryptedSecret: user.mfa.totpSecretEncrypted,
+        code: supplied,
+        lastUsedCounter: user.mfa.lastUsedCounter,
+      });
+      if (!verification.valid) {
+        challenge.attempts += 1;
+        await challenge.save();
+        return res.status(401).json({ message: "Invalid authenticator or recovery code." });
+      }
+      update = { $set: {
+        "mfa.lastVerifiedAt": new Date(),
+        "mfa.lastUsedCounter": verification.counter,
+      } };
+      userFilter.$or = [
+        { "mfa.lastUsedCounter": null },
+        { "mfa.lastUsedCounter": { $lt: verification.counter } },
+      ];
+    }
+    const userUpdate = await User.updateOne(userFilter, update);
+    if (!userUpdate.modifiedCount) {
+      return res.status(401).json({ message: "That MFA code was already used." });
+    }
+    const consumed = await MfaChallenge.findOneAndUpdate(
+      { _id: challenge._id, consumedAt: null },
+      { $set: { consumedAt: new Date() } },
+      { new: true }
+    );
+    if (!consumed) return res.status(401).json({ message: "MFA challenge was already used." });
+    if (usedRecoveryCode) {
+      await UserAudit.create({
+        organizationId: user.organizationId._id,
+        targetUserId: user._id,
+        changedBy: user._id,
+        action: "totp_recovery_code_used",
+        changes: { remaining: user.mfa.recoveryCodeHashes.length - 1 },
+      });
+    }
+    return finishMfaLogin({ user, req, res });
+  } catch (error) {
+    console.error("MFA verification error:", error.message);
+    return res.status(500).json({ message: "Unable to verify MFA." });
   }
 });
 

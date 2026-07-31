@@ -4,8 +4,16 @@ const bcrypt = require("bcryptjs");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
+const RefreshSession = require("../models/refreshSession");
 const { issueGrant } = require("../services/organizationPasskeys");
 const { oktaConfig } = require("../services/oktaAuth");
+const {
+  config: totpConfig,
+  verifyTotp,
+  generateRecoveryCodes,
+  hashRecoveryCode,
+} = require("../services/totpMfa");
+const { revokeUserSessions } = require("../services/authSessions");
 
 const router = express.Router();
 const verificationLimiter = rateLimit({
@@ -31,6 +39,9 @@ router.get("/", async (req, res) => {
     .select("security").lean();
   if (!organization) return res.status(404).json({ error: "Organization not found." });
   const okta = oktaConfig();
+  const totp = totpConfig();
+  const user = await User.findById(req.user.userId)
+    .select("mfa.totpEnabled mfa.enrolledAt mfa.lastVerifiedAt +mfa.recoveryCodeHashes").lean();
   res.json({
     configured: Boolean(organization.security?.adminActionPasskeyHash),
     version: organization.security?.adminActionPasskeyVersion || 0,
@@ -38,15 +49,20 @@ router.get("/", async (req, res) => {
     oktaConfigured: okta.configured,
     oktaEnforcementEnabled: okta.enforcementEnabled,
     requireMfaForAllUsers: Boolean(organization.security?.requireMfaForAllUsers),
-    administratorsAlwaysRequireMfa: okta.configured && okta.enforcementEnabled,
+    totpConfigured: totp.enabled,
+    totpEnabled: Boolean(user?.mfa?.totpEnabled),
+    totpEnrolledAt: user?.mfa?.enrolledAt || null,
+    totpLastVerifiedAt: user?.mfa?.lastVerifiedAt || null,
+    recoveryCodesRemaining: user?.mfa?.recoveryCodeHashes?.length || 0,
+    administratorsAlwaysRequireMfa: totp.enabled,
   });
 });
 
 router.put("/mfa-policy", verificationLimiter, async (req, res) => {
-  const okta = oktaConfig();
-  if (!okta.configured || !okta.enforcementEnabled) {
+  const totp = totpConfig();
+  if (!totp.enabled) {
     return res.status(503).json({
-      error: "Okta enforcement must be enabled for this deployment before organization MFA can be changed.",
+      error: "Afterlight MFA must be enabled for this deployment before organization policy can be changed.",
     });
   }
   const currentPassword = String(req.body.currentPassword || "");
@@ -59,7 +75,10 @@ router.put("/mfa-policy", verificationLimiter, async (req, res) => {
     return res.status(403).json({ error: "Account password confirmation failed." });
   }
   const organization = await Organization.findById(req.user.organizationId);
+  const previouslyRequiredForAll = Boolean(organization.security.requireMfaForAllUsers);
   organization.security.requireMfaForAllUsers = Boolean(req.body.requireMfaForAllUsers);
+  const newlyRequiredForAll = !previouslyRequiredForAll
+    && organization.security.requireMfaForAllUsers;
   await Promise.all([
     organization.save(),
     UserAudit.create({
@@ -69,12 +88,106 @@ router.put("/mfa-policy", verificationLimiter, async (req, res) => {
       action: "organization_mfa_policy_updated",
       changes: { requireMfaForAllUsers: organization.security.requireMfaForAllUsers },
     }),
+    ...(newlyRequiredForAll ? [
+      User.updateMany({
+        organizationId: organization._id,
+        _id: { $ne: user._id },
+      }, { $inc: { tokenVersion: 1 } }),
+      RefreshSession.updateMany({
+        organizationId: organization._id,
+        userId: { $ne: user._id },
+        revokedAt: null,
+      }, { $set: { revokedAt: new Date() } }),
+    ] : []),
   ]);
   res.json({
-    oktaConfigured: true,
+    totpConfigured: true,
     requireMfaForAllUsers: organization.security.requireMfaForAllUsers,
     administratorsAlwaysRequireMfa: true,
   });
+});
+
+router.post("/totp/recovery-codes", verificationLimiter, async (req, res) => {
+  const currentPassword = String(req.body.currentPassword || "");
+  const user = await User.findOne({
+    _id: req.user.userId,
+    organizationId: req.user.organizationId,
+    role: "admin",
+  }).select("+mfa.totpSecretEncrypted +mfa.recoveryCodeHashes");
+  if (!user || !await bcrypt.compare(currentPassword, user.password)) {
+    return res.status(403).json({ error: "Account password confirmation failed." });
+  }
+  if (!user.mfa?.totpEnabled) return res.status(400).json({ error: "MFA is not enrolled." });
+  const verification = verifyTotp({
+    encryptedSecret: user.mfa.totpSecretEncrypted,
+    code: req.body.code,
+    lastUsedCounter: user.mfa.lastUsedCounter,
+  });
+  if (!verification.valid) {
+    return res.status(403).json({ error: "A new valid authenticator code is required." });
+  }
+  const recovery = generateRecoveryCodes();
+  const updated = await User.updateOne({
+    _id: user._id,
+    $or: [
+      { "mfa.lastUsedCounter": null },
+      { "mfa.lastUsedCounter": { $lt: verification.counter } },
+    ],
+  }, { $set: {
+    "mfa.lastUsedCounter": verification.counter,
+    "mfa.lastVerifiedAt": new Date(),
+    "mfa.recoveryCodeHashes": recovery.hashes,
+  } });
+  if (!updated.modifiedCount) return res.status(409).json({ error: "That authenticator code was already used." });
+  await UserAudit.create({
+    organizationId: req.user.organizationId,
+    targetUserId: user._id,
+    changedBy: user._id,
+    action: "totp_recovery_codes_regenerated",
+    changes: { recoveryCodeCount: recovery.codes.length },
+  });
+  return res.json({ recoveryCodes: recovery.codes, recoveryCodesRemaining: recovery.codes.length });
+});
+
+router.post("/totp/reset", verificationLimiter, async (req, res) => {
+  const currentPassword = String(req.body.currentPassword || "");
+  const user = await User.findOne({
+    _id: req.user.userId,
+    organizationId: req.user.organizationId,
+    role: "admin",
+  }).select("+mfa.totpSecretEncrypted +mfa.recoveryCodeHashes");
+  if (!user || !await bcrypt.compare(currentPassword, user.password)) {
+    return res.status(403).json({ error: "Account password confirmation failed." });
+  }
+  const suppliedCode = String(req.body.code || "");
+  const isRecoveryCode = user.mfa?.recoveryCodeHashes?.includes(hashRecoveryCode(suppliedCode));
+  const verification = isRecoveryCode ? { valid: true } : verifyTotp({
+    encryptedSecret: user.mfa?.totpSecretEncrypted,
+    code: suppliedCode,
+    lastUsedCounter: user.mfa?.lastUsedCounter,
+  });
+  if (!verification.valid) {
+    return res.status(403).json({ error: "A valid authenticator or recovery code is required." });
+  }
+  user.mfa.totpEnabled = false;
+  user.mfa.totpSecretEncrypted = "";
+  user.mfa.enrolledAt = null;
+  user.mfa.lastVerifiedAt = null;
+  user.mfa.lastUsedCounter = null;
+  user.mfa.recoveryCodeHashes = [];
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  await Promise.all([
+    user.save(),
+    revokeUserSessions(user._id),
+    UserAudit.create({
+      organizationId: req.user.organizationId,
+      targetUserId: user._id,
+      changedBy: user._id,
+      action: "totp_mfa_reset",
+      changes: { requiresReenrollment: true },
+    }),
+  ]);
+  return res.json({ success: true, message: "MFA reset. Sign in again to enroll a new authenticator." });
 });
 
 router.post("/grants", verificationLimiter, async (req, res) => {

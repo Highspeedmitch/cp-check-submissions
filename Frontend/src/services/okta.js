@@ -6,6 +6,8 @@ const issuer = process.env.REACT_APP_OKTA_ISSUER;
 const clientId = process.env.REACT_APP_OKTA_CLIENT_ID;
 
 export const oktaConfigured = Boolean(issuer && clientId);
+export const oktaLoginEnabled = oktaConfigured
+  && process.env.REACT_APP_OKTA_LOGIN_ENABLED === "true";
 
 function client() {
   if (!oktaConfigured) throw new Error("Okta sign-in is not configured.");
