@@ -116,6 +116,7 @@ test("reporting summary applies property and submitter filters", () => {
 
   assert.equal(report.summary.submissionCount, 2);
   assert.equal(report.summary.issuesPerInspection, 2);
+  assert.equal(report.summary.totalIssueOccurrences, 2);
   assert.equal(report.summary.distinctIssueTypes, 2);
   assert.equal(report.summary.reportableIssueSubmissionCount, 1);
   assert.equal(report.summary.unreportableIssueSubmissionCount, 1);

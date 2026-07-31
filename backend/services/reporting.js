@@ -163,6 +163,7 @@ function buildReportingSummary({
       issuesPerInspection: reportableIssueSubmissions.length
         ? Number((totalIssues / reportableIssueSubmissions.length).toFixed(1))
         : 0,
+      totalIssueOccurrences: totalIssues,
       distinctIssueTypes: issueCounts.size,
       reportableIssueSubmissionCount: reportableIssueSubmissions.length,
       unreportableIssueSubmissionCount:

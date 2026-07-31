@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { issueCoverageLabel } from "../services/reportingPresentation";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import PageHeader from "./ui/PageHeader";
@@ -247,7 +248,7 @@ export default function Reporting() {
               <MetricCard
                 label="Issues Per Inspection"
                 value={report.summary.issuesPerInspection.toFixed(1)}
-                context={`Based on ${report.summary.reportableIssueSubmissionCount} reportable submissions`}
+                context={issueCoverageLabel(report.summary, report.issues)}
               />
               <MetricCard
                 label="Issue Types Observed"
