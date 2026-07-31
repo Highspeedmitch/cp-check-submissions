@@ -9,6 +9,7 @@ function Login({ setUser }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [working, setWorking] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [mfa, setMfa] = useState(null);
   const [mfaCode, setMfaCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState([]);
@@ -145,85 +146,167 @@ function Login({ setUser }) {
   const loginContent = () => {
     if (recoveryCodes.length) {
       return (
-        <>
+        <div className="afterlight-auth-content afterlight-auth-content-wide">
+          <p className="afterlight-auth-eyebrow">Account recovery</p>
           <h2>Save your recovery codes</h2>
-          <p>These are the only way to sign in if you lose access to your authenticator. Each code works once.</p>
-          <div className="beta-dialog-note" style={{ textAlign: "left" }}>
-            {recoveryCodes.map((code) => <div key={code}><code>{code}</code></div>)}
+          <p className="afterlight-auth-intro">
+            These are the only way to sign in if you lose access to your authenticator.
+            Each code can be used once.
+          </p>
+          <div className="afterlight-recovery-codes" aria-label="Recovery codes">
+            {recoveryCodes.map((code) => <code key={code}>{code}</code>)}
           </div>
-          <button type="button" onClick={downloadRecoveryCodes}>Download codes</button>
-          <button type="button" className="register-btn" onClick={() => completeAuthentication(pendingAuthentication)}>
-            I have saved my codes
-          </button>
-        </>
+          <div className="afterlight-auth-actions">
+            <button type="button" className="afterlight-button afterlight-button-secondary" onClick={downloadRecoveryCodes}>
+              Download codes
+            </button>
+            <button type="button" className="afterlight-button" onClick={() => completeAuthentication(pendingAuthentication)}>
+              I have saved my codes
+            </button>
+          </div>
+        </div>
       );
     }
 
     if (mfa) {
+      const enrollment = mfa.mode === "enrollment";
       return (
-        <>
-          <h2>{mfa.mode === "enrollment" ? "Set up multi-factor authentication" : "Verify your sign-in"}</h2>
-          {mfa.mode === "enrollment" && (
+        <div className={`afterlight-auth-content ${enrollment ? "afterlight-auth-content-wide" : ""}`}>
+          <p className="afterlight-auth-eyebrow">Secure sign-in</p>
+          <h2>{enrollment ? "Set up your authenticator" : "Verify your sign-in"}</h2>
+          <p className="afterlight-auth-intro">
+            {enrollment
+              ? "Scan the QR code with any authenticator app, then enter the six-digit code it provides."
+              : "Enter the six-digit code from your authenticator app, or use one of your recovery codes."}
+          </p>
+          {enrollment && (
             <>
-              <p>Scan this QR code with any authenticator app, then enter the six-digit code.</p>
-              <img src={mfa.qrCodeDataUrl} alt="Authenticator setup QR code" style={{ width: 220, maxWidth: "100%" }} />
-              <p>Manual setup key:</p>
-              <code style={{ wordBreak: "break-all" }}>{mfa.manualKey}</code>
+              <div className="afterlight-enrollment-setup">
+                <div className="afterlight-qr-frame">
+                  <img src={mfa.qrCodeDataUrl} alt="Authenticator setup QR code" />
+                </div>
+                <div className="afterlight-manual-key">
+                  <span>Cannot scan the code?</span>
+                  <strong>Enter this setup key manually:</strong>
+                  <code>{mfa.manualKey}</code>
+                </div>
+              </div>
             </>
           )}
-          {mfa.mode === "verification" && (
-            <p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p>
-          )}
-          {error && <p className="error" role="alert">{error}</p>}
-          <form onSubmit={verifyMfa}>
-            <input
-              type="text"
-              inputMode={mfa.mode === "enrollment" ? "numeric" : "text"}
-              autoComplete="one-time-code"
-              placeholder="Authentication code"
-              value={mfaCode}
-              onChange={(event) => setMfaCode(event.target.value)}
-              required
-              autoFocus
-            />
-            <button type="submit" disabled={working}>{working ? "Verifying..." : "Verify"}</button>
+          {error && <p className="afterlight-auth-alert" role="alert">{error}</p>}
+          <form className="afterlight-auth-form" onSubmit={verifyMfa}>
+            <label className="afterlight-auth-field">
+              <span>Authentication code</span>
+              <input
+                type="text"
+                inputMode={enrollment ? "numeric" : "text"}
+                autoComplete="one-time-code"
+                placeholder={enrollment ? "000000" : "Six-digit or recovery code"}
+                value={mfaCode}
+                onChange={(event) => setMfaCode(event.target.value)}
+                required
+                autoFocus
+              />
+            </label>
+            <button className="afterlight-button" type="submit" disabled={working}>
+              {working ? "Verifying..." : "Verify and continue"}
+            </button>
           </form>
-          <button type="button" className="register-btn" onClick={restartLogin}>Back to login</button>
-        </>
+          <button type="button" className="afterlight-text-button" onClick={restartLogin}>
+            Back to sign in
+          </button>
+        </div>
       );
     }
 
     return (
-      <>
-        <h2>Login</h2>
-        {error && <p className="error" role="alert">{error}</p>}
-        <form onSubmit={handleLogin}>
-          <input type="email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-          <input type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-          <button type="submit" disabled={working}>{working ? "Signing in..." : "Login"}</button>
+      <div className="afterlight-auth-content">
+        <p className="afterlight-auth-eyebrow">Secure workspace</p>
+        <h2>Welcome back</h2>
+        <p className="afterlight-auth-intro">Sign in to continue to Afterlight.</p>
+        {error && <p className="afterlight-auth-alert" role="alert">{error}</p>}
+        <form className="afterlight-auth-form" onSubmit={handleLogin}>
+          <label className="afterlight-auth-field">
+            <span>Email address</span>
+            <input
+              type="email"
+              autoComplete="email"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </label>
+          <label className="afterlight-auth-field">
+            <span className="afterlight-password-label">
+              <span>Password</span>
+              <Link to="/forgot-password">Forgot password?</Link>
+            </span>
+            <span className="afterlight-password-input">
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="afterlight-password-toggle"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </span>
+          </label>
+          <button className="afterlight-button" type="submit" disabled={working}>
+            {working ? "Signing in..." : "Sign in"}
+          </button>
         </form>
         {oktaLoginEnabled && (
-          <button type="button" className="register-btn" onClick={() => beginOktaLogin({ loginHint: email.toLowerCase(), returnTo }).catch((loginError) => setError(loginError.message))}>
+          <button type="button" className="afterlight-button afterlight-button-secondary" onClick={() => beginOktaLogin({ loginHint: email.toLowerCase(), returnTo }).catch((loginError) => setError(loginError.message))}>
             Sign in with Okta
           </button>
         )}
-        <div className="link-container"><Link to="/forgot-password" className="link">Forgot Password?</Link></div>
-        <div className="register-container">
-          <span>Don't have an account?</span>
-          <Link to="/register"><button type="button" className="register-btn">Register</button></Link>
-          <div className="link-container"><Link to="/client-registration" className="link">Property Owner?</Link></div>
+        <div className="afterlight-auth-footer">
+          <p>Need access? <Link to="/register">Create an account</Link></p>
+          <Link className="afterlight-owner-link" to="/client-registration">Property owner portal <span aria-hidden="true">→</span></Link>
         </div>
-      </>
+      </div>
     );
   };
 
   return (
-    <div className="login-container">
-      <div className="login-banner">
-        <img src="/apple-touch-icon.png" alt="Afterlight logo" className="login-logo" />
-        <h1 className="brand-title">Afterlight</h1>
-      </div>
-      <div className="login-box">{loginContent()}</div>
+    <div className="afterlight-login-page">
+      <main className="afterlight-login-shell">
+        <aside className="afterlight-login-brand">
+          <div>
+            <div className="afterlight-login-wordmark">
+              <img src="/apple-touch-icon.png" alt="" />
+              <span>Afterlight</span>
+            </div>
+            <p className="afterlight-login-brand-eyebrow">Property intelligence after hours</p>
+            <h1>See what happens after the workday ends.</h1>
+            <p className="afterlight-login-brand-copy">
+              Keep inspections, reporting, and property follow-through connected in one workspace.
+            </p>
+          </div>
+          <ul className="afterlight-login-capabilities" aria-label="Afterlight capabilities">
+            <li><span aria-hidden="true">✓</span> Documented property observations</li>
+            <li><span aria-hidden="true">✓</span> Assignment and invoice visibility</li>
+            <li><span aria-hidden="true">✓</span> Secure, role-based access</li>
+          </ul>
+        </aside>
+        <section className="afterlight-login-card">
+          {loginContent()}
+          <p className="afterlight-security-note">
+            <span aria-hidden="true">MFA</span> Secure sign-in protected by multi-factor authentication
+          </p>
+        </section>
+      </main>
     </div>
   );
 }

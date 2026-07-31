@@ -518,6 +518,319 @@
   font-weight: 700;
 }
 
+/* Login */
+.afterlight-login-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: clamp(24px, 5vw, 64px);
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(8, 125, 245, .14), transparent 34%),
+    radial-gradient(circle at 88% 88%, rgba(23, 52, 84, .08), transparent 30%),
+    linear-gradient(180deg, #f8fafc 0%, var(--beta-canvas) 100%);
+  color: var(--beta-ink);
+}
+
+.afterlight-login-shell {
+  width: min(100%, 980px);
+  min-height: 620px;
+  display: grid;
+  grid-template-columns: minmax(310px, .85fr) minmax(0, 1.15fr);
+  overflow: hidden;
+  border: 1px solid rgba(23, 52, 84, .08);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(23, 32, 51, .16);
+}
+
+.afterlight-login-brand {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 42px;
+  padding: clamp(36px, 5vw, 58px);
+  overflow: hidden;
+  background:
+    linear-gradient(155deg, rgba(8, 125, 245, .18), transparent 46%),
+    linear-gradient(150deg, #102f50 0%, #081b31 100%);
+  color: #fff;
+}
+
+.afterlight-login-brand::before,
+.afterlight-login-brand::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 50%;
+}
+.afterlight-login-brand::before { width: 330px; height: 330px; right: -190px; top: -120px; }
+.afterlight-login-brand::after { width: 230px; height: 230px; left: -145px; bottom: -95px; }
+
+.afterlight-login-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 54px;
+}
+.afterlight-login-wordmark img {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .3);
+}
+.afterlight-login-wordmark span { font-size: 24px; font-weight: 800; letter-spacing: .02em; }
+.afterlight-login-brand-eyebrow {
+  margin: 0 0 12px;
+  color: #91c7ff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.afterlight-login-brand h1 {
+  max-width: 360px;
+  margin: 0;
+  color: #fff;
+  font-size: clamp(32px, 4vw, 44px);
+  line-height: 1.06;
+  letter-spacing: -.03em;
+}
+.afterlight-login-brand-copy {
+  max-width: 350px;
+  margin: 18px 0 0;
+  color: #d4e4f5;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.afterlight-login-capabilities {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #eaf4ff;
+  font-size: 14px;
+}
+.afterlight-login-capabilities li { display: flex; align-items: center; gap: 10px; }
+.afterlight-login-capabilities span {
+  display: inline-grid;
+  width: 21px;
+  height: 21px;
+  flex: 0 0 21px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(105, 211, 156, .16);
+  color: #76dda7;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.afterlight-login-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  padding: clamp(36px, 6vw, 62px);
+  background: #fff;
+}
+.afterlight-auth-content { width: 100%; max-width: 430px; margin: auto; }
+.afterlight-auth-content-wide { max-width: 520px; }
+.afterlight-auth-eyebrow {
+  margin: 0 0 9px;
+  color: var(--beta-blue);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.afterlight-auth-content h2 {
+  margin: 0;
+  color: var(--beta-ink);
+  font-size: clamp(30px, 4vw, 38px);
+  line-height: 1.14;
+  letter-spacing: -.025em;
+}
+.afterlight-auth-intro { margin: 12px 0 28px; color: var(--beta-muted); line-height: 1.55; }
+.afterlight-auth-alert {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #f3c0c5;
+  border-radius: 9px;
+  background: #fff7f8;
+  color: #a92735;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.afterlight-auth-form { display: grid; gap: 18px; }
+.afterlight-auth-field { display: grid; gap: 7px; color: #3d485a; font-size: 13px; font-weight: 750; }
+.afterlight-auth-field input {
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid #cfd6e0;
+  border-radius: 9px;
+  outline: none;
+  background: #fff;
+  color: var(--beta-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.afterlight-auth-field input::placeholder { color: #98a2b1; }
+.afterlight-auth-field input:focus {
+  border-color: var(--beta-blue);
+  box-shadow: 0 0 0 3px rgba(8, 125, 245, .13);
+}
+.afterlight-password-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.afterlight-password-label a { color: var(--beta-blue-dark); font-size: 12px; text-decoration: none; }
+.afterlight-password-label a:hover { text-decoration: underline; }
+.afterlight-password-input { position: relative; display: block; }
+.afterlight-password-input input { padding-right: 62px; }
+.afterlight-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: auto;
+  min-height: 34px;
+  margin: 0;
+  padding: 4px 8px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--beta-blue-dark);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.afterlight-password-toggle:hover { background: var(--beta-soft-blue); box-shadow: none; }
+.afterlight-button {
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  margin: 2px 0 0;
+  padding: 11px 18px;
+  border: 1px solid var(--beta-blue);
+  border-radius: 9px;
+  background: var(--beta-blue);
+  box-shadow: 0 9px 20px rgba(8, 125, 245, .19);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.afterlight-button:hover { border-color: var(--beta-blue-dark); background: var(--beta-blue-dark); box-shadow: 0 6px 15px rgba(8, 125, 245, .16); }
+.afterlight-button:active { transform: translateY(1px); }
+.afterlight-button:disabled { cursor: wait; opacity: .65; }
+.afterlight-button-secondary {
+  margin-top: 12px;
+  border-color: var(--beta-border);
+  background: #fff;
+  box-shadow: none;
+  color: var(--beta-blue-dark);
+}
+.afterlight-button-secondary:hover { border-color: #bdd9fa; background: var(--beta-soft-blue); box-shadow: none; }
+.afterlight-auth-footer {
+  display: grid;
+  gap: 13px;
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--beta-border);
+  text-align: center;
+}
+.afterlight-auth-footer p { margin: 0; color: var(--beta-muted); font-size: 14px; }
+.afterlight-auth-footer a { color: var(--beta-blue-dark); font-weight: 800; text-decoration: none; }
+.afterlight-auth-footer a:hover { text-decoration: underline; }
+.afterlight-owner-link { font-size: 13px; }
+.afterlight-security-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  color: #7d8796;
+  font-size: 11px;
+  text-align: center;
+}
+.afterlight-security-note span {
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: var(--beta-soft-blue);
+  color: var(--beta-blue-dark);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+.afterlight-text-button {
+  display: block;
+  width: auto;
+  min-height: auto;
+  margin: 20px auto 0;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--beta-blue-dark);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.afterlight-text-button:hover { text-decoration: underline; box-shadow: none; }
+.afterlight-enrollment-setup {
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  margin: -6px 0 24px;
+}
+.afterlight-qr-frame {
+  display: grid;
+  padding: 9px;
+  place-items: center;
+  border: 1px solid var(--beta-border);
+  border-radius: 12px;
+  background: #fff;
+}
+.afterlight-qr-frame img { display: block; width: 100%; max-width: 166px; }
+.afterlight-manual-key { min-width: 0; color: var(--beta-muted); font-size: 12px; line-height: 1.45; }
+.afterlight-manual-key span,
+.afterlight-manual-key strong { display: block; }
+.afterlight-manual-key strong { margin: 4px 0 9px; color: var(--beta-ink); }
+.afterlight-manual-key code {
+  display: block;
+  padding: 9px;
+  overflow-wrap: anywhere;
+  border-radius: 7px;
+  background: #f2f5f8;
+  color: #29364a;
+  font-size: 12px;
+}
+.afterlight-recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 22px;
+  padding: 16px;
+  border: 1px solid var(--beta-border);
+  border-radius: 10px;
+  background: #f7f9fb;
+}
+.afterlight-recovery-codes code { color: #29364a; font-size: 12px; text-align: center; }
+.afterlight-auth-actions { display: grid; grid-template-columns: 1fr 1.25fr; gap: 10px; }
+.afterlight-auth-actions .afterlight-button { margin: 0; }
+
 /* Scheduler */
 .scheduler-container.beta-scheduler-shell {
   max-width: 1180px;
@@ -604,6 +917,16 @@
 .beta-scheduler-shell .rbc-today { background: var(--beta-soft-blue); }
 
 @media (max-width: 760px) {
+  .afterlight-login-page { padding: 18px; place-items: start center; }
+  .afterlight-login-shell { min-height: 0; grid-template-columns: 1fr; }
+  .afterlight-login-brand { gap: 0; padding: 26px 28px; }
+  .afterlight-login-wordmark { margin-bottom: 25px; }
+  .afterlight-login-wordmark img { width: 50px; height: 50px; }
+  .afterlight-login-brand h1 { max-width: 500px; font-size: 30px; }
+  .afterlight-login-brand-copy { max-width: 540px; margin-top: 12px; }
+  .afterlight-login-capabilities { display: none; }
+  .afterlight-login-card { min-height: 460px; padding: 34px 28px 25px; }
+  .afterlight-auth-content { max-width: 520px; }
   .beta-register-layout { grid-template-columns: 1fr; }
   .beta-register-intro { padding: 24px; }
   .beta-register-logo { width: 54px; height: 54px; margin-bottom: 18px; }
@@ -746,6 +1069,22 @@
 }
 
 @media (max-width: 480px) {
+  .afterlight-login-page { padding: 0; background: #fff; }
+  .afterlight-login-shell { width: 100%; min-height: 100vh; min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+  .afterlight-login-brand { padding: 23px 22px 25px; }
+  .afterlight-login-wordmark { margin-bottom: 20px; }
+  .afterlight-login-wordmark img { width: 44px; height: 44px; border-radius: 11px; }
+  .afterlight-login-wordmark span { font-size: 21px; }
+  .afterlight-login-brand-eyebrow { margin-bottom: 8px; font-size: 10px; }
+  .afterlight-login-brand h1 { font-size: 27px; }
+  .afterlight-login-brand-copy { display: none; }
+  .afterlight-login-card { min-height: 0; padding: 30px 22px 22px; }
+  .afterlight-auth-content h2 { font-size: 30px; }
+  .afterlight-auth-intro { margin-bottom: 24px; }
+  .afterlight-enrollment-setup { grid-template-columns: 1fr; }
+  .afterlight-qr-frame { width: min(100%, 190px); box-sizing: border-box; margin: auto; }
+  .afterlight-recovery-codes { grid-template-columns: 1fr; }
+  .afterlight-auth-actions { grid-template-columns: 1fr; }
   .beta-report-metrics { grid-template-columns: 1fr; }
   .beta-report-issue-row { grid-template-columns: minmax(105px, 1fr) minmax(70px, 1fr) 24px; }
 }
