@@ -168,7 +168,6 @@ export default function UserManagement() {
                   <option value="user">Submitter</option>
                   <option value="property_manager">Property Manager</option>
                   <option value="client">Property Owner</option>
-                  <option value="client">Property Owner</option>
                   <option value="contractor">Contractor</option>
                   <option value="cleaner">Cleaner</option>
                 </select>
