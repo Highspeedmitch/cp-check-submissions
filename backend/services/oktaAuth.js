@@ -4,11 +4,18 @@ function oktaConfig(env = process.env) {
   const issuer = String(env.OKTA_ISSUER || "").replace(/\/$/, "");
   const clientIds = String(env.OKTA_CLIENT_IDS || env.OKTA_CLIENT_ID || "")
     .split(",").map((value) => value.trim()).filter(Boolean);
-  return { issuer, clientIds, configured: Boolean(issuer && clientIds.length) };
+  const enforcementEnabled = String(env.OKTA_ENFORCEMENT_ENABLED || "true").toLowerCase() !== "false";
+  return {
+    issuer,
+    clientIds,
+    configured: Boolean(issuer && clientIds.length),
+    enforcementEnabled,
+  };
 }
 
 function requiresOkta(user, organization, env = process.env) {
-  if (!oktaConfig(env).configured) return false;
+  const config = oktaConfig(env);
+  if (!config.configured || !config.enforcementEnabled) return false;
   return user.platformRole === "platform_admin"
     || user.role === "admin"
     || Boolean(organization?.security?.requireMfaForAllUsers);

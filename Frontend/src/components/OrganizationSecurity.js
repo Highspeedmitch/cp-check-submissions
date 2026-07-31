@@ -96,7 +96,9 @@ function OrganizationSecurity() {
           {status && (
             <>
               <p className="beta-dialog-note">
-                {status.oktaConfigured
+                {!status.oktaEnforcementEnabled
+                  ? "Okta MFA enforcement is temporarily suspended for this deployment"
+                  : status.oktaConfigured
                   ? status.requireMfaForAllUsers
                     ? "Required for all organization users"
                     : "Required for administrators; optional for other users"
@@ -111,13 +113,13 @@ function OrganizationSecurity() {
                     value={mfaPassword}
                     onChange={(event) => setMfaPassword(event.target.value)}
                     required
-                    disabled={!status.oktaConfigured}
+                    disabled={!status.oktaConfigured || !status.oktaEnforcementEnabled}
                   />
                 </label>
                 <button
                   className="beta-button"
                   type="submit"
-                  disabled={mfaSaving || !status.oktaConfigured}
+                  disabled={mfaSaving || !status.oktaConfigured || !status.oktaEnforcementEnabled}
                 >
                   {mfaSaving
                     ? "Saving…"

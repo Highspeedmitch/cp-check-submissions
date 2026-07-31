@@ -12,6 +12,7 @@ test("Okta configuration normalizes the issuer and client list", () => {
     issuer: "https://example.okta.com/oauth2/default",
     clientIds: ["web-client", "native-client"],
     configured: true,
+    enforcementEnabled: true,
   });
 });
 
@@ -31,6 +32,14 @@ test("organization policy controls non-admin Okta enforcement", () => {
 
 test("Okta enforcement remains off until deployment configuration is complete", () => {
   assert.equal(requiresOkta({ role: "admin" }, {}, {}), false);
+});
+
+test("deployment switch can suspend Okta enforcement without removing configuration", () => {
+  assert.equal(requiresOkta(
+    { role: "admin" },
+    {},
+    { ...configured, OKTA_ENFORCEMENT_ENABLED: "false" }
+  ), false);
 });
 
 test("identity verification requires a server-issued nonce", async () => {

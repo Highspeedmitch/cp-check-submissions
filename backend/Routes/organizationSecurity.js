@@ -30,19 +30,24 @@ router.get("/", async (req, res) => {
   const organization = await Organization.findById(req.user.organizationId)
     .select("security").lean();
   if (!organization) return res.status(404).json({ error: "Organization not found." });
+  const okta = oktaConfig();
   res.json({
     configured: Boolean(organization.security?.adminActionPasskeyHash),
     version: organization.security?.adminActionPasskeyVersion || 0,
     rotatedAt: organization.security?.adminActionPasskeyRotatedAt || null,
-    oktaConfigured: oktaConfig().configured,
+    oktaConfigured: okta.configured,
+    oktaEnforcementEnabled: okta.enforcementEnabled,
     requireMfaForAllUsers: Boolean(organization.security?.requireMfaForAllUsers),
-    administratorsAlwaysRequireMfa: true,
+    administratorsAlwaysRequireMfa: okta.configured && okta.enforcementEnabled,
   });
 });
 
 router.put("/mfa-policy", verificationLimiter, async (req, res) => {
-  if (!oktaConfig().configured) {
-    return res.status(503).json({ error: "Okta must be configured before MFA enforcement can be enabled." });
+  const okta = oktaConfig();
+  if (!okta.configured || !okta.enforcementEnabled) {
+    return res.status(503).json({
+      error: "Okta enforcement must be enabled for this deployment before organization MFA can be changed.",
+    });
   }
   const currentPassword = String(req.body.currentPassword || "");
   const user = await User.findOne({
