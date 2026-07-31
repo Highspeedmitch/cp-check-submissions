@@ -41,8 +41,7 @@ function ResetPassword() {
       } else {
         setMessage(data.message || "Failed to reset password.");
       }
-    } catch (error) {
-      console.error("❌ Reset Password Error:", error);
+    } catch (_error) {
       setMessage("An error occurred. Please try again.");
     }
   };

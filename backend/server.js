@@ -159,6 +159,11 @@ const uploadToS3 = (fileContent, fileName, organizationId, propertyName) => {
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SECRET_KEY = getJwtSecret();
+const INVALID_LOGIN_MESSAGE = "The email or password you entered is incorrect.";
+const PASSWORD_RESET_REQUEST_MESSAGE = "If the email matches an account, password reset instructions will be sent.";
+// Comparing against a fixed non-user hash makes unknown-account attempts follow
+// the same expensive password-check path as known accounts.
+const INVALID_LOGIN_PASSWORD_HASH = "$2a$10$3fudv7Bzqvmo7wcDwXrYhuI/mmyj8y1PA4aZEb7YcPfcgxhSUUYW6";
 app.set("trust proxy", 1);
 
 // ✅ CORS configuration
@@ -312,19 +317,23 @@ app.post('/api/register', registrationLimiter, async (req, res) => {
 app.post('/api/login', loginLimiter, requireTrustedSessionOrigin, async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const suppliedPassword = String(password || "");
 
     // Check if user exists and populate the organization
-    const user = await User.findOne({ email }).populate('organizationId');
+    const user = await User.findOne({ email: normalizedEmail }).populate('organizationId');
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials (user not found)" });
-    }
-    if (user.accountStatus === "inactive") {
-      return res.status(403).json({ message: "This account has been deactivated." });
+      await bcrypt.compare(suppliedPassword, INVALID_LOGIN_PASSWORD_HASH);
+      return res.status(401).json({ message: INVALID_LOGIN_MESSAGE });
     }
 
     // Ensure password matches
-    if (!bcrypt.compareSync(password, user.password)) {
-      return res.status(401).json({ message: "Invalid credentials (incorrect password)" });
+    if (!await bcrypt.compare(suppliedPassword, user.password)) {
+      return res.status(401).json({ message: INVALID_LOGIN_MESSAGE });
+    }
+    // Account status is only disclosed after both credentials have been proven.
+    if (user.accountStatus === "inactive") {
+      return res.status(403).json({ message: "This account is currently unavailable. Contact your organization administrator." });
     }
 
     // Ensure organization exists
@@ -377,8 +386,8 @@ app.post('/api/login', loginLimiter, requireTrustedSessionOrigin, async (req, re
     });
 
   } catch (error) {
-    console.error("❌ Login error:", error);
-    res.status(500).json({ message: "Server error during login." });
+    console.error("Login processing error:", error?.code || error?.name || "unknown_error");
+    res.status(500).json({ message: "Unable to sign in right now. Please try again." });
   }
 });
 
@@ -984,11 +993,11 @@ try {
 // Step 1: Forgot Password Route
 app.post('/api/forgot-password', accountRecoveryLimiter, async (req, res) => {
     try {
-        const { email } = req.body;
+        const email = String(req.body.email || "").trim().toLowerCase();
         const user = await User.findOne({ email });
 
-        if (!user) {
-            return res.status(404).json({ message: 'No account found with that email.' });
+        if (!user || user.accountStatus === "inactive") {
+            return res.json({ message: PASSWORD_RESET_REQUEST_MESSAGE });
         }
 
         // Generate a reset token (valid for 1 hour)
@@ -1003,12 +1012,16 @@ app.post('/api/forgot-password', accountRecoveryLimiter, async (req, res) => {
             text: `Click the link to reset your password: ${buildFrontendUrl(`/reset-password?token=${encodeURIComponent(resetToken)}`)}`
         };
 
-        await sendSystemEmail(mailOptions);
-        res.json({ message: 'Password reset link sent to your email.' });
+        sendSystemEmail(mailOptions).catch((error) => {
+            console.error("Password reset email delivery failed:", error?.code || error?.name || "unknown_error");
+        });
+        res.json({ message: PASSWORD_RESET_REQUEST_MESSAGE });
 
     } catch (error) {
-        console.error('Error in forgot password:', error);
-        res.status(500).json({ message: 'Internal server error.' });
+        console.error("Password reset request failed:", error?.code || error?.name || "unknown_error");
+        // Keep the public response identical so account existence and delivery
+        // state cannot be inferred from the endpoint.
+        res.json({ message: PASSWORD_RESET_REQUEST_MESSAGE });
     }
 });
 

@@ -1,5 +1,9 @@
 import React, { useState } from "react";
 import { apiUrl } from "../services/api";
+import {
+  PASSWORD_RESET_REQUEST_MESSAGE,
+  passwordResetFailureMessage,
+} from "../services/authMessages";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -13,18 +17,16 @@ function ForgotPassword() {
       const response = await fetch(apiUrl("/api/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
 
       if (response.ok) {
-        setMessage("Your password reset request has been processed. If the email matches an account, you will receive an email with instructions on how to reset your password.");
+        setMessage(PASSWORD_RESET_REQUEST_MESSAGE);
       } else {
-        const data = await response.json();
-        setMessage(data.message || "An error occurred. Please try again.");
+        setMessage(passwordResetFailureMessage(response.status));
       }
-    } catch (error) {
-      console.error("❌ Forgot Password Error:", error);
-      setMessage("An error occurred. Please try again.");
+    } catch (_error) {
+      setMessage(passwordResetFailureMessage(0));
     }
   };
 

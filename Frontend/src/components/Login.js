@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { storeAuthentication } from "../services/session";
 import { apiUrl } from "../services/api";
 import { beginOktaLogin, oktaLoginEnabled } from "../services/okta";
+import { LOGIN_UNAVAILABLE_MESSAGE, loginFailureMessage } from "../services/authMessages";
 
 function Login({ setUser }) {
   const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get("email") || "");
@@ -85,10 +86,10 @@ function Login({ setUser }) {
       } else if (data.code === "OKTA_REQUIRED") {
         await beginOktaLogin({ loginHint: email.toLowerCase(), returnTo });
       } else {
-        setError(data.message || "Unable to sign in.");
+        setError(loginFailureMessage(response.status));
       }
-    } catch (loginError) {
-      setError(loginError.message || "Server error. Please try again.");
+    } catch (_loginError) {
+      setError(LOGIN_UNAVAILABLE_MESSAGE);
     } finally {
       setWorking(false);
     }
@@ -267,7 +268,7 @@ function Login({ setUser }) {
           </button>
         </form>
         {oktaLoginEnabled && (
-          <button type="button" className="afterlight-button afterlight-button-secondary" onClick={() => beginOktaLogin({ loginHint: email.toLowerCase(), returnTo }).catch((loginError) => setError(loginError.message))}>
+          <button type="button" className="afterlight-button afterlight-button-secondary" onClick={() => beginOktaLogin({ loginHint: email.toLowerCase(), returnTo }).catch(() => setError("Secure sign-in could not be started. Please try again."))}>
             Sign in with Okta
           </button>
         )}
