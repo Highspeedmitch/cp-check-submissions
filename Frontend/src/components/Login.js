@@ -5,7 +5,7 @@ import { apiUrl } from "../services/api";
 import { beginOktaLogin, oktaLoginEnabled } from "../services/okta";
 
 function Login({ setUser }) {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get("email") || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [working, setWorking] = useState(false);
@@ -272,8 +272,8 @@ function Login({ setUser }) {
           </button>
         )}
         <div className="afterlight-auth-footer">
-          <p>Need access? <Link to="/register">Create an account</Link></p>
-          <Link className="afterlight-owner-link" to="/client-registration">Property owner portal <span aria-hidden="true">→</span></Link>
+          <p>Have an invitation? <Link to="/join">Create your account</Link></p>
+          <Link className="afterlight-owner-link" to="/join">Property owner invitation <span aria-hidden="true">→</span></Link>
         </div>
       </div>
     );

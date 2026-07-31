@@ -16,6 +16,7 @@ const PropertyFormSettings = lazy(() => import("./components/PropertyFormSetting
 const OrganizationFormSettings = lazy(() => import("./components/OrganizationFormSettings"));
 const OrganizationSecurity = lazy(() => import("./components/OrganizationSecurity"));
 const Register = lazy(() => import("./components/Register"));
+const InviteRegistration = lazy(() => import("./components/InviteRegistration"));
 const AdminSubmissions = lazy(() => import("./components/AdminSubmissions"));
 const ForgotPassword = lazy(() => import("./components/ForgotPassword"));
 const ResetPassword = lazy(() => import("./components/ResetPassword"));
@@ -155,7 +156,8 @@ function App() {
       <Route path="/" element={!user
         ? <Login setUser={setUser} />
         : <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/join" element={<InviteRegistration />} />
+      <Route path="/register" element={process.env.REACT_APP_ALLOW_PUBLIC_REGISTRATION === "true" ? <Register /> : <Navigate to="/join" replace />} />
       <Route path="/login" element={user
         ? <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />
         : <Login setUser={setUser} />} />
@@ -215,7 +217,7 @@ function App() {
       <Route path="/client/schedule-consultation" element={user && role === "client" ? <ScheduleConsultation /> : <Navigate to="/" />} />
 
       {/* Client Registration */}
-      <Route path="/client-registration" element={<ClientRegistration />} />
+      <Route path="/client-registration" element={process.env.REACT_APP_ALLOW_PUBLIC_REGISTRATION === "true" ? <ClientRegistration /> : <Navigate to="/join" replace />} />
      
       {/* AZRAccessinstructions conditional render */}
       <Route path="/access-instructions/:propertyName" element={<AccessInstructionsWrapper />} />

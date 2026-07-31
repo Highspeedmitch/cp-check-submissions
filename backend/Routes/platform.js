@@ -4,6 +4,8 @@ const crypto = require("crypto");
 const User = require("../models/user");
 const Organization = require("../models/organization");
 const PlatformSession = require("../models/platformSession");
+const PlatformAudit = require("../models/platformAudit");
+const OrganizationInvitation = require("../models/organizationInvitation");
 const ProspectTemplate = require("../models/prospectTemplate");
 const ProspectAssessment = require("../models/prospectAssessment");
 const authenticateToken = require("../middleware/authenticateToken");
@@ -23,6 +25,15 @@ const { getPlatformOrganizationMetrics } = require("../services/platformMetrics"
 const { getJwtSecret } = require("../config/security");
 const { uploadLimiter } = require("../middleware/rateLimits");
 const { imageFileFilter, rejectInvalidSignatures } = require("../utils/uploadSecurity");
+const {
+  normalizeOrganizationSetup,
+  caseInsensitiveExact,
+} = require("../services/organizationProvisioning");
+const {
+  normalizeInvitationEmail,
+  createInvitation,
+  resendInvitation,
+} = require("../services/organizationInvitations");
 
 const router = express.Router();
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -48,6 +59,91 @@ router.get("/organizations", authenticateToken, requirePlatformAdmin, async (req
     return res.status(500).json({ error: "Unable to load platform metrics." });
   }
 });
+
+router.post("/organizations", authenticateToken, requirePlatformAdmin, async (req, res) => {
+  try {
+    const setup = normalizeOrganizationSetup(req.body);
+    const initialAdminEmail = normalizeInvitationEmail(req.body.initialAdminEmail);
+    const [existing, existingUser] = await Promise.all([
+      Organization.findOne({ name: caseInsensitiveExact(setup.name) }).select("_id").lean(),
+      User.findOne({ email: initialAdminEmail }).select("_id").lean(),
+    ]);
+    if (existing) return res.status(409).json({ error: "An organization with that name already exists." });
+    if (existingUser) return res.status(409).json({ error: "The administrator email already belongs to an Afterlight account." });
+
+    const organization = await Organization.create(setup);
+    const invitation = await createInvitation({
+      organization,
+      email: initialAdminEmail,
+      role: "admin",
+      invitedBy: req.user.userId,
+      inviterScope: "platform",
+    });
+    await PlatformAudit.create({
+      actorUserId: req.user.userId,
+      action: "organization_created",
+      targetOrganizationId: organization._id,
+      metadata: {
+        name: organization.name,
+        orgType: organization.orgType,
+        initialAdminEmail,
+        invitationId: invitation.invitation._id,
+        invitationDelivered: invitation.delivered,
+      },
+      ipAddress: req.ip || "",
+      userAgent: req.get("user-agent") || "",
+    });
+    return res.status(201).json({
+      organizationId: organization._id,
+      name: organization.name,
+      orgType: organization.orgType,
+      reportingTimezone: organization.reportingTimezone,
+      initialAdminEmail,
+      invitationDelivered: invitation.delivered,
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ error: "An organization with that name already exists." });
+    }
+    if (/Organization name|organization type|reporting timezone|valid invitation email/i.test(error.message || "")) {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("Organization creation error:", error.message);
+    return res.status(500).json({ error: "Unable to create the organization." });
+  }
+});
+
+router.post("/organizations/:organizationId/admin-invitations/:invitationId/resend",
+  authenticateToken, requirePlatformAdmin, async (req, res) => {
+    try {
+      const [organization, invitation] = await Promise.all([
+        Organization.findById(req.params.organizationId),
+        OrganizationInvitation.findOne({
+          _id: req.params.invitationId,
+          organizationId: req.params.organizationId,
+          role: "admin",
+          inviterScope: "platform",
+          status: { $in: ["pending", "expired"] },
+        }).select("+tokenHash"),
+      ]);
+      if (!organization || !invitation) {
+        return res.status(404).json({ error: "Pending administrator invitation not found." });
+      }
+      await resendInvitation({ invitation, organization });
+      await PlatformAudit.create({
+        actorUserId: req.user.userId,
+        action: "platform_admin_invitation_resent",
+        targetOrganizationId: organization._id,
+        metadata: { invitationId: invitation._id, email: invitation.email },
+        ipAddress: req.ip || "",
+        userAgent: req.get("user-agent") || "",
+      });
+      return res.json({ message: `Administrator invitation resent to ${invitation.email}.` });
+    } catch (error) {
+      console.error("Administrator invitation resend error:", error.message);
+      return res.status(500).json({ error: "Unable to resend the administrator invitation." });
+    }
+  });
 
 router.get("/prospect-template", authenticateToken, requirePlatformAdmin, async (_req, res) => {
   try {

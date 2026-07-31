@@ -22,6 +22,13 @@ test("platform metrics merge grouped tenant counts without per-organization quer
     },
     BidRequestModel: { aggregate: async () => [{ _id: firstId, count: 1 }] },
     InvoiceModel: { aggregate: async () => [{ _id: firstId, count: 2 }] },
+    InvitationModel: { aggregate: async () => [{
+      _id: secondId,
+      invitationId: "507f191e810c19729de860ec",
+      email: "admin@beta.example",
+      expiresAt: new Date("2026-08-01T12:00:00.000Z"),
+      status: "pending",
+    }] },
     now: new Date("2026-07-29T12:00:00.000Z"),
   });
 
@@ -31,6 +38,8 @@ test("platform metrics merge grouped tenant counts without per-organization quer
   assert.equal(result.summary.recentSubmissionCount, 4);
   assert.equal(result.organizations[0].pendingBidCount, 1);
   assert.equal(result.organizations[1].activeUserCount, 0);
+  assert.equal(result.summary.pendingAdminInviteCount, 1);
+  assert.equal(result.organizations[1].pendingAdminInvitation.email, "admin@beta.example");
   assert.equal(
     submissionPipeline[0].$match.submittedAt.$gte.toISOString(),
     "2026-06-29T12:00:00.000Z"

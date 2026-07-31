@@ -235,10 +235,17 @@ app.use("/api/azroots/properties", authenticateToken, azrootsProperties);
 
 app.use("/api", clientAuth);
 app.use("/api", assignmentRoutes);
+app.use("/api/invitations", require("./Routes/invitations"));
 /**
  * 🔹 Register a New Organization & Admin User & Check admin passkey
  */
 app.post('/api/register', registrationLimiter, async (req, res) => {
+  if (String(process.env.INVITE_ONLY_REGISTRATION || "true").toLowerCase() !== "false") {
+    return res.status(410).json({
+      code: "INVITATION_REQUIRED",
+      message: "Registration requires an invitation from an Afterlight administrator.",
+    });
+  }
   try {
     const { organizationName, username, email, password, properties, adminPasskey } = req.body;
 

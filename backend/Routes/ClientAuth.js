@@ -5,6 +5,12 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 
 router.post("/register-client", async (req, res) => {
+  if (String(process.env.INVITE_ONLY_REGISTRATION || "true").toLowerCase() !== "false") {
+    return res.status(410).json({
+      code: "INVITATION_REQUIRED",
+      message: "Property owner registration requires an organization invitation.",
+    });
+  }
   try {
     const { firstName, lastName, email, adminEmail, password } = req.body;
     

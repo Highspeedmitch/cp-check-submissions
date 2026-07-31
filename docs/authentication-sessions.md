@@ -48,6 +48,24 @@ The legacy Okta button is hidden unless `REACT_APP_OKTA_LOGIN_ENABLED=true` is e
 set on the frontend. Okta backend enforcement remains controlled separately by
 `OKTA_ENFORCEMENT_ENABLED`.
 
+## Invitation-only registration
+
+Registration is invitation-only by default. Platform administrators create a new
+organization and issue its first organization-administrator invitation. Organization
+administrators can then invite property managers, submitters, property owners,
+contractors, and cleaners from User Management.
+
+Invitation links expire after seven days and are single-use. The random token is stored in
+the URL fragment so it is not sent to the frontend host in ordinary HTTP requests. MongoDB
+stores only a SHA-256 hash of the token. Resending an invitation rotates the token and
+invalidates the previous link. Invitations lock the recipient to the organization, role,
+email address, and any initial property assignments selected by the administrator.
+
+The backend switch `INVITE_ONLY_REGISTRATION` defaults to enabled. Set it to `false` only
+as a temporary rollback measure. The frontend equivalent is
+`REACT_APP_ALLOW_PUBLIC_REGISTRATION=false`; production builds should leave public
+registration disabled.
+
 The 90-day limit is absolute. Token rotation does not extend it, so users must enter their
 credentials again after 90 days.
 
