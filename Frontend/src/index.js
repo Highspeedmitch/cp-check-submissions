@@ -5,12 +5,15 @@ import "./index.css";
 import "./beta-ui.css";
 import App from "./App";
 import { installAuthenticatedFetch } from "./services/session";
+import { ThemeProvider } from "./context/ThemeContext";
 
 installAuthenticatedFetch();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <BrowserRouter>  {/* ✅ Wrap App with BrowserRouter */}
-    <App />
-  </BrowserRouter>
+  <ThemeProvider>
+    <BrowserRouter>  {/* ✅ Wrap App with BrowserRouter */}
+      <App />
+    </BrowserRouter>
+  </ThemeProvider>
 );

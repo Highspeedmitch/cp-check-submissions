@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { storeAuthentication, logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
 import ProspectAssessments from "./ProspectAssessments";
+import ThemeToggle from "./ui/ThemeToggle";
 
 const EMPTY_ORGANIZATION = {
   name: "",
@@ -57,6 +58,7 @@ function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganizati
         </nav>
         <div className="platform-sidebar-footer">
           <p>Organization access is temporary, reason-gated, and audited.</p>
+          <ThemeToggle />
           <button type="button" className="beta-text-button beta-logout-link" onClick={onLogout}>Log out</button>
         </div>
       </aside>

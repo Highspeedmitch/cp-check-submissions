@@ -1,5 +1,6 @@
 import React from "react";
 import { MILEAGE_TRACKING_ENABLED } from "../../featureFlags";
+import ThemeToggle from "./ThemeToggle";
 
 function NavButton({ active, children, onClick, badge = 0 }) {
   return (
@@ -31,8 +32,6 @@ export default function DashboardNavigation({
   onRegionFilter,
   onAddProperty,
   onRemoveProperty,
-  darkMode,
-  setDarkMode,
   mileageTracking,
   mileageCount,
   onMileageToggle,
@@ -133,10 +132,7 @@ export default function DashboardNavigation({
               {mileageTracking && <small>{mileageCount ? mileageCount.toFixed(1) : "0"} mi</small>}
             </label>
           )}
-          <label className="beta-setting-row">
-            <span>Dark mode</span>
-            <input type="checkbox" checked={darkMode} onChange={() => setDarkMode(!darkMode)} />
-          </label>
+          <ThemeToggle />
           <button type="button" className="beta-text-button beta-logout-link" onClick={onLogout}>Log out</button>
         </div>
       </aside>

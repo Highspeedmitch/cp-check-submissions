@@ -11,13 +11,41 @@
   --border-color: #e0e0e0;
   --shadow-light: 0px 4px 10px rgba(0, 0, 0, 0.08);
   --shadow-hover: 0px 15px 25px rgba(0, 0, 0, 0.15);
+  --app-canvas: #f5f7fa;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f8f9fa;
+  --app-control: #ffffff;
+  --app-text: #222222;
+  --app-muted: #687386;
+  --app-card: #d2c7c7;
+  --app-line: #dddddd;
+}
+
+:root.dark-mode {
+  --primary-color: #2994ff;
+  --primary-hover: #54a9ff;
+  --success-color: #69d39c;
+  --error-color: #ff7b88;
+  --light-gray: #202632;
+  --border-color: #414b5d;
+  --shadow-light: 0 6px 20px rgba(0, 0, 0, 0.28);
+  --shadow-hover: 0 12px 28px rgba(0, 0, 0, 0.38);
+  --app-canvas: #151922;
+  --app-surface: #202632;
+  --app-surface-muted: #292f3b;
+  --app-control: #252c38;
+  --app-text: #f5f7fa;
+  --app-muted: #aeb7c5;
+  --app-card: #292f3b;
+  --app-line: #414b5d;
 }
 
 /* Global Styles */
 body {
   margin: 0;
   padding: 0;
-  background-color: #f5f7fa;
+  background-color: var(--app-canvas);
+  color: var(--app-text);
   font-family: var(--font-family);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -29,7 +57,7 @@ body {
   max-width: var(--container-max-width);
   margin: 40px auto;
   padding: var(--base-padding);
-  background: #ffffff;
+  background: var(--app-surface);
   border-radius: 10px;
   box-shadow: var(--shadow-light);
   transition: transform 0.3s ease, opacity 0.3s ease;
@@ -58,7 +86,15 @@ textarea {
 textarea {
   resize: vertical;
   min-height: 80px;
-  background-color: #fafafa;
+  background-color: var(--app-control);
+}
+
+input,
+textarea,
+select {
+  background: var(--app-control);
+  border-color: var(--border-color);
+  color: var(--app-text);
 }
 
 /* Buttons */
@@ -121,7 +157,7 @@ button:hover {
 
 /* Sidebar */
 .sidebar {
-  background-color: #ffffff;
+  background-color: var(--app-surface);
   width: 250px;
   padding: var(--base-padding);
   border-right: 1px solid var(--border-color);
@@ -141,7 +177,7 @@ button:hover {
 .sidebar .sidebar-toggle {
   /*top: 10px;*/
  /* right: -20px; Keep visible */
-  background: #ffffff;
+  background: var(--app-control);
   border: 1px solid var(--border-color);
   border-radius: 15%;
   width: 50px;
@@ -151,7 +187,7 @@ button:hover {
   text-align: center;
   cursor: pointer;
   transition: right 0.3s ease;
-  color: #2d2d2d;
+  color: var(--app-text);
   z-index: 100; /* Ensure it stays on top */
 }
 
@@ -189,7 +225,7 @@ button:hover {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa, #dce1e6);
+  background: linear-gradient(135deg, var(--app-surface-muted), var(--app-canvas));
 }
 .login-banner {
   display: flex;
@@ -200,7 +236,7 @@ button:hover {
   width: 100%;
   max-width: 400px;
   text-align: center;
-  background: #ffffff;
+  background: var(--app-surface);
   border-radius: 10px;
   box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
@@ -213,10 +249,10 @@ button:hover {
 .brand-title {
   font-size: 24px;
   font-weight: bold;
-  color: #333;
+  color: var(--app-text);
 }
 .login-box {
-  background: #fff;
+  background: var(--app-surface);
   padding: 25px;
   width: 100%;
   max-width: 400px;
@@ -226,7 +262,7 @@ button:hover {
 .login-box h2 {
   margin-bottom: 15px;
   text-align: center;
-  color: #222;
+  color: var(--app-text);
 }
 .login-box input {
   width: 100%;
@@ -235,7 +271,7 @@ button:hover {
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 16px;
-  background: #fafafa;
+  background: var(--app-control);
 }
 .login-box button {
   width: 100%;
@@ -302,7 +338,7 @@ button:hover {
 }
 
 .scheduler-form-container {
-  background: #f9f9f9;
+  background: var(--app-surface-muted);
   padding: 15px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -339,7 +375,7 @@ button:hover {
 
 .calendar-container {
   height: auto;
-  background: white;
+  background: var(--app-surface);
   padding: 10px;
   border-radius: 8px;
 }
@@ -370,7 +406,7 @@ button:hover {
 
 .dashboard-header .subtext {
   font-size: 16px;
-  color: #555;
+  color: var(--app-muted);
   margin-bottom: 10px;
 }
 
@@ -389,8 +425,8 @@ button:hover {
 }
 
 .property-card {
-  background-color: #d2c7c7;
-  color: #2d2d2d;
+  background-color: var(--app-card);
+  color: var(--app-text);
   padding: 10px;
   border-radius: 10px;
   cursor: pointer;
@@ -448,7 +484,8 @@ button:hover {
   padding: 14px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: #fff;
+  background: var(--app-surface);
+  color: var(--app-text);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.16);
 }
 
@@ -480,7 +517,8 @@ button:hover {
   padding: 8px 10px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background-color: #fff;
+  background-color: var(--app-control);
+  color: var(--app-text);
   font-size: 16px;
 }
 
@@ -502,7 +540,7 @@ button:hover {
 }
 
 .submissions-table tr:hover {
-  background-color: #f1f1f1;
+  background-color: var(--app-surface-muted);
 }
 
 .submissions-table button {
@@ -536,8 +574,8 @@ button:hover {
 }
 
 .navigate-button {
-  background-color: #fff;      /* Lighter BG */
-  color: #2d2d2d;              /* Dark text for contrast */
+  background-color: var(--app-control);
+  color: var(--app-text);
   border: 1px solid var(--border-color); /* Give it a border to stand out */
   cursor: pointer;
   font-size: 16px;
@@ -555,8 +593,8 @@ button:hover {
   } 
 
 .remove-button {
-    background-color: #fff;      /* Lighter BG */
-    color: #2d2d2d;              /* Dark text for contrast */
+    background-color: var(--app-control);
+    color: var(--app-text);
     border: 1px solid var(--border-color); /* Give it a border to stand out */
     cursor: pointer;
     font-size: 16px;
@@ -628,8 +666,8 @@ button:hover {
     border: none;
   }
   .navigate-button {
-  background-color: #fff;      /* Lighter BG */
-  color: #2d2d2d;              /* Dark text for contrast */
+  background-color: var(--app-control);
+  color: var(--app-text);
   border: 1px solid var(--border-color); /* Give it a border to stand out */
   cursor: pointer;
   font-size: 16px;
@@ -646,8 +684,8 @@ button:hover {
     background-color: #f0f0f0;   /* Slight hover effect */
   }  
   .remove-button {
-    background-color: #fff;      /* Lighter BG */
-    color: #2d2d2d;              /* Dark text for contrast */
+    background-color: var(--app-control);
+    color: var(--app-text);
     border: 1px solid var(--border-color); /* Give it a border to stand out */
     cursor: pointer;
     font-size: 16px;
@@ -662,55 +700,6 @@ button:hover {
   .remove-button:hover {
     background-color: #dc3545;   /* Slight hover effect */
   }
-}
-  /* ===== Dark Mode Overrides ===== */
-
-/* Override CSS variables when dark mode is active */
-.dark-mode {
-  --primary-color: #007BFF;
-  --primary-hover: #28a745;
-  --success-color: #28a745;
-  --error-color: #dc3545;
-  --light-gray: #343a40;
-  --border-color: #444444;
-  --shadow-light: 0px 4px 10px rgba(0, 0, 0, 0.4);
-  --shadow-hover: 0px 15px 25px rgba(0, 0, 0, 0.6);
-}
-
-/* Global background and text color overrides */
-.dark-mode body {
-  background-color: #121212;
-  color: #e0e0e0;
-}
-
-/* Container backgrounds and box shadows */
-.dark-mode .container,
-.dark-mode .dashboard-container {
-  background: #1e1e1e;
-  box-shadow: var(--shadow-light);
-}
-
-/* Inputs, buttons, and textareas */
-.dark-mode input,
-.dark-mode button,
-.dark-mode textarea {
-  background: #2a2a2a;
-  border-color: var(--border-color);
-  color: #e0e0e0;
-}
-
-/* Sidebar background */
-.dark-mode .sidebar {
-  background-color: #1e1e1e;
-}
-
-/* Example: Override property cards */
-.dark-mode .property-card {
-  background-color: #2a2a2a;
-  color: #e0e0e0;
-}
-.dark-mode .property-card.completed-tile {
-  background-color:#007BFF;
 }
 .Admin-tools-primary{
     background-color: var(--primary-color);
@@ -738,78 +727,11 @@ button:hover {
   max-width: 100px;
   flex-wrap: wrap;
 }
-/* Toggle Switch Container */
-.dark-mode-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: left;
-  margin-top: 20px;
-  padding: 0px;
-}
-.dark-mode button:hover {
-  background-color: #007BFF;
-}
-/* The switch - the box around the slider */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 24px;
-}
-
-/* Hide default HTML checkbox */
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-/* The slider */
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: 0.4s;
-  border-radius: 34px;
-}
-
-/* The circle inside the slider */
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: 0.4s;
-  border-radius: 50%;
-}
-
-/* When checked, change background color */
-.switch input:checked + .slider {
-  background-color: var(--primary-color);
-}
-
-/* Move the slider (circle) when checked */
-.switch input:checked + .slider:before {
-  transform: translateX(26px);
-}
-
-/* Emoji label next to the toggle */
-.toggle-label {
-  margin-left: 8px;
-  font-size: 1.2em;
-}
 /* Override calendar background */
 /* Override calendar background */
 /* Center the calendar container */
 .rbc-calendar {
-  background-color: #f8f9fa;
+  background-color: var(--app-surface-muted);
   border-radius: 8px;
   padding: 10px;
   max-width: 900px;
@@ -898,7 +820,7 @@ button:hover {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #f8f9fa;
+  background: var(--app-surface-muted);
   padding: 15px;
   border-radius: 8px;
 }
@@ -942,7 +864,8 @@ button:hover {
 }
 
 .modal {
-  background: white;
+  background: var(--app-surface);
+  color: var(--app-text);
   padding: 20px;
   border-radius: 10px;
   text-align: center;
@@ -979,7 +902,7 @@ button:hover {
   padding: 10px;
   margin-top: 10px;
   background: #ccc;
-  color: black;
+  color: var(--app-text);
   border: none;
   cursor: pointer;
   border-radius: 5px;
@@ -989,7 +912,8 @@ button:hover {
   background: #999;
 }
 .modal-content {
-  background: white;
+  background: var(--app-surface);
+  color: var(--app-text);
   padding: 20px;
   border-radius: 8px;
   text-align: center;
@@ -1023,8 +947,8 @@ button:hover {
   margin: 20px auto;
   padding: 20px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: #333;
-  background-color: #fff;
+  color: var(--app-text);
+  background-color: var(--app-surface);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -1039,7 +963,7 @@ button:hover {
   text-align: center;
   margin-bottom: 20px;
   font-size: 1.1em;
-  color: #555;
+  color: var(--app-muted);
 }
 
 .table-wrapper {
@@ -1053,15 +977,15 @@ button:hover {
 }
 
 .payments-table th {
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--app-line);
   padding: 10px;
   text-align: left;
-  background-color: #f8f8f8;
+  background-color: var(--app-surface-muted);
 }
 
 .payments-table td {
   padding: 10px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--app-line);
 }
 
 .clickable-row {
@@ -1069,21 +993,21 @@ button:hover {
 }
 
 .status-paid {
-  color: green;
+  color: var(--success-color);
   font-weight: bold;
 }
 
 .status-awaiting {
-  color: blue;
+  color: var(--primary-color);
   font-weight: bold;
 }
 
 .payment-card {
   margin-top: 20px;
   padding: 15px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--app-line);
   border-radius: 4px;
-  background-color: #fdfdfd;
+  background-color: var(--app-surface-muted);
 }
 
 .card-title {
@@ -1097,7 +1021,7 @@ button:hover {
   width: 100%;
   box-sizing: border-box;
   border-radius: 4px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--app-line);
 }
 
 .payments-button {
@@ -1134,8 +1058,8 @@ button:hover {
   margin: 20px auto;
   padding: 20px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: #333;
-  background-color: #fff;
+  color: var(--app-text);
+  background-color: var(--app-surface);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -1206,7 +1130,7 @@ button {
 }
 
 .profit-card {
-  background: #f8f9fa;
+  background: var(--app-surface-muted);
   padding: 15px;
   border-radius: 8px;
   box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
@@ -1214,12 +1138,12 @@ button {
 }
 
 .profit-value {
-  color: #28a745;
+  color: var(--success-color);
   font-weight: bold;
 }
 
 .pdf-link {
-  color: #007bff;
+  color: var(--primary-color);
   text-decoration: none;
   font-weight: bold;
 }
@@ -1244,7 +1168,7 @@ button {
 .loading-text, .error-text, .info-text {
   font-size: 16px;
   font-weight: bold;
-  color: #dc3545;
+  color: var(--error-color);
 }
 .search-results-container {
   margin-top: 10px;
@@ -1252,14 +1176,14 @@ button {
 
 .search-result-item {
   padding: 10px;
-  border: 1px solid #ccc;
-  background: #f9f9f9;
+  border: 1px solid var(--app-line);
+  background: var(--app-surface-muted);
   cursor: pointer;
   transition: 0.3s;
 }
 
 .search-result-item:hover {
-  background: #e0e0e0;
+  background: var(--app-control);
 }
 .contact-pm-button {
   background-color: #007bff;

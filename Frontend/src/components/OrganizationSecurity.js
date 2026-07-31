@@ -135,48 +135,91 @@ function OrganizationSecurity() {
     }
   };
 
+  const organizationMfaLabel = !status?.totpConfigured
+    ? "Unavailable"
+    : status.requireMfaForAllUsers
+      ? "Required for everyone"
+      : "Required for administrators";
+
+  const authenticatorLabel = !status?.totpConfigured
+    ? "Not configured"
+    : status.totpEnabled
+      ? "Enrolled"
+      : "Enrollment required";
+
   return (
     <div className="beta-page">
-      <main className="beta-page-shell">
+      <main className="beta-page-shell beta-security-page">
         <PageHeader
+          onBack={() => navigate("/dashboard")}
+          backLabel="Dashboard"
           eyebrow="Organization settings"
           title="Security"
-          actions={
-            <button className="beta-back-link" onClick={() => navigate("/dashboard")}>
-              Back to dashboard
-            </button>
-          }
+          subtitle="Manage sign-in protection, account recovery, and sensitive administrative access."
         />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}
-        <section className="beta-section">
+        {!status && !error && (
+          <div className="beta-empty-state beta-security-loading">Loading security settings...</div>
+        )}
+
+        {status && (
+          <section className="beta-security-overview" aria-label="Security overview">
+            <div>
+              <span>Administrator MFA</span>
+              <strong>Always required</strong>
+              <small>Organization and platform administrators</small>
+            </div>
+            <div>
+              <span>Organization policy</span>
+              <strong>{organizationMfaLabel}</strong>
+              <small>
+                {!status.totpConfigured
+                  ? "Deployment configuration is required"
+                  : status.requireMfaForAllUsers
+                    ? "Every organization user verifies sign-in"
+                    : "Other users may enroll optionally"}
+              </small>
+            </div>
+            <div>
+              <span>Your authenticator</span>
+              <strong>{authenticatorLabel}</strong>
+              <small>
+                {!status.totpConfigured
+                  ? "Authenticator enrollment is unavailable"
+                  : status.totpEnabled
+                  ? `${status.recoveryCodesRemaining} recovery codes remaining`
+                  : "Enrollment will be requested at sign-in"}
+              </small>
+            </div>
+          </section>
+        )}
+
+        <div className="beta-security-grid">
+        <section className="beta-panel beta-security-card">
           <div className="beta-section-heading">
             <div>
+              <p className="beta-eyebrow">Organization policy</p>
               <h2>Multi-factor authentication</h2>
               <p>
                 Organization and platform administrators always use an authenticator app.
                 You can also require MFA for property managers, submitters, and other users.
               </p>
             </div>
+            {status && (
+              <span className={`beta-status ${status.requireMfaForAllUsers ? "success" : "warning"}`}>
+                {status.requireMfaForAllUsers ? "All users" : "Admins only"}
+              </span>
+            )}
           </div>
           {status && (
             <>
-              <p className="beta-dialog-note">
-                {status.totpConfigured
-                  ? status.requireMfaForAllUsers
-                    ? "Required for all organization users"
-                    : "Required for administrators; optional for other users"
-                  : "Afterlight MFA has not been enabled for this deployment"}
-              </p>
-              {status.totpConfigured && (
-                <p className="beta-dialog-note">
-                  Your authenticator: {status.totpEnabled ? "enrolled" : "enrollment required at next login"}
-                  {status.totpEnabled ? ` · ${status.recoveryCodesRemaining} recovery codes remaining` : ""}
-                </p>
+              {!status.totpConfigured && (
+                <p className="beta-dialog-note">Afterlight MFA has not been enabled for this deployment.</p>
               )}
-              <form className="add-property-form" onSubmit={saveMfaPolicy}>
-                <label>
-                  Confirm your account password:
+              <form className="beta-security-form" onSubmit={saveMfaPolicy}>
+                <label className="beta-form-field">
+                  Confirm your account password
                   <input
                     type="password"
                     autoComplete="current-password"
@@ -186,27 +229,29 @@ function OrganizationSecurity() {
                     disabled={!status.totpConfigured}
                   />
                 </label>
-                <button
-                  className="beta-button"
-                  type="submit"
-                  disabled={mfaSaving || !status.totpConfigured}
-                >
-                  {mfaSaving
-                    ? "Saving…"
-                    : status.requireMfaForAllUsers
-                      ? "Make MFA optional for non-admins"
-                      : "Require MFA for all users"}
-                </button>
+                <div className="beta-security-actions">
+                  <button
+                    className="beta-button"
+                    type="submit"
+                    disabled={mfaSaving || !status.totpConfigured}
+                  >
+                    {mfaSaving
+                      ? "Saving…"
+                      : status.requireMfaForAllUsers
+                        ? "Make MFA optional for non-admins"
+                        : "Require MFA for all users"}
+                  </button>
+                </div>
               </form>
               {status.totpConfigured && status.totpEnabled && (
-                <form className="add-property-form" onSubmit={regenerateRecoveryCodes}>
+                <form className="beta-security-form beta-security-recovery-form" onSubmit={regenerateRecoveryCodes}>
                   <h3>Replace recovery codes</h3>
                   <p>
                     Generate a new set if your codes were lost or exposed. Existing recovery
                     codes will stop working immediately.
                   </p>
-                  <label>
-                    Confirm your account password:
+                  <label className="beta-form-field">
+                    Confirm your account password
                     <input
                       type="password"
                       autoComplete="current-password"
@@ -215,8 +260,8 @@ function OrganizationSecurity() {
                       required
                     />
                   </label>
-                  <label>
-                    Current authenticator code (or recovery code when resetting):
+                  <label className="beta-form-field">
+                    Authenticator or recovery code
                     <input
                       type="text"
                       inputMode="numeric"
@@ -226,22 +271,26 @@ function OrganizationSecurity() {
                       required
                     />
                   </label>
-                  <button className="beta-button" type="submit" disabled={recoverySaving}>
-                    {recoverySaving ? "Generating..." : "Generate new recovery codes"}
-                  </button>
-                  <button
-                    className="beta-button secondary"
-                    type="button"
-                    disabled={resettingMfa || !recoveryPassword || !authenticatorCode}
-                    onClick={resetAuthenticator}
-                  >
-                    {resettingMfa ? "Resetting..." : "Reset authenticator and sign out"}
-                  </button>
+                  <div className="beta-security-actions">
+                    <button className="beta-button" type="submit" disabled={recoverySaving}>
+                      {recoverySaving ? "Generating..." : "Generate new recovery codes"}
+                    </button>
+                    <button
+                      className="beta-button danger"
+                      type="button"
+                      disabled={resettingMfa || !recoveryPassword || !authenticatorCode}
+                      onClick={resetAuthenticator}
+                    >
+                      {resettingMfa ? "Resetting..." : "Reset authenticator and sign out"}
+                    </button>
+                  </div>
                   {recoveryCodes.length > 0 && (
-                    <div className="beta-dialog-note">
+                    <div className="beta-recovery-code-panel" role="status">
                       <p>Save these now. They will not be shown again.</p>
-                      {recoveryCodes.map((code) => <div key={code}><code>{code}</code></div>)}
-                      <button className="beta-button" type="button" onClick={downloadRecoveryCodes}>
+                      <div className="beta-recovery-code-grid">
+                        {recoveryCodes.map((code) => <code key={code}>{code}</code>)}
+                      </div>
+                      <button className="beta-button secondary" type="button" onClick={downloadRecoveryCodes}>
                         Download codes
                       </button>
                     </div>
@@ -251,15 +300,21 @@ function OrganizationSecurity() {
             </>
           )}
         </section>
-        <section className="beta-section">
+        <section className="beta-panel beta-security-card">
           <div className="beta-section-heading">
             <div>
+              <p className="beta-eyebrow">Sensitive actions</p>
               <h2>Administrative action passkey</h2>
               <p>
                 This passkey protects sensitive actions such as adding and removing properties.
                 The current value cannot be viewed.
               </p>
             </div>
+            {status && (
+              <span className={`beta-status ${status.configured ? "success" : "warning"}`}>
+                {status.configured ? "Configured" : "Temporary passkey"}
+              </span>
+            )}
           </div>
           {status && (
             <p className="beta-dialog-note">
@@ -269,9 +324,9 @@ function OrganizationSecurity() {
                 : ""}
             </p>
           )}
-          <form className="add-property-form" onSubmit={rotatePasskey}>
-            <label>
-              Confirm your account password:
+          <form className="beta-security-form beta-security-passkey-form" onSubmit={rotatePasskey}>
+            <label className="beta-form-field">
+              Confirm your account password
               <input
                 type="password"
                 autoComplete="current-password"
@@ -280,8 +335,8 @@ function OrganizationSecurity() {
                 required
               />
             </label>
-            <label>
-              New administrative passkey:
+            <label className="beta-form-field">
+              New administrative passkey
               <input
                 type="password"
                 autoComplete="new-password"
@@ -291,8 +346,8 @@ function OrganizationSecurity() {
                 required
               />
             </label>
-            <label>
-              Confirm new passkey:
+            <label className="beta-form-field">
+              Confirm new passkey
               <input
                 type="password"
                 autoComplete="new-password"
@@ -302,11 +357,14 @@ function OrganizationSecurity() {
                 required
               />
             </label>
-            <button className="beta-button" type="submit" disabled={saving}>
-              {saving ? "Rotating…" : "Rotate passkey"}
-            </button>
+            <div className="beta-security-actions">
+              <button className="beta-button" type="submit" disabled={saving}>
+                {saving ? "Rotating…" : "Rotate passkey"}
+              </button>
+            </div>
           </form>
         </section>
+        </div>
       </main>
     </div>
   );

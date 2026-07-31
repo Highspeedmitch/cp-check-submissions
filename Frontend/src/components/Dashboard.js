@@ -114,11 +114,6 @@ const handleRegionFilter = async () => {
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // ----------- Dark Mode -----------
-  const [darkMode, setDarkMode] = useState(
-    () => localStorage.getItem("darkMode") === "true"
-  );
-
   // ----------- Auth / Org Info -----------
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
@@ -195,20 +190,7 @@ const handleRegionFilter = async () => {
   }, [properties, token]);
 
   // ======================
-  // 1) Apply dark mode on load
-  // ======================
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add("dark-mode");
-    } else {
-      root.classList.remove("dark-mode");
-    }
-    localStorage.setItem("darkMode", darkMode);
-  }, [darkMode]);
-
-  // ======================
-  // 2) Fetch properties & submissions
+  // Fetch properties & submissions
   // ======================
   const fetchProperties = useCallback(() => {
     setLoading(true);
@@ -632,8 +614,6 @@ useEffect(() => {
           setRemovePasskey("");
           setPropertyToRemove("");
         }}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
         mileageTracking={mileageTracking}
         mileageCount={mileageCount}
         onMileageToggle={handleMileageToggle}

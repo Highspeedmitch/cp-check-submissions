@@ -4,6 +4,7 @@ import { storeAuthentication } from "../services/session";
 import { apiUrl } from "../services/api";
 import { beginOktaLogin, oktaLoginEnabled } from "../services/okta";
 import { LOGIN_UNAVAILABLE_MESSAGE, loginFailureMessage } from "../services/authMessages";
+import ThemeToggle from "./ui/ThemeToggle";
 
 function Login({ setUser }) {
   const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get("email") || "");
@@ -306,6 +307,7 @@ function Login({ setUser }) {
           <p className="afterlight-security-note">
             <span aria-hidden="true">MFA</span> Secure sign-in protected by multi-factor authentication
           </p>
+          <ThemeToggle className="afterlight-theme-toggle" />
         </section>
       </main>
     </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { logoutSession } from "../services/session";
 import { apiUrl } from "../services/api";
+import ThemeToggle from "./ui/ThemeToggle";
 
 function ClientDashboard({ setUser }) {
   const navigate = useNavigate();
@@ -10,11 +11,6 @@ function ClientDashboard({ setUser }) {
   const [orgAdmins, setOrgAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  //Dark mode
-  const [darkMode, setDarkMode] = useState(
-      () => localStorage.getItem("darkMode") === "true"
-    );
 
   // Retrieve user details from localStorage
   const role = localStorage.getItem("role");
@@ -30,16 +26,6 @@ function ClientDashboard({ setUser }) {
     fetchClientProperties();
     fetchOrgAdmins();
   }, [role, orgType, navigate]);
-useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add("dark-mode");
-    } else {
-      root.classList.remove("dark-mode");
-    }
-    localStorage.setItem("darkMode", darkMode);
-  }, [darkMode]);
-  
   // ✅ Fetch only the properties assigned to this client from the new API route
   const fetchClientProperties = async () => {
     try {
@@ -137,18 +123,7 @@ useEffect(() => {
         ) : (
           <p>No properties assigned to you.</p>
         )}
-{/* Dark mode */}
-<div className="dark-mode-toggle">
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={darkMode}
-                  onChange={() => setDarkMode((prev) => !prev)}
-                />
-                <span className="slider"></span>
-              </label>
-              <span className="toggle-label">{darkMode ? "🌙" : "☀️"}</span>
-            </div>
+        <ThemeToggle className="client-theme-toggle" />
         <h2>Property Managers</h2>
         {orgAdmins.length ? (
           <ul>

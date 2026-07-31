@@ -9,7 +9,23 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.css"
           rel="stylesheet"/>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#f4f6f9" />
+    <script>
+      try {
+        var storedDarkMode = localStorage.getItem("darkMode");
+        var useDarkMode = storedDarkMode === "true" ||
+          (storedDarkMode === null && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark-mode", useDarkMode);
+        document.documentElement.dataset.theme = useDarkMode ? "dark" : "light";
+        document.documentElement.style.colorScheme = useDarkMode ? "dark" : "light";
+        document.querySelector('meta[name="theme-color"]').setAttribute(
+          "content",
+          useDarkMode ? "#151922" : "#f4f6f9"
+        );
+      } catch (error) {
+        document.documentElement.dataset.theme = "light";
+      }
+    </script>
     <meta
       name="Afterlight"
       content="Afterlight provides documented after-hours property visibility, clear priorities, and accountable follow-through."
