@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, apiUrl } from "../services/api";
 import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import InspectionDraftPersistence from "./InspectionDraftPersistence";
+import {
+  deleteInspectionDraft,
+  inspectionDraftKey,
+  saveInspectionDraft,
+} from "../services/inspectionDrafts";
     
 function ShortTermRental() {
   const { property } = useParams();
@@ -33,6 +39,18 @@ function ShortTermRental() {
   const [orgType, setOrgType] = useState(""); // ✅ Add orgType state
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const draftKey = useMemo(() => inspectionDraftKey("short-term-rental", property), [property]);
+  const draftResponses = useMemo(() => {
+    const { photos, oneTimeCheckRequest, ...responses } = formData;
+    return responses;
+  }, [formData]);
+  const draftMetadata = useMemo(() => ({
+    formType: "short-term-rental",
+    customQuestions,
+    accessInstructions,
+    orgType,
+    oneTimeCheckRequest: formData.oneTimeCheckRequest || "",
+  }), [accessInstructions, customQuestions, formData.oneTimeCheckRequest, orgType]);
 
 
   useEffect(() => {
@@ -58,10 +76,10 @@ function ShortTermRental() {
           // ✅ Initialize formData with fetched custom fields
           setFormData((prev) => ({
             ...prev,
-            customFields: data.customFields.reduce((acc, field) => {
-              acc[field] = "";
-              return acc;
-            }, {}),
+            customFields: {
+              ...Object.fromEntries((data.customFields || []).map((field) => [field.name, ""])),
+              ...prev.customFields,
+            },
           }));
         }
       } catch (error) {
@@ -137,6 +155,12 @@ function ShortTermRental() {
     setSubmitting(true);
     try {
       const { photos, customFields, ...standardResponses } = formData;
+      await saveInspectionDraft({
+        key: draftKey,
+        responses: draftResponses,
+        photoGroups: photos,
+        metadata: draftMetadata,
+      });
       const responses = {
         ...standardResponses,
         ...Object.fromEntries(Object.entries(customFields).map(([key, value]) => [`custom_${key}`, value])),
@@ -158,6 +182,7 @@ function ShortTermRental() {
       setMessage(result.status === "completed"
         ? "Inspection submitted and report generated successfully."
         : "Inspection uploaded and queued for background processing.");
+      await deleteInspectionDraft(draftKey).catch(() => {});
       setSubmitted(true);
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -186,27 +211,46 @@ function ShortTermRental() {
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
+          <InspectionDraftPersistence
+            draftKey={draftKey}
+            responses={draftResponses}
+            photoGroups={formData.photos}
+            metadata={draftMetadata}
+            disabled={submitting}
+            onRestore={(draft) => {
+              setFormData((current) => ({
+                ...current,
+                ...draft.responses,
+                oneTimeCheckRequest: draft.metadata?.oneTimeCheckRequest || current.oneTimeCheckRequest,
+                photos: draft.photoGroups || {},
+              }));
+              if (draft.metadata?.customQuestions?.length) setCustomQuestions(draft.metadata.customQuestions);
+              if (draft.metadata?.accessInstructions) setAccessInstructions(draft.metadata.accessInstructions);
+              if (draft.metadata?.orgType) setOrgType(draft.metadata.orgType);
+              if (draft.photoGroups?.additionalComments?.length) setCommentPhotosEnabled(true);
+            }}
+          />
           <input type="hidden" name="selectedProperty" value={property} />
 
           <label>Property Name:</label>
-          <input type="text" name="businessName" onChange={handleChange} required />
+          <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} required />
 
           <label>Property Address:</label>
-          <input type="text" name="propertyAddress" onChange={handleChange} required />
+          <input type="text" name="propertyAddress" value={formData.propertyAddress} onChange={handleChange} required />
 
           <h2>Inspection Items</h2>
           <div className="inspection-items">
             {/* Toiletries Need Re-stocked */}
             <div>
               <label>Toiletries need re-stocked?</label>
-              <select name="toiletriesStocked" onChange={handleChange}>
+              <select name="toiletriesStocked" value={formData.toiletriesStocked} onChange={handleChange}>
                 <option value="">Select...</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
               {formData.toiletriesStocked === "yes" && (
                     <>
-                <textarea name="toiletriesStockedDescription" onChange={handleChange} placeholder="Describe the issue" />
+                <textarea name="toiletriesStockedDescription" value={formData.toiletriesStockedDescription} onChange={handleChange} placeholder="Describe the issue" />
                 <MultiPhotoField fieldKey="toiletriesStocked" label="Toiletries need re-stocked"
                   files={formData.photos.toiletriesStocked || []}
                   onChange={(files) => setFieldPhotos("toiletriesStocked", files)} />
@@ -218,14 +262,14 @@ function ShortTermRental() {
             {/* Furniture Correct */}
             <div>
               <label>Furniture is in correct place?</label>
-              <select name="furnitureCorrect" onChange={handleChange}>
+              <select name="furnitureCorrect" value={formData.furnitureCorrect} onChange={handleChange}>
                 <option value="">Select...</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
               {formData.furnitureCorrect === "yes" && (
                 <>
-                  <textarea name="furnitureCorrectDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <textarea name="furnitureCorrectDescription" value={formData.furnitureCorrectDescription} onChange={handleChange} placeholder="Describe the issue" />
                   <MultiPhotoField fieldKey="furnitureCorrect" label="Furniture placement"
                     files={formData.photos.furnitureCorrect || []}
                     onChange={(files) => setFieldPhotos("furnitureCorrect", files)} />
@@ -236,14 +280,14 @@ function ShortTermRental() {
             {/* Guest Checkout Procedure */}
             <div>
               <label>Guest checkout procedure followed?</label>
-              <select name="checkoutProcedure" onChange={handleChange}>
+              <select name="checkoutProcedure" value={formData.checkoutProcedure} onChange={handleChange}>
                 <option value="">Select...</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
               {formData.checkoutProcedure === "no" && (
                 <>
-                  <textarea name="checkoutProcedureDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <textarea name="checkoutProcedureDescription" value={formData.checkoutProcedureDescription} onChange={handleChange} placeholder="Describe the issue" />
                   <MultiPhotoField fieldKey="checkoutProcedure" label="Checkout procedure"
                     files={formData.photos.checkoutProcedure || []}
                     onChange={(files) => setFieldPhotos("checkoutProcedure", files)} />
@@ -254,14 +298,14 @@ function ShortTermRental() {
             {/* Any Damage to Property */}
             <div>
               <label>Any damage to property?</label>
-              <select name="propertyDamage" onChange={handleChange}>
+              <select name="propertyDamage" value={formData.propertyDamage} onChange={handleChange}>
                 <option value="">Select...</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
               {formData.propertyDamage === "yes" && (
                 <>
-                  <textarea name="propertyDamageDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <textarea name="propertyDamageDescription" value={formData.propertyDamageDescription} onChange={handleChange} placeholder="Describe the issue" />
                   <MultiPhotoField fieldKey="propertyDamage" label="Property damage"
                     files={formData.photos.propertyDamage || []}
                     onChange={(files) => setFieldPhotos("propertyDamage", files)} />
@@ -342,7 +386,7 @@ function ShortTermRental() {
 )}
           {/* Other Text Areas */}
           <label>Additional Comments:</label>
-          <textarea name="additionalComments" onChange={handleChange} />
+          <textarea name="additionalComments" value={formData.additionalComments} onChange={handleChange} />
           <OptionalCommentPhotos enabled={commentPhotosEnabled}
             onEnabledChange={setCommentPhotosEnabled}
             files={formData.photos.additionalComments || []}

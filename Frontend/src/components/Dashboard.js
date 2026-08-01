@@ -20,16 +20,6 @@ import {
   useNotificationBadges,
 } from "../services/notificationCenter";
 import { api, apiUrl } from "../services/api";
-// Utility: Check if JWT token is expired
-function isTokenExpired(token) {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000 < Date.now();
-  } catch (error) {
-    console.error("❌ Invalid token format:", error);
-    return true;
-  }
-}
 
 // Helper function to open Apple Maps on iOS, or Google Maps elsewhere
 function openNativeMaps(lat, lng) {
@@ -216,8 +206,7 @@ const handleRegionFilter = async () => {
   }, [token]);
 
   useEffect(() => {
-    if (!token || isTokenExpired(token)) {
-      localStorage.clear();
+    if (!token) {
       if (setUser) setUser(false);
       navigate("/login");
       return;
@@ -278,7 +267,7 @@ useEffect(() => {
 
   // Fetch submissions to mark completed properties (for user role)
   useEffect(() => {
-    if (role === "user" && token && !isTokenExpired(token)) {
+    if (role === "user" && token) {
       fetch(
         apiUrl("/api/recent-submissions"),
         {

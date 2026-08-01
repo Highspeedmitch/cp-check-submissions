@@ -88,14 +88,16 @@ function inspectionDraftIdentity({ property, orgType, responses, photos }) {
 }
 
 function draftIdempotency(property, fingerprint) {
-  const storageKey = `afterlight:inspection-draft:${property}`;
+  const organizationId = window.localStorage.getItem("organizationId") || "unknown-organization";
+  const userId = window.localStorage.getItem("userId") || "unknown-user";
+  const storageKey = `afterlight:inspection-upload:${organizationId}:${userId}:${property}`;
   try {
-    const existing = JSON.parse(window.sessionStorage.getItem(storageKey) || "null");
+    const existing = JSON.parse(window.localStorage.getItem(storageKey) || "null");
     if (existing?.fingerprint === fingerprint && existing?.key) {
       return { storageKey, key: existing.key };
     }
     const key = idempotencyKey();
-    window.sessionStorage.setItem(storageKey, JSON.stringify({ fingerprint, key }));
+    window.localStorage.setItem(storageKey, JSON.stringify({ fingerprint, key }));
     return { storageKey, key };
   } catch (_error) {
     return { storageKey: "", key: idempotencyKey() };
@@ -165,8 +167,8 @@ export async function submitInspectionJob({
 
   onProgress?.({ phase: "queued", jobId: prepared.jobId });
   const result = await waitForInspectionJob(api, prepared.jobId, { onProgress });
-  if (draft.storageKey && ["completed", "failed"].includes(result.status)) {
-    window.sessionStorage.removeItem(draft.storageKey);
+  if (draft.storageKey && ["queued", "processing", "completed", "failed"].includes(result.status)) {
+    window.localStorage.removeItem(draft.storageKey);
   }
   return result;
 }

@@ -1398,6 +1398,49 @@
 .beta-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .beta-dialog-actions .beta-button { width: auto; min-width: 112px; margin: 0; }
 .beta-dialog button:disabled { cursor: not-allowed; opacity: .58; }
+.session-status-banner {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  padding: 10px 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--beta-warning) 55%, var(--beta-border));
+  background: color-mix(in srgb, var(--beta-warning) 14%, var(--beta-surface));
+  color: var(--beta-ink);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+.pwa-update-banner {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--beta-border);
+  border-radius: 12px;
+  background: var(--beta-surface);
+  color: var(--beta-ink);
+  box-shadow: 0 16px 45px rgba(20, 31, 48, .18);
+  font-size: 14px;
+  font-weight: 700;
+}
+.pwa-update-banner button { width: auto; margin: 0; white-space: nowrap; }
+.inspection-draft-status {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--beta-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--beta-accent) 8%, var(--beta-surface));
+  color: var(--beta-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.inspection-draft-status.restored,
+.inspection-draft-status.saved { color: var(--beta-success); }
+.inspection-draft-status.unavailable { color: var(--beta-danger); }
 @media (max-width: 768px) {
   .beta-user-layout { grid-template-columns: 1fr; }
 }
@@ -1454,6 +1497,8 @@
   .beta-mobile-list { display: grid; gap: 12px; }
   .beta-card-actions .beta-button { flex: 1 1 140px; }
   .notification-permission-banner { left: 12px; right: 12px; bottom: 12px; flex-direction: column; align-items: stretch; }
+  .pwa-update-banner { left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); flex-direction: column; align-items: stretch; }
+  .pwa-update-banner button { width: 100%; }
   .notification-permission-actions { flex-direction: column; align-items: stretch; }
   .notification-permission-banner button { width: 100%; }
   .beta-dialog-overlay { align-items: end; padding: 12px; }

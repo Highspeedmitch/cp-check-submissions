@@ -4,6 +4,8 @@ import Login from "./components/Login";
 import OktaCallback from "./components/OktaCallback";
 import PushNotifications from "./components/PushNotifications";
 import AssumedAccessBanner from "./components/AssumedAccessBanner";
+import SessionStatusBanner from "./components/SessionStatusBanner";
+import PwaUpdateBanner from "./components/PwaUpdateBanner";
 import { restoreSession, tokenNeedsRefresh } from "./services/session";
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
@@ -162,6 +164,8 @@ function App() {
   return (
     <>
     <AssumedAccessBanner />
+    <PwaUpdateBanner />
+    {user === true && <SessionStatusBanner />}
     <PushNotifications enabled={user === true && (!platformRole || assumedOrganization)} />
     <Suspense fallback={<RouteLoading />}>
       <Routes>

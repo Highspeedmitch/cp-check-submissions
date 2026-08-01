@@ -2,6 +2,8 @@ import {
   tokenNeedsRefresh,
   storeAuthentication,
   clearAuthentication,
+  restoreSession,
+  refreshAccessToken,
 } from "./session";
 
 function tokenWithExpiration(exp) {
@@ -54,4 +56,63 @@ test("assumed organization metadata is stored and cleared", () => {
   clearAuthentication();
   expect(localStorage.getItem("platformRole")).toBeNull();
   expect(localStorage.getItem("platformSessionId")).toBeNull();
+});
+
+test("temporary refresh failures preserve an existing signed-in session", async () => {
+  const expiredToken = tokenWithExpiration(Math.floor(Date.now() / 1000) - 60);
+  storeAuthentication({
+    token: expiredToken,
+    orgName: "PICOR",
+    organizationId: "org-1",
+    orgType: "COM",
+    role: "user",
+  });
+
+  const authenticated = await restoreSession(jest.fn().mockRejectedValue(new TypeError("offline")));
+
+  expect(authenticated).toBe(true);
+  expect(localStorage.getItem("token")).toBe(expiredToken);
+  expect(localStorage.getItem("role")).toBe("user");
+});
+
+test("a confirmed invalid refresh session clears authentication", async () => {
+  const expiredToken = tokenWithExpiration(Math.floor(Date.now() / 1000) - 60);
+  storeAuthentication({
+    token: expiredToken,
+    orgName: "PICOR",
+    organizationId: "org-1",
+    orgType: "COM",
+    role: "user",
+  });
+  const response = new Response(JSON.stringify({ message: "Session expired." }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const authenticated = await restoreSession(jest.fn().mockResolvedValue(response));
+
+  expect(authenticated).toBe(false);
+  expect(localStorage.getItem("token")).toBeNull();
+  expect(localStorage.getItem("role")).toBeNull();
+});
+
+test("a tab reuses a token refreshed by another tab instead of rotating twice", async () => {
+  const staleToken = tokenWithExpiration(Math.floor(Date.now() / 1000) - 60);
+  const currentToken = tokenWithExpiration(Math.floor(Date.now() / 1000) + 3600);
+  localStorage.setItem("token", currentToken);
+  const request = jest.fn((name, callback) => callback());
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: { request },
+  });
+  const nativeFetch = jest.fn();
+
+  await expect(refreshAccessToken(nativeFetch, {
+    force: true,
+    staleToken,
+  })).resolves.toBe(currentToken);
+
+  expect(request).toHaveBeenCalledWith("afterlight-session-refresh", expect.any(Function));
+  expect(nativeFetch).not.toHaveBeenCalled();
+  delete navigator.locks;
 });

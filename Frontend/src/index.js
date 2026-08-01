@@ -4,10 +4,13 @@ import { BrowserRouter } from "react-router-dom";  // ✅ Ensure this import exi
 import "./index.css";
 import "./beta-ui.css";
 import App from "./App";
-import { installAuthenticatedFetch } from "./services/session";
+import { installAuthenticatedFetch, installSessionLifecycle } from "./services/session";
+import { registerPwa } from "./services/pwa";
 import { ThemeProvider } from "./context/ThemeContext";
 
 installAuthenticatedFetch();
+installSessionLifecycle();
+registerPwa();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(

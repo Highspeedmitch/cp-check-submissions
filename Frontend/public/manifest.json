@@ -2,6 +2,8 @@
   "id": "/",
   "short_name": "Afterlight",
   "name": "Afterlight Property Intelligence",
+  "description": "Property inspections, assignments, reporting, and approvals for field teams.",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "favicon-32.png",
@@ -29,6 +31,12 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "shortcuts": [
+    { "name": "Dashboard", "short_name": "Dashboard", "url": "/dashboard", "icons": [{ "src": "logo192.png", "sizes": "192x192" }] },
+    { "name": "Billing", "short_name": "Billing", "url": "/billing", "icons": [{ "src": "logo192.png", "sizes": "192x192" }] },
+    { "name": "Help Center", "short_name": "Help", "url": "/help", "icons": [{ "src": "logo192.png", "sizes": "192x192" }] }
+  ],
   "theme_color": "#071a38",
   "background_color": "#071a38"
 }

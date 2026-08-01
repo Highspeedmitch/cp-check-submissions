@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { submitInspectionJob } from "../services/photoUpload";
@@ -6,6 +6,12 @@ import MultiPhotoField from "./ui/MultiPhotoField";
 import PageHeader from "./ui/PageHeader";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import InspectionDraftPersistence from "./InspectionDraftPersistence";
+import {
+  deleteInspectionDraft,
+  inspectionDraftKey,
+  saveInspectionDraft,
+} from "../services/inspectionDrafts";
 
 const CONDITION_FIELDS = [
   { key: "lawnCondition", label: "Are there lawn or landscaping issues?" },
@@ -24,6 +30,8 @@ export default function ResidentialForm() {
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
+  const draftKey = useMemo(() => inspectionDraftKey("residential", property), [property]);
+  const draftMetadata = useMemo(() => ({ formType: "residential" }), []);
 
   const setResponse = (key, value) =>
     setResponses((current) => ({ ...current, [key]: value }));
@@ -33,6 +41,12 @@ export default function ResidentialForm() {
     setSubmitting(true);
     setError("");
     try {
+      await saveInspectionDraft({
+        key: draftKey,
+        responses,
+        photoGroups: photos,
+        metadata: draftMetadata,
+      });
       const result = await submitInspectionJob({
         api,
         property,
@@ -47,6 +61,7 @@ export default function ResidentialForm() {
         },
       });
       if (result.status === "failed") throw new Error(result.error || "Report processing failed.");
+      await deleteInspectionDraft(draftKey).catch(() => {});
       setSubmitted(true);
     } catch (requestError) {
       setError(requestError.message || "Unable to submit the inspection.");
@@ -64,6 +79,18 @@ export default function ResidentialForm() {
           actions={<ContextualHelpLink slug="complete-and-submit-an-inspection" />} />
         {error && <p className="beta-alert error">{error}</p>}
         {submitting && progress && <p className="beta-alert" role="status">{progress}</p>}
+        {!submitted && <InspectionDraftPersistence
+          draftKey={draftKey}
+          responses={responses}
+          photoGroups={photos}
+          metadata={draftMetadata}
+          disabled={submitting}
+          onRestore={(draft) => {
+            setResponses((current) => ({ ...current, ...draft.responses }));
+            setPhotos(draft.photoGroups || {});
+            if (draft.photoGroups?.additionalComments?.length) setCommentPhotosEnabled(true);
+          }}
+        />}
         {submitted ? <section className="beta-panel">
           <h2>Inspection complete</h2>
           <button className="beta-button" onClick={() => navigate("/dashboard")}>Return to Dashboard</button>

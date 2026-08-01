@@ -3,6 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 import { useNavigate } from "react-router-dom";
 import { apiUrl } from "../services/api";
+import { getPwaRegistration } from "../services/pwa";
 import {
   clearNotificationBannerSnooze,
   notificationBannerIsSnoozed,
@@ -91,7 +92,7 @@ async function registerWebPush(requestPermission) {
   if (permission !== "granted") return permission;
 
   const registration = await withNotificationSetupTimeout(
-    navigator.serviceWorker.register("/service-worker.js"),
+    getPwaRegistration(),
     "The notification service took too long to start. Please try again."
   );
   const keyResponse = await withNotificationSetupTimeout(

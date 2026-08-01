@@ -6,6 +6,12 @@ import PageHeader from "./ui/PageHeader";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import InspectionDraftPersistence from "./InspectionDraftPersistence";
+import {
+  deleteInspectionDraft,
+  inspectionDraftKey,
+  saveInspectionDraft,
+} from "../services/inspectionDrafts";
 
 export default function FormPage() {
   const { property } = useParams();
@@ -20,6 +26,8 @@ export default function FormPage() {
   const [error, setError] = useState("");
   const [assignmentInstructions, setAssignmentInstructions] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
+  const draftKey = useMemo(() => inspectionDraftKey("commercial", property), [property]);
+  const draftMetadata = useMemo(() => ({ formType: "commercial", template }), [template]);
 
   const updateProgress = ({ phase, completed, total }) => {
     if (phase === "preparing") setMessage("Preparing secure photo uploads…");
@@ -42,7 +50,10 @@ export default function FormPage() {
       .then(([data, assignments]) => {
         if (!active) return;
         setTemplate(data);
-        setResponses(Object.fromEntries(data.fields.map((field) => [field.key, ""])));
+        setResponses((current) => ({
+          ...Object.fromEntries(data.fields.map((field) => [field.key, ""])),
+          ...current,
+        }));
         const assignment = Array.isArray(assignments)
           ? assignments.find((item) => (
             String(item.userId) === String(userId)
@@ -85,6 +96,12 @@ export default function FormPage() {
           payload[`${field.key}Description`] = responses[`${field.key}Description`] || "";
         }
       });
+      await saveInspectionDraft({
+        key: draftKey,
+        responses,
+        photoGroups: photos,
+        metadata: draftMetadata,
+      });
       const result = await submitInspectionJob({
         api,
         property,
@@ -97,6 +114,7 @@ export default function FormPage() {
       setMessage(result.status === "completed"
         ? "Inspection submitted and report generated successfully."
         : "Inspection uploaded and queued. Processing will continue in the background.");
+      await deleteInspectionDraft(draftKey).catch(() => {});
       setSubmitted(true);
     } catch (err) {
       setError(err.message || "Unable to submit the inspection.");
@@ -190,6 +208,20 @@ export default function FormPage() {
             <p>{assignmentInstructions}</p>
           </section>
         )}
+        {!submitted && <InspectionDraftPersistence
+          draftKey={draftKey}
+          responses={responses}
+          photoGroups={photos}
+          metadata={draftMetadata}
+          disabled={submitting}
+          onRestore={(draft) => {
+            if (draft.metadata?.template) setTemplate(draft.metadata.template);
+            setResponses((current) => ({ ...current, ...draft.responses }));
+            setPhotos(draft.photoGroups || {});
+            if (draft.photoGroups?.additionalComments?.length) setCommentPhotosEnabled(true);
+            setLoading(false);
+          }}
+        />}
 
         {submitted ? (
           <section className="beta-panel">

@@ -1,10 +1,16 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import InspectionDraftPersistence from "./InspectionDraftPersistence";
+import {
+  deleteInspectionDraft,
+  inspectionDraftKey,
+  saveInspectionDraft,
+} from "../services/inspectionDrafts";
 
 function LongTermRental() {
   const { property } = useParams();
@@ -29,6 +35,9 @@ function LongTermRental() {
   const [message, setMessage] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const draftKey = useMemo(() => inspectionDraftKey("long-term-rental", property), [property]);
+  const draftMetadata = useMemo(() => ({ formType: "long-term-rental" }), []);
+  const { photos: draftPhotos, ...draftResponses } = formData;
 
   // Handle changes for standard text/textarea/select fields
   const handleChange = (e) => {
@@ -49,6 +58,12 @@ function LongTermRental() {
     setSubmitting(true);
     try {
       const { photos, ...responses } = formData;
+      await saveInspectionDraft({
+        key: draftKey,
+        responses,
+        photoGroups: photos,
+        metadata: draftMetadata,
+      });
 
       const result = await submitInspectionJob({
         api,
@@ -68,6 +83,7 @@ function LongTermRental() {
       setMessage(result.status === "completed"
         ? "Inspection submitted and report generated successfully."
         : "Inspection uploaded and queued for background processing.");
+      await deleteInspectionDraft(draftKey).catch(() => {});
       setSubmitted(true);
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -95,27 +111,42 @@ function LongTermRental() {
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
+          <InspectionDraftPersistence
+            draftKey={draftKey}
+            responses={draftResponses}
+            photoGroups={draftPhotos}
+            metadata={draftMetadata}
+            disabled={submitting}
+            onRestore={(draft) => {
+              setFormData((current) => ({
+                ...current,
+                ...draft.responses,
+                photos: draft.photoGroups || {},
+              }));
+              if (draft.photoGroups?.additionalComments?.length) setCommentPhotosEnabled(true);
+            }}
+          />
           <input type="hidden" name="selectedProperty" value={property} />
 
           <label>Property Name:</label>
-          <input type="text" name="businessName" onChange={handleChange} required />
+          <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} required />
 
           <label>Property Address:</label>
-          <input type="text" name="propertyAddress" onChange={handleChange} required />
+          <input type="text" name="propertyAddress" value={formData.propertyAddress} onChange={handleChange} required />
 
           <h2>Inspection Items</h2>
           <div className="inspection-items">
             {/* Toiletries Need Re-stocked */}
             <div>
               <label>Toiletries need re-stocked?</label>
-              <select name="toiletriesStocked" onChange={handleChange}>
+              <select name="toiletriesStocked" value={formData.toiletriesStocked} onChange={handleChange}>
                 <option value="">Select...</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
               {formData.toiletriesStocked === "yes" && (
                 <>
-                  <textarea name="toiletriesStockedDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <textarea name="toiletriesStockedDescription" value={formData.toiletriesStockedDescription} onChange={handleChange} placeholder="Describe the issue" />
                   <MultiPhotoField fieldKey="toiletriesStocked" label="Toiletries need re-stocked"
                     files={formData.photos.toiletriesStocked || []}
                     onChange={(files) => setFieldPhotos("toiletriesStocked", files)} />
@@ -126,14 +157,14 @@ function LongTermRental() {
             {/* Furniture Correct */}
             <div>
               <label>Furniture is in correct place?</label>
-              <select name="furnitureCorrect" onChange={handleChange}>
+              <select name="furnitureCorrect" value={formData.furnitureCorrect} onChange={handleChange}>
                 <option value="">Select...</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
               {formData.furnitureCorrect === "yes" && (
                 <>
-                  <textarea name="furnitureCorrectDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <textarea name="furnitureCorrectDescription" value={formData.furnitureCorrectDescription} onChange={handleChange} placeholder="Describe the issue" />
                   <MultiPhotoField fieldKey="furnitureCorrect" label="Furniture placement"
                     files={formData.photos.furnitureCorrect || []}
                     onChange={(files) => setFieldPhotos("furnitureCorrect", files)} />
@@ -144,14 +175,14 @@ function LongTermRental() {
             {/* Guest Checkout Procedure */}
             <div>
               <label>Guest checkout procedure followed?</label>
-              <select name="checkoutProcedure" onChange={handleChange}>
+              <select name="checkoutProcedure" value={formData.checkoutProcedure} onChange={handleChange}>
                 <option value="">Select...</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
               {formData.checkoutProcedure === "no" && (
                 <>
-                  <textarea name="checkoutProcedureDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <textarea name="checkoutProcedureDescription" value={formData.checkoutProcedureDescription} onChange={handleChange} placeholder="Describe the issue" />
                   <MultiPhotoField fieldKey="checkoutProcedure" label="Checkout procedure"
                     files={formData.photos.checkoutProcedure || []}
                     onChange={(files) => setFieldPhotos("checkoutProcedure", files)} />
@@ -162,14 +193,14 @@ function LongTermRental() {
             {/* Any Damage to Property */}
             <div>
               <label>Any damage to property?</label>
-              <select name="propertyDamage" onChange={handleChange}>
+              <select name="propertyDamage" value={formData.propertyDamage} onChange={handleChange}>
                 <option value="">Select...</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
               {formData.propertyDamage === "yes" && (
                 <>
-                  <textarea name="propertyDamageDescription" onChange={handleChange} placeholder="Describe the issue" />
+                  <textarea name="propertyDamageDescription" value={formData.propertyDamageDescription} onChange={handleChange} placeholder="Describe the issue" />
                   <MultiPhotoField fieldKey="propertyDamage" label="Property damage"
                     files={formData.photos.propertyDamage || []}
                     onChange={(files) => setFieldPhotos("propertyDamage", files)} />
@@ -180,7 +211,7 @@ function LongTermRental() {
 
           {/* Other Text Areas */}
           <label>Additional Comments:</label>
-          <textarea name="additionalComments" onChange={handleChange} />
+          <textarea name="additionalComments" value={formData.additionalComments} onChange={handleChange} />
           <OptionalCommentPhotos enabled={commentPhotosEnabled}
             onEnabledChange={setCommentPhotosEnabled}
             files={formData.photos.additionalComments || []}
