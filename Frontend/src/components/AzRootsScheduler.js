@@ -9,6 +9,7 @@ import { apiUrl } from "../services/api";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
 import PageHeader from "./ui/PageHeader";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -274,6 +275,7 @@ const events = assignments.map((assignment) => {
         eyebrow="Admin tools"
         title="Scheduler"
         subtitle="Coordinate quality checks, maintenance, and cleaning assignments."
+        actions={<ContextualHelpLink slug="create-a-scheduler-assignment" />}
       />
 
       {/* Form Section */}

@@ -14,6 +14,7 @@ import RemovePropertyDialog from "./dashboard/dialogs/RemovePropertyDialog";
 import AdminVerificationDialog from "./dashboard/dialogs/AdminVerificationDialog";
 import PropertyRecipientsDialog from "./dashboard/dialogs/PropertyRecipientsDialog";
 import AddPropertyForm from "./dashboard/AddPropertyForm";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import {
   useMarkNotificationsRead,
   useNotificationBadges,
@@ -649,7 +650,12 @@ useEffect(() => {
         <PageHeader
           eyebrow={`Working on behalf of ${orgName}`}
           title="Dashboard"
-          actions={<button type="button" className="beta-back-link" onClick={handleLogout}>Log out</button>}
+          actions={(
+            <>
+              <ContextualHelpLink label="Help Center" />
+              <button type="button" className="beta-back-link" onClick={handleLogout}>Log out</button>
+            </>
+          )}
         />
 
         {!isManagement && (

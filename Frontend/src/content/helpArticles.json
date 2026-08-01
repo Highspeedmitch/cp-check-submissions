@@ -1,0 +1,68 @@
+[
+  {
+    "slug": "complete-and-submit-an-inspection",
+    "title": "Complete and submit an inspection",
+    "summary": "Open assigned property work, complete the checklist, attach photos, and submit the inspection.",
+    "category": "Inspections",
+    "roles": ["user", "contractor", "cleaner"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "submitter-submit-inspection.md",
+    "estimatedTime": "5-15 min",
+    "keywords": ["assignment", "checklist", "inspection", "photos", "submit", "property"]
+  },
+  {
+    "slug": "prepare-and-send-an-invoice",
+    "title": "Prepare and send an invoice for approval",
+    "summary": "Verify a commercial inspection invoice, generate its PDF, and send it to the assigned property manager.",
+    "category": "Billing",
+    "roles": ["user", "contractor", "cleaner"],
+    "orgTypes": ["COM"],
+    "file": "submitter-submit-invoice.md",
+    "estimatedTime": "2-3 min",
+    "keywords": ["billing", "draft", "invoice", "pdf", "approval", "amount"]
+  },
+  {
+    "slug": "revise-a-declined-invoice",
+    "title": "Revise and resubmit a declined invoice",
+    "summary": "Read the property manager's feedback, correct the invoice amount, and send a replacement for review.",
+    "category": "Billing",
+    "roles": ["user", "contractor", "cleaner"],
+    "orgTypes": ["COM"],
+    "file": "submitter-revise-invoice.md",
+    "estimatedTime": "2-3 min",
+    "keywords": ["billing", "declined", "invoice", "needs revision", "resubmit", "amount"]
+  },
+  {
+    "slug": "review-an-invoice",
+    "title": "Review, approve, or decline an invoice",
+    "summary": "Review a contractor invoice and either send it to accounts payable or return it with feedback.",
+    "category": "Billing",
+    "roles": ["property_manager"],
+    "orgTypes": ["COM"],
+    "file": "property-manager-review-invoice.md",
+    "estimatedTime": "2-5 min",
+    "keywords": ["accounts payable", "approve", "decline", "invoice", "property manager", "review"]
+  },
+  {
+    "slug": "review-property-submissions",
+    "title": "Review inspection submissions for a property",
+    "summary": "Find a managed property, filter its submission history, and open completed inspection reports.",
+    "category": "Inspections",
+    "roles": ["property_manager", "admin"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "property-manager-review-submissions.md",
+    "estimatedTime": "1-2 min",
+    "keywords": ["history", "inspection", "manager", "pdf", "property", "report", "submissions"]
+  },
+  {
+    "slug": "create-a-scheduler-assignment",
+    "title": "Create and manage a scheduler assignment",
+    "summary": "Assign property work to an active user, set the dates, and include one-time instructions.",
+    "category": "Scheduling",
+    "roles": ["admin"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "admin-create-assignment.md",
+    "estimatedTime": "2-3 min",
+    "keywords": ["admin", "assignment", "calendar", "dates", "schedule", "scheduler", "user"]
+  }
+]

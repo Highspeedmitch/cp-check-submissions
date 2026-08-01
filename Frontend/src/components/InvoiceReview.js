@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
 import PageHeader from "./ui/PageHeader";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 
 function dollars(cents) {
   return new Intl.NumberFormat("en-US", {
@@ -61,6 +62,7 @@ export default function InvoiceReview() {
           eyebrow="Property manager review"
           title="Invoice Review"
           subtitle="Review the contractor invoice before sending it to accounts payable."
+          actions={<ContextualHelpLink slug="review-an-invoice" />}
         />
 
         {error && <p className="beta-alert error" role="alert">{error}</p>}

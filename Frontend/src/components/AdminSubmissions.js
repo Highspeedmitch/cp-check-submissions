@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from "./ui/PageHeader";
 import { useMarkNotificationsRead } from "../services/notificationCenter";
 import { apiUrl } from "../services/api";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 
 function AdminSubmissions() {
   const { property } = useParams();
@@ -60,6 +61,7 @@ function AdminSubmissions() {
         eyebrow="Property activity"
         title={property}
         subtitle="Inspection submissions"
+        actions={<ContextualHelpLink slug="review-property-submissions" />}
       />
       <div className="beta-toolbar">
         <div><h2>Submission history</h2><p>{submissions.length} records in this view</p></div>

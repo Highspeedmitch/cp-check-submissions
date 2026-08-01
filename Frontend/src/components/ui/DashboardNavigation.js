@@ -69,6 +69,7 @@ export default function DashboardNavigation({
           {orgType === "COM" && role !== "client" && (
             <NavButton badge={notificationBadges.billing} onClick={() => go("/billing")}>Billing</NavButton>
           )}
+          <NavButton onClick={() => go("/help")}>Help Center</NavButton>
           {(isManager || (isAdmin && orgType === "COM")) && (
             <NavButton badge={notificationBadges.bids} onClick={() => go("/bid-requests")}>
               {isManager ? "Bid Requests" : "Bid Management"}
