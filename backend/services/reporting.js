@@ -96,11 +96,14 @@ function buildReportingSummary({
   ));
   const issueCounts = new Map();
   let totalIssues = 0;
+  let inspectionsWithIssuesCount = 0;
   const reportableIssueSubmissions = scopedSubmissions.filter(
     hasReportableIssueResponses
   );
   reportableIssueSubmissions.forEach((submission) => {
-    submissionIssueOccurrences(submission).forEach((issue) => {
+    const submissionIssues = submissionIssueOccurrences(submission);
+    if (submissionIssues.length > 0) inspectionsWithIssuesCount += 1;
+    submissionIssues.forEach((issue) => {
       totalIssues += 1;
       const current = issueCounts.get(issue.key) || {
         key: issue.key,
@@ -162,6 +165,10 @@ function buildReportingSummary({
       ),
       issuesPerInspection: reportableIssueSubmissions.length
         ? Number((totalIssues / reportableIssueSubmissions.length).toFixed(1))
+        : 0,
+      inspectionsWithIssuesCount,
+      inspectionsWithIssuesPercent: reportableIssueSubmissions.length
+        ? Number(((inspectionsWithIssuesCount / reportableIssueSubmissions.length) * 100).toFixed(1))
         : 0,
       totalIssueOccurrences: totalIssues,
       distinctIssueTypes: issueCounts.size,

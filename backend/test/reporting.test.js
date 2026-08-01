@@ -116,6 +116,8 @@ test("reporting summary applies property and submitter filters", () => {
 
   assert.equal(report.summary.submissionCount, 2);
   assert.equal(report.summary.issuesPerInspection, 2);
+  assert.equal(report.summary.inspectionsWithIssuesCount, 1);
+  assert.equal(report.summary.inspectionsWithIssuesPercent, 100);
   assert.equal(report.summary.totalIssueOccurrences, 2);
   assert.equal(report.summary.distinctIssueTypes, 2);
   assert.equal(report.summary.reportableIssueSubmissionCount, 1);
@@ -127,4 +129,36 @@ test("reporting summary applies property and submitter filters", () => {
     "Exterior Lighting",
   ]);
   assert.equal(report.filterOptions.users.length, 2);
+});
+
+test("inspection issue percentage counts an inspection once regardless of issue total", () => {
+  const fields = [
+    { key: "lights", label: "Exterior Lighting", type: "yes_no_issue" },
+    { key: "curbs", label: "Broken Curbs", type: "yes_no_issue" },
+  ];
+  const report = buildReportingSummary({
+    submissions: [
+      submission({
+        submittedAt: "2026-07-20T04:15:00.000Z",
+        responses: { lights: "yes", curbs: "yes" },
+        fields,
+      }),
+      submission({
+        submittedAt: "2026-07-21T04:15:00.000Z",
+        responses: { lights: "no", curbs: "no" },
+        fields,
+      }),
+      submission({
+        submittedAt: "2026-07-22T04:15:00.000Z",
+        responses: { lights: "no", curbs: "yes" },
+        fields,
+      }),
+    ],
+    timezone: "America/Phoenix",
+  });
+
+  assert.equal(report.summary.totalIssueOccurrences, 3);
+  assert.equal(report.summary.reportableIssueSubmissionCount, 3);
+  assert.equal(report.summary.inspectionsWithIssuesCount, 2);
+  assert.equal(report.summary.inspectionsWithIssuesPercent, 66.7);
 });

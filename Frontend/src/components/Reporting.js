@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { issueCoverageLabel } from "../services/reportingPresentation";
+import {
+  formatInspectionIssuePercent,
+  inspectionIssueCoverageLabel,
+} from "../services/reportingPresentation";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import PageHeader from "./ui/PageHeader";
@@ -246,9 +249,9 @@ export default function Reporting() {
                 context={`Local time · ${report.scope.timezone}`}
               />
               <MetricCard
-                label="Issues Per Inspection"
-                value={report.summary.issuesPerInspection.toFixed(1)}
-                context={issueCoverageLabel(report.summary, report.issues)}
+                label="Inspections With Issues"
+                value={formatInspectionIssuePercent(report.summary)}
+                context={inspectionIssueCoverageLabel(report.summary)}
               />
               <MetricCard
                 label="Issue Types Observed"
