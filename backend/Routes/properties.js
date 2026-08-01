@@ -8,6 +8,7 @@ const Notification = require("../models/notification");
 const { managedProperties, canAccessProperty } = require("../services/propertyAccess");
 const { normalizePropertyEmails } = require("../services/propertyEmails");
 const { normalizePropertyDetails } = require("../services/propertyDetails");
+const { propertyDefaultSource } = require("../services/fulfillmentPolicy");
 
 router.get("/", async (req, res) => {
   try {
@@ -23,6 +24,10 @@ router.get("/", async (req, res) => {
       emails: property.emails,
       propertyManagers: property.propertyManagers || [],
       orgType: organization.orgType,
+      fulfillment: {
+        defaultSource: property.fulfillmentPolicy?.defaultSource || null,
+        resolvedSource: propertyDefaultSource(organization, property),
+      },
     }));
     return res.json(properties);
   } catch (error) {

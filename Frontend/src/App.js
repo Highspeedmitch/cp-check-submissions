@@ -17,6 +17,7 @@ const FormPage = lazy(() => import("./components/FormPage"));
 const PropertyFormSettings = lazy(() => import("./components/PropertyFormSettings"));
 const OrganizationFormSettings = lazy(() => import("./components/OrganizationFormSettings"));
 const OrganizationSecurity = lazy(() => import("./components/OrganizationSecurity"));
+const ServiceDeliverySettings = lazy(() => import("./components/ServiceDeliverySettings"));
 const Register = lazy(() => import("./components/Register"));
 const InviteRegistration = lazy(() => import("./components/InviteRegistration"));
 const AdminSubmissions = lazy(() => import("./components/AdminSubmissions"));
@@ -205,6 +206,11 @@ function App() {
       <Route path="/organization-security" element={
         user && role === "admin" && !assumedOrganization
           ? <OrganizationSecurity />
+          : <Navigate to="/" />
+      } />
+      <Route path="/service-delivery" element={
+        user && role === "admin"
+          ? <ServiceDeliverySettings />
           : <Navigate to="/" />
       } />
       <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />

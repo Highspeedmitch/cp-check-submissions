@@ -27,6 +27,7 @@ function createApp() {
   app.use("/api/billing", authenticateToken, require("./Routes/billing"));
   app.use("/api/admin-users", authenticateToken, require("./Routes/adminUsers"));
   app.use("/api/organization-security", authenticateToken, require("./Routes/organizationSecurity"));
+  app.use("/api/fulfillment", authenticateToken, require("./Routes/fulfillment"));
   app.use("/api/bid-requests", authenticateToken, require("./Routes/bidRequests"));
   app.use("/api/notifications", authenticateToken, require("./Routes/notifications"));
   app.use("/api/inspection-templates", authenticateToken, require("./Routes/inspectionTemplates"));

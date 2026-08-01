@@ -20,6 +20,7 @@ const { resolveBillingAddress } = require("./propertyAddresses");
 const { sendSystemEmail } = require("./systemEmail");
 const { sendUserNotification } = require("./notifications");
 const { inspectionSubmitted, assignmentCompleted } = require("./notificationEvents");
+const { legacyFulfillmentSnapshot } = require("./fulfillmentPolicy");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -80,7 +81,16 @@ async function ensurePdf(job) {
   return generated;
 }
 
-async function ensureSubmission(job, organization, property) {
+function assignmentFulfillmentSnapshot(assignment) {
+  if (!assignment?.fulfillment?.source) return legacyFulfillmentSnapshot();
+  const stored = typeof assignment.fulfillment.toObject === "function"
+    ? assignment.fulfillment.toObject()
+    : assignment.fulfillment;
+  return { ...stored };
+}
+
+async function ensureSubmission(job, organization, property, assignment) {
+  const initialFulfillment = assignmentFulfillmentSnapshot(assignment);
   let submission = job.submissionId
     ? await Submission.findById(job.submissionId)
     : await Submission.findOne({ processingJobId: job._id });
@@ -96,13 +106,21 @@ async function ensureSubmission(job, organization, property) {
           submittedAt: job.createdAt,
           responses: job.submissionData,
           templateSnapshot: job.templateSnapshot,
+          assignmentId: assignment?._id || null,
+          fulfillmentSnapshot: initialFulfillment,
           processingJobId: job._id,
         },
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
   }
-  if (job.orgType === "COM") {
+  if (!submission.fulfillmentSnapshot) {
+    submission.fulfillmentSnapshot = initialFulfillment;
+    submission.assignmentId = assignment?._id || null;
+    await submission.save();
+  }
+  const fulfillmentSnapshot = submission.fulfillmentSnapshot || initialFulfillment;
+  if (job.orgType === "COM" && fulfillmentSnapshot.invoiceRequired !== false) {
     const { policy } = await ensureOrganizationBillingPolicy(job.organizationId);
     await Invoice.findOneAndUpdate(
       { submissionId: submission._id },
@@ -115,6 +133,7 @@ async function ensureSubmission(job, organization, property) {
           inspectionDate: submission.submittedAt,
           amountCents: property.defaultInspectionAmountCents || null,
           policySnapshot: createPolicySnapshot(policy),
+          fulfillmentSnapshot,
           propertySnapshot: {
             name: property.name,
             propertyCode: property.propertyCode,
@@ -139,13 +158,8 @@ async function ensureSubmission(job, organization, property) {
   return submission;
 }
 
-async function deliverNotifications(job, property, submission) {
+async function deliverNotifications(job, property, submission, assignment) {
   if (job.notificationsSentAt) return;
-  const assignment = await Assignment.findOne({
-    organizationId: job.organizationId,
-    propertyName: job.propertyName,
-    userId: job.userId,
-  });
   const propertyManagerIds = [...new Set(
     (property.propertyManagers || []).map((id) => id.toString())
   )];
@@ -209,9 +223,14 @@ async function processInspectionJob(job) {
     error.permanent = true;
     throw error;
   }
+  const assignment = await Assignment.findOne({
+    organizationId: job.organizationId,
+    propertyName: job.propertyName,
+    userId: job.userId,
+  });
   const generated = await ensurePdf(job);
-  const submission = await ensureSubmission(job, organization, property);
-  await deliverNotifications(job, property, submission);
+  const submission = await ensureSubmission(job, organization, property, assignment);
+  await deliverNotifications(job, property, submission, assignment);
 
   if (!job.emailSentAt) {
     const fallback = process.env.INSPECTION_FALLBACK_EMAIL || process.env.SYSTEM_EMAIL_ADDRESS;

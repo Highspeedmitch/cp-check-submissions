@@ -35,6 +35,15 @@ const PropertySchema = new mongoose.Schema({
   apPortal: { type: String, default: "" },
   billingInstructions: { type: String, default: "" },
   purchaseOrder: { type: String, default: "" },
+  fulfillmentPolicy: {
+    defaultSource: {
+      type: String,
+      enum: ["customer_employee", "customer_contractor", "afterlight_staff", "afterlight_contractor", null],
+      default: null,
+    },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    updatedAt: { type: Date, default: null },
+  },
   lat: { type: Number },
   lng: { type: Number },
   emails: { type: [String], default: [] },
@@ -105,6 +114,21 @@ const OrganizationSchema = new mongoose.Schema({
     required: true 
   },
   properties: { type: [PropertySchema], default: [] },
+  serviceModel: {
+    type: String,
+    enum: ["platform", "managed", "hybrid"],
+    default: "managed",
+  },
+  fulfillmentPolicy: {
+    defaultSource: {
+      type: String,
+      enum: ["customer_employee", "customer_contractor", "afterlight_staff", "afterlight_contractor"],
+      default: "afterlight_staff",
+    },
+    version: { type: Number, min: 1, default: 1 },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    updatedAt: { type: Date, default: null },
+  },
   billingPolicyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "BillingPolicy",

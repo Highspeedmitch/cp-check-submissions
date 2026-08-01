@@ -2,14 +2,17 @@ const express = require("express");
 const Assignment = require("../models/assignment");
 const Organization = require("../models/organization");
 const User = require("../models/user");
+const FulfillmentAudit = require("../models/fulfillmentAudit");
 const { managedProperties } = require("../services/propertyAccess");
 const { sendUserNotification } = require("../services/notifications");
+const { resolveAssignmentFulfillment } = require("../services/fulfillmentPolicy");
 const authenticateToken = require("../middleware/authenticateToken");
 
 function createAssignmentHandlers({
   AssignmentModel = Assignment,
   OrganizationModel = Organization,
   UserModel = User,
+  FulfillmentAuditModel = FulfillmentAudit,
   notifyUser = sendUserNotification,
   managedPropertiesForUser = managedProperties,
 } = {}) {
@@ -26,6 +29,8 @@ function createAssignmentHandlers({
         startDate,
         endDate,
         oneTimeCheckRequest,
+        fulfillmentSource,
+        fulfillmentOverrideReason,
       } = req.body;
       const organizationId = req.user.organizationId;
       if (!organizationId) {
@@ -36,6 +41,17 @@ function createAssignmentHandlers({
       if (eventType && !validEventTypes.includes(eventType)) {
         return res.status(400).json({ error: "Invalid assignment event type." });
       }
+
+      const organization = await OrganizationModel.findById(organizationId);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
+      const property = (organization.properties || []).find((item) => item.name === propertyName);
+      if (!property) return res.status(400).json({ error: "Select a property in your organization." });
+      const fulfillment = resolveAssignmentFulfillment({
+        organization,
+        property,
+        requestedSource: fulfillmentSource,
+        actorUserId: req.user.userId,
+      });
 
       const assignedUser = await UserModel.findOne({
         _id: userId,
@@ -70,8 +86,31 @@ function createAssignmentHandlers({
         startDate,
         endDate,
         oneTimeCheckRequest: oneTimeCheckRequest || "",
+        fulfillment,
       });
       await assignment.save();
+
+      if (fulfillment.sourceOrigin === "assignment_override") {
+        await FulfillmentAuditModel.create({
+          organizationId,
+          actorUserId: req.user.userId,
+          entityType: "assignment",
+          entityId: assignment._id.toString(),
+          action: "assignment_fulfillment_overridden",
+          previousValue: { source: fulfillment.inheritedSource },
+          nextValue: {
+            source: fulfillment.source,
+            queue: fulfillment.queue,
+            invoiceRouting: fulfillment.invoiceRouting,
+            invoiceVisibility: fulfillment.invoiceVisibility,
+            invoiceRequired: fulfillment.invoiceRequired,
+          },
+          reason: String(fulfillmentOverrideReason || "").trim(),
+          metadata: { propertyName, policyVersion: fulfillment.policyVersion },
+          ipAddress: req.ip || "",
+          userAgent: typeof req.get === "function" ? req.get("user-agent") || "" : "",
+        });
+      }
 
       notifyUser({
         organizationId,
@@ -92,7 +131,9 @@ function createAssignmentHandlers({
       });
     } catch (error) {
       console.error("Error creating assignment:", error);
-      return res.status(500).json({ error: "Server error creating assignment" });
+      return res.status(error.status || 500).json({
+        error: error.status ? error.message : "Server error creating assignment",
+      });
     }
   }
 
@@ -187,6 +228,37 @@ function createAssignmentHandlers({
           .filter((field) => Object.prototype.hasOwnProperty.call(req.body, field))
           .map((field) => [field, req.body[field]])
       );
+      if (Object.prototype.hasOwnProperty.call(req.body, "fulfillmentSource")) {
+        const existing = await AssignmentModel.findOne({
+          _id: req.params.id,
+          organizationId: req.user.organizationId,
+        });
+        if (!existing) return res.status(404).json({ success: false, error: "Assignment not found" });
+        const organization = await OrganizationModel.findById(req.user.organizationId);
+        const propertyName = changes.propertyName || existing.propertyName;
+        const property = (organization?.properties || []).find((item) => item.name === propertyName);
+        if (!property) return res.status(400).json({ error: "Select a property in your organization." });
+        const fulfillment = resolveAssignmentFulfillment({
+          organization,
+          property,
+          requestedSource: req.body.fulfillmentSource,
+          actorUserId: req.user.userId,
+        });
+        changes.fulfillment = fulfillment;
+        await FulfillmentAuditModel.create({
+          organizationId: req.user.organizationId,
+          actorUserId: req.user.userId,
+          entityType: "assignment",
+          entityId: existing._id.toString(),
+          action: "assignment_fulfillment_overridden",
+          previousValue: existing.fulfillment || null,
+          nextValue: fulfillment,
+          reason: String(req.body.fulfillmentOverrideReason || "").trim(),
+          metadata: { propertyName, policyVersion: fulfillment.policyVersion },
+          ipAddress: req.ip || "",
+          userAgent: typeof req.get === "function" ? req.get("user-agent") || "" : "",
+        });
+      }
       const assignment = await AssignmentModel.findOneAndUpdate(
         {
           _id: req.params.id,
@@ -205,7 +277,7 @@ function createAssignmentHandlers({
       return res.json({ success: true, assignment });
     } catch (error) {
       console.error("Error updating assignment:", error);
-      return res.status(500).json({ success: false, error: error.message });
+      return res.status(error.status || 500).json({ success: false, error: error.message });
     }
   }
 

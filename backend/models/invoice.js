@@ -45,6 +45,16 @@ const InvoiceSchema = new mongoose.Schema({
     paymentManualUpdateRoles: [String],
     paymentRequireManagedProperty: Boolean,
   },
+  fulfillmentSnapshot: {
+    source: String,
+    sourceOrigin: String,
+    queue: String,
+    invoiceRouting: String,
+    invoiceVisibility: String,
+    invoiceRequired: Boolean,
+    policyVersion: Number,
+    resolvedAt: Date,
+  },
   status: {
     type: String,
     enum: ["unbilled", "pending_review", "declined", "approving", "submitted", "paid", "failed", "void"],

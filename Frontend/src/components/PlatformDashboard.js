@@ -9,6 +9,8 @@ import ThemeToggle from "./ui/ThemeToggle";
 const EMPTY_ORGANIZATION = {
   name: "",
   orgType: "COM",
+  serviceModel: "managed",
+  defaultFulfillmentSource: "afterlight_staff",
   reportingTimezone: "America/Phoenix",
   initialAdminEmail: "",
 };
@@ -18,6 +20,25 @@ const ORGANIZATION_TYPES = {
   RES: "Residential",
   LTR: "Long-term rental",
   STR: "Short-term rental",
+};
+
+const SERVICE_MODELS = {
+  platform: "Full-stack SaaS",
+  managed: "Managed service",
+  hybrid: "Hybrid",
+};
+
+const SERVICE_MODEL_DEFAULTS = {
+  platform: "customer_employee",
+  managed: "afterlight_staff",
+  hybrid: "customer_employee",
+};
+
+const FULFILLMENT_SOURCES = {
+  customer_employee: "Customer employee",
+  customer_contractor: "Customer contractor",
+  afterlight_staff: "Afterlight staff",
+  afterlight_contractor: "Afterlight contractor",
 };
 
 const TIMEZONES = [
@@ -94,6 +115,23 @@ function NewOrganizationDialog({ open, busy, error, onClose, onCreate }) {
           <label className="beta-form-field">Organization type
             <select value={draft.orgType} onChange={(event) => update("orgType", event.target.value)}>
               {Object.entries(ORGANIZATION_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="beta-form-field">Service model
+            <select value={draft.serviceModel} onChange={(event) => {
+              const serviceModel = event.target.value;
+              setDraft((current) => ({
+                ...current,
+                serviceModel,
+                defaultFulfillmentSource: SERVICE_MODEL_DEFAULTS[serviceModel],
+              }));
+            }}>
+              {Object.entries(SERVICE_MODELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="beta-form-field">Default fulfillment
+            <select value={draft.defaultFulfillmentSource} onChange={(event) => update("defaultFulfillmentSource", event.target.value)}>
+              {Object.entries(FULFILLMENT_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
           <label className="beta-form-field">Reporting timezone

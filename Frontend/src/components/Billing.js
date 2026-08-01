@@ -24,6 +24,13 @@ function statusLabel(status) {
   return labels[status] || status;
 }
 
+function invoiceRoutingLabel(invoice) {
+  const routing = invoice.fulfillmentSnapshot?.invoiceRouting;
+  if (routing === "afterlight_service_billing") return "Afterlight service";
+  if (routing === "customer_accounts_payable") return "Customer contractor";
+  return "Standard billing";
+}
+
 export default function Billing() {
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
@@ -377,7 +384,7 @@ export default function Billing() {
                     {invoice.review?.declineReason && <><br/><small>{invoice.review.declineReason}</small></>}
                     {invoice.delivery?.error && <><br/><small>{invoice.delivery.error}</small></>}
                   </td>
-                  <td>{invoice.propertySnapshot.apMethod || "download"}</td>
+                  <td>{invoice.propertySnapshot.apMethod || "download"}<br/><small>{invoiceRoutingLabel(invoice)}</small></td>
                   <td><InvoiceActions invoice={invoice} /></td>
                 </tr>
               ))}
@@ -402,6 +409,7 @@ export default function Billing() {
               <dl className="beta-detail-list">
                 <div><dt>Inspection date</dt><dd>{new Date(invoice.inspectionDate).toLocaleDateString()}</dd></div>
                 <div><dt>AP method</dt><dd>{invoice.propertySnapshot.apMethod || "download"}</dd></div>
+                <div><dt>Billing route</dt><dd>{invoiceRoutingLabel(invoice)}</dd></div>
                 {isOversight && <div><dt>Submitter</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
                 {invoice.review?.declineReason && <div><dt>Decline reason</dt><dd>{invoice.review.declineReason}</dd></div>}
                 {invoice.delivery?.error && <div><dt>Delivery error</dt><dd>{invoice.delivery.error}</dd></div>}

@@ -98,6 +98,16 @@ test("assignment creation retains admin and organization scoping", async () => {
 
   const handlers = createAssignmentHandlers({
     AssignmentModel,
+    OrganizationModel: {
+      async findById(id) {
+        assert.equal(id, "org-1");
+        return {
+          serviceModel: "managed",
+          fulfillmentPolicy: { defaultSource: "afterlight_staff", version: 2 },
+          properties: [{ name: "Broadway Center", fulfillmentPolicy: { defaultSource: null } }],
+        };
+      },
+    },
     UserModel,
     notifyUser: async (payload) => {
       notification = payload;
@@ -126,6 +136,9 @@ test("assignment creation retains admin and organization scoping", async () => {
   assert.equal(overlapQuery.propertyName, "Broadway Center");
   assert.equal(savedAssignment.organizationId, "org-1");
   assert.equal(savedAssignment.eventType, "Maintenance");
+  assert.equal(savedAssignment.fulfillment.source, "afterlight_staff");
+  assert.equal(savedAssignment.fulfillment.queue, "afterlight_coverage");
+  assert.equal(savedAssignment.fulfillment.invoiceRouting, "afterlight_service_billing");
   assert.equal(notification.userId, "user-1");
   assert.equal(notification.type, "assignment_created");
 });
@@ -141,6 +154,60 @@ test("non-admin users still cannot create assignments", async () => {
 
   assert.equal(res.statusCode, 403);
   assert.deepEqual(res.body, { error: "Forbidden" });
+});
+
+test("assignment fulfillment overrides are snapshotted and audited", async () => {
+  let savedAssignment;
+  let auditEntry;
+  class AssignmentModel {
+    constructor(data) {
+      Object.assign(this, data);
+      this._id = "assignment-override";
+    }
+    async save() { savedAssignment = this; }
+    static async findOne() { return null; }
+  }
+  const handlers = createAssignmentHandlers({
+    AssignmentModel,
+    OrganizationModel: {
+      async findById() {
+        return {
+          serviceModel: "managed",
+          fulfillmentPolicy: { defaultSource: "afterlight_staff", version: 5 },
+          properties: [{ name: "Broadway Center", fulfillmentPolicy: { defaultSource: null } }],
+        };
+      },
+    },
+    UserModel: {
+      findOne() {
+        return { select: () => ({ lean: async () => ({ _id: "user-1" }) }) };
+      },
+    },
+    FulfillmentAuditModel: {
+      async create(entry) { auditEntry = entry; },
+    },
+    notifyUser: async () => {},
+  });
+  const res = response();
+
+  await handlers.createAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    body: {
+      propertyName: "Broadway Center",
+      userId: "user-1",
+      startDate: "2026-08-02T00:00:00.000Z",
+      endDate: "2026-08-03T00:00:00.000Z",
+      fulfillmentSource: "customer_employee",
+      fulfillmentOverrideReason: "Customer team has coverage",
+    },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(savedAssignment.fulfillment.source, "customer_employee");
+  assert.equal(savedAssignment.fulfillment.invoiceRequired, false);
+  assert.equal(auditEntry.action, "assignment_fulfillment_overridden");
+  assert.deepEqual(auditEntry.previousValue, { source: "afterlight_staff" });
+  assert.equal(auditEntry.reason, "Customer team has coverage");
 });
 
 test("property managers only list assignments for managed properties", async () => {

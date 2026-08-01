@@ -14,6 +14,31 @@ import ContextualHelpLink from "./help/ContextualHelpLink";
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
 
+const FULFILLMENT_LABELS = {
+  customer_employee: "Customer employee",
+  customer_contractor: "Customer contractor",
+  afterlight_staff: "Afterlight staff",
+  afterlight_contractor: "Afterlight contractor",
+  legacy: "Legacy assignment",
+};
+
+const SOURCE_POLICIES = {
+  customer_employee: { queue: "customer_assigned", invoiceRequired: false, invoiceLabel: "No invoice" },
+  customer_contractor: { queue: "customer_assigned", invoiceRequired: true, invoiceLabel: "Customer accounts payable" },
+  afterlight_staff: { queue: "afterlight_coverage", invoiceRequired: true, invoiceLabel: "Afterlight service billing" },
+  afterlight_contractor: { queue: "afterlight_coverage", invoiceRequired: true, invoiceLabel: "Afterlight service billing" },
+};
+
+const EMPTY_ASSIGNMENT = {
+  propertyName: "",
+  userId: "",
+  startDate: "",
+  endDate: "",
+  oneTimeCheckRequest: "",
+  fulfillmentSource: "",
+  fulfillmentOverrideReason: "",
+};
+
 function Scheduler() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,13 +47,8 @@ function Scheduler() {
   const [assignments, setAssignments] = useState([]);
   const [properties, setProperties] = useState([]);
   const [users, setUsers] = useState([]);
-  const [newAssignment, setNewAssignment] = useState({
-    propertyName: "",
-    userId: "",
-    startDate: "",
-    endDate: "",
-    oneTimeCheckRequest: "", // New field for one-time request
-  });
+  const [fulfillmentSettings, setFulfillmentSettings] = useState(null);
+  const [newAssignment, setNewAssignment] = useState(EMPTY_ASSIGNMENT);
 
   const [editingAssignment, setEditingAssignment] = useState(null); // Holds event being edited
 
@@ -59,7 +79,7 @@ function Scheduler() {
   // Fetch users (exclude admins)
   useEffect(() => {
     if (!token) return;
-    fetch(apiUrl("/api/users"), {
+    fetch(apiUrl("/api/users?roles=all"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -70,6 +90,25 @@ function Scheduler() {
       })
       .catch((err) => console.error("Error fetching users:", err));
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(apiUrl("/api/fulfillment"), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then(setFulfillmentSettings)
+      .catch((err) => console.error("Error fetching fulfillment settings:", err));
+  }, [token]);
+
+  const selectedProperty = properties.find((property) => property.name === newAssignment.propertyName);
+  const savedEditingSource = editingAssignment?.fulfillment?.source;
+  const effectiveFulfillmentSource = newAssignment.fulfillmentSource
+    || savedEditingSource
+    || selectedProperty?.fulfillment?.resolvedSource
+    || fulfillmentSettings?.organization?.defaultSource
+    || "afterlight_staff";
+  const effectivePolicy = SOURCE_POLICIES[effectiveFulfillmentSource] || SOURCE_POLICIES.afterlight_staff;
 
   // Handle form submission (New or Editing)
   const handleSaveAssignment = async (e) => {
@@ -100,6 +139,10 @@ function Scheduler() {
       endDate: new Date(newAssignment.endDate).toISOString(),
       oneTimeCheckRequest: newAssignment.oneTimeCheckRequest, // Include this in the request
     };
+    if (newAssignment.fulfillmentSource) {
+      formattedAssignment.fulfillmentSource = newAssignment.fulfillmentSource;
+      formattedAssignment.fulfillmentOverrideReason = newAssignment.fulfillmentOverrideReason;
+    }
   
     try {
       const response = await fetch(url, {
@@ -127,7 +170,7 @@ function Scheduler() {
           .catch((err) => console.error("❌ Error refreshing assignments:", err));
   
         setEditingAssignment(null);
-        setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+        setNewAssignment(EMPTY_ASSIGNMENT);
   
         // ✅ Send push notification
         const notifResponse = await fetch(
@@ -188,7 +231,7 @@ function Scheduler() {
           alert("✅ Assignment deleted successfully!");
           setAssignments(assignments.filter((a) => a._id !== editingAssignment._id));
           setEditingAssignment(null);
-          setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+          setNewAssignment(EMPTY_ASSIGNMENT);
         } else {
           alert("❌ " + (data.error || "Failed to delete assignment."));
         }
@@ -209,6 +252,8 @@ function Scheduler() {
       startDate: moment(event.start).format("YYYY-MM-DDTHH:mm"),
       endDate: moment(event.end).format("YYYY-MM-DDTHH:mm"),
       oneTimeCheckRequest: event.oneTimeCheckRequest || "",
+      fulfillmentSource: "",
+      fulfillmentOverrideReason: "",
     });
   };
 
@@ -238,9 +283,16 @@ const events = assignments.map((assignment) => {
       end: endDate,
       userId: assignment.userId,
       oneTimeCheckRequest: assignment.oneTimeCheckRequest || "",
+      fulfillment: assignment.fulfillment || null,
       allDay: true, // This flag tells react-big-calendar to treat this as an all-day event
     };
   });
+
+  const queueForAssignment = (assignment) => assignment.fulfillment?.queue
+    || SOURCE_POLICIES[fulfillmentSettings?.organization?.defaultSource]?.queue
+    || "afterlight_coverage";
+  const customerAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "customer_assigned");
+  const afterlightAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "afterlight_coverage");
   
 
   return (
@@ -256,12 +308,25 @@ const events = assignments.map((assignment) => {
         actions={<ContextualHelpLink slug="create-a-scheduler-assignment" />}
       />
 
+      <section className="beta-fulfillment-queues" aria-label="Fulfillment queues">
+        <div className="beta-fulfillment-queue customer">
+          <span>Customer Assigned</span>
+          <strong>{customerAssignments.length}</strong>
+          <small>Customer employees and contractors</small>
+        </div>
+        <div className="beta-fulfillment-queue afterlight">
+          <span>Afterlight Coverage</span>
+          <strong>{afterlightAssignments.length}</strong>
+          <small>Afterlight staff and contractor coverage</small>
+        </div>
+      </section>
+
       {/* Form Section */}
       <form onSubmit={handleSaveAssignment} className="assignment-form beta-scheduler-form">
   <label>Property:</label>
   <select
     value={newAssignment.propertyName}
-    onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
+    onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value, fulfillmentSource: "", fulfillmentOverrideReason: "" })}
     required
   >
     <option value="">Select Property</option>
@@ -278,9 +343,42 @@ const events = assignments.map((assignment) => {
   >
     <option value="">Select User</option>
     {users.map((user) => (
-      <option key={user._id} value={user._id}>{user.email}</option>
+      <option key={user._id} value={user._id}>{user.email} ({user.role})</option>
     ))}
   </select>
+
+  <label>Fulfillment:</label>
+  <select
+    value={newAssignment.fulfillmentSource}
+    onChange={(e) => setNewAssignment({ ...newAssignment, fulfillmentSource: e.target.value })}
+  >
+    <option value="">
+      {editingAssignment
+        ? `Keep saved choice (${FULFILLMENT_LABELS[savedEditingSource] || FULFILLMENT_LABELS[effectiveFulfillmentSource]})`
+        : `Use property default (${FULFILLMENT_LABELS[effectiveFulfillmentSource]})`}
+    </option>
+    {Object.entries(FULFILLMENT_LABELS).filter(([value]) => value !== "legacy").map(([value, label]) => (
+      <option key={value} value={value}>{label}</option>
+    ))}
+  </select>
+
+  <label>Routing:</label>
+  <div className="beta-assignment-routing-preview">
+    <strong>{effectivePolicy.queue === "afterlight_coverage" ? "Afterlight Coverage" : "Customer Assigned"}</strong>
+    <span>{effectivePolicy.invoiceLabel}</span>
+  </div>
+
+  {newAssignment.fulfillmentSource && (
+    <>
+      <label>Override note:</label>
+      <input
+        type="text"
+        value={newAssignment.fulfillmentOverrideReason}
+        onChange={(e) => setNewAssignment({ ...newAssignment, fulfillmentOverrideReason: e.target.value })}
+        placeholder="Optional reason for this assignment"
+      />
+    </>
+  )}
 
   {/* ✅ Start Date */}
   <label>Start Date:</label>
