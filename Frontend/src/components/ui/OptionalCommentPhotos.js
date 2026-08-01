@@ -6,6 +6,9 @@ export default function OptionalCommentPhotos({
   onEnabledChange,
   files = [],
   onChange,
+  fieldKey = "additionalComments",
+  label = "Additional Comments",
+  prompt = "Include photos related to these additional comments",
 }) {
   return (
     <div>
@@ -15,9 +18,9 @@ export default function OptionalCommentPhotos({
             onEnabledChange(event.target.checked);
             if (!event.target.checked) onChange([]);
           }} />
-        Include photos related to these additional comments
+        {prompt}
       </label>
-      {enabled && <MultiPhotoField fieldKey="additionalComments" label="Additional Comments"
+      {enabled && <MultiPhotoField fieldKey={fieldKey} label={label}
         files={files} onChange={onChange} />}
     </div>
   );

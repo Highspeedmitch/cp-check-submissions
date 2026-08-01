@@ -356,7 +356,7 @@ function drawResultsTable(doc, results, x, y, width, options = {}) {
   });
 }
 
-function drawObservationSummary(doc, formData, x, y, width, template) {
+function getObservationSummary(formData, template) {
   const noteFields = template?.fields?.filter((field) =>
     ['text', 'textarea'].includes(field.type)
     && !['businessName', 'propertyAddress'].includes(field.key)
@@ -364,9 +364,16 @@ function drawObservationSummary(doc, formData, x, y, width, template) {
     { key: 'additionalComments' },
     { key: 'homelessActivity' },
   ];
-  const summary = noteFields
+  const prioritizedNoteFields = [...noteFields].sort((left, right) =>
+    Number(right.key === 'generalObservations') - Number(left.key === 'generalObservations')
+  );
+  return prioritizedNoteFields
     .map((field) => cleanValue(formData[field.key]))
     .find(Boolean) || 'No additional observations were provided.';
+}
+
+function drawObservationSummary(doc, formData, x, y, width, template) {
+  const summary = getObservationSummary(formData, template);
   doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(11.5).text('General Observations', x, y);
   doc.roundedRect(x, y + 20, width, 46, 5).fillAndStroke(COLORS.panel, COLORS.line);
   doc
@@ -632,4 +639,4 @@ function generateChecklistPDF(formData, photoBuffers, template = null, options =
   });
 }
 
-module.exports = { generateChecklistPDF };
+module.exports = { generateChecklistPDF, getObservationSummary };

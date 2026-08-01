@@ -26,7 +26,7 @@ export default function ProspectAssessments() {
   const [message, setMessage] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newType, setNewType] = useState("yes_no_issue");
-  const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
+  const [optionalPhotoFields, setOptionalPhotoFields] = useState({});
 
   const load = async () => {
     try {
@@ -57,7 +57,7 @@ export default function ProspectAssessments() {
       formData.append("responses", JSON.stringify(responses));
       await appendOptimizedPhotos(formData, photos);
       await api.post("/api/platform/prospect-assessments", formData);
-      setResponses({}); setPhotos({}); setCommentPhotosEnabled(false);
+      setResponses({}); setPhotos({}); setOptionalPhotoFields({});
       setMessage("Assessment created. The PDF is available in the repository for 30 days.");
       setView("repository");
       await load();
@@ -132,11 +132,17 @@ export default function ProspectAssessments() {
               {field.type === "textarea" && <>
                 <textarea required={field.required} value={responses[field.key] || ""}
                   onChange={(event) => setResponse(field.key, event.target.value)} />
-                {field.key === "additionalComments" && <OptionalCommentPhotos
-                  enabled={commentPhotosEnabled}
-                  onEnabledChange={setCommentPhotosEnabled}
-                  files={photos.additionalComments || []}
-                  onChange={(files) => setPhotos((current) => ({ ...current, additionalComments: files }))} />}
+                {(field.allowPhotos || field.key === "additionalComments") && <OptionalCommentPhotos
+                  enabled={Boolean(optionalPhotoFields[field.key])}
+                  onEnabledChange={(enabled) => setOptionalPhotoFields((current) => ({
+                    ...current,
+                    [field.key]: enabled,
+                  }))}
+                  fieldKey={field.key}
+                  label={field.reportLabel || field.label}
+                  prompt={`Include photos related to ${field.label.toLowerCase()}`}
+                  files={photos[field.key] || []}
+                  onChange={(files) => setPhotos((current) => ({ ...current, [field.key]: files }))} />}
               </>}
               {field.type === "text" && <input required={field.required} value={responses[field.key] || ""}
                 onChange={(event) => setResponse(field.key, event.target.value)} />}
@@ -173,7 +179,9 @@ export default function ProspectAssessments() {
           {template.fields.map((field) => (
             <article className="beta-settings-card" key={field.key}>
               <label className="beta-form-field">Label<input value={field.label}
+                disabled={field.key === "generalObservations"}
                 onChange={(e) => updateField(field.key, { label: e.target.value, reportLabel: e.target.value })} /></label>
+              {field.key === "generalObservations" && <small>Maps to the PDF General Observations area and supports photos.</small>}
               <label className="beta-template-checkbox"><input type="checkbox" checked={field.required}
                 onChange={(e) => updateField(field.key, { required: e.target.checked })} /> Required</label>
               {!field.locked && <button className="beta-button danger compact" onClick={() =>

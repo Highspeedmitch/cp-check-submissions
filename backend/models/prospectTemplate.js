@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { DEFAULT_COM_FIELDS } = require("../services/inspectionTemplates");
+const { defaultProspectFields } = require("../services/prospectTemplateFields");
 
 const ProspectFieldSchema = new mongoose.Schema({
   key: { type: String, required: true },
@@ -19,7 +19,7 @@ const ProspectTemplateSchema = new mongoose.Schema({
   name: { type: String, default: "Prospect Property Assessment" },
   title: { type: String, default: "Complimentary Exterior Property Assessment" },
   version: { type: Number, default: 1, min: 1 },
-  fields: { type: [ProspectFieldSchema], default: () => DEFAULT_COM_FIELDS },
+  fields: { type: [ProspectFieldSchema], default: defaultProspectFields },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
 }, { timestamps: true });
 

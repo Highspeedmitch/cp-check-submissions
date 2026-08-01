@@ -12,7 +12,11 @@ const authenticateToken = require("../middleware/authenticateToken");
 const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const s3 = require("../awsConfig");
 const { generateProspectAssessmentPDF } = require("../prospectPdfService");
-const { DEFAULT_COM_FIELDS, validateFields } = require("../services/inspectionTemplates");
+const {
+  defaultProspectFields,
+  validateProspectFields,
+  withGeneralObservations,
+} = require("../services/prospectTemplateFields");
 const { purgeExpiredProspectAssessments } = require("../services/prospectRetention");
 const { extractPhotoFieldName } = require("../utils/photoFieldName");
 const { isAllowedTemplatePhotoField } = require("../services/inspectionPhotoAccess");
@@ -44,11 +48,19 @@ const prospectUpload = multer({
 });
 
 async function getProspectTemplate() {
-  return ProspectTemplate.findOneAndUpdate(
+  const template = await ProspectTemplate.findOneAndUpdate(
     { key: "default" },
-    { $setOnInsert: { fields: DEFAULT_COM_FIELDS } },
+    { $setOnInsert: { fields: defaultProspectFields() } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
+  const currentFields = template.fields.map((field) => field.toObject());
+  const normalizedFields = withGeneralObservations(currentFields);
+  if (JSON.stringify(currentFields) !== JSON.stringify(normalizedFields)) {
+    template.fields = normalizedFields;
+    template.version += 1;
+    await template.save();
+  }
+  return template;
 }
 
 router.get("/organizations", authenticateToken, requirePlatformAdmin, async (req, res) => {
@@ -159,7 +171,7 @@ router.put("/prospect-template", authenticateToken, requirePlatformAdmin, async 
     const name = String(req.body.name || "").trim();
     const title = String(req.body.title || "").trim();
     if (!name || !title) return res.status(400).json({ error: "Template name and title are required." });
-    const fields = validateFields(req.body.fields || []);
+    const fields = validateProspectFields(req.body.fields || []);
     for (const identityKey of ["businessName", "propertyAddress"]) {
       const identityField = fields.find((field) => field.key === identityKey);
       if (!identityField) {

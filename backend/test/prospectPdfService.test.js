@@ -66,3 +66,28 @@ test("renders multiple photos for one prospect assessment section", async () => 
   assert.equal(pdf.subarray(0, 4).toString(), "%PDF");
   assert.ok(pdf.length > image.length);
 });
+
+test("renders photo evidence attached to General Observations", async () => {
+  const image = fs.readFileSync(path.resolve(__dirname, "../../Frontend/public/apple-touch-icon.png"));
+  const pdf = await generateProspectAssessmentPDF({
+    assessment: {
+      businessName: "Sample Center",
+      propertyAddress: "100 Main Street, Phoenix, AZ",
+      createdAt: new Date("2026-07-29T12:00:00Z"),
+      responses: { generalObservations: "Landscaping and curb conditions should be reviewed." },
+      templateSnapshot: {
+        title: "Complimentary Exterior Property Assessment",
+        fields: [{
+          key: "generalObservations",
+          label: "General Observations",
+          reportLabel: "General Observations",
+          type: "textarea",
+          allowPhotos: true,
+        }],
+      },
+    },
+    photoBuffers: [{ fieldName: "generalObservations", imageBuffer: image }],
+  });
+  assert.equal(pdf.subarray(0, 4).toString(), "%PDF");
+  assert.ok(pdf.length > image.length);
+});
