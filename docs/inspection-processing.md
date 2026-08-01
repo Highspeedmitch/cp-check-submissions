@@ -7,7 +7,7 @@ Inspection forms use a durable two-stage submission flow:
 3. The browser finalizes the upload session and the API marks the job as queued.
 4. A single-concurrency worker generates the PDF, creates the submission and invoice, sends notifications and email, and removes the temporary photos.
 
-The original multipart `/api/submit-form` route remains available temporarily for older clients.
+The retired multipart `/api/submit-form` route is no longer available. All inspection clients must use the durable job flow above so photos bypass API memory and PDF work remains retryable.
 
 ## S3 CORS
 

@@ -9,6 +9,28 @@ const { managedProperties, canAccessProperty } = require("../services/propertyAc
 const { normalizePropertyEmails } = require("../services/propertyEmails");
 const { normalizePropertyDetails } = require("../services/propertyDetails");
 
+router.get("/", async (req, res) => {
+  try {
+    const organization = await Organization.findById(req.user.organizationId);
+    if (!organization) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+    const properties = managedProperties(organization, req.user).map((property) => ({
+      _id: property._id,
+      name: property.name,
+      lat: property.lat,
+      lng: property.lng,
+      emails: property.emails,
+      propertyManagers: property.propertyManagers || [],
+      orgType: organization.orgType,
+    }));
+    return res.json(properties);
+  } catch (error) {
+    console.error("Error fetching properties:", error);
+    return res.status(500).json({ error: "Server error retrieving properties" });
+  }
+});
+
 // ✅ Global Search for Properties (Admins Only)
 router.get("/search", async (req, res) => {
   try {
@@ -268,6 +290,28 @@ router.get(
     }
   }
 );
+
+router.get("/:propertyName", async (req, res) => {
+  try {
+    const organization = await Organization.findById(req.user.organizationId);
+    if (!organization) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+    const propertyName = decodeURIComponent(req.params.propertyName);
+    const property = organization.properties.find((item) => item.name === propertyName);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    return res.json({
+      ...property.toObject(),
+      orgType: organization.orgType,
+      orgName: organization.name,
+    });
+  } catch (error) {
+    console.error("Error fetching property details:", error);
+    return res.status(500).json({ error: "Server error retrieving property details" });
+  }
+});
 
 module.exports = router;
 

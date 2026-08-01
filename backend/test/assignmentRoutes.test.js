@@ -48,14 +48,14 @@ test("authentication is scoped to assignment routes instead of the entire API", 
     assert.equal(layer.route.stack[0].handle, routeAuthentication);
   }
 
-  const serverSource = fs.readFileSync(
-    path.join(__dirname, "..", "server.js"),
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "..", "app.js"),
     "utf8"
   );
-  assert.match(serverSource, /app\.use\("\/api", assignmentRoutes\);/);
+  assert.match(appSource, /app\.use\("\/api", require\("\.\/Routes\/assignments"\)\);/);
   assert.doesNotMatch(
-    serverSource,
-    /app\.use\("\/api", authenticateToken, assignmentRoutes\);/
+    appSource,
+    /app\.use\("\/api", authenticateToken, require\("\.\/Routes\/assignments"\)\);/
   );
 });
 
