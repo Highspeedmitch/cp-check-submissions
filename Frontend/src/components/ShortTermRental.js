@@ -4,6 +4,7 @@ import { api, apiUrl } from "../services/api";
 import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
+import ContextualHelpLink from "./help/ContextualHelpLink";
     
 function ShortTermRental() {
   const { property } = useParams();
@@ -174,6 +175,7 @@ function ShortTermRental() {
       {!submitted && (
         <div className="return-to-dash">
           <button onClick={() => navigate("/dashboard")}>Return To Dashboard</button>
+          <ContextualHelpLink slug="complete-and-submit-an-inspection" />
         </div>
       )}
 

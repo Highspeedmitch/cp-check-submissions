@@ -36,6 +36,8 @@ const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
 const Reporting = lazy(() => import("./components/Reporting"));
 const PlatformDashboard = lazy(() => import("./components/PlatformDashboard"));
+const HelpCenter = lazy(() => import("./components/help/HelpCenter"));
+const HelpArticle = lazy(() => import("./components/help/HelpArticle"));
 
 function RouteLoading() {
   return (
@@ -82,6 +84,16 @@ function InvoiceReviewRoute({ user, role }) {
   return role === "property_manager"
     ? <InvoiceReview />
     : <Navigate to="/billing" replace />;
+}
+
+function HelpRoute({ user, platformRole, assumedOrganization, children }) {
+  const location = useLocation();
+  if (!user) {
+    const returnTo = `${location.pathname}${location.search}`;
+    return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
+  }
+  if (platformRole && !assumedOrganization) return <Navigate to="/platform" replace />;
+  return children;
 }
 
 function App() {
@@ -205,6 +217,16 @@ function App() {
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
       <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />
       <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
+      <Route path="/help" element={
+        <HelpRoute user={user} platformRole={platformRole} assumedOrganization={assumedOrganization}>
+          <HelpCenter />
+        </HelpRoute>
+      } />
+      <Route path="/help/:slug" element={
+        <HelpRoute user={user} platformRole={platformRole} assumedOrganization={assumedOrganization}>
+          <HelpArticle />
+        </HelpRoute>
+      } />
 
       {/* Profit Uploads - Only for AzRoots Admins */}
       <Route path="/profit-uploads/:propertyName" element={user && role === "admin" ? <ProfitUpload /> : <Navigate to="/" />} />

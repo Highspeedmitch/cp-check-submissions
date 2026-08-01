@@ -5,6 +5,7 @@ import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import PageHeader from "./ui/PageHeader";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 
 const CONDITION_FIELDS = [
   { key: "lawnCondition", label: "Are there lawn or landscaping issues?" },
@@ -59,7 +60,8 @@ export default function ResidentialForm() {
       <main className="beta-page-shell beta-inspection-page">
         <PageHeader onBack={() => navigate("/dashboard")} eyebrow={property}
           title="Residential Property Inspection Checklist"
-          subtitle="Complete the inspection and attach photographic evidence for any concerns." />
+          subtitle="Complete the inspection and attach photographic evidence for any concerns."
+          actions={<ContextualHelpLink slug="complete-and-submit-an-inspection" />} />
         {error && <p className="beta-alert error">{error}</p>}
         {submitting && progress && <p className="beta-alert" role="status">{progress}</p>}
         {submitted ? <section className="beta-panel">

@@ -5,6 +5,7 @@ import { submitInspectionJob } from "../services/photoUpload";
 import PageHeader from "./ui/PageHeader";
 import MultiPhotoField from "./ui/MultiPhotoField";
 import OptionalCommentPhotos from "./ui/OptionalCommentPhotos";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 
 export default function FormPage() {
   const { property } = useParams();
@@ -178,6 +179,7 @@ export default function FormPage() {
           eyebrow={property}
           title={template?.title || "Commercial Property Inspection Checklist"}
           subtitle="Complete the property inspection and attach photos for any issues."
+          actions={<ContextualHelpLink slug="complete-and-submit-an-inspection" />}
         />
 
         {loading && <div className="beta-empty-state">Loading inspection form…</div>}

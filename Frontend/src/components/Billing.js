@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
 import { NOTIFICATION_SECTIONS, useMarkNotificationsRead } from "../services/notificationCenter";
 import { api } from "../services/api";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 
 function dollars(cents) {
   if (cents == null) return "Not set";
@@ -40,6 +41,11 @@ export default function Billing() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyActions, setBusyActions] = useState({});
+  const helpSlug = !isOversight && invoices.some((invoice) => invoice.status === "declined")
+    ? "revise-a-declined-invoice"
+    : isPropertyManager
+      ? "review-an-invoice"
+      : "prepare-and-send-an-invoice";
   useMarkNotificationsRead(NOTIFICATION_SECTIONS.billing);
 
   const setBusy = (key, value) => setBusyActions((current) => ({ ...current, [key]: value }));
@@ -243,6 +249,7 @@ export default function Billing() {
           onBack={() => navigate("/dashboard")}
           title="Billing"
           subtitle={isOversight ? "Managed property billing ledger" : "My contractor invoices"}
+          actions={<ContextualHelpLink slug={helpSlug} />}
         />
 
         {role === "admin" && (
