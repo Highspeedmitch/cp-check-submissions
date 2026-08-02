@@ -39,6 +39,7 @@ const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
 const Reporting = lazy(() => import("./components/Reporting"));
 const PlatformDashboard = lazy(() => import("./components/PlatformDashboard"));
+const ResourceDashboard = lazy(() => import("./components/ResourceDashboard"));
 const HelpCenter = lazy(() => import("./components/help/HelpCenter"));
 const HelpArticle = lazy(() => import("./components/help/HelpArticle"));
 
@@ -104,6 +105,7 @@ function App() {
   const [role, setRole] = useState(null);
   const [platformRole, setPlatformRole] = useState(null);
   const [assumedOrganization, setAssumedOrganization] = useState(false);
+  const [accountScope, setAccountScope] = useState(null);
 
   useEffect(() => {
     const handleSessionCleared = () => {
@@ -111,6 +113,7 @@ function App() {
       setRole(null);
       setPlatformRole(null);
       setAssumedOrganization(false);
+      setAccountScope(null);
     };
     window.addEventListener("auth-session-cleared", handleSessionCleared);
     return () => window.removeEventListener("auth-session-cleared", handleSessionCleared);
@@ -121,6 +124,7 @@ function App() {
       setRole(null);
       setPlatformRole(null);
       setAssumedOrganization(false);
+      setAccountScope(null);
       return;
     }
     const token = localStorage.getItem("token");
@@ -135,6 +139,7 @@ function App() {
         setAssumedOrganization(
           authenticated && localStorage.getItem("assumedOrganization") === "true"
         );
+        setAccountScope(authenticated ? localStorage.getItem("accountScope") || "organization" : null);
       });
       return;
     }
@@ -144,6 +149,7 @@ function App() {
       setRole(null);
       setPlatformRole(null);
       setAssumedOrganization(false);
+      setAccountScope(null);
       return;
     }
 
@@ -158,6 +164,7 @@ function App() {
     }
     setPlatformRole(localStorage.getItem("platformRole"));
     setAssumedOrganization(localStorage.getItem("assumedOrganization") === "true");
+    setAccountScope(localStorage.getItem("accountScope") || "organization");
   }, [user]);
 
   if (user === null) return null;
@@ -172,11 +179,15 @@ function App() {
       <Routes>
       <Route path="/" element={!user
         ? <Login setUser={setUser} />
-        : <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />} />
+        : <Navigate to={platformRole && !assumedOrganization
+          ? "/platform"
+          : accountScope === "afterlight_resource" ? "/resource" : "/dashboard"} />} />
       <Route path="/join" element={<InviteRegistration />} />
       <Route path="/register" element={process.env.REACT_APP_ALLOW_PUBLIC_REGISTRATION === "true" ? <Register /> : <Navigate to="/join" replace />} />
       <Route path="/login" element={user
-        ? <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />
+        ? <Navigate to={platformRole && !assumedOrganization
+          ? "/platform"
+          : accountScope === "afterlight_resource" ? "/resource" : "/dashboard"} />
         : <Login setUser={setUser} />} />
       <Route path="/login/callback" element={<OktaCallback setUser={setUser} />} />
       <Route path="/login/okta/callback" element={<OktaCallback setUser={setUser} />} />
@@ -185,17 +196,24 @@ function App() {
           ? <PlatformDashboard />
           : <Navigate to="/" />
       } />
+      <Route path="/resource" element={
+        user && accountScope === "afterlight_resource"
+          ? <ResourceDashboard setUser={setUser} />
+          : <Navigate to="/" />
+      } />
 
       {/* ✅ Ensure Clients Redirect Correctly */}
       <Route
         path="/dashboard"
         element={
           user
-            ? platformRole && !assumedOrganization
-              ? <Navigate to="/platform" />
-              : role === "client"
-              ? <Navigate to="/client/dashboard" />
-              : <Dashboard setUser={setUser} />
+            ? accountScope === "afterlight_resource"
+              ? <Navigate to="/resource" />
+              : platformRole && !assumedOrganization
+                ? <Navigate to="/platform" />
+                : role === "client"
+                  ? <Navigate to="/client/dashboard" />
+                  : <Dashboard setUser={setUser} />
             : <Navigate to="/" />
         }
       />
@@ -219,7 +237,7 @@ function App() {
       <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/scheduler" element={<SchedulerWrapper />} />
+      <Route path="/scheduler" element={user && ["admin", "property_manager"].includes(role) ? <SchedulerWrapper /> : <Navigate to="/" />} />
       {/* Payments Page - Only Admins */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
       <Route path="/billing" element={user && role !== "client" ? <Billing /> : <Navigate to="/" />} />

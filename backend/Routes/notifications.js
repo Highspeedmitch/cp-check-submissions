@@ -6,6 +6,15 @@ const Notification = require("../models/notification");
 const router = express.Router();
 const PLATFORMS = ["ios", "android", "web"];
 
+function notificationOwner(req) {
+  return {
+    userId: req.user.userId,
+    ...(req.user.accountScope === "afterlight_resource"
+      ? {}
+      : { organizationId: req.user.organizationId }),
+  };
+}
+
 router.get("/web-push-key", (req, res) => {
   if (!process.env.VAPID_PUBLIC_KEY) {
     return res.status(503).json({ error: "Web Push is not configured." });
@@ -109,10 +118,7 @@ router.delete("/devices", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const query = {
-      userId: req.user.userId,
-      organizationId: req.user.organizationId,
-    };
+    const query = notificationOwner(req);
     if (req.query.unread === "true") query.readAt = null;
     const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(50).lean();
     res.json(notifications);
@@ -133,8 +139,7 @@ router.put("/read", async (req, res) => {
       ? req.body.route.slice(0, 500)
       : "";
     const query = {
-      userId: req.user.userId,
-      organizationId: req.user.organizationId,
+      ...notificationOwner(req),
       type: { $in: types },
       readAt: null,
     };
@@ -154,8 +159,7 @@ router.put("/:notificationId/read", async (req, res) => {
     const notification = await Notification.findOneAndUpdate(
       {
         _id: req.params.notificationId,
-        userId: req.user.userId,
-        organizationId: req.user.organizationId,
+        ...notificationOwner(req),
       },
       { $set: { readAt: new Date() } },
       { new: true }

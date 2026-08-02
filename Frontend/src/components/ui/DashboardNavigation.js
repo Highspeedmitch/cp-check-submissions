@@ -66,6 +66,9 @@ export default function DashboardNavigation({
           {isManagement && (
             <NavButton onClick={() => go("/reporting")}>Reporting</NavButton>
           )}
+          {isManagement && (
+            <NavButton onClick={() => go("/scheduler")}>Scheduler</NavButton>
+          )}
           {orgType === "COM" && role !== "client" && (
             <NavButton badge={notificationBadges.billing} onClick={() => go("/billing")}>Billing</NavButton>
           )}
@@ -79,7 +82,6 @@ export default function DashboardNavigation({
           {isAdmin && (
             <>
               <p className="beta-nav-label">Admin tools</p>
-              <NavButton onClick={() => go("/scheduler")}>Scheduler</NavButton>
               <NavButton onClick={onAddProperty}>Add Property</NavButton>
               {orgType === "COM" && <NavButton onClick={() => go("/admin/users")}>Users</NavButton>}
               {orgType === "COM" && <NavButton onClick={() => go("/organization-form-settings")}>Form Template</NavButton>}

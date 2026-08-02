@@ -12,6 +12,24 @@ const assignmentSchema = new mongoose.Schema({
     enum: ["scheduled", "completed", "canceled"],
     default: "scheduled",
   },
+  resourceProfileId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ResourceProfile",
+    default: null,
+    index: true,
+  },
+  resourceDeploymentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ResourceDeployment",
+    default: null,
+  },
+  compensationSnapshot: {
+    payeeType: { type: String, enum: ["afterlight_contractor"], default: null },
+    rateType: { type: String, enum: ["per_assignment"], default: null },
+    amountCents: { type: Number, min: 0, default: null },
+    currency: { type: String, enum: ["USD"], default: null },
+    snapshottedAt: { type: Date, default: null },
+  },
   notes: { type: String },
   oneTimeCheckRequest: { type: String, default: "" },
   fulfillment: {
@@ -48,5 +66,6 @@ const assignmentSchema = new mongoose.Schema({
 assignmentSchema.index({ propertyName: 1, startDate: 1, organizationId: 1 }, { unique: true });
 assignmentSchema.index({ organizationId: 1, userId: 1, startDate: -1 });
 assignmentSchema.index({ organizationId: 1, "fulfillment.queue": 1, startDate: 1 });
+assignmentSchema.index({ resourceProfileId: 1, status: 1, startDate: 1 });
 
 module.exports = mongoose.model("Assignment", assignmentSchema);

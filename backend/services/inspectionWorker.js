@@ -21,6 +21,7 @@ const { sendSystemEmail } = require("./systemEmail");
 const { sendUserNotification } = require("./notifications");
 const { inspectionSubmitted, assignmentCompleted } = require("./notificationEvents");
 const { legacyFulfillmentSnapshot } = require("./fulfillmentPolicy");
+const { ensureContractorEarning } = require("./contractorEarnings");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -151,6 +152,9 @@ async function ensureSubmission(job, organization, property, assignment) {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
   }
+  if (assignment) {
+    await ensureContractorEarning({ assignment, submission, property });
+  }
   if (!job.submissionId) {
     job.submissionId = submission._id;
     await job.save();
@@ -184,7 +188,12 @@ async function deliverNotifications(job, property, submission, assignment) {
       ...event,
     });
   }
-  if (assignment) await Assignment.deleteOne({ _id: assignment._id });
+  if (assignment) {
+    await Assignment.updateOne(
+      { _id: assignment._id, status: "scheduled" },
+      { $set: { status: "completed" } }
+    );
+  }
   job.notificationsSentAt = new Date();
   await job.save();
 }
@@ -223,11 +232,14 @@ async function processInspectionJob(job) {
     error.permanent = true;
     throw error;
   }
-  const assignment = await Assignment.findOne({
-    organizationId: job.organizationId,
-    propertyName: job.propertyName,
-    userId: job.userId,
-  });
+  const assignment = job.assignmentId
+    ? await Assignment.findById(job.assignmentId)
+    : await Assignment.findOne({
+        organizationId: job.organizationId,
+        propertyName: job.propertyName,
+        userId: job.userId,
+        status: "scheduled",
+      });
   const generated = await ensurePdf(job);
   const submission = await ensureSubmission(job, organization, property, assignment);
   await deliverNotifications(job, property, submission, assignment);

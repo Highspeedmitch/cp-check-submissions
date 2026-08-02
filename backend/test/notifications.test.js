@@ -139,3 +139,31 @@ test("PWA notification is delivered through Web Push", async () => {
   assert.equal(result.successfulDevices, 1);
   assert.equal(result.failedDevices, 0);
 });
+
+test("resource notifications reach devices across deployed customer organizations", async () => {
+  let deviceQuery;
+  const notification = { delivery: {}, async save() {} };
+  await sendUserNotification({
+    organizationId: "customer-org-1",
+    userId: "resource-user-1",
+    recipientScope: "afterlight_resource",
+    type: "assignment_created",
+    title: "New assignment",
+    body: "Broadway Center was assigned to you.",
+    models: {
+      Notification: { async create() { return notification; } },
+      PushToken: {
+        find(query) {
+          deviceQuery = query;
+          return {
+            select() { return this; },
+            async lean() { return []; },
+          };
+        },
+      },
+    },
+    messaging: null,
+  });
+
+  assert.deepEqual(deviceQuery, { userId: "resource-user-1", enabled: true });
+});

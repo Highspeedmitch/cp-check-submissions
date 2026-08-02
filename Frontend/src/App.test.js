@@ -6,6 +6,7 @@ jest.mock("./components/Dashboard", () => () => <div>Dashboard</div>);
 jest.mock("./components/AzRootsScheduler", () => () => <div>AzRoots Scheduler</div>);
 jest.mock("./components/Scheduler", () => () => <div>Scheduler</div>);
 jest.mock("./components/ResidentialForm", () => () => <div>Residential Form</div>);
+jest.mock("./components/ResourceDashboard", () => () => <div>Resource Workspace</div>);
 
 function renderApp(initialPath = "/") {
   return render(
@@ -32,4 +33,14 @@ test("shows the dashboard for an authenticated non-client user", async () => {
   renderApp("/dashboard");
 
   expect(await screen.findByText("Dashboard")).toBeInTheDocument();
+});
+
+test("routes an authenticated Afterlight resource to the shared resource workspace", async () => {
+  localStorage.setItem("token", "test-token");
+  localStorage.setItem("role", "contractor");
+  localStorage.setItem("accountScope", "afterlight_resource");
+
+  renderApp("/dashboard");
+
+  expect(await screen.findByText("Resource Workspace")).toBeInTheDocument();
 });

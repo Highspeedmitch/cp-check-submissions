@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import PageHeader from "./ui/PageHeader";
+import AdminVerificationDialog from "./dashboard/dialogs/AdminVerificationDialog";
 
 const SERVICE_MODEL_LABELS = {
   platform: "Full-stack SaaS",
@@ -30,6 +31,7 @@ export default function ServiceDeliverySettings() {
   const [saving, setSaving] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [policySavePromptVisible, setPolicySavePromptVisible] = useState(false);
 
   const load = async () => {
     const [nextSettings, nextAudit] = await Promise.all([
@@ -53,13 +55,32 @@ export default function ServiceDeliverySettings() {
     return settings.options.sourcePolicies[draft.defaultSource];
   }, [settings, draft]);
 
-  const saveOrganization = async (event) => {
+  const requestOrganizationSave = (event) => {
     event.preventDefault();
+    setMessage("");
+    setError("");
+    const changed = draft.serviceModel !== settings.organization.serviceModel
+      || draft.defaultSource !== settings.organization.defaultSource;
+    if (!changed) {
+      setMessage("No organization policy changes to save.");
+      return;
+    }
+    setPolicySavePromptVisible(true);
+  };
+
+  const saveOrganization = async (passkey) => {
     setSaving("organization");
     setMessage("");
     setError("");
     try {
-      const updated = await api.put("/api/fulfillment/organization", draft);
+      const verification = await api.post("/api/organization-security/grants", {
+        purpose: "update_fulfillment_policy",
+        passkey,
+      });
+      const updated = await api.put("/api/fulfillment/organization", {
+        ...draft,
+        adminActionGrant: verification.grant,
+      });
       setSettings(updated);
       setDraft({
         serviceModel: updated.organization.serviceModel,
@@ -67,8 +88,10 @@ export default function ServiceDeliverySettings() {
       });
       setAudit(await api.get("/api/fulfillment/audit"));
       setMessage("Organization defaults updated. Existing assignments were not changed.");
+      setPolicySavePromptVisible(false);
+      return true;
     } catch (saveError) {
-      setError(saveError.message);
+      throw saveError;
     } finally {
       setSaving("");
     }
@@ -120,7 +143,7 @@ export default function ServiceDeliverySettings() {
                 </div>
                 <span className="beta-status success">Policy v{settings.organization.policyVersion}</span>
               </div>
-              <form className="beta-form-grid" onSubmit={saveOrganization}>
+              <form className="beta-form-grid" onSubmit={requestOrganizationSave}>
                 <label className="beta-form-field">Service model
                   <select value={draft.serviceModel} onChange={(event) => setDraft((current) => ({ ...current, serviceModel: event.target.value }))}>
                     {settings.options.serviceModels.map((value) => <option key={value} value={value}>{SERVICE_MODEL_LABELS[value]}</option>)}
@@ -186,6 +209,15 @@ export default function ServiceDeliverySettings() {
           </>
         )}
       </main>
+      {policySavePromptVisible && (
+        <AdminVerificationDialog
+          title="Save organization policy"
+          description="Enter your organization passkey to apply this service delivery policy to future assignments."
+          continueLabel="Save policy"
+          onVerify={saveOrganization}
+          onClose={() => setPolicySavePromptVisible(false)}
+        />
+      )}
     </div>
   );
 }

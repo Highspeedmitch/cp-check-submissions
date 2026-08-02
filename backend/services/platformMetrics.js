@@ -22,7 +22,7 @@ async function getPlatformOrganizationMetrics({
   recentCutoff.setDate(recentCutoff.getDate() - 30);
 
   const [organizations, users, recentSubmissions, pendingBids, pendingInvoices, pendingAdminInvitations] = await Promise.all([
-    OrganizationModel.aggregate([{
+    OrganizationModel.aggregate([{ $match: { workspaceType: { $ne: "afterlight_workforce" } } }, {
       $project: {
         name: 1,
         orgType: 1,

@@ -1281,6 +1281,28 @@
 .beta-fulfillment-audit-list small { margin-top: 3px; color: var(--beta-muted); }
 .beta-fulfillment-property-row select { width: min(100%, 320px); margin: 0; }
 .beta-fulfillment-audit-list > div { align-items: flex-start; flex-direction: column; gap: 0; }
+.beta-resource-workspace { max-width: 1100px; }
+.beta-resource-header-actions { display: flex; align-items: center; gap: 12px; }
+.beta-resource-earnings-list { display: grid; gap: 10px; }
+.beta-resource-earnings-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--beta-border);
+  border-radius: 8px;
+  background: var(--beta-subtle);
+}
+.beta-resource-earnings-list small { display: block; margin-top: 3px; color: var(--beta-muted); }
+.platform-resource-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr)); gap: 18px; }
+.platform-resource-card { margin-top: 0; }
+.platform-resource-card > .beta-button { margin-top: 18px; }
+.platform-resources select[multiple] { min-height: 110px; }
+.platform-payout-form { align-items: end; margin-top: 18px; }
+.beta-resource-payout-list { display: grid; gap: 10px; }
+.beta-resource-payout-list article { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 16px; padding: 14px 16px; border: 1px solid var(--beta-border); border-radius: 8px; background: var(--beta-subtle); }
+.beta-resource-payout-list small { display: block; margin-top: 3px; color: var(--beta-muted); }
 .scheduler-container.beta-scheduler-shell {
   max-width: 1180px;
   margin: 0 auto;
@@ -1582,6 +1604,9 @@
   .beta-page-header h1 { font-size: 30px; }
   .beta-assignment-grid, .beta-property-grid, .beta-card-grid, .beta-form-grid,
   .beta-dashboard .property-cards, .beta-security-overview, .beta-security-grid { grid-template-columns: 1fr; }
+  .beta-resource-earnings-list > div,
+  .beta-resource-payout-list article { grid-template-columns: 1fr; align-items: start; }
+  .beta-resource-header-actions { flex-wrap: wrap; justify-content: flex-end; }
   .beta-security-overview > div { border-right: 0; border-bottom: 1px solid var(--beta-border); }
   .beta-security-overview > div:last-child { border-bottom: 0; }
   .beta-security-actions { align-items: stretch; flex-direction: column; }

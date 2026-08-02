@@ -23,6 +23,11 @@ const OrganizationInvitationSchema = new mongoose.Schema({
   },
   invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   inviterScope: { type: String, enum: ["platform", "organization"], required: true },
+  accountScope: {
+    type: String,
+    enum: ["organization", "afterlight_resource"],
+    default: "organization",
+  },
   expiresAt: { type: Date, required: true, index: true },
   lastSentAt: { type: Date, default: Date.now },
   acceptedAt: { type: Date, default: null },

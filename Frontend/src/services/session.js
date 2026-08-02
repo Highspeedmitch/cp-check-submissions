@@ -44,6 +44,7 @@ export function storeAuthentication(data) {
   localStorage.setItem("organizationId", data.organizationId);
   localStorage.setItem("orgType", data.orgType);
   localStorage.setItem("role", data.role || "user");
+  localStorage.setItem("accountScope", data.accountScope || "organization");
   if (data.platformRole) localStorage.setItem("platformRole", data.platformRole);
   else localStorage.removeItem("platformRole");
   localStorage.setItem("assumedOrganization", data.assumedOrganization ? "true" : "false");
@@ -56,7 +57,7 @@ export function storeAuthentication(data) {
 
 export function clearAuthentication() {
   ["token", "orgName", "organizationId", "orgType", "role", "userId", "loginTime",
-    "platformRole", "assumedOrganization", "platformSessionId"]
+    "platformRole", "assumedOrganization", "platformSessionId", "accountScope"]
     .forEach((key) => localStorage.removeItem(key));
   window.dispatchEvent(new Event("auth-session-cleared"));
 }

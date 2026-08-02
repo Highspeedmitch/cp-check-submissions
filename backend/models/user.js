@@ -6,6 +6,12 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization" },
+  accountScope: {
+    type: String,
+    enum: ["organization", "afterlight_resource"],
+    default: "organization",
+    index: true,
+  },
   role: { type: String, enum: ["admin", "property_manager", "user", "client", "contractor", "cleaner"], default: "user" },
   platformRole: {
     type: String,

@@ -21,6 +21,7 @@ export default function InviteRegistration() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
+  const isResourceInvitation = invitation?.accountScope === "afterlight_resource";
 
   useEffect(() => {
     if (!token) return;
@@ -58,9 +59,9 @@ export default function InviteRegistration() {
           <aside className="beta-register-intro">
             <img src="/apple-touch-icon.png" alt="" className="beta-register-logo" />
             <p className="beta-eyebrow">Your Afterlight workspace</p>
-            <h2>Join with the right access from the start.</h2>
-            <p>Your organization and role are secured by your invitation, so account setup stays simple.</p>
-            <ul><li>Organization-bound membership</li><li>Role-based workspace access</li><li>Multi-factor protection where required</li></ul>
+            <h2>{isResourceInvitation ? "One identity for every approved deployment." : "Join with the right access from the start."}</h2>
+            <p>{isResourceInvitation ? "Your Afterlight Resource Network account remains independent from customer organizations." : "Your organization and role are secured by your invitation, so account setup stays simple."}</p>
+            <ul>{isResourceInvitation ? <><li>One shared Afterlight login</li><li>Deployment-based property access</li><li>Independent earnings history</li></> : <><li>Organization-bound membership</li><li>Role-based workspace access</li><li>Multi-factor protection where required</li></>}</ul>
           </aside>
 
           <section className="beta-panel beta-register-card beta-invite-registration-card">

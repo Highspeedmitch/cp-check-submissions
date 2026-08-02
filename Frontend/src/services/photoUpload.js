@@ -73,10 +73,11 @@ function flattenPhotoGroups(photoGroups = {}) {
   );
 }
 
-function inspectionDraftIdentity({ property, orgType, responses, photos }) {
+function inspectionDraftIdentity({ property, orgType, assignmentId, responses, photos }) {
   return JSON.stringify({
     property,
     orgType,
+    assignmentId,
     responses,
     photos: photos.map(({ fieldName, file }) => ({
       fieldName,
@@ -139,15 +140,17 @@ export async function submitInspectionJob({
   orgType,
   responses,
   photoGroups,
+  assignmentId = "",
   onProgress,
 }) {
   const photos = flattenPhotoGroups(photoGroups);
-  const fingerprint = inspectionDraftIdentity({ property, orgType, responses, photos });
+  const fingerprint = inspectionDraftIdentity({ property, orgType, assignmentId, responses, photos });
   const draft = draftIdempotency(property, fingerprint);
   onProgress?.({ phase: "preparing", total: photos.length });
   const prepared = await api.post("/api/inspection-jobs", {
     property,
     orgType,
+    assignmentId: assignmentId || undefined,
     responses,
     idempotencyKey: draft.key,
     photos: photos.map(({ fieldName, file }) => ({ fieldName, fileName: file.name })),

@@ -109,6 +109,13 @@ function Scheduler() {
     || fulfillmentSettings?.organization?.defaultSource
     || "afterlight_staff";
   const effectivePolicy = SOURCE_POLICIES[effectiveFulfillmentSource] || SOURCE_POLICIES.afterlight_staff;
+  const eligibleUsers = users.filter((user) => {
+    const isAfterlightResource = user.accountScope === "afterlight_resource";
+    if (effectiveFulfillmentSource !== "afterlight_contractor") return !isAfterlightResource;
+    if (!isAfterlightResource) return false;
+    if (!selectedProperty || !(user.propertyIds || []).length) return true;
+    return user.propertyIds.map(String).includes(String(selectedProperty._id));
+  });
 
   // Handle form submission (New or Editing)
   const handleSaveAssignment = async (e) => {
@@ -172,23 +179,6 @@ function Scheduler() {
         setEditingAssignment(null);
         setNewAssignment(EMPTY_ASSIGNMENT);
   
-        // ✅ Send push notification
-        const notifResponse = await fetch(
-          apiUrl("/api/send-push-notification"),
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              userId: newAssignment.userId,
-              propertyName: newAssignment.propertyName,
-            }),
-          }
-        );
-  
-        await notifResponse.json();
       } else {
         console.error("❌ Server error:", data);
         alert("❌ " + (data.error || "Failed to save assignment."));
@@ -326,7 +316,7 @@ const events = assignments.map((assignment) => {
   <label>Property:</label>
   <select
     value={newAssignment.propertyName}
-    onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value, fulfillmentSource: "", fulfillmentOverrideReason: "" })}
+    onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value, userId: "", fulfillmentSource: "", fulfillmentOverrideReason: "" })}
     required
   >
     <option value="">Select Property</option>
@@ -342,15 +332,17 @@ const events = assignments.map((assignment) => {
     required
   >
     <option value="">Select User</option>
-    {users.map((user) => (
-      <option key={user._id} value={user._id}>{user.email} ({user.role})</option>
+    {eligibleUsers.map((user) => (
+      <option key={user._id} value={user._id}>
+        {user.displayName || user.email} ({user.accountScope === "afterlight_resource" ? `Afterlight contractor · ${(user.rateCents / 100).toLocaleString("en-US", { style: "currency", currency: user.currency || "USD" })}` : user.role})
+      </option>
     ))}
   </select>
 
   <label>Fulfillment:</label>
   <select
     value={newAssignment.fulfillmentSource}
-    onChange={(e) => setNewAssignment({ ...newAssignment, fulfillmentSource: e.target.value })}
+    onChange={(e) => setNewAssignment({ ...newAssignment, userId: "", fulfillmentSource: e.target.value })}
   >
     <option value="">
       {editingAssignment

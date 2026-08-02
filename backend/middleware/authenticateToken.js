@@ -24,7 +24,7 @@ const authenticateToken = (req, res, next) => {
     }
     try {
       const currentUser = await User.findById(user.userId)
-        .select("accountStatus tokenVersion role organizationId platformRole")
+        .select("accountStatus tokenVersion role organizationId platformRole accountScope")
         .lean();
       if (!currentUser || currentUser.accountStatus === "inactive") {
         return res.status(403).json({ message: "Account is inactive." });
@@ -70,6 +70,7 @@ const authenticateToken = (req, res, next) => {
         ...user,
         role: isAssumedAccess ? "admin" : currentUser.role,
         platformRole: currentUser.platformRole || null,
+        accountScope: currentUser.accountScope || "organization",
         organizationId: isAssumedAccess
           ? String(user.organizationId)
           : currentUser.organizationId.toString(),

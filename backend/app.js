@@ -34,6 +34,8 @@ function createApp() {
   app.use("/api/inspection-jobs", authenticateToken, require("./Routes/inspectionJobs"));
   app.use("/api/reporting", authenticateToken, require("./Routes/reporting"));
   app.use("/api/platform", require("./Routes/platform"));
+  app.use("/api/platform-resources", require("./Routes/platformResources"));
+  app.use("/api/resource-workspace", authenticateToken, require("./Routes/resourceWorkspace"));
   app.use("/api/client", authenticateToken, require("./Routes/ClientRoutes"));
   app.use("/api/airbnb-calendar", require("./Routes/airbnbCalendar"));
   app.use("/api/azroots/properties", authenticateToken, require("./Routes/azrootsProperties"));

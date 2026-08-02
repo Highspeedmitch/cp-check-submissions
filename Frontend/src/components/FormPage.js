@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import { submitInspectionJob } from "../services/photoUpload";
 import PageHeader from "./ui/PageHeader";
@@ -16,6 +16,9 @@ import {
 export default function FormPage() {
   const { property } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const assignmentId = searchParams.get("assignmentId") || "";
+  const dashboardPath = localStorage.getItem("accountScope") === "afterlight_resource" ? "/resource" : "/dashboard";
   const [template, setTemplate] = useState(null);
   const [responses, setResponses] = useState({});
   const [photos, setPhotos] = useState({});
@@ -41,7 +44,7 @@ export default function FormPage() {
     setLoading(true);
     const userId = localStorage.getItem("userId");
     Promise.all([
-      api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective`),
+      api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective${assignmentId ? `?assignmentId=${encodeURIComponent(assignmentId)}` : ""}`),
       api.get("/api/assignments").catch((assignmentError) => {
         console.error("Unable to load assignment instructions:", assignmentError);
         return [];
@@ -58,6 +61,7 @@ export default function FormPage() {
           ? assignments.find((item) => (
             String(item.userId) === String(userId)
             && item.propertyName === property
+            && (!assignmentId || String(item._id) === String(assignmentId))
           ))
           : null;
         setAssignmentInstructions(assignment?.oneTimeCheckRequest || "");
@@ -66,7 +70,7 @@ export default function FormPage() {
       .catch((err) => active && setError(err.message))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [property]);
+  }, [assignmentId, property]);
 
   const sections = useMemo(() => {
     if (!template) return [];
@@ -100,6 +104,7 @@ export default function FormPage() {
         key: draftKey,
         responses,
         photoGroups: photos,
+        assignmentId,
         metadata: draftMetadata,
       });
       const result = await submitInspectionJob({
@@ -193,7 +198,7 @@ export default function FormPage() {
     <div className="beta-page">
       <main className="beta-page-shell beta-inspection-page">
         <PageHeader
-          onBack={() => navigate("/dashboard")}
+          onBack={() => navigate(dashboardPath)}
           eyebrow={property}
           title={template?.title || "Commercial Property Inspection Checklist"}
           subtitle="Complete the property inspection and attach photos for any issues."
@@ -227,7 +232,7 @@ export default function FormPage() {
           <section className="beta-panel">
             <h2>Inspection complete</h2>
             <p>{message}</p>
-            <button className="beta-button" onClick={() => navigate("/dashboard")}>
+            <button className="beta-button" onClick={() => navigate(dashboardPath)}>
               Return to Dashboard
             </button>
           </section>

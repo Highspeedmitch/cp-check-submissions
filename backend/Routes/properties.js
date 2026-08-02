@@ -9,6 +9,7 @@ const { managedProperties, canAccessProperty } = require("../services/propertyAc
 const { normalizePropertyEmails } = require("../services/propertyEmails");
 const { normalizePropertyDetails } = require("../services/propertyDetails");
 const { propertyDefaultSource } = require("../services/fulfillmentPolicy");
+const { assignedResourceContext } = require("../services/resourceAccess");
 
 router.get("/", async (req, res) => {
   try {
@@ -298,12 +299,19 @@ router.get(
 
 router.get("/:propertyName", async (req, res) => {
   try {
-    const organization = await Organization.findById(req.user.organizationId);
+    const propertyName = decodeURIComponent(req.params.propertyName);
+    const context = await assignedResourceContext({
+      user: req.user,
+      assignmentId: req.query.assignmentId,
+      propertyName,
+    });
+    const organization = context?.organization
+      || await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found" });
     }
-    const propertyName = decodeURIComponent(req.params.propertyName);
-    const property = organization.properties.find((item) => item.name === propertyName);
+    const property = context?.property
+      || organization.properties.find((item) => item.name === propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
@@ -314,7 +322,9 @@ router.get("/:propertyName", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching property details:", error);
-    return res.status(500).json({ error: "Server error retrieving property details" });
+    return res.status(error.status || 500).json({
+      error: error.status ? error.message : "Server error retrieving property details",
+    });
   }
 });
 

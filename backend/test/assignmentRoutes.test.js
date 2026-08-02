@@ -134,6 +134,7 @@ test("assignment creation retains admin and organization scoping", async () => {
   assert.deepEqual(userQuery.accountStatus, { $ne: "inactive" });
   assert.equal(overlapQuery.organizationId, "org-1");
   assert.equal(overlapQuery.propertyName, "Broadway Center");
+  assert.equal(overlapQuery.status, "scheduled");
   assert.equal(savedAssignment.organizationId, "org-1");
   assert.equal(savedAssignment.eventType, "Maintenance");
   assert.equal(savedAssignment.fulfillment.source, "afterlight_staff");
@@ -210,6 +211,63 @@ test("assignment fulfillment overrides are snapshotted and audited", async () =>
   assert.equal(auditEntry.reason, "Customer team has coverage");
 });
 
+test("Afterlight contractor assignments retain deployment and immutable compensation links", async () => {
+  let savedAssignment;
+  let notification;
+  class AssignmentModel {
+    constructor(data) {
+      Object.assign(this, data);
+      this._id = "assignment-resource-1";
+    }
+    async save() { savedAssignment = this; }
+    static async findOne() { return null; }
+  }
+  const snapshot = {
+    payeeType: "afterlight_contractor",
+    rateType: "per_assignment",
+    amountCents: 6250,
+    currency: "USD",
+    snapshottedAt: new Date("2026-08-02T12:00:00.000Z"),
+  };
+  const handlers = createAssignmentHandlers({
+    AssignmentModel,
+    OrganizationModel: {
+      async findById() {
+        return {
+          serviceModel: "managed",
+          fulfillmentPolicy: { defaultSource: "afterlight_contractor", version: 2 },
+          properties: [{ _id: "property-1", name: "Broadway Center", fulfillmentPolicy: { defaultSource: null } }],
+        };
+      },
+    },
+    resolveAssignee: async () => ({
+      userId: "resource-user-1",
+      resourceProfileId: "resource-1",
+      resourceDeploymentId: "deployment-1",
+      compensationSnapshot: snapshot,
+    }),
+    notifyUser: async (payload) => { notification = payload; },
+  });
+  const res = response();
+
+  await handlers.createAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    body: {
+      propertyName: "Broadway Center",
+      userId: "resource-user-1",
+      startDate: "2026-08-12T12:00:00.000Z",
+      endDate: "2026-08-12T13:00:00.000Z",
+    },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(savedAssignment.resourceProfileId, "resource-1");
+  assert.equal(savedAssignment.resourceDeploymentId, "deployment-1");
+  assert.equal(savedAssignment.compensationSnapshot, snapshot);
+  assert.equal(notification.route, "/resource");
+  assert.equal(notification.recipientScope, "afterlight_resource");
+});
+
 test("property managers only list assignments for managed properties", async () => {
   let assignmentQuery;
   const assignments = [{ _id: "assignment-1" }];
@@ -271,6 +329,7 @@ test("ordinary users only list their own assignments", async () => {
 
   assert.deepEqual(assignmentQuery, {
     organizationId: "org-1",
+    status: "scheduled",
     userId: "user-1",
   });
 });
@@ -290,6 +349,7 @@ test("scheduler user lookup retains organization and role filters", async () => 
         };
       },
     },
+    schedulerResources: async () => [],
   });
   const res = response();
 
@@ -298,7 +358,7 @@ test("scheduler user lookup retains organization and role filters", async () => 
     query: { roles: "all" },
   }, res);
 
-  assert.equal(res.body, users);
+  assert.deepEqual(res.body, users);
   assert.equal(userQuery.organizationId, "org-1");
   assert.deepEqual(userQuery.role, {
     $in: ["user", "contractor", "cleaner"],
@@ -307,12 +367,12 @@ test("scheduler user lookup retains organization and role filters", async () => 
 
 test("assignment updates remain scoped to the authenticated organization", async () => {
   let updateQuery;
-  const updated = { _id: "assignment-1", propertyName: "San Clemente" };
+  const updated = { _id: "assignment-1", notes: "Gate code confirmed" };
   const handlers = createAssignmentHandlers({
     AssignmentModel: {
       async findOneAndUpdate(query, changes, options) {
         updateQuery = query;
-        assert.deepEqual(changes, { propertyName: "San Clemente" });
+        assert.deepEqual(changes, { notes: "Gate code confirmed" });
         assert.deepEqual(options, { new: true });
         return updated;
       },
@@ -323,14 +383,104 @@ test("assignment updates remain scoped to the authenticated organization", async
   await handlers.updateAssignment({
     user: { role: "admin", organizationId: "org-1" },
     params: { id: "assignment-1" },
-    body: { propertyName: "San Clemente" },
+    body: { notes: "Gate code confirmed" },
   }, res);
 
   assert.deepEqual(updateQuery, {
     _id: "assignment-1",
     organizationId: "org-1",
+    status: "scheduled",
   });
   assert.deepEqual(res.body, { success: true, assignment: updated });
+});
+
+test("property managers cannot move assignments outside their managed property scope", async () => {
+  const organization = {
+    serviceModel: "managed",
+    properties: [
+      { _id: "property-1", name: "Managed Property" },
+      { _id: "property-2", name: "Unmanaged Property" },
+    ],
+  };
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: { async findById() { return organization; } },
+    AssignmentModel: {
+      async findOne() {
+        return {
+          _id: "assignment-1",
+          propertyName: "Managed Property",
+          userId: "user-1",
+          startDate: new Date("2026-08-10T12:00:00.000Z"),
+          fulfillment: { source: "afterlight_staff" },
+        };
+      },
+      async findOneAndUpdate() {
+        assert.fail("an out-of-scope update must not be written");
+      },
+    },
+    managedPropertiesForUser: () => [organization.properties[0]],
+  });
+  const res = response();
+
+  await handlers.updateAssignment({
+    user: { role: "property_manager", userId: "pm-1", organizationId: "org-1" },
+    params: { id: "assignment-1" },
+    body: { propertyName: "Unmanaged Property" },
+  }, res);
+
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(res.body, { error: "You do not manage this property." });
+});
+
+test("rescheduling the same contractor revalidates deployment without changing the agreed rate", async () => {
+  const originalSnapshot = {
+    payeeType: "afterlight_contractor",
+    rateType: "per_assignment",
+    amountCents: 6250,
+    currency: "USD",
+  };
+  let writtenChanges;
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: {
+      async findById() {
+        return { properties: [{ _id: "property-1", name: "Broadway Center" }] };
+      },
+    },
+    AssignmentModel: {
+      async findOne() {
+        return {
+          _id: "assignment-1",
+          propertyName: "Broadway Center",
+          userId: "resource-user-1",
+          resourceProfileId: "resource-1",
+          startDate: new Date("2026-08-10T12:00:00.000Z"),
+          fulfillment: { source: "afterlight_contractor" },
+          compensationSnapshot: originalSnapshot,
+        };
+      },
+      async findOneAndUpdate(_query, changes) {
+        writtenChanges = changes;
+        return { _id: "assignment-1", ...changes };
+      },
+    },
+    resolveAssignee: async () => ({
+      userId: "resource-user-1",
+      resourceProfileId: "resource-1",
+      resourceDeploymentId: "deployment-1",
+      compensationSnapshot: { ...originalSnapshot, amountCents: 9000 },
+    }),
+  });
+  const res = response();
+
+  await handlers.updateAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    params: { id: "assignment-1" },
+    body: { startDate: "2026-08-12T12:00:00.000Z" },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(writtenChanges.compensationSnapshot, originalSnapshot);
+  assert.equal(writtenChanges.resourceDeploymentId, "deployment-1");
 });
 
 test("assignment deletion remains scoped to the authenticated organization", async () => {
@@ -353,6 +503,7 @@ test("assignment deletion remains scoped to the authenticated organization", asy
   assert.deepEqual(deleteQuery, {
     _id: "assignment-1",
     organizationId: "org-1",
+    status: "scheduled",
   });
   assert.deepEqual(res.body, {
     success: true,
@@ -379,7 +530,7 @@ test("non-admin users cannot update or delete assignments", async () => {
   assert.deepEqual(deleteResponse.body, { error: "Forbidden" });
 });
 
-test("assignment updates discard tenant and audit fields from request bodies", async () => {
+test("assignment updates discard tenant, audit, and completion fields from request bodies", async () => {
   let changes;
   const handlers = createAssignmentHandlers({
     AssignmentModel: {
@@ -397,8 +548,9 @@ test("assignment updates discard tenant and audit fields from request bodies", a
       status: "completed",
       organizationId: "org-2",
       createdAt: "forged",
+      notes: "Gate code confirmed",
     },
   }, response());
 
-  assert.deepEqual(changes, { status: "completed" });
+  assert.deepEqual(changes, { notes: "Gate code confirmed" });
 });

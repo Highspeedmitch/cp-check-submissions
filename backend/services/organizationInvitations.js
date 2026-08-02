@@ -61,6 +61,7 @@ async function createInvitation({
   propertyIds = [],
   invitedBy,
   inviterScope,
+  accountScope = "organization",
   InvitationModel = OrganizationInvitation,
   UserModel = User,
   sendEmail = sendSystemEmail,
@@ -91,6 +92,7 @@ async function createInvitation({
     tokenHash: hashInvitationToken(token),
     invitedBy,
     inviterScope,
+    accountScope,
     expiresAt: new Date(now.getTime() + INVITATION_LIFETIME_MS),
     lastSentAt: now,
   });

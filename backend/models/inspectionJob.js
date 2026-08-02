@@ -23,6 +23,12 @@ const InspectionJobSchema = new mongoose.Schema({
     index: true,
   },
   propertyId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  assignmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Assignment",
+    default: null,
+    index: true,
+  },
   propertyName: { type: String, required: true },
   orgType: { type: String, enum: ["COM", "LTR", "RES", "STR"], required: true },
   idempotencyKey: { type: String, required: true },

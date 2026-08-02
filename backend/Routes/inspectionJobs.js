@@ -10,6 +10,9 @@ const {
 const router = express.Router();
 
 function canViewJob(job, user) {
+  if (user.accountScope === "afterlight_resource") {
+    return String(job.userId) === String(user.userId);
+  }
   return String(job.organizationId) === String(user.organizationId)
     && (String(job.userId) === String(user.userId) || isManagementRole(user));
 }

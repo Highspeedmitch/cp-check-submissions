@@ -41,6 +41,7 @@ function accessTokenPayload(user, authentication = {}) {
     userId: user._id,
     tokenVersion: user.tokenVersion || 0,
     orgType: organization.orgType,
+    accountScope: user.accountScope || "organization",
     ...(authentication.mfaAuthenticatedAt
       ? { mfaAuthenticatedAt: authentication.mfaAuthenticatedAt }
       : {}),
@@ -56,6 +57,7 @@ function authResponse(user, secretKey, authentication = {}) {
     orgType: payload.orgType,
     role: payload.role,
     platformRole: payload.platformRole,
+    accountScope: payload.accountScope,
     assumedOrganization: false,
   };
 }

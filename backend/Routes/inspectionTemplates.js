@@ -6,6 +6,7 @@ const {
   normalizePropertyOverride,
   validateFields,
 } = require("../services/inspectionTemplates");
+const { assignedResourceContext } = require("../services/resourceAccess");
 
 const router = express.Router();
 
@@ -55,10 +56,16 @@ router.put("/organization", async (req, res) => {
 
 router.get("/properties/:propertyName/effective", async (req, res) => {
   try {
-    const result = await resolvePropertyInspectionTemplate({
-      organizationId: req.user.organizationId,
-      propertyName: decodeURIComponent(req.params.propertyName),
+    const context = await assignedResourceContext({
       user: req.user,
+      assignmentId: req.query.assignmentId,
+      propertyName: decodeURIComponent(req.params.propertyName),
+    });
+    const organizationId = context?.organization?._id || req.user.organizationId;
+    const result = await resolvePropertyInspectionTemplate({
+      organizationId,
+      propertyName: decodeURIComponent(req.params.propertyName),
+      user: context ? { ...req.user, role: "admin", organizationId } : req.user,
     });
     res.json({
       property: { _id: result.property._id, name: result.property.name },

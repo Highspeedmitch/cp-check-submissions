@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 const InspectionJob = require("../models/inspectionJob");
 const Organization = require("../models/organization");
+const Assignment = require("../models/assignment");
 const { canAccessProperty } = require("./propertyAccess");
 const {
   resolvePropertyInspectionTemplate,
@@ -12,6 +13,7 @@ const {
   createPhotoUploadPost,
   inspectUploadedPhoto,
 } = require("./inspectionStorage");
+const { assignedResourceContext } = require("./resourceAccess");
 
 const MAX_PHOTOS = 10;
 const MAX_PHOTOS_PER_FIELD = 6;
@@ -106,7 +108,13 @@ function jobResponse(job, uploads = []) {
   };
 }
 
-async function createInspectionJob({ user, body, JobModel = InspectionJob }) {
+async function createInspectionJob({
+  user,
+  body,
+  JobModel = InspectionJob,
+  OrganizationModel = Organization,
+  AssignmentModel = Assignment,
+}) {
   const propertyName = String(body.property || body.selectedProperty || "").trim();
   if (!propertyName) {
     const error = new Error("Property name is required.");
@@ -115,21 +123,36 @@ async function createInspectionJob({ user, body, JobModel = InspectionJob }) {
   }
   const idempotencyKey = validateIdempotencyKey(body.idempotencyKey);
   let submissionData = cleanSubmissionData(body.responses || {});
-  const organizationId = user.organizationId;
-
-  let organization = await Organization.findById(organizationId);
+  let organizationId = user.organizationId;
+  let resourceAssignment = null;
+  let organization;
+  let property;
+  if (user.accountScope === "afterlight_resource") {
+    const context = await assignedResourceContext({
+      user,
+      assignmentId: body.assignmentId,
+      propertyName,
+      AssignmentModel,
+      OrganizationModel,
+    });
+    resourceAssignment = context.assignment;
+    organization = context.organization;
+    property = context.property;
+    organizationId = organization._id;
+  } else {
+    organization = await OrganizationModel.findById(organizationId);
+  }
   if (!organization) {
     const error = new Error("Organization not found.");
     error.status = 404;
     throw error;
   }
-  let property;
   let templateSnapshot = null;
   if (organization.orgType === "COM") {
     const result = await resolvePropertyInspectionTemplate({
       organizationId,
       propertyName,
-      user,
+      user: resourceAssignment ? { ...user, role: "admin", organizationId } : user,
     });
     organization = result.organization;
     property = result.property;
@@ -158,13 +181,13 @@ async function createInspectionJob({ user, body, JobModel = InspectionJob }) {
       return values;
     }));
   } else {
-    property = organization.properties.find((item) => item.name === propertyName);
+    property = property || organization.properties.find((item) => item.name === propertyName);
     if (!property) {
       const error = new Error("Property not found.");
       error.status = 404;
       throw error;
     }
-    if (!canAccessProperty(property, user)) {
+    if (!resourceAssignment && !canAccessProperty(property, user)) {
       const error = new Error("You do not manage this property.");
       error.status = 403;
       throw error;
@@ -194,6 +217,7 @@ async function createInspectionJob({ user, body, JobModel = InspectionJob }) {
       organizationId,
       userId: user.userId,
       propertyId: property._id,
+      assignmentId: resourceAssignment?._id || null,
       propertyName: property.name,
       orgType,
       idempotencyKey,

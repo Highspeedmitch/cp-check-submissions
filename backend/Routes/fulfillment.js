@@ -11,11 +11,19 @@ const {
   organizationDefaultSource,
   propertyDefaultSource,
 } = require("../services/fulfillmentPolicy");
+const { consumeGrant } = require("../services/organizationPasskeys");
 
 const router = express.Router();
 
 function requireOrganizationAdmin(req, res, next) {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Organization administrator access required." });
+  return next();
+}
+
+function requireOrganizationManagement(req, res, next) {
+  if (!["admin", "property_manager"].includes(req.user.role)) {
+    return res.status(403).json({ error: "Organization management access required." });
+  }
   return next();
 }
 
@@ -55,7 +63,7 @@ function serializeSettings(organization) {
   };
 }
 
-router.get("/", requireOrganizationAdmin, async (req, res) => {
+router.get("/", requireOrganizationManagement, async (req, res) => {
   try {
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) return res.status(404).json({ error: "Organization not found." });
@@ -65,55 +73,79 @@ router.get("/", requireOrganizationAdmin, async (req, res) => {
   }
 });
 
-router.put("/organization", requireOrganizationAdmin, async (req, res) => {
-  try {
-    const organization = await Organization.findById(req.user.organizationId);
-    if (!organization) return res.status(404).json({ error: "Organization not found." });
+function createFulfillmentHandlers({
+  OrganizationModel = Organization,
+  FulfillmentAuditModel = FulfillmentAudit,
+  consumeAdminGrant = consumeGrant,
+} = {}) {
+  async function updateOrganization(req, res) {
+    try {
+      const organization = await OrganizationModel.findById(req.user.organizationId);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
 
-    const previousValue = {
-      serviceModel: organization.serviceModel || "managed",
-      defaultSource: organizationDefaultSource(organization),
-      policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
-    };
-    const serviceModel = validateServiceModel(req.body.serviceModel ?? previousValue.serviceModel);
-    const defaultSource = validateFulfillmentSource(
-      req.body.defaultSource ?? (serviceModel !== previousValue.serviceModel
-        ? SERVICE_MODEL_DEFAULTS[serviceModel]
-        : previousValue.defaultSource)
-    );
-    const changed = serviceModel !== previousValue.serviceModel || defaultSource !== previousValue.defaultSource;
-    if (!changed) return res.json(serializeSettings(organization));
+      const previousValue = {
+        serviceModel: organization.serviceModel || "managed",
+        defaultSource: organizationDefaultSource(organization),
+        policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
+      };
+      const serviceModel = validateServiceModel(req.body.serviceModel ?? previousValue.serviceModel);
+      const defaultSource = validateFulfillmentSource(
+        req.body.defaultSource ?? (serviceModel !== previousValue.serviceModel
+          ? SERVICE_MODEL_DEFAULTS[serviceModel]
+          : previousValue.defaultSource)
+      );
+      const changed = serviceModel !== previousValue.serviceModel || defaultSource !== previousValue.defaultSource;
+      if (!changed) return res.json(serializeSettings(organization));
 
-    organization.serviceModel = serviceModel;
-    organization.fulfillmentPolicy = {
-      defaultSource,
-      version: previousValue.policyVersion + 1,
-      updatedBy: req.user.userId,
-      updatedAt: new Date(),
-    };
-    await organization.save();
-    await FulfillmentAudit.create({
-      organizationId: organization._id,
-      ...requestAuditDetails(req),
-      entityType: "organization",
-      entityId: organization._id.toString(),
-      action: "organization_fulfillment_policy_updated",
-      previousValue,
-      nextValue: {
-        serviceModel,
+      const verified = await consumeAdminGrant({
+        organization,
+        userId: req.user.userId,
+        purpose: "update_fulfillment_policy",
+        token: req.body.adminActionGrant,
+      });
+      if (!verified) {
+        return res.status(403).json({
+          error: "Administrative verification expired or is invalid.",
+        });
+      }
+
+      organization.serviceModel = serviceModel;
+      organization.fulfillmentPolicy = {
         defaultSource,
-        policyVersion: organization.fulfillmentPolicy.version,
-      },
-      reason: String(req.body.reason || "").trim(),
-      metadata: { appliesTo: "future_assignments_only" },
-    });
-    return res.json(serializeSettings(organization));
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      error: error.status ? error.message : "Unable to update service delivery settings.",
-    });
+        version: previousValue.policyVersion + 1,
+        updatedBy: req.user.userId,
+        updatedAt: new Date(),
+      };
+      await organization.save();
+      await FulfillmentAuditModel.create({
+        organizationId: organization._id,
+        ...requestAuditDetails(req),
+        entityType: "organization",
+        entityId: organization._id.toString(),
+        action: "organization_fulfillment_policy_updated",
+        previousValue,
+        nextValue: {
+          serviceModel,
+          defaultSource,
+          policyVersion: organization.fulfillmentPolicy.version,
+        },
+        reason: String(req.body.reason || "").trim(),
+        metadata: { appliesTo: "future_assignments_only" },
+      });
+      return res.json(serializeSettings(organization));
+    } catch (error) {
+      return res.status(error.status || 500).json({
+        error: error.status ? error.message : "Unable to update service delivery settings.",
+      });
+    }
   }
-});
+
+  return { updateOrganization };
+}
+
+const fulfillmentHandlers = createFulfillmentHandlers();
+
+router.put("/organization", requireOrganizationAdmin, fulfillmentHandlers.updateOrganization);
 
 router.put("/properties/:propertyId", requireOrganizationAdmin, async (req, res) => {
   try {
@@ -167,3 +199,4 @@ router.get("/audit", requireOrganizationAdmin, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.createFulfillmentHandlers = createFulfillmentHandlers;

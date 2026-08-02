@@ -108,6 +108,12 @@ const PropertySchema = new mongoose.Schema({
 
 const OrganizationSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
+  workspaceType: {
+    type: String,
+    enum: ["customer", "afterlight_workforce"],
+    default: "customer",
+    index: true,
+  },
   orgType: { 
     type: String, 
     enum: ["COM", "RES", "LTR", "STR"],

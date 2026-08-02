@@ -53,6 +53,7 @@ async function sendUserNotification({
   body,
   route = "/dashboard",
   entityId = "",
+  recipientScope = "organization",
   models = { PushToken, WebPushSubscription, Notification },
   messaging = firebaseAdmin.apps.length ? firebaseAdmin.messaging() : null,
   webPushClient = webPushConfigured ? webPush : null,
@@ -66,16 +67,15 @@ async function sendUserNotification({
     route,
     entityId: entityId ? String(entityId) : "",
   });
-  const devices = await models.PushToken.find({
-    organizationId,
+  const recipientQuery = {
     userId,
     enabled: true,
-  }).select("token").lean();
+    ...(recipientScope === "afterlight_resource" ? {} : { organizationId }),
+  };
+  const devices = await models.PushToken.find(recipientQuery).select("token").lean();
   const webSubscriptions = models.WebPushSubscription
     ? await models.WebPushSubscription.find({
-      organizationId,
-      userId,
-      enabled: true,
+      ...recipientQuery,
     }).select("endpoint keys").lean()
     : [];
 
