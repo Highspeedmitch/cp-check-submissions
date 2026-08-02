@@ -50,7 +50,7 @@ const TIMEZONES = [
   "America/New_York",
 ];
 
-function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganization, onLogout }) {
+function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganization, onHelp, onLogout }) {
   const go = (view) => {
     onView(view);
     onClose();
@@ -73,6 +73,7 @@ function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganizati
           <p className="beta-nav-label">Platform</p>
           <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}>Overview</button>
           <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}>Resources &amp; Payables</button>
+          <button type="button" className="beta-nav-item" onClick={() => { onHelp(); onClose(); }}>Help Center</button>
           <button type="button" className="beta-nav-item platform-new-org-button" onClick={() => { onNewOrganization(); onClose(); }}>
             <span>New Organization</span><span aria-hidden="true">+</span>
           </button>
@@ -282,7 +283,7 @@ export default function PlatformDashboard() {
   return (
     <div className="beta-dashboard platform-dashboard">
       <PlatformNavigation open={navOpen} activeView={activeView} onClose={() => setNavOpen(false)} onView={setActiveView}
-        onNewOrganization={() => { setOrganizationError(""); setNewOrganizationOpen(true); }} onLogout={logout} />
+        onNewOrganization={() => { setOrganizationError(""); setNewOrganizationOpen(true); }} onHelp={() => navigate("/help")} onLogout={logout} />
       <div className="beta-dashboard-main platform-dashboard-main">
         <div className="beta-mobile-topbar">
           <button type="button" className="beta-menu-button" onClick={() => setNavOpen(true)} aria-label="Open menu">☰</button>

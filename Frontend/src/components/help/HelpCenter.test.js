@@ -50,3 +50,15 @@ test("search narrows the role-visible article list", () => {
   expect(screen.getByRole("heading", { name: "Create and manage a scheduler assignment" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Review inspection submissions for a property" })).not.toBeInTheDocument();
 });
+
+test("shows the platform operations guide to a platform administrator", () => {
+  localStorage.setItem("platformRole", "platform_admin");
+  renderHelpCenter("admin");
+
+  expect(screen.getByRole("heading", {
+    name: "Manage Afterlight resources and contractor payables",
+  })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", {
+    name: "Create and manage a scheduler assignment",
+  })).not.toBeInTheDocument();
+});

@@ -34,6 +34,7 @@ for (const article of articles) {
   if (!article.file || files.has(article.file)) fail(`Duplicate or missing file: ${article.file || "(empty)"}`);
   if (!Array.isArray(article.roles) || !article.roles.length) fail(`${article.slug} has no roles.`);
   if (!Array.isArray(article.accountScopes) || !article.accountScopes.length) fail(`${article.slug} has no account scopes.`);
+  if (article.platformRoles && !Array.isArray(article.platformRoles)) fail(`${article.slug} has invalid platform roles.`);
   if (!Array.isArray(article.orgTypes) || !article.orgTypes.length) fail(`${article.slug} has no organization types.`);
   const articlePath = path.join(sourceRoot, article.file);
   if (!fs.existsSync(articlePath)) fail(`${article.file} does not exist.`);

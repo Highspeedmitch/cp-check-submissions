@@ -29,6 +29,7 @@ test("authentication router preserves public session and recovery paths", () => 
     { path: "/auth/okta/challenge", methods: ["post"] },
     { path: "/auth/okta", methods: ["post"] },
     { path: "/auth/refresh", methods: ["post"] },
+    { path: "/auth/workspace", methods: ["post"] },
     { path: "/auth/logout", methods: ["post"] },
     { path: "/forgot-password", methods: ["post"] },
     { path: "/reset-password", methods: ["post"] },

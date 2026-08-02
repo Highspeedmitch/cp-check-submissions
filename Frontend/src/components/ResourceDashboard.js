@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
 import ThemeToggle from "./ui/ThemeToggle";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
 const STATUS_LABELS = {
   pending_approval: "Pending approval",
@@ -61,6 +62,7 @@ export default function ResourceDashboard({ setUser }) {
           subtitle="Review assigned work and track contractor earnings separately from customer billing."
           actions={(
             <div className="beta-resource-header-actions">
+              <WorkspaceSwitcher />
               <button type="button" className="beta-back-link" onClick={() => navigate("/help")}>Help Center</button>
               <ThemeToggle />
               <button type="button" className="beta-back-link" onClick={logout}>Log out</button>

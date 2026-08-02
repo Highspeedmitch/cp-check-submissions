@@ -4,6 +4,12 @@ These articles cover the most common inspection, billing, and scheduling workflo
 
 The screenshots are source-verified UI illustrations built from the current application. They use fictional names, dates, addresses, and amounts. Your organization may use different property names and checklist questions.
 
+## Afterlight platform administrators
+
+| Task | Article | Typical time |
+| --- | --- | --- |
+| Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
+
 ## Submitters
 
 | Task | Article | Typical time |

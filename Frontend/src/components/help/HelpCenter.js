@@ -17,6 +17,7 @@ const ROLE_NAMES = {
 };
 
 function dashboardRoute(audience) {
+  if (audience.platformRole === "platform_admin" && !audience.assumedOrganization) return "/platform";
   if (audience.accountScope === "afterlight_resource") return "/resource";
   return audience.role === "client" ? "/client/dashboard" : "/dashboard";
 }
@@ -41,7 +42,9 @@ export default function HelpCenter() {
         <PageHeader
           onBack={() => navigate(dashboardRoute(audience))}
           title="Help Center"
-          subtitle={`Guides selected for your ${ROLE_NAMES[audience.role] || "account"} role.`}
+          subtitle={audience.platformRole === "platform_admin" && !audience.assumedOrganization
+            ? "Guides for Afterlight platform administration."
+            : `Guides selected for your ${ROLE_NAMES[audience.role] || "account"} role.`}
         />
 
         <section className="beta-help-hero" aria-labelledby="help-search-heading">

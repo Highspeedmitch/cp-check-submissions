@@ -4,6 +4,7 @@ import {
   helpArticleBySlug,
   matchesHelpSearch,
   visibleHelpArticles,
+  getHelpAudience,
 } from "./helpAccess";
 
 test("filters help articles by exact role and organization type", () => {
@@ -35,6 +36,39 @@ test("filters help articles by exact role and organization type", () => {
     "complete-a-resource-assignment",
     "understand-resource-earnings",
   ]);
+});
+
+test("a dual-workspace submitter is treated as a contractor inside the Resource Portal", () => {
+  const storage = {
+    getItem: (key) => ({
+      role: "user",
+      orgType: "COM",
+      accountScope: "afterlight_resource",
+    })[key] || null,
+  };
+  const audience = getHelpAudience(storage);
+  expect(audience.role).toBe("contractor");
+  expect(visibleHelpArticles(audience).map(({ slug }) => slug)).toEqual([
+    "resource-account-setup",
+    "use-the-resource-portal",
+    "complete-a-resource-assignment",
+    "understand-resource-earnings",
+  ]);
+});
+
+test("platform guidance is isolated from organization and assumed-access help", () => {
+  const platformAudience = {
+    role: "admin",
+    orgType: "COM",
+    accountScope: "organization",
+    platformRole: "platform_admin",
+    assumedOrganization: false,
+  };
+  expect(visibleHelpArticles(platformAudience).map(({ slug }) => slug)).toEqual([
+    "manage-resources-and-payables",
+  ]);
+  expect(visibleHelpArticles({ ...platformAudience, assumedOrganization: true })
+    .some(({ slug }) => slug === "manage-resources-and-payables")).toBe(false);
 });
 test("finds registered articles by slug and source file", () => {
   const article = helpArticleBySlug("review-an-invoice");

@@ -15,6 +15,7 @@ import AdminVerificationDialog from "./dashboard/dialogs/AdminVerificationDialog
 import PropertyRecipientsDialog from "./dashboard/dialogs/PropertyRecipientsDialog";
 import AddPropertyForm from "./dashboard/AddPropertyForm";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import {
   useMarkNotificationsRead,
   useNotificationBadges,
@@ -642,6 +643,7 @@ useEffect(() => {
           title="Dashboard"
           actions={(
             <>
+              <WorkspaceSwitcher />
               <ContextualHelpLink label="Help Center" />
               <button type="button" className="beta-back-link" onClick={handleLogout}>Log out</button>
             </>

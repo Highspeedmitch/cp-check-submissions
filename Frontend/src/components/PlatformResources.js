@@ -62,10 +62,10 @@ export default function PlatformResources() {
     setError("");
     setMessage("");
     try {
-      await operation();
+      const result = await operation();
       await load();
-      setMessage(successMessage);
-      return true;
+      setMessage(typeof successMessage === "function" ? successMessage(result) : successMessage);
+      return result || true;
     } catch (requestError) {
       setError(requestError.message);
       return false;
@@ -82,7 +82,9 @@ export default function PlatformResources() {
       skills: resourceDraft.skills,
       regions: resourceDraft.regions,
       defaultRateCents: Math.round(Number(resourceDraft.defaultRate) * 100),
-    }), "Afterlight resource invited. Complete Gusto onboarding before activation.");
+    }), (result) => result.linkedExistingUser
+      ? "Existing Afterlight identity linked. The Resource Portal will appear after the user signs in again."
+      : "Afterlight resource invited. Complete Afterlight and Gusto onboarding before activation.");
     if (completed) setResourceDraft(EMPTY_RESOURCE);
   }
 
@@ -135,19 +137,19 @@ export default function PlatformResources() {
       {message && <p className="beta-alert success" role="status">{message}</p>}
 
       <section className="beta-panel">
-        <div className="beta-section-heading"><div><p className="beta-eyebrow">Afterlight-owned supply</p><h2>Invite a Resource</h2><p>Afterlight login setup and Gusto onboarding remain separate but linked by provider ID.</p></div></div>
+        <div className="beta-section-heading"><div><p className="beta-eyebrow">Afterlight-owned supply</p><h2>Add a Resource</h2><p>An existing submitter keeps the same login and gains a workspace switcher. A new email receives an invitation.</p></div></div>
         <form className="beta-form-grid" onSubmit={inviteResource}>
           <label className="beta-form-field">Name<input required value={resourceDraft.displayName} onChange={(event) => setResourceDraft((current) => ({ ...current, displayName: event.target.value }))} /></label>
           <label className="beta-form-field">Email<input required type="email" value={resourceDraft.email} onChange={(event) => setResourceDraft((current) => ({ ...current, email: event.target.value }))} /></label>
           <label className="beta-form-field">Skills<input value={resourceDraft.skills} placeholder="Inspections, lighting" onChange={(event) => setResourceDraft((current) => ({ ...current, skills: event.target.value }))} /></label>
           <label className="beta-form-field">Regions<input value={resourceDraft.regions} placeholder="Phoenix, Tucson" onChange={(event) => setResourceDraft((current) => ({ ...current, regions: event.target.value }))} /></label>
           <label className="beta-form-field">Default per-assignment rate<input required min="0.01" step="0.01" type="number" value={resourceDraft.defaultRate} onChange={(event) => setResourceDraft((current) => ({ ...current, defaultRate: event.target.value }))} /></label>
-          <div className="beta-card-actions full"><button className="beta-button" disabled={busy === "invite"}>{busy === "invite" ? "Inviting..." : "Invite Resource"}</button></div>
+          <div className="beta-card-actions full"><button className="beta-button" disabled={busy === "invite"}>{busy === "invite" ? "Adding..." : "Add Resource"}</button></div>
         </form>
       </section>
 
       <section className="beta-section">
-        <div className="beta-section-heading"><div><h2>Resource Profiles</h2><p>Activation requires an accepted Afterlight invitation and completed Gusto onboarding.</p></div></div>
+        <div className="beta-section-heading"><div><h2>Resource Profiles</h2><p>New identities must accept their Afterlight invitation. Every resource must complete Gusto onboarding before activation.</p></div></div>
         {data.resources.length ? <div className="platform-resource-grid">
           {data.resources.map((resource) => {
             const edit = resourceEdits[resource._id] || {};

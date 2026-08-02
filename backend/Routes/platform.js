@@ -27,6 +27,7 @@ const {
 } = require("../services/platformAccess");
 const { getPlatformOrganizationMetrics } = require("../services/platformMetrics");
 const { getJwtSecret } = require("../config/security");
+const { workspaceAuthentication } = require("../services/workspaceAccess");
 const { uploadLimiter } = require("../middleware/rateLimits");
 const { imageFileFilter, rejectInvalidSignatures } = require("../utils/uploadSecurity");
 const {
@@ -355,7 +356,8 @@ router.post("/exit", authenticateToken, async (req, res) => {
     if (!user?.organizationId) {
       return res.status(500).json({ error: "Unable to restore the platform account." });
     }
-    return res.json(authResponse(user, getJwtSecret()));
+    const workspace = await workspaceAuthentication(user);
+    return res.json(authResponse(user, getJwtSecret(), workspace));
   } catch (error) {
     console.error("Organization assumption exit error:", error);
     return res.status(500).json({ error: "Unable to exit the organization." });

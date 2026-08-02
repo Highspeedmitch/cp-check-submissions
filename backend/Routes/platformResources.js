@@ -12,6 +12,8 @@ const PlatformAudit = require("../models/platformAudit");
 const { createInvitation, normalizeInvitationEmail } = require("../services/organizationInvitations");
 const { ensureWorkforceOrganization } = require("../services/workforceOrganization");
 const { buildPayoutLines, newBatchNumber } = require("../services/contractorPayouts");
+const { sendSystemEmail } = require("../services/systemEmail");
+const { buildFrontendUrl } = require("../utils/frontendUrls");
 
 const router = express.Router();
 router.use(authenticateToken, requirePlatformAdmin);
@@ -24,6 +26,7 @@ const ONBOARDING_STATUSES = new Set([
   "self_onboarding_review",
   "onboarding_completed",
 ]);
+const RESOURCE_LINKABLE_ROLES = new Set(["user", "contractor", "cleaner"]);
 
 function cleanList(value, limit = 20) {
   return [...new Set(
@@ -80,15 +83,23 @@ router.post("/resources", async (req, res) => {
     if (displayName.length < 2 || displayName.length > 100) {
       return res.status(400).json({ error: "Resource name must be between 2 and 100 characters." });
     }
-    const [existingProfile, existingUser, workforce] = await Promise.all([
+    const [existingProfile, existingUser] = await Promise.all([
       ResourceProfile.findOne({ email }).select("_id").lean(),
-      User.findOne({ email }).select("_id").lean(),
-      ensureWorkforceOrganization(),
+      User.findOne({ email }).select("_id username email role accountStatus").lean(),
     ]);
-    if (existingProfile || existingUser) {
-      return res.status(409).json({ error: "That email already belongs to an Afterlight account or resource." });
+    if (existingProfile) {
+      return res.status(409).json({ error: "That email already belongs to an Afterlight resource." });
+    }
+    if (existingUser && (
+      existingUser.accountStatus === "inactive"
+      || !RESOURCE_LINKABLE_ROLES.has(existingUser.role)
+    )) {
+      return res.status(409).json({
+        error: "That Afterlight account is not eligible for Resource Network access.",
+      });
     }
     profile = await ResourceProfile.create({
+      ...(existingUser ? { userId: existingUser._id, status: "onboarding" } : {}),
       email,
       displayName,
       skills: cleanList(req.body.skills),
@@ -96,6 +107,42 @@ router.post("/resources", async (req, res) => {
       defaultRateCents: validCents(req.body.defaultRateCents),
       createdBy: req.user.userId,
     });
+    if (existingUser) {
+      const delivered = await sendSystemEmail({
+        to: email,
+        subject: "Your Afterlight Resource Portal is ready",
+        text: [
+          `Hello ${existingUser.username || displayName},`,
+          "",
+          "Afterlight Resource Network access has been added to your existing account.",
+          `Sign in with your current credentials, then select Resource Portal: ${buildFrontendUrl("/login")}`,
+          `Resource Portal guide: ${buildFrontendUrl("/help/use-the-resource-portal")}`,
+          "",
+          "Your organization workspace and Resource Portal remain separate, but use the same login.",
+        ].join("\n"),
+      }).then(() => true).catch((emailError) => {
+        console.error("Existing resource access email failed:", emailError?.code || emailError?.name || "unknown_error");
+        return false;
+      });
+      await PlatformAudit.create({
+        ...auditDetails(req),
+        action: "afterlight_resource_identity_linked",
+        metadata: {
+          resourceProfileId: profile._id,
+          userId: existingUser._id,
+          email,
+          notificationDelivered: delivered,
+        },
+      });
+      return res.status(201).json({
+        profile,
+        invitationDelivered: false,
+        linkedExistingUser: true,
+        notificationDelivered: delivered,
+      });
+    }
+
+    const workforce = await ensureWorkforceOrganization();
     const invitation = await createInvitation({
       organization: workforce,
       email,
@@ -115,7 +162,11 @@ router.post("/resources", async (req, res) => {
         invitationDelivered: invitation.delivered,
       },
     });
-    return res.status(201).json({ profile, invitationDelivered: invitation.delivered });
+    return res.status(201).json({
+      profile,
+      invitationDelivered: invitation.delivered,
+      linkedExistingUser: false,
+    });
   } catch (error) {
     if (profile && !profile.invitationId) await profile.deleteOne().catch(() => {});
     if (error?.code === 11000) return res.status(409).json({ error: "That resource already exists." });

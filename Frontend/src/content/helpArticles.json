@@ -119,5 +119,18 @@
     "file": "resource-understand-earnings.md",
     "estimatedTime": "2-3 min",
     "keywords": ["approved", "compensation", "contractor", "earning", "gusto", "paid", "payable", "payment", "pending approval", "queued"]
+  },
+  {
+    "slug": "manage-resources-and-payables",
+    "title": "Manage Afterlight resources and contractor payables",
+    "summary": "Link or invite resources, complete Gusto activation, deploy workers, approve earnings, and reconcile payout batches.",
+    "category": "Platform operations",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "platformRoles": ["platform_admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "platform-manage-resources-payables.md",
+    "estimatedTime": "8-15 min",
+    "keywords": ["activate", "contractor", "deployment", "earning", "gusto", "link", "payable", "platform admin", "payout", "resource", "workspace"]
   }
 ]

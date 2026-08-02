@@ -91,7 +91,7 @@ function InvoiceReviewRoute({ user, role }) {
     : <Navigate to="/billing" replace />;
 }
 
-function HelpRoute({ user, platformRole, assumedOrganization, children }) {
+function HelpRoute({ user, children }) {
   const location = useLocation();
   const slug = location.pathname.match(/^\/help\/([^/]+)$/)?.[1] || "";
   const publicArticle = Boolean(helpArticleBySlug(slug)?.public);
@@ -99,7 +99,6 @@ function HelpRoute({ user, platformRole, assumedOrganization, children }) {
     const returnTo = `${location.pathname}${location.search}`;
     return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
   }
-  if (platformRole && !assumedOrganization) return <Navigate to="/platform" replace />;
   return children;
 }
 
@@ -111,6 +110,13 @@ function App() {
   const [accountScope, setAccountScope] = useState(null);
 
   useEffect(() => {
+    const syncStoredSession = () => {
+      setUser(Boolean(localStorage.getItem("token")));
+      setRole(localStorage.getItem("role") || "user");
+      setPlatformRole(localStorage.getItem("platformRole"));
+      setAssumedOrganization(localStorage.getItem("assumedOrganization") === "true");
+      setAccountScope(localStorage.getItem("accountScope") || "organization");
+    };
     const handleSessionCleared = () => {
       setUser(false);
       setRole(null);
@@ -119,7 +125,11 @@ function App() {
       setAccountScope(null);
     };
     window.addEventListener("auth-session-cleared", handleSessionCleared);
-    return () => window.removeEventListener("auth-session-cleared", handleSessionCleared);
+    window.addEventListener("auth-session-changed", syncStoredSession);
+    return () => {
+      window.removeEventListener("auth-session-cleared", handleSessionCleared);
+      window.removeEventListener("auth-session-changed", syncStoredSession);
+    };
   }, []);
 
   useEffect(() => {

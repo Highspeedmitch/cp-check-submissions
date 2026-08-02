@@ -4,7 +4,9 @@
 
 **Applies to:** Finding work and using the contractor workspace
 
-The Resource Portal is your home for Afterlight assignments and earnings. Your access follows each assignment, so you never need to switch into a customer organization's employee workspace.
+The Resource Portal is your home for Afterlight assignments and earnings. Resource assignments provide only the customer-property access needed for the scheduled work; they do not make you a member of that customer organization.
+
+If your login also belongs to an organization workspace, select **Resource Portal** from the organization dashboard to enter this portal. Select **Organization Workspace** at the top of the Resource Portal to return. Switching changes the active workspace, not your identity, password, deployments, or saved work.
 
 ## Read the portal summary
 
@@ -39,6 +41,7 @@ Always start through the card. It carries the assignment authorization that lets
 ## Open help or sign out
 
 - Select **Help Center** at the top of the portal to search contractor guides.
+- Select **Organization Workspace** when that button appears and you need to return to your organization dashboard.
 - Select **Log out** when using a shared device.
 - Use the theme control to change the portal's visual appearance.
 

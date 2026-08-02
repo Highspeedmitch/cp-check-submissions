@@ -7,6 +7,7 @@ const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
 const RefreshSession = require("../models/refreshSession");
 const MfaChallenge = require("../models/mfaChallenge");
+const authenticateToken = require("../middleware/authenticateToken");
 const { sendSystemEmail } = require("../services/systemEmail");
 const {
   loginLimiter,
@@ -29,6 +30,7 @@ const {
   buildFrontendUrl,
 } = require("../utils/frontendUrls");
 const { oktaConfig, requiresOkta, verifyOktaIdentity } = require("../services/oktaAuth");
+const { workspaceAuthentication } = require("../services/workspaceAccess");
 const {
   CHALLENGE_LIFETIME_MS,
   requiresTotp,
@@ -86,10 +88,17 @@ async function activeMfaChallenge(challengeToken, purpose) {
 
 async function finishMfaLogin({ user, req, res }) {
   const mfaAuthenticatedAt = new Date();
-  await createRefreshSession({ user, req, res, mfaAuthenticatedAt });
+  const workspace = await workspaceAuthentication(user);
+  await createRefreshSession({
+    user,
+    req,
+    res,
+    mfaAuthenticatedAt,
+    accountScope: workspace.accountScope,
+  });
   return res.json({
     message: "Login successful",
-    ...authResponse(user, getJwtSecret(), { mfaAuthenticatedAt }),
+    ...authResponse(user, getJwtSecret(), { mfaAuthenticatedAt, ...workspace }),
   });
 }
 
@@ -187,8 +196,9 @@ router.post("/login", loginLimiter, requireTrustedSessionOrigin, async (req, res
         okta: { issuer: config.issuer, clientId: config.clientIds[0] },
       });
     }
-    const authentication = authResponse(user, getJwtSecret());
-    await createRefreshSession({ user, req, res });
+    const workspace = await workspaceAuthentication(user);
+    const authentication = authResponse(user, getJwtSecret(), workspace);
+    await createRefreshSession({ user, req, res, accountScope: workspace.accountScope });
     return res.json({ message: "Login successful", ...authentication });
   } catch (error) {
     console.error("Login processing error:", error?.code || error?.name || "unknown_error");
@@ -262,11 +272,18 @@ router.post("/auth/mfa/enrollment/confirm", mfaLimiter, requireTrustedSessionOri
       changes: { recoveryCodeCount: recovery.codes.length },
     });
     const mfaAuthenticatedAt = new Date();
-    await createRefreshSession({ user, req, res, mfaAuthenticatedAt });
+    const workspace = await workspaceAuthentication(user);
+    await createRefreshSession({
+      user,
+      req,
+      res,
+      mfaAuthenticatedAt,
+      accountScope: workspace.accountScope,
+    });
     return res.json({
       message: "MFA enrollment complete.",
       recoveryCodes: recovery.codes,
-      ...authResponse(user, getJwtSecret(), { mfaAuthenticatedAt }),
+      ...authResponse(user, getJwtSecret(), { mfaAuthenticatedAt, ...workspace }),
     });
   } catch (error) {
     console.error("MFA enrollment confirmation error:", error.message);
@@ -380,10 +397,17 @@ router.post("/auth/okta", loginLimiter, requireTrustedSessionOrigin, async (req,
     const mfaAuthenticatedAt = new Date(
       Number(claims.auth_time || Math.floor(Date.now() / 1000)) * 1000
     );
-    await createRefreshSession({ user, req, res, mfaAuthenticatedAt });
+    const workspace = await workspaceAuthentication(user);
+    await createRefreshSession({
+      user,
+      req,
+      res,
+      mfaAuthenticatedAt,
+      accountScope: workspace.accountScope,
+    });
     return res.json({
       message: "Login successful",
-      ...authResponse(user, getJwtSecret(), { mfaAuthenticatedAt }),
+      ...authResponse(user, getJwtSecret(), { mfaAuthenticatedAt, ...workspace }),
     });
   } catch (error) {
     clearOktaNonceCookie(res);
@@ -420,6 +444,10 @@ router.post("/auth/refresh", requireTrustedSessionOrigin, async (req, res) => {
       clearRefreshCookie(res);
       return res.status(401).json({ message: "Session expired. Please sign in again." });
     }
+    const workspace = await workspaceAuthentication(
+      user,
+      session.accountScope || undefined
+    );
     const replacementToken = crypto.randomBytes(48).toString("base64url");
     const replacementHash = hashToken(replacementToken);
     session.revokedAt = new Date();
@@ -432,6 +460,7 @@ router.post("/auth/refresh", requireTrustedSessionOrigin, async (req, res) => {
         organizationId: user.organizationId._id,
         tokenHash: replacementHash,
         tokenVersion: user.tokenVersion || 0,
+        accountScope: workspace.accountScope,
         expiresAt: session.expiresAt,
         userAgent: req.get("user-agent") || "",
         ipAddress: req.ip || "",
@@ -441,10 +470,49 @@ router.post("/auth/refresh", requireTrustedSessionOrigin, async (req, res) => {
     res.cookie(REFRESH_COOKIE, replacementToken, cookieSettings(session.expiresAt));
     return res.json(authResponse(user, getJwtSecret(), {
       mfaAuthenticatedAt: session.mfaAuthenticatedAt || undefined,
+      ...workspace,
     }));
   } catch (error) {
     console.error("Refresh session error:", error);
+    if (error.status === 403) {
+      clearRefreshCookie(res);
+      return res.status(403).json({ message: error.message });
+    }
     return res.status(500).json({ message: "Unable to refresh session." });
+  }
+});
+
+router.post("/auth/workspace", requireTrustedSessionOrigin, authenticateToken, async (req, res) => {
+  const refreshToken = req.cookies[REFRESH_COOKIE];
+  if (!refreshToken) {
+    return res.status(401).json({ message: "No active session. Sign in again before switching workspaces." });
+  }
+  try {
+    const user = await User.findById(req.user.userId).populate("organizationId");
+    if (!user?.organizationId || user.accountStatus === "inactive") {
+      return res.status(403).json({ message: "This account is unavailable." });
+    }
+    const workspace = await workspaceAuthentication(user, req.body.accountScope);
+    const session = await RefreshSession.findOne({
+      userId: user._id,
+      tokenHash: hashToken(refreshToken),
+      revokedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+    if (!session) {
+      return res.status(401).json({ message: "Session expired. Sign in again before switching workspaces." });
+    }
+    session.accountScope = workspace.accountScope;
+    session.lastUsedAt = new Date();
+    await session.save();
+    return res.json(authResponse(user, getJwtSecret(), {
+      mfaAuthenticatedAt: req.user.mfaAuthenticatedAt || undefined,
+      ...workspace,
+    }));
+  } catch (error) {
+    if (error.status === 403) return res.status(403).json({ message: error.message });
+    console.error("Workspace switch error:", error.message);
+    return res.status(500).json({ message: "Unable to switch workspaces." });
   }
 });
 

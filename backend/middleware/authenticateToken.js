@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require("../models/user");
 const PlatformSession = require("../models/platformSession");
 const { getJwtSecret } = require("../config/security");
+const { workspaceAuthentication } = require("../services/workspaceAccess");
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -37,6 +38,20 @@ const authenticateToken = (req, res, next) => {
         && user.platformSessionId
         && currentUser.platformRole === "platform_admin"
       );
+      let workspace;
+      if (isAssumedAccess) {
+        workspace = { accountScope: "organization", availableWorkspaces: ["organization"] };
+      } else {
+        try {
+          workspace = await workspaceAuthentication(currentUser, user.accountScope);
+        } catch (workspaceError) {
+          if (user.accountScope !== "afterlight_resource") throw workspaceError;
+          // A dual-workspace user must still be able to return to their organization
+          // after resource access is suspended or removed. Resource routes will reject
+          // this safely downgraded organization context.
+          workspace = await workspaceAuthentication(currentUser);
+        }
+      }
       if (isAssumedAccess) {
         const platformSession = await PlatformSession.findOne({
           _id: user.platformSessionId,
@@ -70,7 +85,8 @@ const authenticateToken = (req, res, next) => {
         ...user,
         role: isAssumedAccess ? "admin" : currentUser.role,
         platformRole: currentUser.platformRole || null,
-        accountScope: currentUser.accountScope || "organization",
+        accountScope: workspace.accountScope,
+        availableWorkspaces: workspace.availableWorkspaces,
         organizationId: isAssumedAccess
           ? String(user.organizationId)
           : currentUser.organizationId.toString(),
@@ -78,6 +94,9 @@ const authenticateToken = (req, res, next) => {
       };
       next();
     } catch (error) {
+      if (error.status === 403) {
+        return res.status(403).json({ message: error.message });
+      }
       return res.status(500).json({ message: "Unable to verify account." });
     }
   });
