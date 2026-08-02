@@ -1,9 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const { v4: uuidv4 } = require("uuid");
+const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const Invoice = require("../models/invoice");
 const User = require("../models/user");
 const Organization = require("../models/organization");
+const PlatformAudit = require("../models/platformAudit");
 const s3 = require("../awsConfig");
 const { generateInvoicePDF } = require("../invoicePdfService");
 const { sendUserNotification } = require("../services/notifications");
@@ -19,6 +21,10 @@ const {
 const { resolveBillingAddress } = require("../services/propertyAddresses");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const { sendSystemEmail } = require("../services/systemEmail");
+const {
+  isAfterlightServiceInvoice,
+  afterlightServiceInvoiceScope,
+} = require("../services/serviceBilling");
 
 const router = express.Router();
 
@@ -122,7 +128,12 @@ router.put("/properties/:propertyId", async (req, res) => {
 });
 
 function invoiceScope(req, id) {
-  const scope = { _id: id, organizationId: req.user.organizationId };
+  const scope = {
+    _id: id,
+    organizationId: req.user.organizationId,
+    billingOwner: { $ne: "afterlight_platform" },
+    "fulfillmentSnapshot.invoiceRouting": { $ne: "afterlight_service_billing" },
+  };
   if (req.user.role !== "admin") scope.submitterId = req.user.userId;
   return scope;
 }
@@ -142,6 +153,8 @@ async function visibleInvoiceScope(req) {
     };
   } else if (req.user.role !== "admin") {
     scope.submitterId = req.user.userId;
+    scope.billingOwner = { $ne: "afterlight_platform" };
+    scope["fulfillmentSnapshot.invoiceRouting"] = { $ne: "afterlight_service_billing" };
   }
   return scope;
 }
@@ -264,6 +277,210 @@ async function sendApprovedInvoiceToAp(invoice, confirmationNumber = "") {
   invoice.delivery.sentAt = new Date();
   invoice.delivery.error = "";
 }
+
+function platformAuditDetails(req, invoice, action, metadata = {}) {
+  return {
+    actorUserId: req.user.userId,
+    action,
+    targetOrganizationId: invoice.organizationId,
+    metadata: { invoiceId: invoice._id, ...metadata },
+    ipAddress: req.ip || "",
+    userAgent: req.get("user-agent") || "",
+  };
+}
+
+function platformInvoiceResult(invoice) {
+  const object = invoice.toObject ? invoice.toObject() : invoice;
+  return {
+    ...object,
+    pdfUrl: object.pdfKey
+      ? s3.getSignedUrl("getObject", {
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: object.pdfKey,
+          Expires: 3600,
+        })
+      : null,
+  };
+}
+
+const PLATFORM_INVOICE_STATUSES = new Set([
+  "unbilled", "pending_review", "declined", "approving", "submitted", "paid", "failed", "void",
+]);
+
+router.get("/platform-service-invoices", requirePlatformAdmin, async (req, res) => {
+  try {
+    const status = String(req.query.status || "").trim();
+    if (status && !PLATFORM_INVOICE_STATUSES.has(status)) {
+      return res.status(400).json({ error: "Select a valid invoice status." });
+    }
+    const query = afterlightServiceInvoiceScope({ archivedAt: null });
+    if (status) query.status = status;
+    const invoices = await Invoice.find(query)
+      .populate("organizationId", "name")
+      .populate("submitterId", "username email")
+      .sort({ createdAt: -1 })
+      .limit(250);
+    return res.json(invoices.map(platformInvoiceResult));
+  } catch (error) {
+    console.error("Platform service invoice list error:", error.message);
+    return res.status(500).json({ error: "Unable to load Afterlight service invoices." });
+  }
+});
+
+router.put("/platform-service-invoices/:id/amount", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const amountCents = Number(req.body.amountCents);
+    if (!Number.isInteger(amountCents) || amountCents <= 0) {
+      return res.status(400).json({ error: "Enter a valid customer invoice amount." });
+    }
+    const invoice = await Invoice.findOneAndUpdate(
+      afterlightServiceInvoiceScope({
+        _id: req.params.id,
+        status: { $in: ["unbilled", "declined"] },
+      }),
+      {
+        $set: {
+          billingOwner: "afterlight_platform",
+          amountCents,
+          amountSetBySubmitter: false,
+          pdfKey: "",
+          status: "unbilled",
+          "platformPreparation.preparedBy": req.user.userId,
+          "platformPreparation.preparedAt": new Date(),
+          "review.requestedBy": null,
+          "review.requestedAt": null,
+          "review.reviewedBy": null,
+          "review.reviewedAt": null,
+          "review.decision": "",
+          "review.declineReason": "",
+          "review.emailSentAt": null,
+          "review.emailError": "",
+        },
+        $push: { statusHistory: { status: "unbilled", changedBy: req.user.userId } },
+      },
+      { new: true }
+    );
+    if (!invoice) return res.status(404).json({ error: "Editable Afterlight service invoice not found." });
+    await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_amount_set", { amountCents }));
+    return res.json(platformInvoiceResult(invoice));
+  } catch (error) {
+    console.error("Platform service invoice amount error:", error.message);
+    return res.status(500).json({ error: "Unable to update the customer invoice amount." });
+  }
+});
+
+router.post("/platform-service-invoices/:id/generate", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const invoice = await Invoice.findOne(afterlightServiceInvoiceScope({
+      _id: req.params.id,
+      status: { $in: ["unbilled", "declined"] },
+    }));
+    if (!invoice) return res.status(404).json({ error: "Afterlight service invoice not found." });
+    if (!invoice.amountCents) return res.status(400).json({ error: "Set the customer amount before generating the invoice." });
+    if (!invoice.propertySnapshot.propertyCode) {
+      return res.status(400).json({ error: "Configure the property's billing code before generating the invoice." });
+    }
+    if (!invoice.invoiceNumber) invoice.invoiceNumber = `${invoice.propertySnapshot.propertyCode}-${Date.now()}`;
+    const buffer = await generateInvoicePDF(invoice);
+    const key = `${invoice.organizationId}/invoices/${uuidv4()}-${invoice.invoiceNumber}.pdf`;
+    await s3.upload({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: "application/pdf",
+      ACL: "private",
+    }).promise();
+    invoice.billingOwner = "afterlight_platform";
+    invoice.pdfKey = key;
+    invoice.status = "unbilled";
+    invoice.platformPreparation.preparedBy = req.user.userId;
+    invoice.platformPreparation.preparedAt = new Date();
+    invoice.review.decision = "";
+    invoice.review.declineReason = "";
+    await invoice.save();
+    await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_generated", {
+      invoiceNumber: invoice.invoiceNumber,
+    }));
+    return res.json(platformInvoiceResult(invoice));
+  } catch (error) {
+    console.error("Platform service invoice generation error:", error.message);
+    return res.status(500).json({ error: "Unable to generate the Afterlight service invoice PDF." });
+  }
+});
+
+router.post("/platform-service-invoices/:id/submit", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const invoice = await Invoice.findOne(afterlightServiceInvoiceScope({
+      _id: req.params.id,
+      status: "unbilled",
+    }));
+    if (!invoice) return res.status(404).json({ error: "Afterlight service invoice not found." });
+    if (!invoice.pdfKey) return res.status(400).json({ error: "Generate the PDF before submitting it." });
+    const organizationId = invoice.organizationId.toString();
+    const managers = await assignedPropertyManagers(invoice, organizationId);
+    if (!managers.length) {
+      return res.status(400).json({
+        error: "Assign an active property manager before submitting this invoice for customer review.",
+      });
+    }
+    invoice.billingOwner = "afterlight_platform";
+    invoice.status = "pending_review";
+    invoice.review.requestedBy = req.user.userId;
+    invoice.review.requestedAt = new Date();
+    invoice.review.reviewedBy = null;
+    invoice.review.reviewedAt = null;
+    invoice.review.decision = "";
+    invoice.review.declineReason = "";
+    invoice.review.emailSentAt = null;
+    invoice.review.emailError = "";
+    invoice.statusHistory.push({ status: "pending_review", changedBy: req.user.userId });
+    await invoice.save();
+    notifyPropertyManagersOfSubmittedInvoice(invoice, organizationId, managers)
+      .catch((notificationError) => console.error("Platform invoice notification error:", notificationError));
+    let warning = "";
+    try {
+      await emailPropertyManagersForReview(invoice, managers);
+      invoice.review.emailSentAt = new Date();
+    } catch (emailError) {
+      console.error("Platform invoice review email error:", emailError);
+      invoice.review.emailError = "Review email delivery failed.";
+      warning = "The invoice is awaiting customer review, but the review email could not be delivered. The property manager was still notified in the app.";
+    }
+    await invoice.save();
+    await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_submitted", {
+      invoiceNumber: invoice.invoiceNumber,
+    }));
+    return res.json({ ...platformInvoiceResult(invoice), warning });
+  } catch (error) {
+    console.error("Platform service invoice submission error:", error.message);
+    return res.status(500).json({ error: "Unable to submit the Afterlight service invoice." });
+  }
+});
+
+router.post("/platform-service-invoices/:id/mark-paid", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const invoice = await Invoice.findOneAndUpdate(
+      afterlightServiceInvoiceScope({ _id: req.params.id, status: "submitted" }),
+      {
+        $set: { billingOwner: "afterlight_platform", status: "paid" },
+        $push: { statusHistory: { status: "paid", changedBy: req.user.userId } },
+      },
+      { new: true }
+    );
+    if (!invoice) return res.status(409).json({ error: "Only a submitted Afterlight service invoice can be marked paid." });
+    await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_paid", {
+      invoiceNumber: invoice.invoiceNumber,
+    }));
+    return res.json(platformInvoiceResult(invoice));
+  } catch (error) {
+    console.error("Platform service invoice payment error:", error.message);
+    return res.status(500).json({ error: "Unable to mark the Afterlight service invoice paid." });
+  }
+});
 
 router.get("/filter-options", async (req, res) => {
   try {
@@ -606,13 +823,15 @@ router.post("/:id/approve", async (req, res) => {
     invoice.status = "submitted";
     invoice.statusHistory.push({ status: "submitted", changedBy: req.user.userId });
     await invoice.save();
-    sendUserNotification({
-      organizationId: req.user.organizationId,
-      userId: invoice.submitterId,
-      ...invoiceReviewChanged(invoice, "approved"),
-    }).catch((notificationError) => {
-      console.error("Invoice approval notification error:", notificationError);
-    });
+    if (!isAfterlightServiceInvoice(invoice)) {
+      sendUserNotification({
+        organizationId: req.user.organizationId,
+        userId: invoice.submitterId,
+        ...invoiceReviewChanged(invoice, "approved"),
+      }).catch((notificationError) => {
+        console.error("Invoice approval notification error:", notificationError);
+      });
+    }
     res.json(invoice);
   } catch (error) {
     console.error("Invoice approval error:", error);
@@ -678,13 +897,15 @@ router.post("/:id/decline", async (req, res) => {
     if (!invoice) {
       return res.status(409).json({ error: "Another reviewer has already acted on this invoice." });
     }
-    sendUserNotification({
-      organizationId: req.user.organizationId,
-      userId: invoice.submitterId,
-      ...invoiceReviewChanged(invoice, "declined"),
-    }).catch((notificationError) => {
-      console.error("Invoice decline notification error:", notificationError);
-    });
+    if (!isAfterlightServiceInvoice(invoice)) {
+      sendUserNotification({
+        organizationId: req.user.organizationId,
+        userId: invoice.submitterId,
+        ...invoiceReviewChanged(invoice, "declined"),
+      }).catch((notificationError) => {
+        console.error("Invoice decline notification error:", notificationError);
+      });
+    }
     res.json(invoice);
   } catch (error) {
     res.status(500).json({ error: "Unable to decline the invoice." });
@@ -696,6 +917,11 @@ router.post("/:id/mark-paid", async (req, res) => {
     const query = { _id: req.params.id, organizationId: req.user.organizationId };
     const invoice = await Invoice.findOne(query);
     if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+    if (isAfterlightServiceInvoice(invoice)) {
+      return res.status(403).json({
+        error: "Afterlight service invoice payment status is managed by platform billing.",
+      });
+    }
     const decision = await evaluateOrganizationBillingAction({
       organizationId: req.user.organizationId,
       action: "mark_paid",

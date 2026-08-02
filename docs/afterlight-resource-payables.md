@@ -8,7 +8,7 @@ Afterlight contractors use the same authentication system as every other user, b
 - `ResourceProfile` is the Afterlight-owned worker record, including status, availability, skills, regions, rate, and non-sensitive Gusto references.
 - `ResourceDeployment` makes one resource eligible for a managed or hybrid customer organization. It may cover all properties or a selected property list and may override the resource's default rate.
 - `Assignment` references the selected resource and deployment. It snapshots the agreed per-assignment compensation so later profile or deployment rate changes cannot rewrite historical pay.
-- `ContractorEarning` is created idempotently when a contractor inspection is completed. It starts in `pending_approval` and is separate from any customer invoice generated from the same submission.
+- `ContractorEarning` is created idempotently when a contractor inspection is completed. It starts in `pending_approval` and is separate from any customer invoice generated from the same submission. An Afterlight-service customer invoice is owned and prepared by platform billing; the resource remains identified only as the inspection performer.
 - `ContractorPayoutBatch` groups approved earnings by resource, snapshots the Gusto matching email, and tracks the check date, submission reference, and reconciliation state. An optional contractor UUID remains available for a future approved API integration.
 
 Afterlight does not store bank accounts, tax identification numbers, W-9 data, or direct-deposit details.
@@ -23,8 +23,9 @@ Afterlight does not store bank accounts, tax identification numbers, W-9 data, o
 6. An organization administrator or property manager sees the resource in the scheduler only when the selected fulfillment source is **Afterlight contractor**, the deployment is active, and the selected property is in scope.
 7. Creating an assignment snapshots the effective default or deployment-specific rate.
 8. The contractor opens or switches into the Resource Portal and submits the inspection through that exact assignment. Cross-tenant property access is authorized by the assignment, not by changing the user's organization membership.
-9. Completed work creates a pending contractor earning. A platform administrator approves it independently of customer invoicing.
-10. Approved earnings are grouped into a Gusto payout batch. After creating the matching contractor payment group in Gusto, the administrator records its UUID in Afterlight and marks it paid only after Gusto confirms funding.
+9. Completed commercial work creates an Afterlight-owned customer invoice in **Platform > Service Billing** and a separate pending contractor earning. A platform administrator prepares the customer amount and approves the earning independently.
+10. Platform billing generates the customer invoice and sends it to the assigned customer property manager for review and AP delivery.
+11. Approved earnings are grouped into a Gusto payout batch. After creating the matching contractor payment in Gusto, the administrator records its submission reference in Afterlight and marks it paid only after Gusto confirms funding.
 
 ## Current Gusto boundary
 

@@ -31,6 +31,11 @@ function invoiceRoutingLabel(invoice) {
   return "Standard billing";
 }
 
+function isAfterlightServiceInvoice(invoice) {
+  return invoice.billingOwner === "afterlight_platform"
+    || invoice.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing";
+}
+
 export default function Billing() {
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
@@ -184,7 +189,9 @@ export default function Billing() {
   }
 
   async function decline(invoice) {
-    const reason = window.prompt("Why is this invoice being declined? The submitter will use this to revise it.");
+    const reason = window.prompt(isAfterlightServiceInvoice(invoice)
+      ? "Why is this invoice being declined? Afterlight billing will use this to revise it."
+      : "Why is this invoice being declined? The submitter will use this to revise it.");
     if (reason === null) return;
     if (!reason.trim()) {
       setError("A decline reason is required.");
@@ -228,7 +235,7 @@ export default function Billing() {
             {isBusy("approve") ? "Retrying…" : "Retry AP Delivery"}
           </button>
         )}
-        {isOversight && invoice.status === "submitted" && (
+        {isOversight && !isAfterlightServiceInvoice(invoice) && invoice.status === "submitted" && (
           <button className="beta-button compact" disabled={isBusy("mark-paid")} onClick={() => action(invoice._id, "mark-paid")}>
             {isBusy("mark-paid") ? "Updating…" : "Mark Paid"}
           </button>
@@ -362,7 +369,7 @@ export default function Billing() {
             <thead>
               <tr>
                 <th>Property</th><th>Inspection</th>
-                {isOversight && <th>Submitter</th>}
+                {isOversight && <th>Submitter / performer</th>}
                 <th>Amount</th><th>Status</th><th>AP Method</th><th>Actions</th>
               </tr>
             </thead>
@@ -410,7 +417,7 @@ export default function Billing() {
                 <div><dt>Inspection date</dt><dd>{new Date(invoice.inspectionDate).toLocaleDateString()}</dd></div>
                 <div><dt>AP method</dt><dd>{invoice.propertySnapshot.apMethod || "download"}</dd></div>
                 <div><dt>Billing route</dt><dd>{invoiceRoutingLabel(invoice)}</dd></div>
-                {isOversight && <div><dt>Submitter</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
+                {isOversight && <div><dt>{isAfterlightServiceInvoice(invoice) ? "Inspection performed by" : "Submitter"}</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
                 {invoice.review?.declineReason && <div><dt>Decline reason</dt><dd>{invoice.review.declineReason}</dd></div>}
                 {invoice.delivery?.error && <div><dt>Delivery error</dt><dd>{invoice.delivery.error}</dd></div>}
                 {invoice.archivedAt && <div><dt>Archived</dt><dd>{new Date(invoice.archivedAt).toLocaleDateString()}</dd></div>}

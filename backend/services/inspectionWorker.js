@@ -22,6 +22,7 @@ const { sendUserNotification } = require("./notifications");
 const { inspectionSubmitted, assignmentCompleted } = require("./notificationEvents");
 const { legacyFulfillmentSnapshot } = require("./fulfillmentPolicy");
 const { ensureContractorEarning } = require("./contractorEarnings");
+const { billingOwnerForFulfillment } = require("./serviceBilling");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -131,6 +132,7 @@ async function ensureSubmission(job, organization, property, assignment) {
           propertyId: property._id,
           submissionId: submission._id,
           submitterId: job.userId,
+          billingOwner: billingOwnerForFulfillment(fulfillmentSnapshot),
           inspectionDate: submission.submittedAt,
           amountCents: property.defaultInspectionAmountCents || null,
           policySnapshot: createPolicySnapshot(policy),

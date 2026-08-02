@@ -121,6 +121,19 @@
     "keywords": ["approved", "compensation", "contractor", "earning", "gusto", "paid", "payable", "payment", "pending approval", "queued"]
   },
   {
+    "slug": "process-afterlight-service-invoices",
+    "title": "Process Afterlight service invoices",
+    "summary": "Prepare customer charges for Afterlight-delivered work, send invoices for review, and reconcile AP payment separately from contractor earnings.",
+    "category": "Platform operations",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "platformRoles": ["platform_admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM"],
+    "file": "platform-process-service-invoices.md",
+    "estimatedTime": "3-5 min",
+    "keywords": ["accounts payable", "afterlight service", "customer invoice", "platform billing", "property manager", "receivable", "service billing"]
+  },
+  {
     "slug": "manage-resources-and-payables",
     "title": "Manage Afterlight resources and contractor payables",
     "summary": "Link or invite resources, complete Gusto activation, deploy workers, approve earnings, and reconcile payout batches.",

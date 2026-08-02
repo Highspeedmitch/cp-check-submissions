@@ -65,9 +65,12 @@ test("platform guidance is isolated from organization and assumed-access help", 
     assumedOrganization: false,
   };
   expect(visibleHelpArticles(platformAudience).map(({ slug }) => slug)).toEqual([
+    "process-afterlight-service-invoices",
     "manage-resources-and-payables",
     "configure-gusto-contractor-payments",
   ]);
+  expect(visibleHelpArticles({ role: "admin", orgType: "COM", accountScope: "organization" })
+    .some(({ slug }) => slug === "process-afterlight-service-invoices")).toBe(false);
   expect(visibleHelpArticles({ ...platformAudience, assumedOrganization: true })
     .some(({ slug }) => slug === "manage-resources-and-payables")).toBe(false);
 });

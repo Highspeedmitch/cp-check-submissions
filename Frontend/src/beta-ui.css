@@ -1301,6 +1301,15 @@
 .platform-resource-card { margin-top: 0; }
 .platform-resource-card > .beta-button { margin-top: 18px; }
 .platform-resources select[multiple] { min-height: 110px; }
+
+.platform-service-invoice-list { display: grid; gap: 16px; }
+.platform-service-invoice { display: grid; gap: 18px; }
+.platform-service-invoice .beta-card-header { align-items: flex-start; }
+.platform-service-invoice .beta-card-header h3 { margin: 3px 0; }
+.platform-service-invoice .beta-card-header p { margin: 0; color: var(--beta-muted); }
+.platform-billing-heading { align-items: end; }
+.platform-billing-filter { width: min(250px, 100%); }
+.platform-service-invoice-controls { max-width: 320px; }
 .platform-payout-form { align-items: end; margin-top: 18px; }
 .beta-resource-payout-list { display: grid; gap: 10px; }
 .beta-resource-payout-list article { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 16px; padding: 14px 16px; border: 1px solid var(--beta-border); border-radius: 8px; background: var(--beta-subtle); }

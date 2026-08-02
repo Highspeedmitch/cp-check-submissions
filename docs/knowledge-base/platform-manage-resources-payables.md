@@ -53,6 +53,8 @@ Completed assigned work creates a **Pending approval** earning in Afterlight. It
 
 Customer invoices and contractor earnings are separate ledgers. Never approve or change a contractor earning merely to make it match a customer invoice.
 
+For commercial work fulfilled by Afterlight, the related customer invoice is prepared separately under **Platform > Service Billing**. The resource remains the inspection performer and never prepares or submits that customer invoice. See [Process Afterlight service invoices](platform-process-service-invoices.md).
+
 ## Reconcile a Gusto payout
 
 1. Select the approved earnings to pay.

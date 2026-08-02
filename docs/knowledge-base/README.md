@@ -8,6 +8,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 
 | Task | Article | Typical time |
 | --- | --- | --- |
+| Prepare and reconcile customer invoices for Afterlight-delivered work | [Process Afterlight service invoices](platform-process-service-invoices.md) | 3-5 minutes |
 | Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
 | Configure and operate the Gusto contractor-payment workflow | [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md) | 12-20 minutes |
 
@@ -49,11 +50,11 @@ The screenshots are source-verified UI illustrations built from the current appl
 
 | Status | Meaning | Who acts next |
 | --- | --- | --- |
-| Draft | The inspection created an invoice that has not been sent for review. | Submitter |
+| Draft | The inspection created an invoice that has not been sent for review. | Submitter, or Afterlight platform billing for Afterlight-delivered work |
 | Awaiting PM Review | The invoice was sent to an assigned property manager. | Property manager |
-| Needs Revision | The property manager returned the invoice with a reason. | Submitter |
+| Needs Revision | The property manager returned the invoice with a reason. | Submitter, or Afterlight platform billing for Afterlight-delivered work |
 | Sending to AP | Approval and delivery are in progress. | No action unless an error appears |
-| Sent to AP | The property manager approved the invoice. | Property manager or administrator can later mark it paid |
+| Sent to AP | The property manager approved the invoice. | Platform billing marks Afterlight service invoices paid; customer oversight handles customer-contractor invoices |
 | AP Delivery Failed | Approval succeeded, but AP delivery failed. | Property manager retries delivery |
 | Paid | Payment was recorded. | Property manager or administrator may archive it |
 

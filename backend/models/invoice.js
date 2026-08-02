@@ -5,6 +5,12 @@ const InvoiceSchema = new mongoose.Schema({
   propertyId: { type: mongoose.Schema.Types.ObjectId, required: true },
   submissionId: { type: mongoose.Schema.Types.ObjectId, ref: "Submission", required: true, unique: true },
   submitterId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  billingOwner: {
+    type: String,
+    enum: ["customer_submitter", "afterlight_platform"],
+    default: "customer_submitter",
+    index: true,
+  },
   invoiceNumber: { type: String, unique: true, sparse: true },
   propertySnapshot: {
     name: String,
@@ -20,6 +26,10 @@ const InvoiceSchema = new mongoose.Schema({
   inspectionDate: { type: Date, required: true },
   amountCents: { type: Number, min: 0, default: null },
   amountSetBySubmitter: { type: Boolean, default: false },
+  platformPreparation: {
+    preparedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    preparedAt: { type: Date, default: null },
+  },
   policySnapshot: {
     policyId: { type: mongoose.Schema.Types.ObjectId, ref: "BillingPolicy" },
     policyVersion: Number,
@@ -94,5 +104,6 @@ const InvoiceSchema = new mongoose.Schema({
 
 InvoiceSchema.index({ organizationId: 1, submitterId: 1, status: 1, createdAt: -1 });
 InvoiceSchema.index({ organizationId: 1, archivedAt: 1, createdAt: -1 });
+InvoiceSchema.index({ billingOwner: 1, status: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Invoice", InvoiceSchema);

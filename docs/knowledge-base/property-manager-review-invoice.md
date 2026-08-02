@@ -4,7 +4,7 @@
 
 **Applies to:** Invoices for properties assigned to you
 
-Use the invoice review to confirm the contractor’s PDF and either approve delivery to accounts payable or return the invoice with a clear reason.
+Use the invoice review to confirm the PDF and either approve delivery to accounts payable or return the invoice with a clear reason. An **Afterlight service** invoice is prepared by Afterlight platform billing; its submitter field identifies who performed the inspection, not who owns the invoice.
 
 ## Open the review
 
@@ -31,7 +31,7 @@ A useful decline reason identifies both the problem and the expected correction.
 
 ## What happens after a decline
 
-The invoice moves to **Needs Revision**. Afterlight notifies the submitter and displays your decline reason in their Billing view. The submitter can correct the amount, generate a replacement PDF, and send it back for review.
+The invoice moves to **Needs Revision**. For customer-contractor invoices, Afterlight notifies the submitter and displays your decline reason in their Billing view. For Afterlight service invoices, the reason returns to **Platform > Service Billing** for Afterlight to correct, regenerate, and resubmit.
 
 ## If something goes wrong
 

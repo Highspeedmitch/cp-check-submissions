@@ -55,3 +55,16 @@ test("property administration and access-instruction paths remain stable", () =>
     { path: "/:propertyName", methods: ["put"] },
   ]);
 });
+
+test("billing router exposes the platform-owned service invoice lifecycle", () => {
+  const inventory = routeInventory(require("../Routes/billing"));
+  for (const route of [
+    { path: "/platform-service-invoices", methods: ["get"] },
+    { path: "/platform-service-invoices/:id/amount", methods: ["put"] },
+    { path: "/platform-service-invoices/:id/generate", methods: ["post"] },
+    { path: "/platform-service-invoices/:id/submit", methods: ["post"] },
+    { path: "/platform-service-invoices/:id/mark-paid", methods: ["post"] },
+  ]) {
+    assert.deepEqual(inventory.find((candidate) => candidate.path === route.path), route);
+  }
+});

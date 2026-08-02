@@ -6,6 +6,7 @@ import PageHeader from "./ui/PageHeader";
 import ProspectAssessments from "./ProspectAssessments";
 import ThemeToggle from "./ui/ThemeToggle";
 import PlatformResources from "./PlatformResources";
+import PlatformServiceBilling from "./PlatformServiceBilling";
 
 const EMPTY_ORGANIZATION = {
   name: "",
@@ -72,6 +73,7 @@ function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganizati
         <nav>
           <p className="beta-nav-label">Platform</p>
           <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}>Overview</button>
+          <button type="button" className={`beta-nav-item${activeView === "billing" ? " active" : ""}`} onClick={() => go("billing")}>Service Billing</button>
           <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}>Resources &amp; Payables</button>
           <button type="button" className="beta-nav-item" onClick={() => { onHelp(); onClose(); }}>Help Center</button>
           <button type="button" className="beta-nav-item platform-new-org-button" onClick={() => { onNewOrganization(); onClose(); }}>
@@ -290,12 +292,12 @@ export default function PlatformDashboard() {
           <strong>Platform</strong><span className="beta-avatar" aria-hidden="true">A</span>
         </div>
         <PageHeader eyebrow="Platform administration"
-          title={activeView === "overview" ? "Organization Overview" : activeView === "resources" ? "Resources & Payables" : "Complimentary Reports"}
-          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : "Create and manage standalone property opportunity reports."} />
+          title={activeView === "overview" ? "Organization Overview" : activeView === "billing" ? "Service Billing" : activeView === "resources" ? "Resources & Payables" : "Complimentary Reports"}
+          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : "Create and manage standalone property opportunity reports."} />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}
 
-        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "resources" ? <PlatformResources /> : !report ? (
+        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "resources" ? <PlatformResources /> : !report ? (
           <div className="beta-empty-state">Loading platform metrics...</div>
         ) : (
           <>

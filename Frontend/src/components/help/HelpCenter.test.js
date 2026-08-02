@@ -61,7 +61,18 @@ test("shows the platform operations guide to a platform administrator", () => {
   expect(screen.getByRole("heading", {
     name: "Configure Gusto for Afterlight contractor payments",
   })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Process Afterlight service invoices",
+  })).toBeInTheDocument();
   expect(screen.queryByRole("heading", {
     name: "Create and manage a scheduler assignment",
+  })).not.toBeInTheDocument();
+});
+
+test("hides platform service billing guidance from organization administrators", () => {
+  renderHelpCenter("admin");
+
+  expect(screen.queryByRole("heading", {
+    name: "Process Afterlight service invoices",
   })).not.toBeInTheDocument();
 });
