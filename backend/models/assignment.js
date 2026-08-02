@@ -53,7 +53,7 @@ const assignmentSchema = new mongoose.Schema({
     },
     invoiceVisibility: {
       type: String,
-      enum: ["none", "submitter_and_organization_oversight"],
+      enum: ["none", "submitter_and_organization_oversight", "organization_oversight"],
       required: true,
     },
     invoiceRequired: { type: Boolean, required: true },

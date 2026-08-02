@@ -27,6 +27,7 @@ const ONBOARDING_STATUSES = new Set([
   "onboarding_completed",
 ]);
 const RESOURCE_LINKABLE_ROLES = new Set(["user", "contractor", "cleaner"]);
+const RESOURCE_TYPES = new Set(["contractor", "employee", "owner"]);
 
 function cleanList(value, limit = 20) {
   return [...new Set(
@@ -80,6 +81,10 @@ router.post("/resources", async (req, res) => {
   try {
     const email = normalizeInvitationEmail(req.body.email);
     const displayName = String(req.body.displayName || "").trim().replace(/\s+/g, " ");
+    const resourceType = String(req.body.resourceType || "contractor");
+    if (!RESOURCE_TYPES.has(resourceType)) {
+      return res.status(400).json({ error: "Select a valid resource relationship." });
+    }
     if (displayName.length < 2 || displayName.length > 100) {
       return res.status(400).json({ error: "Resource name must be between 2 and 100 characters." });
     }
@@ -102,9 +107,12 @@ router.post("/resources", async (req, res) => {
       ...(existingUser ? { userId: existingUser._id, status: "onboarding" } : {}),
       email,
       displayName,
+      resourceType,
       skills: cleanList(req.body.skills),
       regions: cleanList(req.body.regions),
-      defaultRateCents: validCents(req.body.defaultRateCents),
+      defaultRateCents: resourceType === "contractor"
+        ? validCents(req.body.defaultRateCents)
+        : 0,
       createdBy: req.user.userId,
     });
     if (existingUser) {
@@ -131,6 +139,7 @@ router.post("/resources", async (req, res) => {
           resourceProfileId: profile._id,
           userId: existingUser._id,
           email,
+          resourceType,
           notificationDelivered: delivered,
         },
       });
@@ -146,7 +155,7 @@ router.post("/resources", async (req, res) => {
     const invitation = await createInvitation({
       organization: workforce,
       email,
-      role: "contractor",
+      role: resourceType === "contractor" ? "contractor" : "user",
       invitedBy: req.user.userId,
       inviterScope: "platform",
       accountScope: "afterlight_resource",
@@ -159,6 +168,7 @@ router.post("/resources", async (req, res) => {
       metadata: {
         resourceProfileId: profile._id,
         email,
+        resourceType,
         invitationDelivered: invitation.delivered,
       },
     });
@@ -188,7 +198,16 @@ router.put("/resources/:resourceId", async (req, res) => {
     }
     if (req.body.skills !== undefined) profile.skills = cleanList(req.body.skills);
     if (req.body.regions !== undefined) profile.regions = cleanList(req.body.regions);
-    if (req.body.defaultRateCents !== undefined) profile.defaultRateCents = validCents(req.body.defaultRateCents);
+    if (req.body.resourceType !== undefined) {
+      if (!RESOURCE_TYPES.has(req.body.resourceType)) {
+        return res.status(400).json({ error: "Select a valid resource relationship." });
+      }
+      profile.resourceType = req.body.resourceType;
+      if (profile.resourceType !== "contractor") profile.defaultRateCents = 0;
+    }
+    if (req.body.defaultRateCents !== undefined && profile.resourceType === "contractor") {
+      profile.defaultRateCents = validCents(req.body.defaultRateCents);
+    }
     if (req.body.availabilityStatus !== undefined) {
       if (!["available", "unavailable"].includes(req.body.availabilityStatus)) {
         return res.status(400).json({ error: "Select a valid availability status." });
@@ -212,10 +231,13 @@ router.put("/resources/:resourceId", async (req, res) => {
       }
       if (req.body.status === "active" && (
         !profile.userId
-        || profile.gusto.onboardingStatus !== "onboarding_completed"
+        || (profile.resourceType === "contractor"
+          && profile.gusto.onboardingStatus !== "onboarding_completed")
       )) {
         return res.status(400).json({
-          error: "The Afterlight account and Gusto onboarding must be complete before activation.",
+          error: profile.resourceType === "contractor"
+            ? "The Afterlight account and Gusto onboarding must be complete before activation."
+            : "The Afterlight account must be linked before activation.",
         });
       }
       profile.status = req.body.status;
@@ -225,7 +247,11 @@ router.put("/resources/:resourceId", async (req, res) => {
     await PlatformAudit.create({
       ...auditDetails(req),
       action: "afterlight_resource_updated",
-      metadata: { resourceProfileId: profile._id, status: profile.status },
+      metadata: {
+        resourceProfileId: profile._id,
+        resourceType: profile.resourceType,
+        status: profile.status,
+      },
     });
     return res.json(profile);
   } catch (error) {
@@ -253,7 +279,8 @@ router.post("/resources/:resourceId/deployments", async (req, res) => {
       return res.status(400).json({ error: "One or more selected properties do not belong to this organization." });
     }
     const rateOverrideCents = validCents(req.body.rateOverrideCents, { optional: true });
-    if ((rateOverrideCents ?? resource.defaultRateCents) <= 0) {
+    if (resource.resourceType === "contractor"
+      && (rateOverrideCents ?? resource.defaultRateCents) <= 0) {
       return res.status(400).json({ error: "Configure a positive default or deployment rate." });
     }
     const startsAt = req.body.startsAt ? new Date(req.body.startsAt) : new Date();
@@ -267,7 +294,7 @@ router.post("/resources/:resourceId/deployments", async (req, res) => {
         $set: {
           propertyIds: requestedIds,
           status: "active",
-          rateOverrideCents,
+          rateOverrideCents: resource.resourceType === "contractor" ? rateOverrideCents : null,
           startsAt,
           endsAt,
           updatedBy: req.user.userId,
@@ -282,6 +309,7 @@ router.post("/resources/:resourceId/deployments", async (req, res) => {
       targetOrganizationId: organization._id,
       metadata: {
         resourceProfileId: resource._id,
+        resourceType: resource.resourceType,
         deploymentId: deployment._id,
         propertyIds: requestedIds,
       },

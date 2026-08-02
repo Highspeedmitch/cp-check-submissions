@@ -4,6 +4,7 @@ const {
   organizationDefaultSource,
   propertyDefaultSource,
   resolveAssignmentFulfillment,
+  resolveDirectSubmissionFulfillment,
   legacyFulfillmentSnapshot,
 } = require("../services/fulfillmentPolicy");
 
@@ -42,6 +43,31 @@ test("assignment overrides derive customer employee invoice suppression", () => 
   assert.equal(snapshot.invoiceRequired, false);
   assert.equal(snapshot.invoiceRouting, "none");
   assert.equal(snapshot.invoiceVisibility, "none");
+});
+
+test("direct organization submissions are employee work even in a managed organization", () => {
+  const snapshot = resolveDirectSubmissionFulfillment({
+    organization: {
+      serviceModel: "managed",
+      fulfillmentPolicy: { defaultSource: "afterlight_staff", version: 7 },
+    },
+    actorUserId: "employee-1",
+  });
+  assert.equal(snapshot.source, "customer_employee");
+  assert.equal(snapshot.sourceOrigin, "direct_submitter");
+  assert.equal(snapshot.inheritedSource, "afterlight_staff");
+  assert.equal(snapshot.invoiceRequired, false);
+  assert.equal(snapshot.invoiceRouting, "none");
+});
+
+test("Afterlight service invoices are hidden from the performing resource", () => {
+  const snapshot = resolveAssignmentFulfillment({
+    organization: { serviceModel: "managed" },
+    property: {},
+    actorUserId: "admin-1",
+  });
+  assert.equal(snapshot.source, "afterlight_staff");
+  assert.equal(snapshot.invoiceVisibility, "organization_oversight");
 });
 
 test("legacy work retains the existing client billing behavior", () => {

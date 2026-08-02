@@ -36,6 +36,7 @@ export default function DashboardNavigation({
   mileageCount,
   onMileageToggle,
   onLogout,
+  canAccessBilling = false,
   notificationBadges = {},
 }) {
   const isAdmin = role === "admin";
@@ -69,7 +70,7 @@ export default function DashboardNavigation({
           {isManagement && (
             <NavButton onClick={() => go("/scheduler")}>Scheduler</NavButton>
           )}
-          {orgType === "COM" && role !== "client" && (
+          {orgType === "COM" && canAccessBilling && (
             <NavButton badge={notificationBadges.billing} onClick={() => go("/billing")}>Billing</NavButton>
           )}
           <NavButton onClick={() => go("/help")}>Help Center</NavButton>

@@ -23,9 +23,11 @@ router.get("/dashboard", async (req, res) => {
         resourceProfileId: profile._id,
         status: { $in: ["scheduled", "completed"] },
       }).sort({ startDate: 1 }).lean(),
-      ContractorEarning.find({ resourceProfileId: profile._id })
-        .populate("organizationId", "name")
-        .sort({ earnedAt: -1 }).limit(100).lean(),
+      profile.resourceType === "contractor"
+        ? ContractorEarning.find({ resourceProfileId: profile._id })
+          .populate("organizationId", "name")
+          .sort({ earnedAt: -1 }).limit(100).lean()
+        : Promise.resolve([]),
     ]);
     const organizationIds = [...new Set(assignments.map((assignment) => String(assignment.organizationId)))];
     const organizations = await Organization.find({ _id: { $in: organizationIds } })

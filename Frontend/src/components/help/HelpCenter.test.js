@@ -14,11 +14,11 @@ function renderHelpCenter(role, orgType = "COM") {
 
 beforeEach(() => localStorage.clear());
 
-test("shows only commercial submitter help to a commercial submitter", () => {
+test("shows inspection help without contractor billing to a commercial employee", () => {
   renderHelpCenter("user");
 
   expect(screen.getByRole("heading", { name: "Complete and submit an inspection" })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Prepare and send an invoice for approval" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Prepare and send an invoice for approval" })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Review, approve, or decline an invoice" })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Create and manage a scheduler assignment" })).not.toBeInTheDocument();
 });
@@ -33,9 +33,9 @@ test("shows resource portal guidance instead of organization billing to an After
   localStorage.setItem("accountScope", "afterlight_resource");
   renderHelpCenter("contractor");
 
-  expect(screen.getByRole("heading", { name: "Set up your Afterlight contractor account" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your Afterlight resource account" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Use the Afterlight Resource Portal" })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Complete an assigned contractor inspection" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Complete an assigned Afterlight resource inspection" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Understand your contractor earnings" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: /send an invoice/i })).not.toBeInTheDocument();
 });

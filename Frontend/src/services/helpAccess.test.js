@@ -10,8 +10,6 @@ import {
 test("filters help articles by exact role and organization type", () => {
   expect(visibleHelpArticles({ role: "user", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "complete-and-submit-an-inspection",
-    "prepare-and-send-an-invoice",
-    "revise-a-declined-invoice",
   ]);
   expect(visibleHelpArticles({ role: "user", orgType: "STR" }).map(({ slug }) => slug)).toEqual([
     "complete-and-submit-an-inspection",
@@ -36,6 +34,22 @@ test("filters help articles by exact role and organization type", () => {
     "complete-a-resource-assignment",
     "understand-resource-earnings",
   ]);
+});
+
+test("owner and employee resources receive non-payable guidance instead of earnings guidance", () => {
+  const slugs = visibleHelpArticles({
+    role: "contractor",
+    orgType: "COM",
+    accountScope: "afterlight_resource",
+    resourceType: "owner",
+  }).map(({ slug }) => slug);
+  expect(slugs).toEqual([
+    "resource-account-setup",
+    "use-the-resource-portal",
+    "complete-a-resource-assignment",
+    "afterlight-owner-employee-resource-work",
+  ]);
+  expect(slugs).not.toContain("understand-resource-earnings");
 });
 
 test("a dual-workspace submitter is treated as a contractor inside the Resource Portal", () => {

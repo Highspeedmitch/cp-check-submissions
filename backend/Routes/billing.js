@@ -25,8 +25,33 @@ const {
   isAfterlightServiceInvoice,
   afterlightServiceInvoiceScope,
 } = require("../services/serviceBilling");
+const { billingWorkspaceAccess } = require("../services/billingAccess");
 
 const router = express.Router();
+
+router.get("/access", async (req, res) => {
+  try {
+    return res.json(await billingWorkspaceAccess(req.user));
+  } catch (error) {
+    console.error("Billing access check error:", error.message);
+    return res.status(500).json({ error: "Unable to verify billing access." });
+  }
+});
+
+router.use(async (req, res, next) => {
+  try {
+    const access = await billingWorkspaceAccess(req.user);
+    if (!access.canAccess) {
+      return res.status(403).json({
+        error: "Billing is not part of this account's assigned responsibilities.",
+      });
+    }
+    req.billingAccess = access;
+    return next();
+  } catch (error) {
+    return res.status(500).json({ error: "Unable to verify billing access." });
+  }
+});
 
 function escapeHtml(value) {
   return String(value || "")

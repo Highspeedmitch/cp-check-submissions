@@ -4,6 +4,7 @@ import { api } from "../services/api";
 const EMPTY_RESOURCE = {
   displayName: "",
   email: "",
+  resourceType: "contractor",
   skills: "",
   regions: "",
   defaultRate: "",
@@ -34,6 +35,7 @@ export default function PlatformResources() {
       setData(dashboard);
       setResourceEdits(Object.fromEntries(dashboard.resources.map((resource) => [resource._id, {
         displayName: resource.displayName,
+        resourceType: resource.resourceType || "contractor",
         skills: (resource.skills || []).join(", "),
         regions: (resource.regions || []).join(", "),
         defaultRate: ((resource.defaultRateCents || 0) / 100).toFixed(2),
@@ -53,6 +55,9 @@ export default function PlatformResources() {
   const selectedOrganization = useMemo(() => data?.organizations.find(
     (organization) => organization._id === deployment.organizationId
   ), [data, deployment.organizationId]);
+  const selectedResource = useMemo(() => data?.resources.find(
+    (resource) => resource._id === deployment.resourceId
+  ), [data, deployment.resourceId]);
   const approvedEarnings = useMemo(() => (data?.earnings || []).filter(
     (earning) => earning.status === "approved"
   ), [data]);
@@ -79,9 +84,12 @@ export default function PlatformResources() {
     const completed = await run("invite", () => api.post("/api/platform-resources/resources", {
       displayName: resourceDraft.displayName,
       email: resourceDraft.email,
+      resourceType: resourceDraft.resourceType,
       skills: resourceDraft.skills,
       regions: resourceDraft.regions,
-      defaultRateCents: Math.round(Number(resourceDraft.defaultRate) * 100),
+      defaultRateCents: resourceDraft.resourceType === "contractor"
+        ? Math.round(Number(resourceDraft.defaultRate) * 100)
+        : 0,
     }), (result) => result.linkedExistingUser
       ? "Existing Afterlight identity linked. The Resource Portal will appear after the user signs in again."
       : "Afterlight resource invited. Complete Afterlight and Gusto onboarding before activation.");
@@ -92,13 +100,18 @@ export default function PlatformResources() {
     const edit = resourceEdits[resourceId];
     await run(`resource-${resourceId}`, () => api.put(`/api/platform-resources/resources/${resourceId}`, {
       displayName: edit.displayName,
+      resourceType: edit.resourceType,
       skills: edit.skills,
       regions: edit.regions,
-      defaultRateCents: Math.round(Number(edit.defaultRate) * 100),
+      defaultRateCents: edit.resourceType === "contractor"
+        ? Math.round(Number(edit.defaultRate) * 100)
+        : 0,
       availabilityStatus: edit.availabilityStatus,
       status: edit.status,
-      gustoContractorUuid: edit.gustoContractorUuid,
-      gustoOnboardingStatus: edit.gustoOnboardingStatus,
+      ...(edit.resourceType === "contractor" ? {
+        gustoContractorUuid: edit.gustoContractorUuid,
+        gustoOnboardingStatus: edit.gustoOnboardingStatus,
+      } : {}),
     }), "Resource profile updated.");
   }
 
@@ -141,15 +154,16 @@ export default function PlatformResources() {
         <form className="beta-form-grid" onSubmit={inviteResource}>
           <label className="beta-form-field">Name<input required value={resourceDraft.displayName} onChange={(event) => setResourceDraft((current) => ({ ...current, displayName: event.target.value }))} /></label>
           <label className="beta-form-field">Email<input required type="email" value={resourceDraft.email} onChange={(event) => setResourceDraft((current) => ({ ...current, email: event.target.value }))} /></label>
+          <label className="beta-form-field">Relationship<select value={resourceDraft.resourceType} onChange={(event) => setResourceDraft((current) => ({ ...current, resourceType: event.target.value, defaultRate: "" }))}><option value="contractor">1099 contractor</option><option value="employee">Afterlight employee</option><option value="owner">Afterlight owner</option></select></label>
           <label className="beta-form-field">Skills<input value={resourceDraft.skills} placeholder="Inspections, lighting" onChange={(event) => setResourceDraft((current) => ({ ...current, skills: event.target.value }))} /></label>
           <label className="beta-form-field">Regions<input value={resourceDraft.regions} placeholder="Phoenix, Tucson" onChange={(event) => setResourceDraft((current) => ({ ...current, regions: event.target.value }))} /></label>
-          <label className="beta-form-field">Default per-assignment rate<input required min="0.01" step="0.01" type="number" value={resourceDraft.defaultRate} onChange={(event) => setResourceDraft((current) => ({ ...current, defaultRate: event.target.value }))} /></label>
+          {resourceDraft.resourceType === "contractor" && <label className="beta-form-field">Default contractor pay rate<input required min="0.01" step="0.01" type="number" value={resourceDraft.defaultRate} onChange={(event) => setResourceDraft((current) => ({ ...current, defaultRate: event.target.value }))} /></label>}
           <div className="beta-card-actions full"><button className="beta-button" disabled={busy === "invite"}>{busy === "invite" ? "Adding..." : "Add Resource"}</button></div>
         </form>
       </section>
 
       <section className="beta-section">
-        <div className="beta-section-heading"><div><h2>Resource Profiles</h2><p>New identities must accept their Afterlight invitation. Every resource must complete Gusto onboarding before activation.</p></div></div>
+        <div className="beta-section-heading"><div><h2>Resource Profiles</h2><p>Every resource needs a linked Afterlight identity. Gusto onboarding and per-assignment pay apply only to 1099 contractors.</p></div></div>
         {data.resources.length ? <div className="platform-resource-grid">
           {data.resources.map((resource) => {
             const edit = resourceEdits[resource._id] || {};
@@ -157,12 +171,13 @@ export default function PlatformResources() {
               <div className="beta-card-header"><div><h3>{resource.displayName}</h3><p>{resource.email}</p></div><span className={`beta-status ${resource.status === "active" ? "success" : "warning"}`}>{resource.status}</span></div>
               <div className="beta-form-grid">
                 <label className="beta-form-field full">Display name<input value={edit.displayName || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, displayName: event.target.value } }))} /></label>
-                <label className="beta-form-field">Default rate<input min="0" step="0.01" type="number" value={edit.defaultRate || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, defaultRate: event.target.value } }))} /></label>
+                <label className="beta-form-field">Relationship<select value={edit.resourceType || "contractor"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, resourceType: event.target.value, defaultRate: event.target.value === "contractor" ? edit.defaultRate : "" } }))}><option value="contractor">1099 contractor</option><option value="employee">Afterlight employee</option><option value="owner">Afterlight owner</option></select></label>
+                {edit.resourceType === "contractor" && <label className="beta-form-field">Default contractor pay rate<input min="0" step="0.01" type="number" value={edit.defaultRate || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, defaultRate: event.target.value } }))} /></label>}
                 <label className="beta-form-field">Availability<select value={edit.availabilityStatus || "available"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, availabilityStatus: event.target.value } }))}><option value="available">Available</option><option value="unavailable">Unavailable</option></select></label>
                 <label className="beta-form-field full">Skills<input value={edit.skills || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, skills: event.target.value } }))} /></label>
                 <label className="beta-form-field full">Regions<input value={edit.regions || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, regions: event.target.value } }))} /></label>
-                <label className="beta-form-field full">Gusto contractor UUID (API integrations only)<input value={edit.gustoContractorUuid || ""} placeholder="Leave blank for manual Gusto payments" onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, gustoContractorUuid: event.target.value } }))} /></label>
-                <label className="beta-form-field">Gusto onboarding<select value={edit.gustoOnboardingStatus || "not_started"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, gustoOnboardingStatus: event.target.value } }))}><option value="not_started">Not started</option><option value="self_onboarding_invited">Invited</option><option value="self_onboarding_started">Started</option><option value="self_onboarding_review">Needs review</option><option value="onboarding_completed">Completed</option></select></label>
+                {edit.resourceType === "contractor" && <label className="beta-form-field full">Gusto contractor UUID (API integrations only)<input value={edit.gustoContractorUuid || ""} placeholder="Leave blank for manual Gusto payments" onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, gustoContractorUuid: event.target.value } }))} /></label>}
+                {edit.resourceType === "contractor" && <label className="beta-form-field">Gusto onboarding<select value={edit.gustoOnboardingStatus || "not_started"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, gustoOnboardingStatus: event.target.value } }))}><option value="not_started">Not started</option><option value="self_onboarding_invited">Invited</option><option value="self_onboarding_started">Started</option><option value="self_onboarding_review">Needs review</option><option value="onboarding_completed">Completed</option></select></label>}
                 <label className="beta-form-field">Afterlight status<select value={edit.status || "invited"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, status: event.target.value } }))}><option value="invited">Invited</option><option value="onboarding">Onboarding</option><option value="active">Active</option><option value="suspended">Suspended</option></select></label>
               </div>
               <button type="button" className="beta-button" disabled={busy === `resource-${resource._id}`} onClick={() => saveResource(resource._id)}>Save Resource</button>
@@ -176,14 +191,14 @@ export default function PlatformResources() {
         <form className="beta-form-grid" onSubmit={createDeployment}>
           <label className="beta-form-field">Active resource<select required value={deployment.resourceId} onChange={(event) => setDeployment((current) => ({ ...current, resourceId: event.target.value }))}><option value="">Select resource</option>{data.resources.filter((resource) => resource.status === "active").map((resource) => <option key={resource._id} value={resource._id}>{resource.displayName}</option>)}</select></label>
           <label className="beta-form-field">Managed or hybrid organization<select required value={deployment.organizationId} onChange={(event) => setDeployment((current) => ({ ...current, organizationId: event.target.value, propertyIds: [] }))}><option value="">Select organization</option>{data.organizations.map((organization) => <option key={organization._id} value={organization._id}>{organization.name} ({organization.serviceModel})</option>)}</select></label>
-          <label className="beta-form-field">Rate override<input min="0.01" step="0.01" type="number" value={deployment.rateOverride} placeholder="Use resource default" onChange={(event) => setDeployment((current) => ({ ...current, rateOverride: event.target.value }))} /></label>
+          {selectedResource?.resourceType === "contractor" && <label className="beta-form-field">Contractor pay override<input min="0.01" step="0.01" type="number" value={deployment.rateOverride} placeholder="Use resource default" onChange={(event) => setDeployment((current) => ({ ...current, rateOverride: event.target.value }))} /></label>}
           <label className="beta-form-field full">Eligible properties<select multiple value={deployment.propertyIds} onChange={(event) => setDeployment((current) => ({ ...current, propertyIds: [...event.target.selectedOptions].map((option) => option.value) }))}>{(selectedOrganization?.properties || []).map((property) => <option key={property._id} value={property._id}>{property.name}</option>)}</select></label>
           <div className="beta-card-actions full"><button className="beta-button" disabled={busy === "deployment"}>Save Deployment</button></div>
         </form>
         {data.deployments.length > 0 && <div className="beta-table-wrap"><table className="beta-data-table"><thead><tr><th>Resource</th><th>Organization</th><th>Scope</th><th>Rate</th><th>Status</th><th>Action</th></tr></thead><tbody>{data.deployments.map((item) => {
           const resource = data.resources.find((candidate) => candidate._id === id(item.resourceProfileId));
           const propertyNames = (item.organizationId?.properties || []).filter((property) => (item.propertyIds || []).map(String).includes(String(property._id))).map((property) => property.name);
-          return <tr key={item._id}><td>{resource?.displayName || "Resource"}</td><td>{item.organizationId?.name}</td><td>{propertyNames.length ? propertyNames.join(", ") : "All properties"}</td><td>{item.rateOverrideCents == null ? "Resource default" : money(item.rateOverrideCents)}</td><td>{item.status}</td><td>{item.status !== "ended" && <button className="beta-text-button" onClick={() => run(`deployment-${item._id}`, () => api.put(`/api/platform-resources/deployments/${item._id}`, { status: item.status === "active" ? "paused" : "active" }), "Deployment updated.")}>{item.status === "active" ? "Pause" : "Reactivate"}</button>}</td></tr>;
+          return <tr key={item._id}><td>{resource?.displayName || "Resource"}</td><td>{item.organizationId?.name}</td><td>{propertyNames.length ? propertyNames.join(", ") : "All properties"}</td><td>{resource?.resourceType === "contractor" ? item.rateOverrideCents == null ? "Resource default" : money(item.rateOverrideCents) : "Not payable per assignment"}</td><td>{item.status}</td><td>{item.status !== "ended" && <button className="beta-text-button" onClick={() => run(`deployment-${item._id}`, () => api.put(`/api/platform-resources/deployments/${item._id}`, { status: item.status === "active" ? "paused" : "active" }), "Deployment updated.")}>{item.status === "active" ? "Pause" : "Reactivate"}</button>}</td></tr>;
         })}</tbody></table></div>}
       </section>
 

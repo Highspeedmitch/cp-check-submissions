@@ -51,8 +51,9 @@ afterEach(() => {
 });
 
 test("loads Markdown and routes local article and image links through the Help Center", async () => {
-  localStorage.setItem("role", "user");
+  localStorage.setItem("role", "contractor");
   localStorage.setItem("orgType", "COM");
+  localStorage.setItem("billingAccess", "true");
   renderArticle("/help/complete-and-submit-an-inspection");
 
   expect(await screen.findByText("Article introduction.")).toBeInTheDocument();

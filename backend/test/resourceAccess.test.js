@@ -30,9 +30,41 @@ test("resource access follows an exact assignment across tenant boundaries", asy
 
   assert.equal(assignmentQuery.userId, "resource-user-1");
   assert.equal(assignmentQuery.status, "scheduled");
-  assert.equal(assignmentQuery["fulfillment.source"], "afterlight_contractor");
+  assert.deepEqual(assignmentQuery["fulfillment.source"], {
+    $in: ["afterlight_staff", "afterlight_contractor"],
+  });
   assert.equal(context.assignment, assignment);
   assert.equal(context.property._id, "property-1");
+});
+
+test("deployed Afterlight staff receive the same assignment-scoped property access", async () => {
+  let assignmentQuery;
+  const context = await assignedResourceContext({
+    user: { accountScope: "afterlight_resource", userId: "owner-user-1" },
+    assignmentId: "assignment-owner-1",
+    propertyName: "Winterhaven Square",
+    AssignmentModel: {
+      async findOne(query) {
+        assignmentQuery = query;
+        return {
+          _id: "assignment-owner-1",
+          userId: "owner-user-1",
+          organizationId: "org-1",
+          propertyName: "Winterhaven Square",
+          fulfillment: { source: "afterlight_staff" },
+        };
+      },
+    },
+    OrganizationModel: {
+      async findById() {
+        return { _id: "org-1", properties: [{ _id: "property-1", name: "Winterhaven Square" }] };
+      },
+    },
+  });
+  assert.deepEqual(assignmentQuery["fulfillment.source"], {
+    $in: ["afterlight_staff", "afterlight_contractor"],
+  });
+  assert.equal(context.assignment.fulfillment.source, "afterlight_staff");
 });
 
 test("resource access rejects a property that does not match the assignment", async () => {

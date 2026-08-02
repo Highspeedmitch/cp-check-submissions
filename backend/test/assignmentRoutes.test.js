@@ -102,8 +102,8 @@ test("assignment creation retains admin and organization scoping", async () => {
       async findById(id) {
         assert.equal(id, "org-1");
         return {
-          serviceModel: "managed",
-          fulfillmentPolicy: { defaultSource: "afterlight_staff", version: 2 },
+          serviceModel: "hybrid",
+          fulfillmentPolicy: { defaultSource: "customer_employee", version: 2 },
           properties: [{ name: "Broadway Center", fulfillmentPolicy: { defaultSource: null } }],
         };
       },
@@ -137,9 +137,9 @@ test("assignment creation retains admin and organization scoping", async () => {
   assert.equal(overlapQuery.status, "scheduled");
   assert.equal(savedAssignment.organizationId, "org-1");
   assert.equal(savedAssignment.eventType, "Maintenance");
-  assert.equal(savedAssignment.fulfillment.source, "afterlight_staff");
-  assert.equal(savedAssignment.fulfillment.queue, "afterlight_coverage");
-  assert.equal(savedAssignment.fulfillment.invoiceRouting, "afterlight_service_billing");
+  assert.equal(savedAssignment.fulfillment.source, "customer_employee");
+  assert.equal(savedAssignment.fulfillment.queue, "customer_assigned");
+  assert.equal(savedAssignment.fulfillment.invoiceRouting, "none");
   assert.equal(notification.userId, "user-1");
   assert.equal(notification.type, "assignment_created");
 });

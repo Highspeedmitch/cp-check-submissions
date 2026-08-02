@@ -1,10 +1,10 @@
 # Use the Afterlight Resource Portal
 
-**Audience:** Active Afterlight Resource Network contractors
+**Audience:** Active Afterlight Resource Network contractors, employees, and owners
 
 **Applies to:** Finding work and using the contractor workspace
 
-The Resource Portal is your home for Afterlight assignments and earnings. Resource assignments provide only the customer-property access needed for the scheduled work; they do not make you a member of that customer organization.
+The Resource Portal is your home for Afterlight assignments and, for 1099 contractors, earnings. Resource assignments provide only the customer-property access needed for the scheduled work; they do not make you a member of that customer organization.
 
 If your login also belongs to an organization workspace, select **Resource Portal** from the organization dashboard to enter this portal. Select **Organization Workspace** at the top of the Resource Portal to return. Switching changes the active workspace, not your identity, password, deployments, or saved work.
 
@@ -15,7 +15,8 @@ After signing in, the top of the portal shows:
 | Summary | Meaning |
 | --- | --- |
 | **Scheduled work** | The number of assignments currently waiting for you |
-| **Recorded earnings** | The combined value of non-void contractor earnings currently recorded in Afterlight |
+| **Recorded earnings** | Contractors only: the combined value of non-void contractor earnings currently recorded in Afterlight |
+| **Relationship** | Employees and owners: the Afterlight relationship used for scheduling without contractor payables |
 | **Availability** | Whether your profile is presently available for new assignments |
 
 If your profile is not active, a notice appears above the summary. You can review the portal, but new work will not be assigned until Afterlight completes activation.
@@ -27,7 +28,7 @@ Each card under **My Assignments** shows:
 - The property and customer organization.
 - The scheduled start and end dates.
 - Any special assignment instructions.
-- The agreed **Assignment compensation**.
+- Contractors only: the agreed **Assignment compensation**.
 
 Review the compensation and instructions before beginning work. The displayed compensation is saved with that assignment and does not change merely because a default contractor rate changes later.
 

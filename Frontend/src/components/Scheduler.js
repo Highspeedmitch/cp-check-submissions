@@ -111,8 +111,12 @@ function Scheduler() {
   const effectivePolicy = SOURCE_POLICIES[effectiveFulfillmentSource] || SOURCE_POLICIES.afterlight_staff;
   const eligibleUsers = users.filter((user) => {
     const isAfterlightResource = user.accountScope === "afterlight_resource";
-    if (effectiveFulfillmentSource !== "afterlight_contractor") return !isAfterlightResource;
+    if (!["afterlight_staff", "afterlight_contractor"].includes(effectiveFulfillmentSource)) {
+      return !isAfterlightResource;
+    }
     if (!isAfterlightResource) return false;
+    if (effectiveFulfillmentSource === "afterlight_contractor" && user.resourceType !== "contractor") return false;
+    if (effectiveFulfillmentSource === "afterlight_staff" && user.resourceType === "contractor") return false;
     if (!selectedProperty || !(user.propertyIds || []).length) return true;
     return user.propertyIds.map(String).includes(String(selectedProperty._id));
   });
@@ -334,7 +338,11 @@ const events = assignments.map((assignment) => {
     <option value="">Select User</option>
     {eligibleUsers.map((user) => (
       <option key={user._id} value={user._id}>
-        {user.displayName || user.email} ({user.accountScope === "afterlight_resource" ? `Afterlight contractor · ${(user.rateCents / 100).toLocaleString("en-US", { style: "currency", currency: user.currency || "USD" })}` : user.role})
+        {user.displayName || user.email} ({user.accountScope === "afterlight_resource"
+          ? user.resourceType === "contractor"
+            ? `Afterlight contractor · ${(user.rateCents / 100).toLocaleString("en-US", { style: "currency", currency: user.currency || "USD" })}`
+            : user.resourceType === "owner" ? "Afterlight owner" : "Afterlight employee"
+          : user.role})
       </option>
     ))}
   </select>

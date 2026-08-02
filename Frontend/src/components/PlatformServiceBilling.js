@@ -136,6 +136,9 @@ export default function PlatformServiceBilling() {
                 {invoice.status === "failed" && (
                   <p className="beta-alert error">The customer approved this invoice, but AP delivery failed. Their property manager can retry delivery after the AP configuration is corrected.</p>
                 )}
+                {invoice.review?.emailError && invoice.status !== "failed" && (
+                  <p className="beta-alert error"><strong>Billing attention:</strong> {invoice.review.emailError}</p>
+                )}
 
                 {editable && (
                   <div className="beta-form-grid platform-service-invoice-controls">

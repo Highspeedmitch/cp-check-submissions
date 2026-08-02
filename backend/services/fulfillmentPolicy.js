@@ -15,8 +15,8 @@ const SERVICE_MODEL_DEFAULTS = {
 const SOURCE_POLICIES = {
   customer_employee: { queue: "customer_assigned", invoiceRouting: "none", invoiceVisibility: "none", invoiceRequired: false },
   customer_contractor: { queue: "customer_assigned", invoiceRouting: "customer_accounts_payable", invoiceVisibility: "submitter_and_organization_oversight", invoiceRequired: true },
-  afterlight_staff: { queue: "afterlight_coverage", invoiceRouting: "afterlight_service_billing", invoiceVisibility: "submitter_and_organization_oversight", invoiceRequired: true },
-  afterlight_contractor: { queue: "afterlight_coverage", invoiceRouting: "afterlight_service_billing", invoiceVisibility: "submitter_and_organization_oversight", invoiceRequired: true },
+  afterlight_staff: { queue: "afterlight_coverage", invoiceRouting: "afterlight_service_billing", invoiceVisibility: "organization_oversight", invoiceRequired: true },
+  afterlight_contractor: { queue: "afterlight_coverage", invoiceRouting: "afterlight_service_billing", invoiceVisibility: "organization_oversight", invoiceRequired: true },
 };
 
 function validationError(message) {
@@ -75,6 +75,18 @@ function resolveAssignmentFulfillment({ organization, property, requestedSource,
   };
 }
 
+function resolveDirectSubmissionFulfillment({ organization, actorUserId, resolvedAt = new Date() }) {
+  return {
+    ...policyForSource("customer_employee"),
+    sourceOrigin: "direct_submitter",
+    inheritedSource: organizationDefaultSource(organization),
+    organizationDefaultSource: organizationDefaultSource(organization),
+    policyVersion: Number(organization?.fulfillmentPolicy?.version || 1),
+    resolvedAt,
+    resolvedBy: actorUserId || null,
+  };
+}
+
 function legacyFulfillmentSnapshot() {
   return {
     source: "legacy",
@@ -100,5 +112,6 @@ module.exports = {
   propertyDefaultSource,
   policyForSource,
   resolveAssignmentFulfillment,
+  resolveDirectSubmissionFulfillment,
   legacyFulfillmentSnapshot,
 };

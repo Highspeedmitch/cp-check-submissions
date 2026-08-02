@@ -6,7 +6,8 @@
     "test": "node --test",
     "worker:inspections": "node inspectionWorker.js",
     "grant-platform-admin": "node scripts/grantPlatformAdmin.js",
-    "provision-dev-platform-admin": "node scripts/provisionDevPlatformAdmin.js"
+    "provision-dev-platform-admin": "node scripts/provisionDevPlatformAdmin.js",
+    "provision-dev-owner-resource": "node scripts/provisionDevOwnerResource.js"
   },
   "keywords": [],
   "author": "",

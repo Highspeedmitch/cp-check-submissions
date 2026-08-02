@@ -8,6 +8,7 @@ import SessionStatusBanner from "./components/SessionStatusBanner";
 import PwaUpdateBanner from "./components/PwaUpdateBanner";
 import { restoreSession, tokenNeedsRefresh } from "./services/session";
 import { helpArticleBySlug } from "./services/helpAccess";
+import { api } from "./services/api";
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const ClientDashboard = lazy(() => import("./components/ClientDashboard"));
@@ -100,6 +101,34 @@ function HelpRoute({ user, children }) {
     return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
   }
   return children;
+}
+
+function BillingRoute({ user, role, accountScope }) {
+  const [access, setAccess] = useState(null);
+  useEffect(() => {
+    let active = true;
+    if (!user || role === "client" || accountScope === "afterlight_resource") {
+      setAccess(false);
+      return () => { active = false; };
+    }
+    api.get("/api/billing/access")
+      .then((result) => {
+        if (!active) return;
+        const allowed = Boolean(result?.canAccess);
+        localStorage.setItem("billingAccess", allowed ? "true" : "false");
+        setAccess(allowed);
+      })
+      .catch(() => {
+        if (!active) return;
+        localStorage.setItem("billingAccess", "false");
+        setAccess(false);
+      });
+    return () => { active = false; };
+  }, [accountScope, role, user]);
+
+  if (!user) return <Navigate to="/" />;
+  if (access === null) return <RouteLoading />;
+  return access ? <Billing /> : <Navigate to="/dashboard" replace />;
 }
 
 function App() {
@@ -253,7 +282,9 @@ function App() {
       <Route path="/scheduler" element={user && ["admin", "property_manager"].includes(role) ? <SchedulerWrapper /> : <Navigate to="/" />} />
       {/* Payments Page - Only Admins */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
-      <Route path="/billing" element={user && role !== "client" ? <Billing /> : <Navigate to="/" />} />
+      <Route path="/billing" element={
+        <BillingRoute user={user} role={role} accountScope={accountScope} />
+      } />
       <Route path="/billing/review/:id" element={<InvoiceReviewRoute user={user} role={role} />} />
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
       <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />

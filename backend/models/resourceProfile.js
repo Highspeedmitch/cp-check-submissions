@@ -13,7 +13,12 @@ const ResourceProfileSchema = new mongoose.Schema({
   },
   email: { type: String, required: true, lowercase: true, trim: true, unique: true },
   displayName: { type: String, required: true, trim: true },
-  resourceType: { type: String, enum: ["contractor"], default: "contractor" },
+  resourceType: {
+    type: String,
+    enum: ["contractor", "employee", "owner"],
+    default: "contractor",
+    index: true,
+  },
   owner: { type: String, enum: ["afterlight"], default: "afterlight" },
   status: {
     type: String,

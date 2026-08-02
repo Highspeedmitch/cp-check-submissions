@@ -4,7 +4,7 @@
 
 **Applies to:** Invoices for properties assigned to you
 
-Use the invoice review to confirm the PDF and either approve delivery to accounts payable or return the invoice with a clear reason. An **Afterlight service** invoice is prepared by Afterlight platform billing; its submitter field identifies who performed the inspection, not who owns the invoice.
+Use the invoice review to confirm the PDF and either approve delivery to accounts payable or return the invoice with a clear reason. An **Afterlight service** invoice is prepared automatically by Afterlight platform billing; its submitter field identifies who performed the inspection, not who owns the invoice. The review email may include both the inspection report and invoice PDF.
 
 ## Open the review
 

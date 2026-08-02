@@ -1,14 +1,14 @@
-# Complete an assigned contractor inspection
+# Complete an assigned Afterlight resource inspection
 
-**Audience:** Afterlight Resource Network contractors
+**Audience:** Afterlight Resource Network contractors, employees, and owners
 
 **Applies to:** Commercial, residential, long-term rental, and short-term rental assignments
 
-Use this workflow for every inspection assigned through the Resource Portal. Starting from the assignment card ensures that Afterlight uses the correct property access, checklist, compensation, and earning record.
+Use this workflow for every inspection assigned through the Resource Portal. Starting from the assignment card ensures that Afterlight uses the correct property access and checklist. For 1099 contractors, it also preserves the agreed compensation and earning record.
 
 ## Before you begin
 
-- Read the assignment dates, compensation, and special instructions.
+- Read the assignment dates and special instructions. Contractors should also verify the displayed compensation.
 - Confirm that you are at the correct property.
 - Make sure your device has enough battery and a reliable connection.
 - Allow camera or photo-library access if the checklist requires evidence.
@@ -39,7 +39,7 @@ The inspection has been received when the page displays **Inspection complete**.
 
 1. Select **Return to Dashboard**. For a contractor account, this returns you to the Resource Portal.
 2. The completed card leaves **My Assignments** after processing.
-3. A new earning appears with **Pending approval** after Afterlight records the completed work.
+3. For 1099 contractors, a new earning appears with **Pending approval** after Afterlight records the completed work. Employees and owners do not receive a per-inspection earning.
 
 You do not prepare or send the customer invoice. Customer billing and your contractor earning are separate workflows managed by Afterlight.
 

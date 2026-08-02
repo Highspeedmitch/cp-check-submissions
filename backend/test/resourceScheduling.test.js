@@ -129,10 +129,36 @@ test("scheduler resources expose deployment property scope and effective rate", 
     displayName: "Riley Resource",
     role: "contractor",
     accountScope: "afterlight_resource",
+    resourceType: "contractor",
     resourceProfileId: "resource-1",
     resourceDeploymentId: "deployment-1",
     propertyIds: ["property-1"],
     rateCents: 7000,
     currency: "USD",
   }]);
+});
+
+test("Afterlight staff assignments require a deployed employee or owner without contractor pay", async () => {
+  const result = await resolveAssignmentAssignee({
+    fulfillment: { source: "afterlight_staff" },
+    userId: "owner-user-1",
+    organizationId: "org-1",
+    property: { _id: "property-1" },
+    startDate: "2026-08-10T17:00:00.000Z",
+    ResourceProfileModel: {
+      findOne: () => leanResult({
+        _id: "resource-owner-1",
+        userId: "owner-user-1",
+        resourceType: "owner",
+        defaultRateCents: 0,
+      }),
+    },
+    ResourceDeploymentModel: {
+      findOne: () => leanResult({ _id: "deployment-owner-1", rateOverrideCents: null }),
+    },
+  });
+
+  assert.equal(result.resourceProfileId, "resource-owner-1");
+  assert.equal(result.resourceDeploymentId, "deployment-owner-1");
+  assert.equal(result.compensationSnapshot, undefined);
 });

@@ -112,11 +112,33 @@ const handleRegionFilter = async () => {
   const role = localStorage.getItem("role") || "user";
   const isManagement = role === "admin" || role === "property_manager";
   const adminOrgType = localStorage.getItem("orgType") || "COM";
+  const [canAccessBilling, setCanAccessBilling] = useState(false);
   const notificationBadges = useNotificationBadges(Boolean(token));
   useMarkNotificationsRead(["assignment_created"]);
   const [loginTime] = useState(
     () => localStorage.getItem("loginTime") || new Date().toISOString()
   );
+
+  useEffect(() => {
+    let active = true;
+    if (!token || adminOrgType !== "COM") {
+      setCanAccessBilling(false);
+      return () => { active = false; };
+    }
+    api.get("/api/billing/access")
+      .then((result) => {
+        if (!active) return;
+        const allowed = Boolean(result?.canAccess);
+        localStorage.setItem("billingAccess", allowed ? "true" : "false");
+        setCanAccessBilling(allowed);
+      })
+      .catch(() => {
+        if (!active) return;
+        localStorage.setItem("billingAccess", "false");
+        setCanAccessBilling(false);
+      });
+    return () => { active = false; };
+  }, [adminOrgType, token]);
 
   // ----------- "Add Property" Admin Flow -----------
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
@@ -610,6 +632,7 @@ useEffect(() => {
         mileageCount={mileageCount}
         onMileageToggle={handleMileageToggle}
         onLogout={handleLogout}
+        canAccessBilling={canAccessBilling}
         notificationBadges={notificationBadges}
       />
       {/* STR user action dialog */}

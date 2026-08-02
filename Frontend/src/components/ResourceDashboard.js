@@ -36,7 +36,10 @@ export default function ResourceDashboard({ setUser }) {
 
   useEffect(() => {
     api.get("/api/resource-workspace/dashboard")
-      .then(setData)
+      .then((dashboard) => {
+        localStorage.setItem("resourceType", dashboard?.profile?.resourceType || "contractor");
+        setData(dashboard);
+      })
       .catch((requestError) => setError(requestError.message));
   }, []);
 
@@ -46,6 +49,7 @@ export default function ResourceDashboard({ setUser }) {
   const earningsTotal = useMemo(() => (data?.earnings || [])
     .filter((earning) => earning.status !== "void")
     .reduce((sum, earning) => sum + earning.grossAmountCents + (earning.reimbursementCents || 0), 0), [data]);
+  const isContractor = data?.profile?.resourceType === "contractor";
 
   async function logout() {
     await logoutSession();
@@ -59,7 +63,9 @@ export default function ResourceDashboard({ setUser }) {
         <PageHeader
           eyebrow="Afterlight Resource Network"
           title={data?.profile?.displayName || "My Work"}
-          subtitle="Review assigned work and track contractor earnings separately from customer billing."
+          subtitle={isContractor
+            ? "Review assigned work and track contractor earnings separately from customer billing."
+            : "Review Afterlight-assigned work across your active customer deployments."}
           actions={(
             <div className="beta-resource-header-actions">
               <WorkspaceSwitcher />
@@ -79,7 +85,9 @@ export default function ResourceDashboard({ setUser }) {
             )}
             <section className="platform-metric-board" aria-label="Resource summary">
               <div><span>Scheduled work</span><strong>{scheduled.length}</strong></div>
-              <div><span>Recorded earnings</span><strong>{money(earningsTotal)}</strong></div>
+              {isContractor
+                ? <div><span>Recorded earnings</span><strong>{money(earningsTotal)}</strong></div>
+                : <div><span>Relationship</span><strong>{data.profile.resourceType}</strong></div>}
               <div><span>Availability</span><strong>{data.profile.availabilityStatus}</strong></div>
             </section>
 
@@ -94,10 +102,10 @@ export default function ResourceDashboard({ setUser }) {
                     </div>
                     <p>{new Date(assignment.startDate).toLocaleDateString()} to {new Date(assignment.endDate).toLocaleDateString()}</p>
                     {assignment.oneTimeCheckRequest && <div className="beta-assignment-note"><strong>Special instructions</strong><p>{assignment.oneTimeCheckRequest}</p></div>}
-                    <div className="beta-fulfillment-preview">
+                    {isContractor && <div className="beta-fulfillment-preview">
                       <span>Assignment compensation</span>
                       <strong>{money(assignment.compensationSnapshot?.amountCents, assignment.compensationSnapshot?.currency)}</strong>
-                    </div>
+                    </div>}
                     <div className="beta-card-actions">
                       <button type="button" className="beta-button" onClick={() => navigate(inspectionRoute(assignment))}>Start Inspection</button>
                       {assignment.property?.lat && assignment.property?.lng && (
@@ -109,7 +117,7 @@ export default function ResourceDashboard({ setUser }) {
               </div> : <div className="beta-empty-state">No scheduled assignments.</div>}
             </section>
 
-            <section className="beta-panel">
+            {isContractor && <section className="beta-panel">
               <div className="beta-section-heading"><div><h2>Earnings</h2><p>These records are Afterlight payables and are not customer invoices.</p></div></div>
               {data.earnings.length ? <div className="beta-resource-earnings-list">
                 {data.earnings.map((earning) => (
@@ -120,7 +128,7 @@ export default function ResourceDashboard({ setUser }) {
                   </div>
                 ))}
               </div> : <div className="beta-empty-state">Completed assignment earnings will appear here.</div>}
-            </section>
+            </section>}
           </>
         )}
       </main>

@@ -41,7 +41,7 @@ function invitationRoleLabel(role) {
 async function deliverInvitation({ invitation, organization, token, sendEmail = sendSystemEmail }) {
   const link = invitationUrl(token);
   const resourceHelp = invitation.accountScope === "afterlight_resource"
-    ? ["", `Contractor account setup guide: ${buildFrontendUrl("/help/resource-account-setup")}`]
+    ? ["", `Resource account setup guide: ${buildFrontendUrl("/help/resource-account-setup")}`]
     : [];
   await sendEmail({
     to: invitation.email,

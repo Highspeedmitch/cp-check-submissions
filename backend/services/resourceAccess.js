@@ -19,7 +19,7 @@ async function assignedResourceContext({
     userId: user.userId,
     status: "scheduled",
     resourceProfileId: { $ne: null },
-    "fulfillment.source": "afterlight_contractor",
+    "fulfillment.source": { $in: ["afterlight_staff", "afterlight_contractor"] },
   });
   if (!assignment) {
     const error = new Error("Assigned work item not found.");

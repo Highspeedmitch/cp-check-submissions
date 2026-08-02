@@ -10,6 +10,10 @@ export function getHelpAudience(storage = window.localStorage) {
       : storage.getItem("role") || "user",
     orgType: storage.getItem("orgType") || "COM",
     accountScope,
+    resourceType: storage.getItem("resourceType") || "contractor",
+    capabilities: storage.getItem("billingAccess") === "true"
+      ? ["customer_contractor_billing"]
+      : [],
     platformRole: storage.getItem("platformRole") || "",
     assumedOrganization: storage.getItem("assumedOrganization") === "true",
   };
@@ -22,6 +26,10 @@ export function isHelpArticleVisible(article, audience) {
     && article.platformRoles.length > 0;
   if (platformContext !== platformArticle) return false;
   if (platformArticle && !article.platformRoles.includes(audience.platformRole)) return false;
+  if (Array.isArray(article.resourceTypes)
+    && !article.resourceTypes.includes(audience.resourceType || "contractor")) return false;
+  if (Array.isArray(article.capabilities)
+    && !article.capabilities.every((capability) => audience.capabilities?.includes(capability))) return false;
   return article.roles.includes(audience.role)
     && article.accountScopes.includes(audience.accountScope || "organization")
     && article.orgTypes.includes(audience.orgType);

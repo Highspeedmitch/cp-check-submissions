@@ -20,9 +20,10 @@ const { resolveBillingAddress } = require("./propertyAddresses");
 const { sendSystemEmail } = require("./systemEmail");
 const { sendUserNotification } = require("./notifications");
 const { inspectionSubmitted, assignmentCompleted } = require("./notificationEvents");
-const { legacyFulfillmentSnapshot } = require("./fulfillmentPolicy");
+const { resolveDirectSubmissionFulfillment } = require("./fulfillmentPolicy");
 const { ensureContractorEarning } = require("./contractorEarnings");
 const { billingOwnerForFulfillment } = require("./serviceBilling");
+const { prepareAfterlightServiceInvoiceForReview } = require("./invoiceReview");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -83,8 +84,13 @@ async function ensurePdf(job) {
   return generated;
 }
 
-function assignmentFulfillmentSnapshot(assignment) {
-  if (!assignment?.fulfillment?.source) return legacyFulfillmentSnapshot();
+function assignmentFulfillmentSnapshot(assignment, organization, job) {
+  if (!assignment?.fulfillment?.source) {
+    return resolveDirectSubmissionFulfillment({
+      organization,
+      actorUserId: job.userId,
+    });
+  }
   const stored = typeof assignment.fulfillment.toObject === "function"
     ? assignment.fulfillment.toObject()
     : assignment.fulfillment;
@@ -92,7 +98,7 @@ function assignmentFulfillmentSnapshot(assignment) {
 }
 
 async function ensureSubmission(job, organization, property, assignment) {
-  const initialFulfillment = assignmentFulfillmentSnapshot(assignment);
+  const initialFulfillment = assignmentFulfillmentSnapshot(assignment, organization, job);
   let submission = job.submissionId
     ? await Submission.findById(job.submissionId)
     : await Submission.findOne({ processingJobId: job._id });
@@ -116,7 +122,8 @@ async function ensureSubmission(job, organization, property, assignment) {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
   }
-  if (!submission.fulfillmentSnapshot) {
+  if (!submission.fulfillmentSnapshot
+    || (!assignment && submission.fulfillmentSnapshot.source === "legacy")) {
     submission.fulfillmentSnapshot = initialFulfillment;
     submission.assignmentId = assignment?._id || null;
     await submission.save();
@@ -152,6 +159,17 @@ async function ensureSubmission(job, organization, property, assignment) {
         },
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+  } else if (job.orgType === "COM") {
+    await Invoice.updateMany(
+      {
+        submissionId: submission._id,
+        status: { $in: ["unbilled", "pending_review", "declined", "failed"] },
+      },
+      {
+        $set: { status: "void" },
+        $push: { statusHistory: { status: "void", changedBy: job.userId } },
+      }
     );
   }
   if (assignment) {
@@ -244,6 +262,15 @@ async function processInspectionJob(job) {
       });
   const generated = await ensurePdf(job);
   const submission = await ensureSubmission(job, organization, property, assignment);
+  if (submission.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing") {
+    const invoice = await Invoice.findOne({ submissionId: submission._id });
+    await prepareAfterlightServiceInvoiceForReview(invoice, {
+      inspectionPdf: {
+        filename: generated.fileName,
+        content: generated.pdfBuffer,
+      },
+    });
+  }
   await deliverNotifications(job, property, submission, assignment);
 
   if (!job.emailSentAt) {

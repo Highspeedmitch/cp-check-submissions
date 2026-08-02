@@ -62,7 +62,7 @@ export function storeAuthentication(data) {
 
 export function clearAuthentication() {
   ["token", "orgName", "organizationId", "orgType", "role", "userId", "loginTime",
-    "platformRole", "assumedOrganization", "platformSessionId", "accountScope", "availableWorkspaces"]
+    "platformRole", "assumedOrganization", "platformSessionId", "accountScope", "availableWorkspaces", "resourceType", "billingAccess"]
     .forEach((key) => localStorage.removeItem(key));
   window.dispatchEvent(new Event("auth-session-cleared"));
 }

@@ -18,6 +18,9 @@ test("invited resource profiles omit userId until one shared login is accepted",
     { userId: 1 },
     { unique: true, partialFilterExpression: { userId: { $exists: true } }, background: true },
   ]);
+  assert.deepEqual(ResourceProfile.schema.path("resourceType").options.enum, [
+    "contractor", "employee", "owner",
+  ]);
 });
 
 test("resource deployment and payable collections preserve distinct ledger links", () => {
