@@ -339,6 +339,15 @@
 .beta-form-field label, label.beta-form-field { display: block; color: var(--beta-muted); font-size: 13px; font-weight: 700; }
 .beta-form-field input, .beta-form-field select, .beta-form-field textarea { margin-top: 6px; }
 .beta-form-field.full { grid-column: 1 / -1; }
+.beta-field-help { display: block; margin-top: 7px; color: var(--beta-muted); font-size: 12px; font-weight: 500; line-height: 1.45; }
+.beta-add-property-form { scroll-margin-top: 24px; }
+.beta-add-property-form .beta-section-heading { margin-bottom: 18px; }
+.beta-add-property-form .beta-section-heading h3 { margin: 0; font-size: 22px; }
+.beta-geocode-row { display: flex; align-items: center; gap: 16px; margin-top: 18px; }
+.beta-geocode-row .beta-button { width: auto; margin: 0; }
+.beta-geocode-row small { color: var(--beta-muted); line-height: 1.5; }
+.beta-add-property-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.beta-add-property-actions .beta-button { width: auto; min-width: 150px; margin: 0; }
 
 .beta-data-table { width: 100%; border-collapse: collapse; }
 .beta-data-table th { padding: 12px 10px; border-bottom: 1px solid var(--beta-border); color: var(--beta-muted); font-size: 12px; letter-spacing: .03em; text-align: left; text-transform: uppercase; }
@@ -1420,6 +1429,10 @@
   .beta-fulfillment-queues { grid-template-columns: 1fr; }
   .beta-fulfillment-property-row { align-items: stretch; flex-direction: column; }
   .beta-fulfillment-property-row select { width: 100%; }
+  .beta-geocode-row { align-items: stretch; flex-direction: column; }
+  .beta-geocode-row .beta-button,
+  .beta-add-property-actions .beta-button { width: 100%; }
+  .beta-add-property-actions { flex-direction: column; }
   .beta-scheduler-form::before,
   .beta-scheduler-form .create-button,
   .beta-scheduler-form .delete-button { grid-column: 1; }

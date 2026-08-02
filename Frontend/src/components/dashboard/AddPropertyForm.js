@@ -13,15 +13,19 @@ const initialForm = {
   apMethod: "download",
   apDestination: "",
   propertyManagerId: "",
+  fulfillmentSource: "",
+};
+
+const FULFILLMENT_SOURCE_LABELS = {
+  customer_employee: "Customer employee",
+  customer_contractor: "Customer contractor",
+  afterlight_staff: "Afterlight staff",
+  afterlight_contractor: "Afterlight contractor",
 };
 
 function formReducer(state, action) {
-  if (action.type === "field") {
-    return { ...state, [action.name]: action.value };
-  }
-  if (action.type === "coordinates") {
-    return { ...state, lat: action.lat, lng: action.lng };
-  }
+  if (action.type === "field") return { ...state, [action.name]: action.value };
+  if (action.type === "coordinates") return { ...state, lat: action.lat, lng: action.lng };
   if (action.type === "reset") return initialForm;
   return state;
 }
@@ -31,6 +35,7 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [propertyManagers, setPropertyManagers] = useState([]);
+  const [organizationDefaultSource, setOrganizationDefaultSource] = useState("");
   const formRef = useRef(null);
 
   useEffect(() => {
@@ -50,6 +55,12 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
         );
       })
       .catch(() => setError("Unable to load property managers."));
+  }, []);
+
+  useEffect(() => {
+    api.get("/api/fulfillment")
+      .then((settings) => setOrganizationDefaultSource(settings.organization?.defaultSource || ""))
+      .catch(() => setOrganizationDefaultSource(""));
   }, []);
 
   const setField = (name) => (event) => {
@@ -81,11 +92,7 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
         return;
       }
       const [lng, lat] = data.features[0].center;
-      dispatch({
-        type: "coordinates",
-        lat: lat.toString(),
-        lng: lng.toString(),
-      });
+      dispatch({ type: "coordinates", lat: lat.toString(), lng: lng.toString() });
       alert(`Geocoded to: ${lat}, ${lng}`);
     } catch (geocodeError) {
       console.error("Geocoding error:", geocodeError);
@@ -109,103 +116,105 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
   };
 
   return (
-    <div className="add-property-form" ref={formRef}>
-      <h3>Add New Property</h3>
-      <label>
-        Property Name:
-        <input type="text" value={form.name} onChange={setField("name")} />
-      </label>
-      <label>
-        Emails (comma-separated):
-        <textarea value={form.emails} onChange={setField("emails")} />
-      </label>
-      <label>
-        Physical Property Address (will geocode):
-        <input type="text" value={form.address} onChange={setField("address")} />
-      </label>
-      <label>
-        Assign to property manager (optional):
-        <select
-          value={form.propertyManagerId}
-          onChange={setField("propertyManagerId")}
-        >
-          <option value="">Leave unassigned</option>
-          {propertyManagers.map((manager) => (
-            <option key={manager._id} value={manager._id}>
-              {manager.username} ({manager.email})
+    <div className="add-property-form beta-panel beta-add-property-form" ref={formRef}>
+      <div className="beta-section-heading">
+        <div>
+          <p className="beta-eyebrow">Property setup</p>
+          <h3>Add New Property</h3>
+          <p>Create the property, assign oversight, and choose how its future work will be fulfilled.</p>
+        </div>
+      </div>
+
+      <div className="beta-form-grid">
+        <label className="beta-form-field full">
+          Property Name
+          <input type="text" value={form.name} onChange={setField("name")} />
+        </label>
+        <label className="beta-form-field full">
+          Inspection recipients (comma-separated)
+          <textarea value={form.emails} onChange={setField("emails")} />
+        </label>
+        <label className="beta-form-field full">
+          Physical Property Address (will geocode)
+          <input type="text" value={form.address} onChange={setField("address")} />
+        </label>
+        <label className="beta-form-field">
+          Assign to property manager (optional)
+          <select value={form.propertyManagerId} onChange={setField("propertyManagerId")}>
+            <option value="">Leave unassigned</option>
+            {propertyManagers.map((manager) => (
+              <option key={manager._id} value={manager._id}>
+                {manager.username} ({manager.email})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="beta-form-field">
+          Service Delivery Method
+          <select value={form.fulfillmentSource} onChange={setField("fulfillmentSource")}>
+            <option value="">
+              Organization Default{organizationDefaultSource
+                ? ` (${FULFILLMENT_SOURCE_LABELS[organizationDefaultSource]})`
+                : ""}
             </option>
-          ))}
-        </select>
-      </label>
-      {orgType === "COM" && (
-        <>
-          <label>
-            Invoice Billing Address:
-            <input
-              type="text"
-              required
-              value={form.billingAddress}
-              onChange={setField("billingAddress")}
-            />
-          </label>
-          <label>
-            Brokerage Property Code:
-            <input
-              type="text"
-              required
-              value={form.propertyCode}
-              onChange={setField("propertyCode")}
-            />
-          </label>
-          <label>
-            Default Check Amount (optional):
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.defaultAmount}
-              onChange={setField("defaultAmount")}
-            />
-          </label>
-          <label>
-            AP Delivery:
-            <select value={form.apMethod} onChange={setField("apMethod")}>
-              <option value="download">Manual download</option>
-              <option value="email">Email</option>
-              <option value="portal">AP portal</option>
-            </select>
-          </label>
-          {form.apMethod !== "download" && (
-            <label>
-              {form.apMethod === "email" ? "AP Email:" : "AP Portal / Instructions:"}
-              <input
-                type={form.apMethod === "email" ? "email" : "text"}
-                value={form.apDestination}
-                onChange={setField("apDestination")}
-              />
+            {Object.entries(FULFILLMENT_SOURCE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <small className="beta-field-help">
+            Organization Default follows the organization policy. Another selection creates a property-level override.
+          </small>
+        </label>
+
+        {orgType === "COM" && (
+          <>
+            <label className="beta-form-field full">
+              Invoice Billing Address
+              <input type="text" required value={form.billingAddress} onChange={setField("billingAddress")} />
             </label>
-          )}
-        </>
-      )}
-      <button
-        onClick={handleGeocode}
-        style={{ marginBottom: "1rem" }}
-        disabled={Boolean(busy)}
-      >
-        {busy === "geocode" ? "Geocoding…" : "Geocode"}
-      </button>
-      <div style={{ marginBottom: "1rem" }}>
-        <small>Lat: {form.lat || "N/A"}</small>
-        <br />
-        <small>Lng: {form.lng || "N/A"}</small>
+            <label className="beta-form-field">
+              Brokerage Property Code
+              <input type="text" required value={form.propertyCode} onChange={setField("propertyCode")} />
+            </label>
+            <label className="beta-form-field">
+              Default Check Amount (optional)
+              <input type="number" min="0" step="0.01" value={form.defaultAmount} onChange={setField("defaultAmount")} />
+            </label>
+            <label className="beta-form-field">
+              AP Delivery
+              <select value={form.apMethod} onChange={setField("apMethod")}>
+                <option value="download">Manual download</option>
+                <option value="email">Email</option>
+                <option value="portal">AP portal</option>
+              </select>
+            </label>
+            {form.apMethod !== "download" && (
+              <label className="beta-form-field">
+                {form.apMethod === "email" ? "AP Email" : "AP Portal / Instructions"}
+                <input
+                  type={form.apMethod === "email" ? "email" : "text"}
+                  value={form.apDestination}
+                  onChange={setField("apDestination")}
+                />
+              </label>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="beta-geocode-row">
+        <button className="beta-button secondary" onClick={handleGeocode} disabled={Boolean(busy)}>
+          {busy === "geocode" ? "Geocoding..." : "Geocode Address"}
+        </button>
+        <small>Lat: {form.lat || "N/A"}<br />Lng: {form.lng || "N/A"}</small>
       </div>
       {error && <p className="beta-alert error" role="alert">{error}</p>}
-      <button onClick={handleCreate} disabled={Boolean(busy)}>
-        {busy === "create" ? "Creating…" : "Create"}
-      </button>
-      <button disabled={Boolean(busy)} onClick={onClose}>
-        Close
-      </button>
+      <div className="beta-add-property-actions">
+        <button className="beta-button" onClick={handleCreate} disabled={Boolean(busy)}>
+          {busy === "create" ? "Creating..." : "Create Property"}
+        </button>
+        <button className="beta-button secondary" disabled={Boolean(busy)} onClick={onClose}>Cancel</button>
+      </div>
     </div>
   );
 }

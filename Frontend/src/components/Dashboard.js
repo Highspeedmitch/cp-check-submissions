@@ -377,6 +377,7 @@ useEffect(() => {
         lat: parseFloat(form.lat) || 0,
         lng: parseFloat(form.lng) || 0,
         propertyManagerId: form.propertyManagerId || null,
+        defaultFulfillmentSource: form.fulfillmentSource || null,
         ...(adminOrgType === "COM" && {
           propertyCode: form.propertyCode.trim(),
           physicalAddress: form.address.trim(),
