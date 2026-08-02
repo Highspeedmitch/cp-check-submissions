@@ -58,6 +58,9 @@ test("shows the platform operations guide to a platform administrator", () => {
   expect(screen.getByRole("heading", {
     name: "Manage Afterlight resources and contractor payables",
   })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Configure Gusto for Afterlight contractor payments",
+  })).toBeInTheDocument();
   expect(screen.queryByRole("heading", {
     name: "Create and manage a scheduler assignment",
   })).not.toBeInTheDocument();

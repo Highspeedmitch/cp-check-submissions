@@ -9,6 +9,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Task | Article | Typical time |
 | --- | --- | --- |
 | Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
+| Configure and operate the Gusto contractor-payment workflow | [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md) | 12-20 minutes |
 
 ## Submitters
 

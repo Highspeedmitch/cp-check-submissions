@@ -132,5 +132,18 @@
     "file": "platform-manage-resources-payables.md",
     "estimatedTime": "8-15 min",
     "keywords": ["activate", "contractor", "deployment", "earning", "gusto", "link", "payable", "platform admin", "payout", "resource", "workspace"]
+  },
+  {
+    "slug": "configure-gusto-contractor-payments",
+    "title": "Configure Gusto for Afterlight contractor payments",
+    "summary": "Set up the Gusto company, onboard contractors safely, submit Afterlight payout batches, and reconcile payments.",
+    "category": "Platform operations",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "platformRoles": ["platform_admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "platform-configure-gusto.md",
+    "estimatedTime": "12-20 min",
+    "keywords": ["1099", "bank", "contractor", "fixed amount", "form 8655", "gusto", "onboarding", "payment", "reconciliation", "w-9"]
   }
 ]

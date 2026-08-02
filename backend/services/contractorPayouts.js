@@ -3,14 +3,16 @@ function buildPayoutLines(earnings) {
   for (const earning of earnings) {
     const profile = earning.resourceProfileId;
     const resourceId = String(profile?._id || profile);
+    const contractorEmail = String(profile?.email || "").trim().toLowerCase();
     const gustoContractorUuid = String(profile?.gusto?.contractorUuid || "").trim();
-    if (!gustoContractorUuid) {
-      const error = new Error(`${profile?.displayName || "A contractor"} is not linked to Gusto.`);
+    if (!contractorEmail) {
+      const error = new Error(`${profile?.displayName || "A contractor"} is missing a Gusto matching email.`);
       error.status = 400;
       throw error;
     }
     const current = grouped.get(resourceId) || {
       resourceProfileId: profile._id || profile,
+      contractorEmail,
       gustoContractorUuid,
       earningIds: [],
       grossAmountCents: 0,

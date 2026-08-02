@@ -26,12 +26,12 @@ Do not create a duplicate email merely to work around an existing submitter acco
 The Afterlight account and Gusto onboarding are separate controls.
 
 1. Complete or confirm the contractor's self-onboarding in Gusto.
-2. Copy only the Gusto contractor UUID into Afterlight. Never enter banking, tax ID, W-9, or direct-deposit information.
+2. Confirm that the Gusto email exactly matches the resource profile. Leave the optional contractor UUID blank when using Gusto's normal web interface.
 3. Set **Gusto onboarding** to **Completed**.
 4. Review the default rate, skills, regions, and availability.
 5. Set **Afterlight status** to **Active** and select **Save Resource**.
 
-Activation is blocked until the resource has a linked Afterlight user, a Gusto contractor UUID, and completed Gusto onboarding.
+Activation is blocked until the resource has a linked Afterlight user and completed Gusto onboarding. Never enter banking, tax ID, W-9, or direct-deposit information in Afterlight. For the complete setup and payment procedure, read [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md).
 
 ## Deploy the resource
 
@@ -58,9 +58,9 @@ Customer invoices and contractor earnings are separate ledgers. Never approve or
 1. Select the approved earnings to pay.
 2. Enter the intended Gusto check date.
 3. Select **Create Gusto Batch**.
-4. Create the corresponding contractor payment group in Gusto.
-5. Return to Afterlight and select **Record Gusto Submission**. Enter Gusto's payment-group UUID.
-6. Select **Mark Paid** only after Gusto confirms that the payment group is funded.
+4. Enter the batch in Gusto, using the Afterlight batch number as the invoice number for each contractor payment.
+5. Return to Afterlight and select **Record Gusto Submission**. Enter a Gusto confirmation reference if displayed; otherwise use the Afterlight batch number.
+6. Select **Mark Paid** only after Gusto shows the payment as processed or paid.
 
 If Gusto rejects or changes a payment, leave the Afterlight batch unmarked and resolve the discrepancy before reconciliation.
 
@@ -76,6 +76,6 @@ These controls do not erase completed assignments, earnings, payout history, or 
 
 - **The workspace switcher is missing:** Confirm that the email matches the existing user exactly, the resource profile is linked to that user, and the profile is not suspended. Ask the user to sign out and back in.
 - **The resource is missing from the Scheduler:** Confirm that the profile and deployment are active, the selected date is within the deployment period, and the selected property is in scope.
-- **Activation is refused:** Complete Gusto onboarding and enter the Gusto contractor UUID before setting the Afterlight status to Active.
+- **Activation is refused:** Complete the contractor's Afterlight account setup and Gusto onboarding before setting the Afterlight status to Active.
 - **An earning is missing:** Confirm that the inspection was opened from the assigned Resource Portal card and successfully completed.
-- **A payout cannot be batched:** Every selected earning must be approved, and each contractor must have completed Gusto onboarding with a stored contractor UUID.
+- **A payout cannot be batched:** Every selected earning must be approved, and each contractor must have completed Gusto onboarding and a matching email.

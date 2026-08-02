@@ -9,7 +9,7 @@ Afterlight contractors use the same authentication system as every other user, b
 - `ResourceDeployment` makes one resource eligible for a managed or hybrid customer organization. It may cover all properties or a selected property list and may override the resource's default rate.
 - `Assignment` references the selected resource and deployment. It snapshots the agreed per-assignment compensation so later profile or deployment rate changes cannot rewrite historical pay.
 - `ContractorEarning` is created idempotently when a contractor inspection is completed. It starts in `pending_approval` and is separate from any customer invoice generated from the same submission.
-- `ContractorPayoutBatch` groups approved earnings by Gusto contractor UUID and tracks the check date, Gusto payment-group UUID, and reconciliation state.
+- `ContractorPayoutBatch` groups approved earnings by resource, snapshots the Gusto matching email, and tracks the check date, submission reference, and reconciliation state. An optional contractor UUID remains available for a future approved API integration.
 
 Afterlight does not store bank accounts, tax identification numbers, W-9 data, or direct-deposit details.
 
@@ -17,7 +17,7 @@ Afterlight does not store bank accounts, tax identification numbers, W-9 data, o
 
 1. A platform administrator adds a resource from **Platform > Resources & Payables**.
 2. If the email already belongs to an eligible submitter, Afterlight links the resource profile to that identity. Otherwise, the contractor accepts a normal invitation and their login uses the hidden Afterlight workforce organization as its authentication home.
-3. The platform administrator onboards the contractor in Gusto. The Gusto contractor UUID and onboarding state are recorded on the resource profile.
+3. The platform administrator onboards the contractor in Gusto. The matching email and onboarding state drive the manual workflow; the optional UUID is reserved for a future approved API connection.
 4. The resource can be activated only after the Afterlight account exists and Gusto onboarding is marked complete.
 5. The platform administrator deploys the resource to an eligible managed or hybrid organization and optionally limits the deployment to selected properties.
 6. An organization administrator or property manager sees the resource in the scheduler only when the selected fulfillment source is **Afterlight contractor**, the deployment is active, and the selected property is in scope.
@@ -28,9 +28,9 @@ Afterlight does not store bank accounts, tax identification numbers, W-9 data, o
 
 ## Current Gusto boundary
 
-This first version implements the payable ledger and a controlled Gusto handoff. It does not yet make authenticated Gusto API calls. The platform stores only Gusto contractor and payment-group UUIDs; submission and funding confirmation happen in Gusto and are reconciled in Afterlight.
+This first version implements the payable ledger and a controlled manual Gusto handoff. It does not make authenticated Gusto API calls. The platform matches contractors by email, uses the Afterlight batch number in Gusto's invoice field, and records a non-secret submission reference for reconciliation. Submission and payment confirmation happen in Gusto.
 
-Gusto's embedded payroll API uses company-level OAuth authorization with rotating refresh tokens. Those credentials must be configured through the approved runtime secret mechanism before automating the handoff. Once partner credentials and a company connection are available, the `ready -> submitted` transition can call Gusto's contractor payment-group API and persist the returned group UUID. The existing batch and earning state model does not need to change.
+Gusto's normal employer product does not currently support customers directly connecting their own internal systems through the API. A future Embedded or partner integration would require Gusto approval, company-level OAuth authorization, rotating refresh tokens, and the approved runtime secret mechanism. Once that relationship and secure connection exist, the optional UUID fields can support automated contractor and payment matching without changing the earning ledger.
 
 Official references:
 

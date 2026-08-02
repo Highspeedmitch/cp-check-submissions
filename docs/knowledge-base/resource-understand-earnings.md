@@ -31,7 +31,7 @@ The **Recorded earnings** summary combines all non-void earning records. It is a
 ## What happens in Gusto
 
 - Complete bank-account, direct-deposit, W-9, tax-identification, and tax-form steps only through Gusto.
-- Afterlight records Gusto payment-group progress in the Resource Portal but does not display your sensitive Gusto onboarding information.
+- Afterlight records Gusto payment progress in the Resource Portal but does not display your sensitive Gusto onboarding information.
 - Payment timing and delivery details come from Gusto after an earning is queued.
 
 ## Customer invoices are separate

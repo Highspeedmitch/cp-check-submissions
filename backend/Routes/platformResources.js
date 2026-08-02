@@ -212,7 +212,6 @@ router.put("/resources/:resourceId", async (req, res) => {
       }
       if (req.body.status === "active" && (
         !profile.userId
-        || !profile.gusto.contractorUuid
         || profile.gusto.onboardingStatus !== "onboarding_completed"
       )) {
         return res.status(400).json({
@@ -381,7 +380,7 @@ router.post("/payout-batches", async (req, res) => {
         _id: { $in: earningIds },
         status: "approved",
         payoutBatchId: null,
-      }).populate("resourceProfileId", "displayName gusto").session(session);
+      }).populate("resourceProfileId", "displayName email gusto").session(session);
       if (earnings.length !== earningIds.length) {
         const error = new Error("One or more earnings are no longer available for payout.");
         error.status = 409;
@@ -427,9 +426,11 @@ router.post("/payout-batches", async (req, res) => {
 });
 
 router.post("/payout-batches/:batchId/record-submission", async (req, res) => {
-  const gustoPaymentGroupUuid = String(req.body.gustoPaymentGroupUuid || "").trim();
-  if (!gustoPaymentGroupUuid || gustoPaymentGroupUuid.length > 100) {
-    return res.status(400).json({ error: "Enter the Gusto contractor payment group UUID." });
+  const gustoSubmissionReference = String(
+    req.body.gustoSubmissionReference || req.body.gustoPaymentGroupUuid || ""
+  ).trim();
+  if (!gustoSubmissionReference || gustoSubmissionReference.length > 100) {
+    return res.status(400).json({ error: "Enter the Gusto submission reference." });
   }
   try {
     const batch = await ContractorPayoutBatch.findOneAndUpdate(
@@ -437,7 +438,7 @@ router.post("/payout-batches/:batchId/record-submission", async (req, res) => {
       {
         $set: {
           status: "submitted",
-          gustoPaymentGroupUuid,
+          gustoSubmissionReference,
           submittedAt: new Date(),
           updatedBy: req.user.userId,
         },
@@ -448,7 +449,7 @@ router.post("/payout-batches/:batchId/record-submission", async (req, res) => {
     await PlatformAudit.create({
       ...auditDetails(req),
       action: "gusto_payout_batch_submission_recorded",
-      metadata: { payoutBatchId: batch._id, gustoPaymentGroupUuid },
+      metadata: { payoutBatchId: batch._id, gustoSubmissionReference },
     });
     return res.json(batch);
   } catch (error) {
@@ -462,7 +463,14 @@ router.post("/payout-batches/:batchId/mark-paid", async (req, res) => {
     let batch;
     await session.withTransaction(async () => {
       batch = await ContractorPayoutBatch.findOneAndUpdate(
-        { _id: req.params.batchId, status: "submitted", gustoPaymentGroupUuid: { $ne: "" } },
+        {
+          _id: req.params.batchId,
+          status: "submitted",
+          $or: [
+            { gustoSubmissionReference: { $ne: "" } },
+            { gustoPaymentGroupUuid: { $ne: "" } },
+          ],
+        },
         { $set: { status: "paid", paidAt: new Date(), updatedBy: req.user.userId } },
         { new: true, session }
       );
@@ -485,7 +493,10 @@ router.post("/payout-batches/:batchId/mark-paid", async (req, res) => {
     await PlatformAudit.create({
       ...auditDetails(req),
       action: "gusto_payout_batch_paid",
-      metadata: { payoutBatchId: batch._id, gustoPaymentGroupUuid: batch.gustoPaymentGroupUuid },
+      metadata: {
+        payoutBatchId: batch._id,
+        gustoSubmissionReference: batch.gustoSubmissionReference || batch.gustoPaymentGroupUuid,
+      },
     });
     return res.json(batch);
   } catch (error) {

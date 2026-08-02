@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 
 const PayoutLineSchema = new mongoose.Schema({
   resourceProfileId: { type: mongoose.Schema.Types.ObjectId, ref: "ResourceProfile", required: true },
-  gustoContractorUuid: { type: String, required: true },
+  contractorEmail: { type: String, required: true, lowercase: true, trim: true },
+  gustoContractorUuid: { type: String, default: "", trim: true },
   earningIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
   grossAmountCents: { type: Number, min: 0, required: true },
   reimbursementCents: { type: Number, min: 0, default: 0 },
@@ -23,6 +24,7 @@ const ContractorPayoutBatchSchema = new mongoose.Schema({
   totalAmountCents: { type: Number, min: 0, required: true },
   currency: { type: String, enum: ["USD"], default: "USD" },
   checkDate: { type: Date, required: true },
+  gustoSubmissionReference: { type: String, default: "", trim: true },
   gustoPaymentGroupUuid: { type: String, default: "", trim: true },
   submittedAt: { type: Date, default: null },
   paidAt: { type: Date, default: null },
