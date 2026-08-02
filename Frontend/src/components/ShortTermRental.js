@@ -176,6 +176,7 @@ function ShortTermRental() {
         orgType,
         responses,
         photoGroups: photos,
+        assignmentId,
         onProgress: ({ phase, completed, total }) => {
           if (phase === "preparing") setMessage("Preparing photo uploads…");
           if (phase === "uploading") setMessage(`Uploading photo ${completed} of ${total}…`);

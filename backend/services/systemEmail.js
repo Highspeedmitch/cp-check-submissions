@@ -20,8 +20,9 @@ function requiredEmailConfig() {
     region: process.env.SES_REGION,
     accessKeyId: process.env.SES_ACCESS_KEY_ID,
     secretAccessKey: process.env.SES_SECRET_ACCESS_KEY,
+    sessionToken: process.env.SES_SESSION_TOKEN || "",
   };
-  requireValues(config, ["provider", "senderName"]);
+  requireValues(config, ["provider", "senderName", "sessionToken"]);
   return config;
 }
 
@@ -44,13 +45,15 @@ async function createMimeMessage(mailOptions, config) {
 }
 
 function createSesClient(config) {
+  const credentials = {
+    accessKeyId: config.accessKeyId,
+    secretAccessKey: config.secretAccessKey,
+  };
+  if (config.sessionToken) credentials.sessionToken = config.sessionToken;
   return new AWS.SES({
     apiVersion: "2010-12-01",
     region: config.region,
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
-    },
+    credentials,
   });
 }
 

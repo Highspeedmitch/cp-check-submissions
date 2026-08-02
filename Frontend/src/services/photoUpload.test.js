@@ -48,6 +48,25 @@ test("inspection submissions queue metadata separately from photo content", asyn
   expect(api.post.mock.calls[1][0]).toBe("/api/inspection-jobs/job-1/complete-uploads");
 });
 
+test("resource submissions preserve the scheduled assignment identity", async () => {
+  const api = {
+    post: jest.fn()
+      .mockResolvedValueOnce({ jobId: "job-resource", status: "uploading", uploads: [] })
+      .mockResolvedValueOnce({ jobId: "job-resource", status: "queued" }),
+    get: jest.fn().mockResolvedValue({ jobId: "job-resource", status: "completed" }),
+  };
+  await submitInspectionJob({
+    api,
+    property: "Winterhaven Square",
+    orgType: "COM",
+    assignmentId: "assignment-owner-1",
+    responses: { graffiti: "no" },
+    photoGroups: {},
+  });
+
+  expect(api.post.mock.calls[0][1].assignmentId).toBe("assignment-owner-1");
+});
+
 test("inspection photos upload directly using the signed S3 form", async () => {
   const originalFetch = global.fetch;
   const originalCreateImageBitmap = global.createImageBitmap;

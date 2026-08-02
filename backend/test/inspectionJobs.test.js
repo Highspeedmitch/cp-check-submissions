@@ -6,6 +6,7 @@ const {
 } = require("../services/inspectionJobs");
 const {
   claimInspectionJob,
+  deliverInspectionEmail,
   recordJobFailure,
 } = require("../services/inspectionWorker");
 
@@ -78,4 +79,33 @@ test("failed jobs retry with backoff but preserve completed submissions", async 
   await recordJobFailure(delivered, new Error("email unavailable"));
   assert.equal(delivered.status, "completed");
   assert.match(delivered.emailError, /email unavailable/);
+});
+
+test("inspection email failure is recorded without failing completed processing", async () => {
+  let savedMail;
+  const job = {
+    _id: "job-email-1",
+    orgType: "COM",
+    propertyName: "Winterhaven Square",
+    createdAt: new Date("2026-08-02T12:00:00Z"),
+    pdfFileName: "inspection.pdf",
+    emailSentAt: null,
+    emailError: "",
+  };
+  const result = await deliverInspectionEmail(
+    job,
+    ["pm@example.com"],
+    { pdfBuffer: Buffer.from("pdf") },
+    {
+      sendEmail: async (mail) => {
+        savedMail = mail;
+        throw new Error("The security token included in the request is invalid.");
+      },
+    }
+  );
+
+  assert.equal(result.sent, false);
+  assert.equal(savedMail.to, "pm@example.com");
+  assert.match(job.emailError, /security token/i);
+  assert.equal(job.emailSentAt, null);
 });

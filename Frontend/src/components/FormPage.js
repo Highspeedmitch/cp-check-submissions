@@ -113,6 +113,7 @@ export default function FormPage() {
         orgType: "COM",
         responses: payload,
         photoGroups: photos,
+        assignmentId,
         onProgress: updateProgress,
       });
       if (result.status === "failed") throw new Error(result.error || "Report processing failed.");

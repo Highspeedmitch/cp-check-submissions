@@ -57,6 +57,7 @@ export default function ResidentialForm() {
         orgType: "RES",
         responses,
         photoGroups: photos,
+        assignmentId,
         onProgress: ({ phase, completed, total }) => {
           if (phase === "preparing") setProgress("Preparing photo uploads…");
           if (phase === "uploading") setProgress(`Uploading photo ${completed} of ${total}…`);

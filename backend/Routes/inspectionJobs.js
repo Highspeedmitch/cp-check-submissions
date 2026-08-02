@@ -28,6 +28,9 @@ function publicJob(job) {
     submissionId: job.submissionId,
     pdfUrl: job.status === "completed" ? job.pdfUrl : "",
     error: job.status === "failed" ? job.lastError : "",
+    warning: job.status === "completed" && job.emailError
+      ? "The inspection completed, but email delivery failed. The report remains available in Afterlight."
+      : "",
   };
 }
 

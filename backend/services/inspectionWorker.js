@@ -239,6 +239,32 @@ function inspectionEmail(job, recipientEmails, pdfBuffer) {
   };
 }
 
+async function deliverInspectionEmail(
+  job,
+  recipients,
+  generated,
+  { sendEmail = sendSystemEmail } = {}
+) {
+  if (job.emailSentAt) return { sent: true, warning: "" };
+  if (!recipients.length) {
+    const warning = "No inspection email recipient is configured.";
+    job.emailError = warning;
+    console.error(`Inspection email delivery skipped for job ${job._id}: ${warning}`);
+    return { sent: false, warning };
+  }
+  try {
+    await sendEmail(inspectionEmail(job, recipients, generated.pdfBuffer));
+    job.emailSentAt = new Date();
+    job.emailError = "";
+    return { sent: true, warning: "" };
+  } catch (error) {
+    const warning = String(error?.message || "Inspection email delivery failed.").slice(0, 500);
+    job.emailError = warning;
+    console.error(`Inspection email delivery failed for job ${job._id}:`, warning);
+    return { sent: false, warning };
+  }
+}
+
 async function processInspectionJob(job) {
   const organization = await Organization.findById(job.organizationId);
   if (!organization) {
@@ -273,14 +299,9 @@ async function processInspectionJob(job) {
   }
   await deliverNotifications(job, property, submission, assignment);
 
-  if (!job.emailSentAt) {
-    const fallback = process.env.INSPECTION_FALLBACK_EMAIL || process.env.SYSTEM_EMAIL_ADDRESS;
-    const recipients = property.emails?.length ? property.emails : fallback ? [fallback] : [];
-    if (!recipients.length) throw new Error("No inspection email recipient is configured.");
-    await sendSystemEmail(inspectionEmail(job, recipients, generated.pdfBuffer));
-    job.emailSentAt = new Date();
-    job.emailError = "";
-  }
+  const fallback = process.env.INSPECTION_FALLBACK_EMAIL || process.env.SYSTEM_EMAIL_ADDRESS;
+  const recipients = property.emails?.length ? property.emails : fallback ? [fallback] : [];
+  await deliverInspectionEmail(job, recipients, generated);
 
   job.status = "completed";
   job.completedAt = new Date();
@@ -389,4 +410,5 @@ module.exports = {
   processNextInspectionJob,
   cleanupExpiredInspectionUploads,
   startInspectionWorker,
+  deliverInspectionEmail,
 };
