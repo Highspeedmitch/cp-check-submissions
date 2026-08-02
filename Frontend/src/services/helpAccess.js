@@ -6,11 +6,13 @@ export function getHelpAudience(storage = window.localStorage) {
   return {
     role: storage.getItem("role") || "user",
     orgType: storage.getItem("orgType") || "COM",
+    accountScope: storage.getItem("accountScope") || "organization",
   };
 }
 export function isHelpArticleVisible(article, audience) {
   if (!article || !audience) return false;
   return article.roles.includes(audience.role)
+    && article.accountScopes.includes(audience.accountScope || "organization")
     && article.orgTypes.includes(audience.orgType);
 }
 

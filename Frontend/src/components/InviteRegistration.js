@@ -80,6 +80,7 @@ export default function InviteRegistration() {
                 <p className="beta-eyebrow">Invitation required</p>
                 <h1>{error ? "This link cannot be used" : "Create an invited account"}</h1>
                 <p>{error || "Afterlight accounts are created from secure invitations sent by a platform or organization administrator."}</p>
+                <Link className="beta-text-button" to="/help/resource-account-setup">Contractor account setup help</Link>
                 <Link className="beta-button secondary" to="/login">Return to Sign In</Link>
               </div>
             ) : (
@@ -113,6 +114,7 @@ export default function InviteRegistration() {
                     {submitting ? "Creating account..." : "Accept Invitation and Create Account"}
                   </button>
                   <p className="beta-register-signin">Already registered? <button type="button" onClick={() => navigate("/login")}>Sign in</button></p>
+                  {isResourceInvitation && <p className="beta-register-signin"><Link to="/help/resource-account-setup" target="_blank" rel="noreferrer">Need help setting up your contractor account?</Link></p>}
                 </form>
               </>
             )}

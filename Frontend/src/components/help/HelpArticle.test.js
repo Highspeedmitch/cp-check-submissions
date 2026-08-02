@@ -75,3 +75,13 @@ test("redirects a role that cannot view the requested article", async () => {
   expect(await screen.findByText("Help landing")).toBeInTheDocument();
   expect(global.fetch).not.toHaveBeenCalled();
 });
+
+test("loads the public contractor setup article before sign-in", async () => {
+  renderArticle("/help/resource-account-setup");
+
+  expect(await screen.findByText("Article introduction.")).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledWith(
+    "/help/resource-account-setup.md",
+    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  );
+});

@@ -16,8 +16,9 @@ const ROLE_NAMES = {
   client: "client",
 };
 
-function dashboardRoute(role) {
-  return role === "client" ? "/client/dashboard" : "/dashboard";
+function dashboardRoute(audience) {
+  if (audience.accountScope === "afterlight_resource") return "/resource";
+  return audience.role === "client" ? "/client/dashboard" : "/dashboard";
 }
 export default function HelpCenter() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function HelpCenter() {
     <div className="beta-page">
       <main className="beta-page-shell beta-help-center">
         <PageHeader
-          onBack={() => navigate(dashboardRoute(audience.role))}
+          onBack={() => navigate(dashboardRoute(audience))}
           title="Help Center"
           subtitle={`Guides selected for your ${ROLE_NAMES[audience.role] || "account"} role.`}
         />

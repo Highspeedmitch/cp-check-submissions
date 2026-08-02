@@ -40,6 +40,9 @@ function invitationRoleLabel(role) {
 
 async function deliverInvitation({ invitation, organization, token, sendEmail = sendSystemEmail }) {
   const link = invitationUrl(token);
+  const resourceHelp = invitation.accountScope === "afterlight_resource"
+    ? ["", `Contractor account setup guide: ${buildFrontendUrl("/help/resource-account-setup")}`]
+    : [];
   await sendEmail({
     to: invitation.email,
     subject: `You're invited to join ${organization.name} in Afterlight`,
@@ -47,6 +50,7 @@ async function deliverInvitation({ invitation, organization, token, sendEmail = 
       `You have been invited to join ${organization.name} in Afterlight as ${invitationRoleLabel(invitation.role)}.`,
       "",
       `Create your account: ${link}`,
+      ...resourceHelp,
       "",
       "This secure invitation expires in 7 days and can only be used once.",
       "If you were not expecting this invitation, you can ignore this email.",

@@ -59,6 +59,7 @@ test("organization invitations persist only the token hash and send the one-time
   assert.equal(createdRecord.tokenHash.length, 64);
   assert.equal(sentMail.text.includes(createdRecord.tokenHash), false);
   assert.match(sentMail.text, /\/join#/);
+  assert.match(sentMail.text, /\/help\/resource-account-setup/);
   assert.match(sentMail.subject, /Example Organization/);
 });
 

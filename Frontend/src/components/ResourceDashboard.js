@@ -61,6 +61,7 @@ export default function ResourceDashboard({ setUser }) {
           subtitle="Review assigned work and track contractor earnings separately from customer billing."
           actions={(
             <div className="beta-resource-header-actions">
+              <button type="button" className="beta-back-link" onClick={() => navigate("/help")}>Help Center</button>
               <ThemeToggle />
               <button type="button" className="beta-back-link" onClick={logout}>Log out</button>
             </div>

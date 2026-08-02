@@ -29,6 +29,17 @@ test("omits commercial billing help for a short-term-rental submitter", () => {
   expect(screen.queryByRole("heading", { name: /invoice/i })).not.toBeInTheDocument();
 });
 
+test("shows resource portal guidance instead of organization billing to an Afterlight contractor", () => {
+  localStorage.setItem("accountScope", "afterlight_resource");
+  renderHelpCenter("contractor");
+
+  expect(screen.getByRole("heading", { name: "Set up your Afterlight contractor account" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Use the Afterlight Resource Portal" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Complete an assigned contractor inspection" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Understand your contractor earnings" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /send an invoice/i })).not.toBeInTheDocument();
+});
+
 test("search narrows the role-visible article list", () => {
   renderHelpCenter("admin");
 

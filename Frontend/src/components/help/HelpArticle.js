@@ -24,7 +24,7 @@ export default function HelpArticle() {
   const navigate = useNavigate();
   const audience = useMemo(() => getHelpAudience(), []);
   const article = helpArticleBySlug(slug);
-  const visible = isHelpArticleVisible(article, audience);
+  const visible = Boolean(article?.public) || isHelpArticleVisible(article, audience);
   const [markdown, setMarkdown] = useState("");
   const [loading, setLoading] = useState(Boolean(article && visible));
   const [error, setError] = useState("");
@@ -52,6 +52,7 @@ export default function HelpArticle() {
   }, [article, visible]);
 
   if (!article || !visible) return <Navigate to="/help" replace />;
+  const publicWithoutSession = article.public && !localStorage.getItem("token");
 
   const markdownComponents = {
     a: ({ href = "", children, ...props }) => {
@@ -76,8 +77,8 @@ export default function HelpArticle() {
     <div className="beta-page">
       <main className="beta-page-shell beta-help-article-page">
         <PageHeader
-          onBack={() => navigate("/help")}
-          backLabel="Help Center"
+          onBack={() => navigate(publicWithoutSession ? "/login" : "/help")}
+          backLabel={publicWithoutSession ? "Sign In" : "Help Center"}
           eyebrow={article.category}
           title={article.title}
           subtitle={article.summary}

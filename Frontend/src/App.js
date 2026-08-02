@@ -7,6 +7,7 @@ import AssumedAccessBanner from "./components/AssumedAccessBanner";
 import SessionStatusBanner from "./components/SessionStatusBanner";
 import PwaUpdateBanner from "./components/PwaUpdateBanner";
 import { restoreSession, tokenNeedsRefresh } from "./services/session";
+import { helpArticleBySlug } from "./services/helpAccess";
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const ClientDashboard = lazy(() => import("./components/ClientDashboard"));
@@ -92,7 +93,9 @@ function InvoiceReviewRoute({ user, role }) {
 
 function HelpRoute({ user, platformRole, assumedOrganization, children }) {
   const location = useLocation();
-  if (!user) {
+  const slug = location.pathname.match(/^\/help\/([^/]+)$/)?.[1] || "";
+  const publicArticle = Boolean(helpArticleBySlug(slug)?.public);
+  if (!user && !publicArticle) {
     const returnTo = `${location.pathname}${location.search}`;
     return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
   }

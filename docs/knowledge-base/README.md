@@ -12,6 +12,15 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Create an invoice after a commercial inspection | [Prepare and send an invoice for approval](submitter-submit-invoice.md) | 2-3 minutes |
 | Respond to property-manager feedback | [Revise and resubmit a declined invoice](submitter-revise-invoice.md) | 2-3 minutes |
 
+## Afterlight Resource Network contractors
+
+| Task | Article | Typical time |
+| --- | --- | --- |
+| Accept an invitation and activate an account | [Set up your Afterlight contractor account](resource-account-setup.md) | 3-5 minutes |
+| Find assignments and use the contractor workspace | [Use the Afterlight Resource Portal](resource-portal-overview.md) | 2-3 minutes |
+| Complete assigned work | [Complete an assigned contractor inspection](resource-complete-assignment.md) | 5-15 minutes |
+| Understand earnings and Gusto status | [Understand your contractor earnings](resource-understand-earnings.md) | 2-3 minutes |
+
 ## Property managers
 
 | Task | Article | Typical time |
@@ -19,13 +28,15 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Approve or return an invoice | [Review, approve, or decline an invoice](property-manager-review-invoice.md) | 2-5 minutes |
 | Open completed inspection reports | [Review inspection submissions for a property](property-manager-review-submissions.md) | 1-2 minutes |
 
-## Organization administrators
+## Organization administrators and property managers
 
 | Task | Article | Typical time |
 | --- | --- | --- |
-| Schedule work for a submitter | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
+| Schedule work for a submitter or deployed resource | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
 
-> **Role note:** The current application allows only organization administrators to create, change, or delete Scheduler assignments. Property managers can view activity for their managed properties, but they cannot create assignments.
+> **Role note:** Organization administrators can manage Scheduler assignments across the organization. Property managers can manage assignments only for properties assigned to them.
+
+> **Contractor billing note:** Afterlight Resource Network contractors do not prepare customer invoices. Their earnings appear in the Resource Portal and are paid separately through Gusto.
 
 ## Invoice status quick reference
 

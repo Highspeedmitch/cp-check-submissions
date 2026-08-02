@@ -7,6 +7,7 @@ jest.mock("./components/AzRootsScheduler", () => () => <div>AzRoots Scheduler</d
 jest.mock("./components/Scheduler", () => () => <div>Scheduler</div>);
 jest.mock("./components/ResidentialForm", () => () => <div>Residential Form</div>);
 jest.mock("./components/ResourceDashboard", () => () => <div>Resource Workspace</div>);
+jest.mock("./components/help/HelpArticle", () => () => <div>Public Contractor Setup Guide</div>);
 
 function renderApp(initialPath = "/") {
   return render(
@@ -43,4 +44,10 @@ test("routes an authenticated Afterlight resource to the shared resource workspa
   renderApp("/dashboard");
 
   expect(await screen.findByText("Resource Workspace")).toBeInTheDocument();
+});
+
+test("allows the contractor account setup guide before authentication", async () => {
+  renderApp("/help/resource-account-setup");
+
+  expect(await screen.findByText("Public Contractor Setup Guide")).toBeInTheDocument();
 });
