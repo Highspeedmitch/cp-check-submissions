@@ -16,6 +16,7 @@ import PropertyRecipientsDialog from "./dashboard/dialogs/PropertyRecipientsDial
 import AddPropertyForm from "./dashboard/AddPropertyForm";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
+import CalendarFeedCard from "./CalendarFeedCard";
 import {
   useMarkNotificationsRead,
   useNotificationBadges,
@@ -681,6 +682,8 @@ useEffect(() => {
             onNavigate={openNativeMaps}
           />
         )}
+
+        <CalendarFeedCard />
 
         {loading ? (
           <p>Loading properties...</p>

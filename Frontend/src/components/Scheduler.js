@@ -214,7 +214,7 @@ function Scheduler() {
   const handleDeleteAssignment = () => {
     if (!editingAssignment) return;
 
-    if (!window.confirm("Are you sure you want to delete this assignment?")) return;
+    if (!window.confirm("Are you sure you want to cancel this assignment?")) return;
 
     fetch(apiUrl(`/api/assignments/${editingAssignment._id}`), {
       method: "DELETE",
@@ -223,12 +223,12 @@ function Scheduler() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          alert("✅ Assignment deleted successfully!");
+          alert("✅ Assignment canceled successfully!");
           setAssignments(assignments.filter((a) => a._id !== editingAssignment._id));
           setEditingAssignment(null);
           setNewAssignment(EMPTY_ASSIGNMENT);
         } else {
-          alert("❌ " + (data.error || "Failed to delete assignment."));
+          alert("❌ " + (data.error || "Failed to cancel assignment."));
         }
       })
       .catch((err) => console.error("Error deleting assignment:", err));
@@ -428,7 +428,7 @@ const events = assignments.map((assignment) => {
 
   {editingAssignment && (
     <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
-      Delete Assignment
+      Cancel Assignment
     </button>
   )}
 </form>

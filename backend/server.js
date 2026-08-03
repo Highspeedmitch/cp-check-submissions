@@ -6,6 +6,7 @@ const { config: validateTotpConfig } = require("./services/totpMfa");
 const { createApp } = require("./app");
 const { purgeExpiredProspectAssessments } = require("./services/prospectRetention");
 const { ensureAssignmentSchedulingIndex } = require("./services/assignmentIndexes");
+const CalendarFeedSubscription = require("./models/calendarFeedSubscription");
 
 const PROSPECT_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -36,6 +37,7 @@ async function startServer() {
   if (assignmentIndex.changed) {
     console.log("Assignment scheduling index migrated to scheduled-only uniqueness.");
   }
+  await CalendarFeedSubscription.createIndexes();
 
   if (String(process.env.RUN_INSPECTION_WORKER || "true").toLowerCase() !== "false") {
     require("./services/inspectionWorker").startInspectionWorker();

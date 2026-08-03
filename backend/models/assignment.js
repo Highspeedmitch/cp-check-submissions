@@ -12,6 +12,9 @@ const assignmentSchema = new mongoose.Schema({
     enum: ["scheduled", "completed", "canceled"],
     default: "scheduled",
   },
+  calendarSequence: { type: Number, min: 0, default: 0 },
+  canceledAt: { type: Date, default: null },
+  canceledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   resourceProfileId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "ResourceProfile",
@@ -74,5 +77,6 @@ assignmentSchema.index(
 assignmentSchema.index({ organizationId: 1, userId: 1, startDate: -1 });
 assignmentSchema.index({ organizationId: 1, "fulfillment.queue": 1, startDate: 1 });
 assignmentSchema.index({ resourceProfileId: 1, status: 1, startDate: 1 });
+assignmentSchema.index({ userId: 1, status: 1, startDate: 1 });
 
 module.exports = mongoose.model("Assignment", assignmentSchema);

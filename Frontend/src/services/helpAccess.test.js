@@ -10,18 +10,22 @@ import {
 test("filters help articles by exact role and organization type", () => {
   expect(visibleHelpArticles({ role: "user", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "complete-and-submit-an-inspection",
+    "connect-my-calendar",
   ]);
   expect(visibleHelpArticles({ role: "user", orgType: "STR" }).map(({ slug }) => slug)).toEqual([
     "complete-and-submit-an-inspection",
+    "connect-my-calendar",
   ]);
   expect(visibleHelpArticles({ role: "property_manager", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "review-an-invoice",
     "review-property-submissions",
     "create-a-scheduler-assignment",
+    "connect-my-calendar",
   ]);
   expect(visibleHelpArticles({ role: "admin", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "review-property-submissions",
     "create-a-scheduler-assignment",
+    "connect-my-calendar",
     "request-a-service-model-change",
   ]);
   expect(visibleHelpArticles({ role: "client", orgType: "STR" })).toEqual([]);
@@ -30,6 +34,7 @@ test("filters help articles by exact role and organization type", () => {
     orgType: "COM",
     accountScope: "afterlight_resource",
   }).map(({ slug }) => slug)).toEqual([
+    "connect-my-calendar",
     "resource-account-setup",
     "use-the-resource-portal",
     "complete-a-resource-assignment",
@@ -45,6 +50,7 @@ test("owner and employee resources receive non-payable guidance instead of earni
     resourceType: "owner",
   }).map(({ slug }) => slug);
   expect(slugs).toEqual([
+    "connect-my-calendar",
     "resource-account-setup",
     "use-the-resource-portal",
     "complete-a-resource-assignment",
@@ -64,6 +70,7 @@ test("a dual-workspace submitter is treated as a contractor inside the Resource 
   const audience = getHelpAudience(storage);
   expect(audience.role).toBe("contractor");
   expect(visibleHelpArticles(audience).map(({ slug }) => slug)).toEqual([
+    "connect-my-calendar",
     "resource-account-setup",
     "use-the-resource-portal",
     "complete-a-resource-assignment",

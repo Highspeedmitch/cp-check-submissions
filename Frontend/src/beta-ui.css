@@ -1297,6 +1297,21 @@
   background: var(--beta-subtle);
 }
 .beta-resource-earnings-list small { display: block; margin-top: 3px; color: var(--beta-muted); }
+.beta-calendar-feed { overflow: hidden; }
+.beta-calendar-feed-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.beta-calendar-feed-summary > div:first-child { display: grid; gap: 6px; min-width: 0; }
+.beta-calendar-feed-summary span:not(.beta-status) { color: var(--beta-muted); font-size: 14px; }
+.beta-calendar-feed-summary .beta-card-actions { justify-content: flex-end; margin-top: 0; }
+.beta-calendar-feed-secret { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--beta-border); }
+.beta-calendar-feed-secret label { display: block; margin-bottom: 7px; font-weight: 700; }
+.beta-calendar-feed-secret > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.beta-calendar-feed-secret input { width: 100%; min-width: 0; margin: 0; font-family: monospace; }
+.beta-calendar-feed-secret small { display: block; margin-top: 8px; color: var(--beta-muted); }
 .platform-resource-directory-controls {
   display: grid;
   grid-template-columns: minmax(230px, 2fr) repeat(3, minmax(145px, 1fr)) auto;
@@ -1717,6 +1732,11 @@
   .beta-resource-earnings-list > div,
   .beta-resource-payout-list article { grid-template-columns: 1fr; align-items: start; }
   .beta-resource-header-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .beta-calendar-feed-summary { align-items: stretch; flex-direction: column; }
+  .beta-calendar-feed-summary .beta-card-actions { justify-content: stretch; }
+  .beta-calendar-feed-summary .beta-card-actions .beta-button { width: 100%; flex-basis: auto; }
+  .beta-calendar-feed-secret > div { grid-template-columns: 1fr; }
+  .beta-calendar-feed-secret .beta-button { width: 100%; }
   .beta-security-overview > div { border-right: 0; border-bottom: 1px solid var(--beta-border); }
   .beta-security-overview > div:last-child { border-bottom: 0; }
   .beta-security-actions { align-items: stretch; flex-direction: column; }

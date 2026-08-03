@@ -18,6 +18,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Task | Article | Typical time |
 | --- | --- | --- |
 | Complete assigned property work | [Complete and submit an inspection](submitter-submit-inspection.md) | 5-15 minutes |
+| Subscribe to assigned work in an external calendar | [Connect My Calendar](connect-my-calendar.md) | 3-5 minutes |
 | Create an invoice after a commercial inspection | [Prepare and send an invoice for approval](submitter-submit-invoice.md) | 2-3 minutes |
 | Respond to property-manager feedback | [Revise and resubmit a declined invoice](submitter-revise-invoice.md) | 2-3 minutes |
 
@@ -27,6 +28,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | --- | --- | --- |
 | Accept an invitation and activate an account | [Set up your Afterlight contractor account](resource-account-setup.md) | 3-5 minutes |
 | Find assignments and use the contractor workspace | [Use the Afterlight Resource Portal](resource-portal-overview.md) | 2-3 minutes |
+| Subscribe to assigned work in an external calendar | [Connect My Calendar](connect-my-calendar.md) | 3-5 minutes |
 | Complete assigned work | [Complete an assigned contractor inspection](resource-complete-assignment.md) | 5-15 minutes |
 | Understand earnings and Gusto status | [Understand your contractor earnings](resource-understand-earnings.md) | 2-3 minutes |
 

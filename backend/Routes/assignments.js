@@ -249,14 +249,25 @@ function createAssignmentHandlers({
           $in: managedPropertiesForUser(organization, req.user).map((property) => property.name),
         };
       }
-      const deletedAssignment = await AssignmentModel.findOneAndDelete(query);
-      if (!deletedAssignment) {
+      const canceledAssignment = await AssignmentModel.findOneAndUpdate(
+        query,
+        {
+          $set: {
+            status: "canceled",
+            canceledAt: new Date(),
+            canceledBy: req.user.userId,
+          },
+          $inc: { calendarSequence: 1 },
+        },
+        { new: true }
+      );
+      if (!canceledAssignment) {
         return res.status(404).json({ error: "Assignment not found" });
       }
 
       return res.json({
         success: true,
-        message: "Assignment deleted successfully",
+        message: "Assignment canceled successfully",
       });
     } catch (error) {
       console.error("Error deleting assignment:", error);
@@ -374,7 +385,7 @@ function createAssignmentHandlers({
       }
       const assignment = await AssignmentModel.findOneAndUpdate(
         updateQuery,
-        changes,
+        { $set: changes, $inc: { calendarSequence: 1 } },
         { new: true }
       );
       if (!assignment) {

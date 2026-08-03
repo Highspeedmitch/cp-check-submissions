@@ -436,7 +436,10 @@ test("assignment updates remain scoped to the authenticated organization", async
     AssignmentModel: {
       async findOneAndUpdate(query, changes, options) {
         updateQuery = query;
-        assert.deepEqual(changes, { notes: "Gate code confirmed" });
+        assert.deepEqual(changes, {
+          $set: { notes: "Gate code confirmed" },
+          $inc: { calendarSequence: 1 },
+        });
         assert.deepEqual(options, { new: true });
         return updated;
       },
@@ -523,8 +526,8 @@ test("rescheduling the same contractor revalidates deployment without changing t
         };
       },
       async findOneAndUpdate(_query, changes) {
-        writtenChanges = changes;
-        return { _id: "assignment-1", ...changes };
+        writtenChanges = changes.$set;
+        return { _id: "assignment-1", ...changes.$set };
       },
     },
     resolveAssignee: async () => ({
@@ -567,8 +570,8 @@ test("updating only the start date makes the assignment single-day", async () =>
         };
       },
       async findOneAndUpdate(_query, changes) {
-        writtenChanges = changes;
-        return { _id: "assignment-1", ...changes };
+        writtenChanges = changes.$set;
+        return { _id: "assignment-1", ...changes.$set };
       },
     },
     resolveAssignee: async () => ({
@@ -591,12 +594,16 @@ test("updating only the start date makes the assignment single-day", async () =>
   assert.equal(writtenChanges.endDate.toISOString(), writtenChanges.startDate.toISOString());
 });
 
-test("assignment deletion remains scoped to the authenticated organization", async () => {
-  let deleteQuery;
+test("assignment cancellation remains scoped and publishes a calendar revision", async () => {
+  let cancelQuery;
+  let cancelUpdate;
+  let cancelOptions;
   const handlers = createAssignmentHandlers({
     AssignmentModel: {
-      async findOneAndDelete(query) {
-        deleteQuery = query;
+      async findOneAndUpdate(query, update, options) {
+        cancelQuery = query;
+        cancelUpdate = update;
+        cancelOptions = options;
         return { _id: "assignment-1" };
       },
     },
@@ -604,18 +611,23 @@ test("assignment deletion remains scoped to the authenticated organization", asy
   const res = response();
 
   await handlers.deleteAssignment({
-    user: { role: "admin", organizationId: "org-1" },
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
     params: { id: "assignment-1" },
   }, res);
 
-  assert.deepEqual(deleteQuery, {
+  assert.deepEqual(cancelQuery, {
     _id: "assignment-1",
     organizationId: "org-1",
     status: "scheduled",
   });
+  assert.equal(cancelUpdate.$set.status, "canceled");
+  assert.equal(cancelUpdate.$set.canceledBy, "admin-1");
+  assert.ok(cancelUpdate.$set.canceledAt instanceof Date);
+  assert.deepEqual(cancelUpdate.$inc, { calendarSequence: 1 });
+  assert.deepEqual(cancelOptions, { new: true });
   assert.deepEqual(res.body, {
     success: true,
-    message: "Assignment deleted successfully",
+    message: "Assignment canceled successfully",
   });
 });
 
@@ -644,7 +656,7 @@ test("assignment updates discard tenant, audit, and completion fields from reque
     AssignmentModel: {
       async findOneAndUpdate(_query, update) {
         changes = update;
-        return { _id: "assignment-1", ...update };
+        return { _id: "assignment-1", ...update.$set };
       },
     },
   });
@@ -660,5 +672,8 @@ test("assignment updates discard tenant, audit, and completion fields from reque
     },
   }, response());
 
-  assert.deepEqual(changes, { notes: "Gate code confirmed" });
+  assert.deepEqual(changes, {
+    $set: { notes: "Gate code confirmed" },
+    $inc: { calendarSequence: 1 },
+  });
 });

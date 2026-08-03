@@ -5,6 +5,7 @@ import { logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
 import ThemeToggle from "./ui/ThemeToggle";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
+import CalendarFeedCard from "./CalendarFeedCard";
 
 const STATUS_LABELS = {
   pending_approval: "Pending approval",
@@ -90,6 +91,8 @@ export default function ResourceDashboard({ setUser }) {
                 : <div><span>Relationship</span><strong>{data.profile.resourceType}</strong></div>}
               <div><span>Availability</span><strong>{data.profile.availabilityStatus}</strong></div>
             </section>
+
+            <CalendarFeedCard />
 
             <section className="beta-section">
               <div className="beta-section-heading"><div><h2>My Assignments</h2><p>Only work explicitly deployed and assigned to you appears here.</p></div></div>

@@ -211,7 +211,10 @@ async function deliverNotifications(job, property, submission, assignment) {
   if (assignment) {
     await Assignment.updateOne(
       { _id: assignment._id, status: "scheduled" },
-      { $set: { status: "completed" } }
+      {
+        $set: { status: "completed" },
+        $inc: { calendarSequence: 1 },
+      }
     );
   }
   job.notificationsSentAt = new Date();

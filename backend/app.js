@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const { apiLimiter } = require("./middleware/rateLimits");
+const { apiLimiter, calendarFeedLimiter } = require("./middleware/rateLimits");
 const authenticateToken = require("./middleware/authenticateToken");
 const requireAdmin = require("./middleware/requireAdmin");
 const { getAllowedFrontendOrigins } = require("./utils/frontendUrls");
@@ -20,6 +20,12 @@ function createApp() {
   app.use(express.urlencoded({ limit: "2mb", extended: true }));
   app.use(cookieParser());
 
+  app.use(
+    "/calendar",
+    calendarFeedLimiter,
+    require("./Routes/calendarFeed").publicRouter
+  );
+
   app.use("/admin", authenticateToken, requireAdmin, require("./Routes/admin"));
   app.use("/api/mileage", authenticateToken, require("./Routes/mileageTracking"));
   app.use("/api/properties", authenticateToken, require("./Routes/properties"));
@@ -37,6 +43,7 @@ function createApp() {
   app.use("/api/platform", require("./Routes/platform"));
   app.use("/api/platform-resources", require("./Routes/platformResources"));
   app.use("/api/resource-workspace", authenticateToken, require("./Routes/resourceWorkspace"));
+  app.use("/api/calendar-feed", authenticateToken, require("./Routes/calendarFeed"));
   app.use("/api/client", authenticateToken, require("./Routes/ClientRoutes"));
   app.use("/api/airbnb-calendar", require("./Routes/airbnbCalendar"));
   app.use("/api/azroots/properties", authenticateToken, require("./Routes/azrootsProperties"));
