@@ -265,6 +265,25 @@ async function deliverInspectionEmail(
   }
 }
 
+async function deliverInspectionEmailWithReviewFallback(
+  job,
+  recipients,
+  generated,
+  invoiceReviewResult,
+  { deliverStandalone = deliverInspectionEmail } = {}
+) {
+  const reviewEmailSentAt = invoiceReviewResult?.invoice?.review?.emailSentAt;
+  if (reviewEmailSentAt) {
+    job.emailSentAt = reviewEmailSentAt;
+    job.emailError = "";
+    return { sent: true, warning: "", delivery: "invoice_review" };
+  }
+  return {
+    ...await deliverStandalone(job, recipients, generated),
+    delivery: "standalone",
+  };
+}
+
 async function processInspectionJob(job) {
   const organization = await Organization.findById(job.organizationId);
   if (!organization) {
@@ -288,9 +307,10 @@ async function processInspectionJob(job) {
       });
   const generated = await ensurePdf(job);
   const submission = await ensureSubmission(job, organization, property, assignment);
+  let invoiceReviewResult = null;
   if (submission.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing") {
     const invoice = await Invoice.findOne({ submissionId: submission._id });
-    await prepareAfterlightServiceInvoiceForReview(invoice, {
+    invoiceReviewResult = await prepareAfterlightServiceInvoiceForReview(invoice, {
       inspectionPdf: {
         filename: generated.fileName,
         content: generated.pdfBuffer,
@@ -301,7 +321,12 @@ async function processInspectionJob(job) {
 
   const fallback = process.env.INSPECTION_FALLBACK_EMAIL || process.env.SYSTEM_EMAIL_ADDRESS;
   const recipients = property.emails?.length ? property.emails : fallback ? [fallback] : [];
-  await deliverInspectionEmail(job, recipients, generated);
+  await deliverInspectionEmailWithReviewFallback(
+    job,
+    recipients,
+    generated,
+    invoiceReviewResult
+  );
 
   job.status = "completed";
   job.completedAt = new Date();
@@ -411,4 +436,5 @@ module.exports = {
   cleanupExpiredInspectionUploads,
   startInspectionWorker,
   deliverInspectionEmail,
+  deliverInspectionEmailWithReviewFallback,
 };

@@ -7,6 +7,7 @@ const {
 const {
   claimInspectionJob,
   deliverInspectionEmail,
+  deliverInspectionEmailWithReviewFallback,
   recordJobFailure,
 } = require("../services/inspectionWorker");
 
@@ -108,4 +109,51 @@ test("inspection email failure is recorded without failing completed processing"
   assert.equal(savedMail.to, "pm@example.com");
   assert.match(job.emailError, /security token/i);
   assert.equal(job.emailSentAt, null);
+});
+
+test("a successful Afterlight invoice review email suppresses the checklist-only email", async () => {
+  const reviewEmailSentAt = new Date("2026-08-03T20:15:00Z");
+  const job = { emailSentAt: null, emailError: "previous warning" };
+  let standaloneDeliveries = 0;
+
+  const result = await deliverInspectionEmailWithReviewFallback(
+    job,
+    ["pm@example.com"],
+    { pdfBuffer: Buffer.from("checklist") },
+    { invoice: { review: { emailSentAt: reviewEmailSentAt } } },
+    {
+      deliverStandalone: async () => {
+        standaloneDeliveries += 1;
+        return { sent: true, warning: "" };
+      },
+    }
+  );
+
+  assert.equal(result.sent, true);
+  assert.equal(result.delivery, "invoice_review");
+  assert.equal(standaloneDeliveries, 0);
+  assert.equal(job.emailSentAt, reviewEmailSentAt);
+  assert.equal(job.emailError, "");
+});
+
+test("an unavailable invoice review email retains the checklist-only fallback", async () => {
+  const job = { emailSentAt: null, emailError: "" };
+  let standaloneDeliveries = 0;
+
+  const result = await deliverInspectionEmailWithReviewFallback(
+    job,
+    ["pm@example.com"],
+    { pdfBuffer: Buffer.from("checklist") },
+    { invoice: { review: { emailSentAt: null } }, warning: "Review email delivery failed." },
+    {
+      deliverStandalone: async () => {
+        standaloneDeliveries += 1;
+        return { sent: true, warning: "" };
+      },
+    }
+  );
+
+  assert.equal(result.sent, true);
+  assert.equal(result.delivery, "standalone");
+  assert.equal(standaloneDeliveries, 1);
 });
