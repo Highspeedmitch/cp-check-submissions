@@ -61,9 +61,16 @@ const assignmentSchema = new mongoose.Schema({
     resolvedAt: { type: Date, default: Date.now },
     resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
-}, { timestamps: true });
+}, { timestamps: true, autoIndex: false });
 
-assignmentSchema.index({ propertyName: 1, startDate: 1, organizationId: 1 }, { unique: true });
+assignmentSchema.index(
+  { propertyName: 1, startDate: 1, organizationId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: "scheduled" },
+    name: "scheduled_property_start_organization_unique",
+  }
+);
 assignmentSchema.index({ organizationId: 1, userId: 1, startDate: -1 });
 assignmentSchema.index({ organizationId: 1, "fulfillment.queue": 1, startDate: 1 });
 assignmentSchema.index({ resourceProfileId: 1, status: 1, startDate: 1 });

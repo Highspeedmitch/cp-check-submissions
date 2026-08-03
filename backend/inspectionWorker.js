@@ -2,12 +2,14 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const { validateRuntimeConfig } = require("./config/security");
 const { startInspectionWorker } = require("./services/inspectionWorker");
+const { ensureAssignmentSchedulingIndex } = require("./services/assignmentIndexes");
 
 validateRuntimeConfig();
 
 async function main() {
   await mongoose.connect(process.env.MONGO_URI);
   console.log("Inspection worker connected to MongoDB.");
+  await ensureAssignmentSchedulingIndex();
   const stop = startInspectionWorker();
   async function shutdown(signal) {
     console.log(`Inspection worker received ${signal}; shutting down.`);
