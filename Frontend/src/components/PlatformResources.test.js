@@ -155,6 +155,17 @@ test("expanded resource details retain the existing save workflow", async () => 
   expect(within(card).queryByDisplayValue("Alpha Resource")).not.toBeInTheDocument();
 });
 
+test("eligible properties remain hidden until an organization is selected", async () => {
+  render(<PlatformResources />);
+
+  await screen.findByRole("heading", { name: "Deploy a Resource" });
+  expect(screen.queryByLabelText("Eligible properties")).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText("Managed or hybrid organization"), { target: { value: "org-1" } });
+  expect(screen.getByLabelText("Eligible properties")).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Property A" })).toBeInTheDocument();
+});
+
 test("current deployments can move organizations and change eligible property scope", async () => {
   api.put.mockResolvedValueOnce({ organizationChanged: true });
   render(<PlatformResources />);
