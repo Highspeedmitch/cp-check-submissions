@@ -3,11 +3,7 @@ const router = express.Router();
 const Communication = require("../models/Communication");
 const Organization = require("../models/organization");
 const User = require("../models/user");
-const authenticateToken = require("../middleware/authenticateToken");
 const mongoose = require("mongoose");
-
-// ✅ All routes below require authentication
-router.use(authenticateToken);
 
 /**
  * ADMIN: Create a New Communication

@@ -5,7 +5,6 @@ const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
 const mongoose = require("mongoose");
 
-const authenticateToken = require("../middleware/authenticateToken");
 const Organization = require("../models/organization"); // adjust the path as needed
 const { uploadLimiter } = require("../middleware/rateLimits");
 const { imageFileFilter, rejectInvalidSignatures } = require("../utils/uploadSecurity");
@@ -45,7 +44,7 @@ async function uploadFileToS3(file, orgId) {
  * ---------------------------------------
  * Fetch extended property data (access & maintenance arrays)
  */
-router.get("/:propertyName", authenticateToken, async (req, res) => {
+router.get("/:propertyName", async (req, res) => {
   try {
     // 1) Find the organization by user’s org ID
     const org = await Organization.findById(req.user.organizationId);
@@ -85,7 +84,7 @@ router.get("/:propertyName", authenticateToken, async (req, res) => {
  * - Maintenance categories
  * - Photos for each sub-item
  */
-router.put("/:propertyName", authenticateToken, uploadLimiter, upload.any(), async (req, res) => {
+router.put("/:propertyName", uploadLimiter, upload.any(), async (req, res) => {
   try {
     rejectInvalidSignatures(req.files);
     // 1) Check user is an AzRoots admin

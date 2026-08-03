@@ -56,6 +56,38 @@ test("property administration and access-instruction paths remain stable", () =>
   ]);
 });
 
+test("client and AzRoots routes rely on centralized authentication", () => {
+  const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.match(
+    appSource,
+    /app\.use\("\/api\/client", authenticateToken, require\("\.\/Routes\/ClientRoutes"\)\)/
+  );
+  assert.match(
+    appSource,
+    /app\.use\("\/api\/azroots\/properties", authenticateToken, require\("\.\/Routes\/azrootsProperties"\)\)/
+  );
+
+  for (const routeFile of ["ClientRoutes.js", "azrootsProperties.js"]) {
+    const routeSource = fs.readFileSync(
+      path.join(__dirname, "..", "Routes", routeFile),
+      "utf8"
+    );
+    assert.doesNotMatch(routeSource, /authenticateToken/);
+  }
+});
+
+test("payment administration uses the consolidated summary routes", () => {
+  assert.deepEqual(routeInventory(require("../Routes/admin")), [
+    { path: "/users", methods: ["get"] },
+    { path: "/payment-summary/:userId", methods: ["get"] },
+    { path: "/process-payment", methods: ["post"] },
+  ]);
+  assert.deepEqual(routeInventory(require("../Routes/mileageTracking")), [
+    { path: "/start", methods: ["post"] },
+    { path: "/update", methods: ["post"] },
+  ]);
+});
+
 test("billing router exposes the platform-owned service invoice lifecycle", () => {
   const inventory = routeInventory(require("../Routes/billing"));
   for (const route of [
