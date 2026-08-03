@@ -1315,9 +1315,12 @@
 .beta-resource-payout-list article { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 16px; padding: 14px 16px; border: 1px solid var(--beta-border); border-radius: 8px; background: var(--beta-subtle); }
 .beta-resource-payout-list small { display: block; margin-top: 3px; color: var(--beta-muted); }
 .scheduler-container.beta-scheduler-shell {
+  width: 100%;
+  min-width: 0;
   max-width: 1180px;
   margin: 0 auto;
   padding: 30px 24px 64px;
+  box-sizing: border-box;
 }
 .beta-scheduler-shell > .return-button {
   width: auto;
@@ -1375,6 +1378,8 @@
 .beta-scheduler-form select,
 .beta-scheduler-form textarea { width: 100%; margin: 0; }
 .beta-scheduler-form textarea { min-height: 90px; }
+.beta-scheduler-date-field { display: grid; min-width: 0; gap: 6px; }
+.beta-scheduler-date-field small { color: var(--beta-muted); font-size: 12px; line-height: 1.4; }
 .beta-assignment-routing-preview {
   display: flex;
   align-items: center;
@@ -1407,12 +1412,16 @@
 .beta-assignment-note p { margin: 0; white-space: pre-wrap; }
 .beta-inspection-assignment-note { margin-bottom: 20px; }
 .beta-scheduler-shell > .rbc-calendar {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 620px;
   padding: 22px;
   border: 1px solid var(--beta-border);
   border-radius: var(--beta-radius);
   background: var(--beta-surface);
   box-shadow: var(--beta-shadow);
+  box-sizing: border-box;
 }
 .beta-scheduler-shell .rbc-toolbar { gap: 10px; margin-bottom: 18px; }
 .beta-scheduler-shell .rbc-toolbar button {
@@ -1471,8 +1480,25 @@
   .beta-scheduler-form .delete-button { grid-column: 1; }
   .beta-scheduler-form .create-button,
   .beta-scheduler-form .delete-button { width: 100%; }
-  .beta-scheduler-shell > .rbc-calendar { min-width: 680px; padding: 14px; }
-  .beta-scheduler-shell { overflow-x: auto; }
+  .beta-scheduler-shell { overflow-x: hidden; }
+  .beta-scheduler-shell > .rbc-calendar { min-width: 0; padding: 12px 6px; overflow: hidden; }
+  .beta-scheduler-shell .rbc-toolbar,
+  .beta-scheduler-shell .rbc-toolbar .rbc-btn-group { width: 100%; min-width: 0; }
+  .beta-scheduler-shell .rbc-toolbar .rbc-btn-group { gap: 4px; }
+  .beta-scheduler-shell .rbc-toolbar .rbc-btn-group button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px 5px;
+    font-size: 12px;
+  }
+  .beta-scheduler-shell .rbc-toolbar-label { width: 100%; min-width: 0; white-space: normal; text-align: center; }
+  .beta-scheduler-shell .rbc-month-view,
+  .beta-scheduler-shell .rbc-time-view,
+  .beta-scheduler-shell .rbc-month-row,
+  .beta-scheduler-shell .rbc-row-content { min-width: 0; }
+  .beta-scheduler-shell .rbc-header,
+  .beta-scheduler-shell .rbc-date-cell { overflow: hidden; padding-right: 3px; font-size: 12px; text-overflow: ellipsis; }
+  .beta-scheduler-shell .rbc-event { min-width: 0; font-size: 11px; }
 }
 .beta-dialog-overlay {
   position: fixed;

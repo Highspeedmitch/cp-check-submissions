@@ -15,7 +15,7 @@ From the Dashboard navigation, open **Scheduler**, then use the numbered areas i
 1. Choose the **Property**.
 2. Confirm the **Fulfillment** source. Choose **Afterlight contractor** for a deployed 1099 resource or **Afterlight staff** for a deployed Afterlight employee or owner.
 3. Choose the **User** who will complete the work. The list updates for the selected property and fulfillment source.
-4. Set the **Start Date** and **End Date**. Avoid dates that overlap another assignment for the same property.
+4. Set the required **Start Date**. Leave **End Date (optional)** blank when the work must be completed on that same date. Enter an end date only when the assignee may complete the work during a date range. Avoid dates that overlap another assignment for the same property.
 5. In **One-Time Additional Check Request**, enter only instructions for this assignment. Be concise and do not place passwords, alarm codes, or other secrets here.
 6. Select **Create Assignment**.
 7. Confirm that the new assignment appears on the calendar.

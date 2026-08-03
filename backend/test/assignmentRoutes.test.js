@@ -144,6 +144,70 @@ test("assignment creation retains admin and organization scoping", async () => {
   assert.equal(notification.type, "assignment_created");
 });
 
+test("assignment creation defaults an omitted end date to the start date", async () => {
+  let savedAssignment;
+  let overlapQuery;
+  let resolvedStartDate;
+
+  class AssignmentModel {
+    constructor(data) {
+      Object.assign(this, data);
+      this._id = "assignment-single-day";
+    }
+
+    async save() {
+      savedAssignment = this;
+    }
+
+    static async findOne(query) {
+      overlapQuery = query;
+      return null;
+    }
+  }
+
+  const handlers = createAssignmentHandlers({
+    AssignmentModel,
+    OrganizationModel: {
+      async findById() {
+        return {
+          serviceModel: "hybrid",
+          fulfillmentPolicy: { defaultSource: "customer_employee", version: 1 },
+          properties: [{ _id: "property-1", name: "Broadway Center" }],
+        };
+      },
+    },
+    resolveAssignee: async ({ startDate }) => {
+      resolvedStartDate = startDate;
+      return {
+        userId: "user-1",
+        resourceProfileId: null,
+        resourceDeploymentId: null,
+        compensationSnapshot: null,
+      };
+    },
+    notifyUser: async () => {},
+  });
+  const res = response();
+
+  await handlers.createAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    body: {
+      propertyName: "Broadway Center",
+      userId: "user-1",
+      startDate: "2026-08-15",
+    },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(savedAssignment.startDate.toISOString(), "2026-08-15T00:00:00.000Z");
+  assert.equal(savedAssignment.endDate.toISOString(), savedAssignment.startDate.toISOString());
+  assert.equal(resolvedStartDate.toISOString(), savedAssignment.startDate.toISOString());
+  assert.equal(
+    overlapQuery.$or[0].startDate.$lte.toISOString(),
+    savedAssignment.startDate.toISOString()
+  );
+});
+
 test("non-admin users still cannot create assignments", async () => {
   const handlers = createAssignmentHandlers();
   const res = response();
@@ -481,6 +545,50 @@ test("rescheduling the same contractor revalidates deployment without changing t
   assert.equal(res.statusCode, 200);
   assert.equal(writtenChanges.compensationSnapshot, originalSnapshot);
   assert.equal(writtenChanges.resourceDeploymentId, "deployment-1");
+});
+
+test("updating only the start date makes the assignment single-day", async () => {
+  let writtenChanges;
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: {
+      async findById() {
+        return { properties: [{ _id: "property-1", name: "Broadway Center" }] };
+      },
+    },
+    AssignmentModel: {
+      async findOne() {
+        return {
+          _id: "assignment-1",
+          propertyName: "Broadway Center",
+          userId: "user-1",
+          startDate: new Date("2026-08-10T00:00:00.000Z"),
+          endDate: new Date("2026-08-12T00:00:00.000Z"),
+          fulfillment: { source: "customer_employee" },
+        };
+      },
+      async findOneAndUpdate(_query, changes) {
+        writtenChanges = changes;
+        return { _id: "assignment-1", ...changes };
+      },
+    },
+    resolveAssignee: async () => ({
+      userId: "user-1",
+      resourceProfileId: null,
+      resourceDeploymentId: null,
+      compensationSnapshot: null,
+    }),
+  });
+  const res = response();
+
+  await handlers.updateAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    params: { id: "assignment-1" },
+    body: { startDate: "2026-08-20" },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(writtenChanges.startDate.toISOString(), "2026-08-20T00:00:00.000Z");
+  assert.equal(writtenChanges.endDate.toISOString(), writtenChanges.startDate.toISOString());
 });
 
 test("assignment deletion remains scoped to the authenticated organization", async () => {

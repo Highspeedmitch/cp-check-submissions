@@ -12,6 +12,27 @@ const {
 } = require("../services/resourceScheduling");
 const authenticateToken = require("../middleware/authenticateToken");
 
+function assignmentDate(value, label) {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) {
+    const error = new Error(`Select a valid ${label}.`);
+    error.status = 400;
+    throw error;
+  }
+  return date;
+}
+
+function resolveAssignmentDates(startDate, endDate) {
+  const normalizedStartDate = assignmentDate(startDate, "start date");
+  const normalizedEndDate = assignmentDate(endDate || startDate, "end date");
+  if (normalizedEndDate < normalizedStartDate) {
+    const error = new Error("End date cannot be before the start date.");
+    error.status = 400;
+    throw error;
+  }
+  return { startDate: normalizedStartDate, endDate: normalizedEndDate };
+}
+
 function createAssignmentHandlers({
   AssignmentModel = Assignment,
   OrganizationModel = Organization,
@@ -49,6 +70,7 @@ function createAssignmentHandlers({
       if (eventType && !validEventTypes.includes(eventType)) {
         return res.status(400).json({ error: "Invalid assignment event type." });
       }
+      const assignmentDates = resolveAssignmentDates(startDate, endDate);
 
       const organization = await OrganizationModel.findById(organizationId);
       if (!organization) return res.status(404).json({ error: "Organization not found." });
@@ -70,7 +92,7 @@ function createAssignmentHandlers({
         userId,
         organizationId,
         property,
-        startDate,
+        startDate: assignmentDates.startDate,
         UserModel,
       });
 
@@ -79,8 +101,8 @@ function createAssignmentHandlers({
         propertyName,
         status: "scheduled",
         $or: [{
-          startDate: { $lte: new Date(endDate) },
-          endDate: { $gte: new Date(startDate) },
+          startDate: { $lte: assignmentDates.endDate },
+          endDate: { $gte: assignmentDates.startDate },
         }],
       });
       if (overlapping) {
@@ -94,8 +116,8 @@ function createAssignmentHandlers({
         propertyName,
         userId: assignee.userId,
         eventType,
-        startDate,
-        endDate,
+        startDate: assignmentDates.startDate,
+        endDate: assignmentDates.endDate,
         oneTimeCheckRequest: oneTimeCheckRequest || "",
         fulfillment,
         resourceProfileId: assignee.resourceProfileId,
@@ -261,6 +283,17 @@ function createAssignmentHandlers({
           .filter((field) => Object.prototype.hasOwnProperty.call(req.body, field))
           .map((field) => [field, req.body[field]])
       );
+      const hasStartDate = Object.prototype.hasOwnProperty.call(req.body, "startDate");
+      const hasEndDate = Object.prototype.hasOwnProperty.call(req.body, "endDate");
+      if (hasStartDate) {
+        Object.assign(
+          changes,
+          resolveAssignmentDates(req.body.startDate, hasEndDate ? req.body.endDate : req.body.startDate)
+        );
+      } else if (hasEndDate) {
+        if (req.body.endDate) changes.endDate = assignmentDate(req.body.endDate, "end date");
+        else delete changes.endDate;
+      }
       const needsAssigneeResolution = ["fulfillmentSource", "userId", "propertyName", "startDate"]
         .some((field) => Object.prototype.hasOwnProperty.call(req.body, field));
       let existing;

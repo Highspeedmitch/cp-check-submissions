@@ -142,12 +142,13 @@ function Scheduler() {
       return;
     }
 
+    const effectiveEndDate = newAssignment.endDate || newAssignment.startDate;
     const formattedAssignment = {
       organizationId: storedOrgId,  
       propertyName: newAssignment.propertyName,
       userId: newAssignment.userId,
       startDate: new Date(newAssignment.startDate).toISOString(),
-      endDate: new Date(newAssignment.endDate).toISOString(),
+      endDate: new Date(effectiveEndDate).toISOString(),
       oneTimeCheckRequest: newAssignment.oneTimeCheckRequest, // Include this in the request
     };
     if (newAssignment.fulfillmentSource) {
@@ -239,12 +240,15 @@ function Scheduler() {
     const matchedProperty = properties.find(prop => prop.name === event.title.split(" - ")[0]); 
     const propertyName = matchedProperty ? matchedProperty.name : event.title; // Fallback if not found
   
+    const savedStartDate = event.assignmentStartDate || event.start;
+    const savedEndDate = event.assignmentEndDate || event.end;
+    const isSingleDay = moment(savedStartDate).isSame(moment(savedEndDate), "day");
     setEditingAssignment(event);
     setNewAssignment({
       propertyName: propertyName, // ✅ Ensure correct property is populated
       userId: event.userId,
-      startDate: moment(event.start).format("YYYY-MM-DDTHH:mm"),
-      endDate: moment(event.end).format("YYYY-MM-DDTHH:mm"),
+      startDate: moment(savedStartDate).format("YYYY-MM-DD"),
+      endDate: isSingleDay ? "" : moment(savedEndDate).format("YYYY-MM-DD"),
       oneTimeCheckRequest: event.oneTimeCheckRequest || "",
       fulfillmentSource: "",
       fulfillmentOverrideReason: "",
@@ -275,6 +279,8 @@ const events = assignments.map((assignment) => {
       title: `${assignment.propertyName} - ${assignedUserEmail}`,
       start: startDate,
       end: endDate,
+      assignmentStartDate: assignment.startDate,
+      assignmentEndDate: assignment.endDate,
       userId: assignment.userId,
       oneTimeCheckRequest: assignment.oneTimeCheckRequest || "",
       fulfillment: assignment.fulfillment || null,
@@ -381,21 +387,33 @@ const events = assignments.map((assignment) => {
   )}
 
   {/* ✅ Start Date */}
-  <label>Start Date:</label>
+  <label htmlFor="assignment-start-date">Start Date:</label>
 <input
+  id="assignment-start-date"
   type="date"
   value={newAssignment.startDate || ""}
-  onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
+  onChange={(e) => {
+    const startDate = e.target.value;
+    const endDate = newAssignment.endDate && newAssignment.endDate < startDate
+      ? ""
+      : newAssignment.endDate;
+    setNewAssignment({ ...newAssignment, startDate, endDate });
+  }}
   required
 />
 
-<label>End Date:</label>
-<input
-  type="date"
-  value={newAssignment.endDate || ""}
-  onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
-  required
-/>
+<label htmlFor="assignment-end-date">End Date (optional):</label>
+<div className="beta-scheduler-date-field">
+  <input
+    id="assignment-end-date"
+    type="date"
+    min={newAssignment.startDate || undefined}
+    value={newAssignment.endDate || ""}
+    onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
+    aria-describedby="assignment-end-date-help"
+  />
+  <small id="assignment-end-date-help">Leave blank when the assignment must be completed on the start date.</small>
+</div>
 <label>One-Time Additional Check Request:</label>
 <textarea
   value={newAssignment.oneTimeCheckRequest || ""}
