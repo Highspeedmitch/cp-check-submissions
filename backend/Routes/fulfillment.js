@@ -88,13 +88,19 @@ function createFulfillmentHandlers({
         defaultSource: organizationDefaultSource(organization),
         policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
       };
-      const serviceModel = validateServiceModel(req.body.serviceModel ?? previousValue.serviceModel);
-      const defaultSource = validateFulfillmentSource(
-        req.body.defaultSource ?? (serviceModel !== previousValue.serviceModel
-          ? SERVICE_MODEL_DEFAULTS[serviceModel]
-          : previousValue.defaultSource)
+      const requestedServiceModel = validateServiceModel(
+        req.body.serviceModel ?? previousValue.serviceModel
       );
-      const changed = serviceModel !== previousValue.serviceModel || defaultSource !== previousValue.defaultSource;
+      if (requestedServiceModel !== previousValue.serviceModel) {
+        return res.status(403).json({
+          error: "Submit a service model change request for Afterlight platform review.",
+        });
+      }
+      const serviceModel = previousValue.serviceModel;
+      const defaultSource = validateFulfillmentSource(
+        req.body.defaultSource ?? previousValue.defaultSource
+      );
+      const changed = defaultSource !== previousValue.defaultSource;
       if (!changed) return res.json(serializeSettings(organization));
 
       const verified = await consumeAdminGrant({

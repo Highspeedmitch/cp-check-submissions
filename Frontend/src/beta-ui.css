@@ -328,8 +328,8 @@
 }
 .beta-status.success, .beta-status.paid, .beta-status.completed, .beta-status.approved { background: var(--beta-success-bg); color: var(--beta-success); }
 .beta-status.warning, .beta-status.submitted, .beta-status.pending, .beta-status.pending_review,
-.beta-status.approving { background: var(--beta-warning-bg); color: var(--beta-warning); }
-.beta-status.declined, .beta-status.failed { background: var(--beta-danger-bg); color: var(--beta-danger); }
+.beta-status.approving, .beta-status.information_requested { background: var(--beta-warning-bg); color: var(--beta-warning); }
+.beta-status.declined, .beta-status.failed, .beta-status.denied { background: var(--beta-danger-bg); color: var(--beta-danger); }
 
 .beta-page-shell { max-width: 1120px; margin: 0 auto; padding: 34px 24px 64px; }
 .beta-panel { margin-top: 24px; padding: 22px; border: 1px solid var(--beta-border); border-radius: var(--beta-radius); background: var(--beta-surface); box-shadow: var(--beta-shadow); }
@@ -1380,6 +1380,24 @@
 .beta-scheduler-form textarea { min-height: 90px; }
 .beta-scheduler-date-field { display: grid; min-width: 0; gap: 6px; }
 .beta-scheduler-date-field small { color: var(--beta-muted); font-size: 12px; line-height: 1.4; }
+.beta-service-model-request-summary { display: grid; gap: 12px; }
+.beta-service-model-request-summary p { margin: 0; color: var(--beta-muted); }
+.beta-service-model-history { margin-top: 18px; border-top: 1px solid var(--beta-border); padding-top: 14px; }
+.beta-service-model-history summary,
+.beta-service-change-thread summary { cursor: pointer; color: var(--beta-blue); font-weight: 700; }
+.beta-service-model-history > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--beta-border); }
+.platform-service-change-list { display: grid; gap: 16px; }
+.platform-service-change { display: grid; gap: 16px; }
+.platform-service-change h3 { margin: 2px 0; }
+.platform-service-change .beta-card-header p { margin: 4px 0 0; color: var(--beta-muted); }
+.platform-service-change textarea,
+.beta-service-model-request-summary textarea { min-height: 110px; }
+.beta-service-change-reason { padding: 14px; border-radius: 8px; background: var(--beta-subtle); }
+.beta-service-change-reason p { margin: 6px 0 0; white-space: pre-wrap; }
+.beta-service-change-thread { border: 1px solid var(--beta-border); border-radius: 8px; padding: 12px 14px; }
+.beta-service-change-thread > div { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--beta-border); }
+.beta-service-change-thread span { margin-left: 8px; color: var(--beta-muted); font-size: 12px; }
+.beta-service-change-thread p { margin: 5px 0 0; white-space: pre-wrap; }
 .beta-assignment-routing-preview {
   display: flex;
   align-items: center;

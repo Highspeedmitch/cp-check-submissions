@@ -68,3 +68,13 @@ test("billing router exposes the platform-owned service invoice lifecycle", () =
     assert.deepEqual(inventory.find((candidate) => candidate.path === route.path), route);
   }
 });
+
+test("service model requests expose organization and platform review paths", () => {
+  assert.deepEqual(routeInventory(require("../Routes/serviceModelChanges")), [
+    { path: "/", methods: ["get"] },
+    { path: "/", methods: ["post"] },
+    { path: "/:id/respond", methods: ["post"] },
+    { path: "/platform", methods: ["get"] },
+    { path: "/platform/:id/review", methods: ["post"] },
+  ]);
+});

@@ -8,6 +8,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 
 | Task | Article | Typical time |
 | --- | --- | --- |
+| Review and decide organization service model requests | [Review service model change requests](platform-review-service-model-changes.md) | 3-8 minutes |
 | Prepare and reconcile customer invoices for Afterlight-delivered work | [Process Afterlight service invoices](platform-process-service-invoices.md) | 3-5 minutes |
 | Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
 | Configure and operate the Gusto contractor-payment workflow | [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md) | 12-20 minutes |
@@ -40,6 +41,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 
 | Task | Article | Typical time |
 | --- | --- | --- |
+| Request a contracted service model change | [Request a service model change](organization-request-service-model-change.md) | 3-5 minutes |
 | Schedule work for a submitter or deployed resource | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
 
 > **Role note:** Organization administrators can manage Scheduler assignments across the organization. Property managers can manage assignments only for properties assigned to them.

@@ -174,5 +174,30 @@
     "file": "platform-configure-gusto.md",
     "estimatedTime": "12-20 min",
     "keywords": ["1099", "bank", "contractor", "fixed amount", "form 8655", "gusto", "onboarding", "payment", "reconciliation", "w-9"]
+  },
+  {
+    "slug": "request-a-service-model-change",
+    "title": "Request a service model change",
+    "summary": "Ask Afterlight to review a move between Full-stack SaaS, Managed service, and Hybrid delivery without directly changing the contract.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "organization-request-service-model-change.md",
+    "estimatedTime": "3-5 min",
+    "keywords": ["approve", "contract", "fulfillment", "hybrid", "managed service", "request", "service delivery", "service model"]
+  },
+  {
+    "slug": "review-service-model-change-requests",
+    "title": "Review service model change requests",
+    "summary": "Approve, deny, or request more information before changing an organization's contracted service delivery model.",
+    "category": "Platform operations",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "platformRoles": ["platform_admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "platform-review-service-model-changes.md",
+    "estimatedTime": "3-8 min",
+    "keywords": ["approve", "contract", "deny", "fulfillment", "hybrid", "managed service", "platform admin", "request", "service model"]
   }
 ]

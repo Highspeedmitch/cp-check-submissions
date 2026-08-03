@@ -22,6 +22,7 @@ test("filters help articles by exact role and organization type", () => {
   expect(visibleHelpArticles({ role: "admin", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "review-property-submissions",
     "create-a-scheduler-assignment",
+    "request-a-service-model-change",
   ]);
   expect(visibleHelpArticles({ role: "client", orgType: "STR" })).toEqual([]);
   expect(visibleHelpArticles({
@@ -82,6 +83,7 @@ test("platform guidance is isolated from organization and assumed-access help", 
     "process-afterlight-service-invoices",
     "manage-resources-and-payables",
     "configure-gusto-contractor-payments",
+    "review-service-model-change-requests",
   ]);
   expect(visibleHelpArticles({ role: "admin", orgType: "COM", accountScope: "organization" })
     .some(({ slug }) => slug === "process-afterlight-service-invoices")).toBe(false);

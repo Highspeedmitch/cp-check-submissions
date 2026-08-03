@@ -43,38 +43,27 @@ function request(body) {
   };
 }
 
-test("organization fulfillment changes reject missing or invalid admin grants", async () => {
+test("organization administrators cannot directly change their contracted service model", async () => {
   const org = organization();
-  let grantRequest;
   const handlers = createFulfillmentHandlers({
     OrganizationModel: { async findById() { return org; } },
-    consumeAdminGrant: async (details) => {
-      grantRequest = details;
-      return false;
-    },
-    FulfillmentAuditModel: {
-      async create() {
-        assert.fail("an unverified policy change must not be audited");
-      },
-    },
+    consumeAdminGrant: async () => assert.fail("a contract request must not consume an organization grant"),
   });
   const res = response();
 
   await handlers.updateOrganization(request({
     serviceModel: "hybrid",
     defaultSource: "customer_employee",
+    adminActionGrant: "organization-controlled-grant",
   }), res);
 
   assert.equal(res.statusCode, 403);
   assert.equal(org.saveCount, 0);
   assert.equal(org.serviceModel, "managed");
-  assert.equal(grantRequest.organization, org);
-  assert.equal(grantRequest.userId, "admin-1");
-  assert.equal(grantRequest.purpose, "update_fulfillment_policy");
-  assert.equal(grantRequest.token, undefined);
+  assert.match(res.body.error, /service model change request/i);
 });
 
-test("a scoped admin grant is consumed before the organization policy changes", async () => {
+test("a scoped admin grant still protects operational fulfillment-default changes", async () => {
   const org = organization();
   let grantRequest;
   let auditEntry;
@@ -93,7 +82,7 @@ test("a scoped admin grant is consumed before the organization policy changes", 
   const res = response();
 
   await handlers.updateOrganization(request({
-    serviceModel: "hybrid",
+    serviceModel: "managed",
     defaultSource: "afterlight_contractor",
     adminActionGrant: "one-time-grant",
   }), res);
@@ -102,7 +91,7 @@ test("a scoped admin grant is consumed before the organization policy changes", 
   assert.equal(grantRequest.purpose, "update_fulfillment_policy");
   assert.equal(grantRequest.token, "one-time-grant");
   assert.equal(org.saveCount, 1);
-  assert.equal(org.serviceModel, "hybrid");
+  assert.equal(org.serviceModel, "managed");
   assert.equal(org.fulfillmentPolicy.defaultSource, "afterlight_contractor");
   assert.equal(org.fulfillmentPolicy.version, 3);
   assert.equal(auditEntry.action, "organization_fulfillment_policy_updated");

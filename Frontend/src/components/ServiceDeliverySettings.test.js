@@ -48,32 +48,52 @@ const settings = {
 };
 
 beforeEach(() => {
-  api.get.mockImplementation(async (path) => path === "/api/fulfillment" ? settings : []);
-  api.post.mockResolvedValue({ grant: "policy-grant" });
+  jest.clearAllMocks();
+  api.get.mockImplementation(async (path) => {
+    if (path === "/api/fulfillment") return settings;
+    return [];
+  });
+  api.post.mockImplementation(async (path, payload) => {
+    if (path === "/api/organization-security/grants") return { grant: "policy-grant" };
+    if (path === "/api/service-model-changes") {
+      return {
+        _id: "request-1",
+        currentServiceModel: "managed",
+        requestedServiceModel: payload.requestedServiceModel,
+        reason: payload.reason,
+        proposedEffectiveDate: payload.proposedEffectiveDate,
+        status: "pending_review",
+        createdAt: "2026-08-02T12:00:00.000Z",
+        emailDelivered: true,
+      };
+    }
+    throw new Error(`Unexpected POST ${path}`);
+  });
   api.put.mockResolvedValue({
     ...settings,
     organization: {
       ...settings.organization,
-      serviceModel: "hybrid",
+      defaultSource: "afterlight_contractor",
       policyVersion: 3,
     },
   });
 });
 
-test("organization policy save requires passkey verification before the update", async () => {
+test("the service model is contract controlled while fulfillment policy remains passkey protected", async () => {
   render(
     <MemoryRouter>
       <ServiceDeliverySettings />
     </MemoryRouter>
   );
 
-  fireEvent.change(await screen.findByLabelText("Service model"), {
-    target: { value: "hybrid" },
+  expect(await screen.findByText("Managed service")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Service model")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Default fulfillment"), {
+    target: { value: "afterlight_contractor" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save organization policy" }));
 
   expect(await screen.findByRole("heading", { name: "Save organization policy" })).toBeInTheDocument();
-  expect(api.post).not.toHaveBeenCalled();
   expect(api.put).not.toHaveBeenCalled();
 
   fireEvent.change(screen.getByLabelText("Organization passkey"), {
@@ -87,10 +107,38 @@ test("organization policy save requires passkey verification before the update",
       passkey: "organization-passkey",
     });
     expect(api.put).toHaveBeenCalledWith("/api/fulfillment/organization", {
-      serviceModel: "hybrid",
-      defaultSource: "afterlight_staff",
+      defaultSource: "afterlight_contractor",
       adminActionGrant: "policy-grant",
     });
   });
   expect(await screen.findByText(/Organization defaults updated/)).toBeInTheDocument();
+});
+
+test("an organization administrator can request a service model change without a passkey", async () => {
+  render(
+    <MemoryRouter>
+      <ServiceDeliverySettings />
+    </MemoryRouter>
+  );
+
+  fireEvent.change(await screen.findByLabelText("Requested service model"), {
+    target: { value: "hybrid" },
+  });
+  fireEvent.change(screen.getByLabelText("Proposed effective date (optional)"), {
+    target: { value: "2026-09-01" },
+  });
+  fireEvent.change(screen.getByLabelText("Business reason and operational context"), {
+    target: { value: "We need overflow coverage for the fall portfolio expansion." },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Request service model change" }));
+
+  await waitFor(() => {
+    expect(api.post).toHaveBeenCalledWith("/api/service-model-changes", {
+      requestedServiceModel: "hybrid",
+      reason: "We need overflow coverage for the fall portfolio expansion.",
+      proposedEffectiveDate: "2026-09-01",
+    });
+  });
+  expect(api.put).not.toHaveBeenCalled();
+  expect(await screen.findByText(/platform administration was notified/i)).toBeInTheDocument();
 });
