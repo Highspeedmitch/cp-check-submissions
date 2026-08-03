@@ -9,6 +9,7 @@ import PwaUpdateBanner from "./components/PwaUpdateBanner";
 import { restoreSession, tokenNeedsRefresh } from "./services/session";
 import { helpArticleBySlug } from "./services/helpAccess";
 import { api } from "./services/api";
+import { canAccessExternalConnections } from "./services/externalConnectionsAccess";
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const ClientDashboard = lazy(() => import("./components/ClientDashboard"));
@@ -42,6 +43,7 @@ const UserManagement = lazy(() => import("./components/UserManagement"));
 const Reporting = lazy(() => import("./components/Reporting"));
 const PlatformDashboard = lazy(() => import("./components/PlatformDashboard"));
 const ResourceDashboard = lazy(() => import("./components/ResourceDashboard"));
+const ExternalConnections = lazy(() => import("./components/ExternalConnections"));
 const HelpCenter = lazy(() => import("./components/help/HelpCenter"));
 const HelpArticle = lazy(() => import("./components/help/HelpArticle"));
 
@@ -245,6 +247,11 @@ function App() {
       } />
 
       {/* ✅ Ensure Clients Redirect Correctly */}
+      <Route path="/external-connections" element={
+        user && canAccessExternalConnections({ role, accountScope })
+          ? <ExternalConnections setUser={setUser} />
+          : <Navigate to="/" />
+      } />
       <Route
         path="/dashboard"
         element={

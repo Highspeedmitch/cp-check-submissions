@@ -5,7 +5,7 @@ import { logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
 import ThemeToggle from "./ui/ThemeToggle";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
-import CalendarFeedCard from "./CalendarFeedCard";
+import DashboardNavigation from "./ui/DashboardNavigation";
 
 const STATUS_LABELS = {
   pending_approval: "Pending approval",
@@ -32,6 +32,7 @@ function inspectionRoute(assignment) {
 
 export default function ResourceDashboard({ setUser }) {
   const navigate = useNavigate();
+  const [navOpen, setNavOpen] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -59,8 +60,24 @@ export default function ResourceDashboard({ setUser }) {
   }
 
   return (
-    <div className="beta-page">
-      <main className="beta-page-shell beta-resource-workspace">
+    <div className="beta-dashboard">
+      <DashboardNavigation
+        open={navOpen}
+        onClose={() => setNavOpen(false)}
+        role="resource"
+        orgName="Afterlight Resource Network"
+        orgType={localStorage.getItem("orgType") || "COM"}
+        accountScope="afterlight_resource"
+        navigate={navigate}
+        onLogout={logout}
+        showMileageTracking={false}
+      />
+      <main className="beta-dashboard-main beta-resource-workspace">
+        <div className="beta-mobile-topbar">
+          <button type="button" className="beta-menu-button" onClick={() => setNavOpen(true)} aria-label="Open menu">☰</button>
+          <strong>My Work</strong>
+          <span className="beta-avatar" aria-hidden="true">{(data?.profile?.displayName || "R").slice(0, 1)}</span>
+        </div>
         <PageHeader
           eyebrow="Afterlight Resource Network"
           title={data?.profile?.displayName || "My Work"}
@@ -91,8 +108,6 @@ export default function ResourceDashboard({ setUser }) {
                 : <div><span>Relationship</span><strong>{data.profile.resourceType}</strong></div>}
               <div><span>Availability</span><strong>{data.profile.availabilityStatus}</strong></div>
             </section>
-
-            <CalendarFeedCard />
 
             <section className="beta-section">
               <div className="beta-section-heading"><div><h2>My Assignments</h2><p>Only work explicitly deployed and assigned to you appears here.</p></div></div>

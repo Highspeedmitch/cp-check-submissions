@@ -78,7 +78,7 @@
     "title": "Connect My Calendar",
     "summary": "Subscribe to your authorized Afterlight assignments in Apple, Google, or Outlook Calendar with a private, revocable link.",
     "category": "Scheduling",
-    "roles": ["admin", "property_manager", "user", "contractor", "cleaner"],
+    "roles": ["user", "contractor", "cleaner"],
     "accountScopes": ["organization", "afterlight_resource"],
     "orgTypes": ["COM", "STR", "LTR", "RES"],
     "file": "connect-my-calendar.md",

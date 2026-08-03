@@ -20,12 +20,10 @@ test("filters help articles by exact role and organization type", () => {
     "review-an-invoice",
     "review-property-submissions",
     "create-a-scheduler-assignment",
-    "connect-my-calendar",
   ]);
   expect(visibleHelpArticles({ role: "admin", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "review-property-submissions",
     "create-a-scheduler-assignment",
-    "connect-my-calendar",
     "request-a-service-model-change",
   ]);
   expect(visibleHelpArticles({ role: "client", orgType: "STR" })).toEqual([]);

@@ -16,7 +16,6 @@ import PropertyRecipientsDialog from "./dashboard/dialogs/PropertyRecipientsDial
 import AddPropertyForm from "./dashboard/AddPropertyForm";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
-import CalendarFeedCard from "./CalendarFeedCard";
 import {
   useMarkNotificationsRead,
   useNotificationBadges,
@@ -111,6 +110,7 @@ const handleRegionFilter = async () => {
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
+  const accountScope = localStorage.getItem("accountScope") || "organization";
   const isManagement = role === "admin" || role === "property_manager";
   const adminOrgType = localStorage.getItem("orgType") || "COM";
   const [canAccessBilling, setCanAccessBilling] = useState(false);
@@ -635,6 +635,7 @@ useEffect(() => {
         onLogout={handleLogout}
         canAccessBilling={canAccessBilling}
         notificationBadges={notificationBadges}
+        accountScope={accountScope}
       />
       {/* STR user action dialog */}
       {showModal && (
@@ -682,8 +683,6 @@ useEffect(() => {
             onNavigate={openNativeMaps}
           />
         )}
-
-        <CalendarFeedCard />
 
         {loading ? (
           <p>Loading properties...</p>

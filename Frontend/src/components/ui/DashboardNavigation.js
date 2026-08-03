@@ -1,5 +1,6 @@
 import React from "react";
 import { MILEAGE_TRACKING_ENABLED } from "../../featureFlags";
+import { canAccessExternalConnections } from "../../services/externalConnectionsAccess";
 import ThemeToggle from "./ThemeToggle";
 
 function NavButton({ active, children, onClick, badge = 0 }) {
@@ -38,10 +39,15 @@ export default function DashboardNavigation({
   onLogout,
   canAccessBilling = false,
   notificationBadges = {},
+  accountScope = "organization",
+  activeRoute = "dashboard",
+  showMileageTracking = true,
 }) {
   const isAdmin = role === "admin";
   const isManager = role === "property_manager";
   const isManagement = isAdmin || isManager;
+  const externalConnectionsAllowed = canAccessExternalConnections({ role, accountScope });
+  const dashboardRoute = accountScope === "afterlight_resource" ? "/resource" : "/dashboard";
   const go = (route) => {
     navigate(route);
     onClose();
@@ -63,7 +69,10 @@ export default function DashboardNavigation({
 
         <nav>
           <p className="beta-nav-label">Workspace</p>
-          <NavButton active badge={notificationBadges.dashboard} onClick={() => go("/dashboard")}>Dashboard</NavButton>
+          <NavButton active={activeRoute === "dashboard"} badge={notificationBadges.dashboard} onClick={() => go(dashboardRoute)}>Dashboard</NavButton>
+          {externalConnectionsAllowed && (
+            <NavButton active={activeRoute === "external-connections"} onClick={() => go("/external-connections")}>External Connections</NavButton>
+          )}
           {isManagement && (
             <NavButton onClick={() => go("/reporting")}>Reporting</NavButton>
           )}
@@ -130,7 +139,7 @@ export default function DashboardNavigation({
         )}
 
         <div className="beta-sidebar-footer">
-          {MILEAGE_TRACKING_ENABLED && role !== "admin" && (
+          {showMileageTracking && MILEAGE_TRACKING_ENABLED && role !== "admin" && (
             <label className="beta-setting-row">
               <span>Mileage tracking</span>
               <input type="checkbox" checked={mileageTracking} onChange={onMileageToggle} />

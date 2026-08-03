@@ -78,6 +78,7 @@ test("admin dashboard renders one property card with admin management actions", 
   expect(screen.getByRole("button", { name: "Manage Emails" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Manage Details" })).toBeInTheDocument();
   expect(screen.getByText("Unassigned")).toHaveClass("declined");
+  expect(screen.queryByRole("button", { name: "External Connections" })).not.toBeInTheDocument();
   expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
 });
 
@@ -97,6 +98,8 @@ test("submitter retains a single inspection action", async () => {
   expect(await screen.findByRole("heading", { name: property.name })).toBeInTheDocument();
   expect(screen.getAllByRole("heading", { name: property.name })).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Start Inspection" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "External Connections" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Connect My Calendar" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Manage Details" })).not.toBeInTheDocument();
 });
 

@@ -15,10 +15,11 @@ The feed includes the property name, assignment type, dates, property address wh
 ## Create and copy your private link
 
 1. Open the organization Dashboard or Afterlight Resource Portal.
-2. Find **Connect My Calendar**.
-3. Select **Create Private Link**.
-4. Select **Copy Link**. Afterlight displays the unhashed link only when it is created or regenerated.
-5. Add the copied URL as a subscribed or internet calendar in your calendar application. Do not import it as a one-time file.
+2. In the left navigation, select **External Connections**.
+3. Find **Connect My Calendar**.
+4. Select **Create Private Link**.
+5. Select **Copy Link**. Afterlight displays the unhashed link only when it is created or regenerated.
+6. Add the copied URL as a subscribed or internet calendar in your calendar application. Do not import it as a one-time file.
 
 Calendar applications use different labels for the same action:
 
