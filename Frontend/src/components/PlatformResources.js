@@ -10,6 +10,22 @@ const EMPTY_RESOURCE = {
   defaultRate: "",
 };
 
+const RESOURCE_TYPE_LABELS = {
+  contractor: "1099 contractor",
+  employee: "Afterlight employee",
+  owner: "Afterlight owner",
+};
+
+function resourceStatusTone(status) {
+  if (status === "active") return "success";
+  if (status === "suspended") return "declined";
+  return "warning";
+}
+
+function readableStatus(value) {
+  return String(value || "").replaceAll("_", " ");
+}
+
 function money(cents, currency = "USD") {
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format((cents || 0) / 100);
 }
@@ -25,6 +41,11 @@ export default function PlatformResources() {
   const [deployment, setDeployment] = useState({ resourceId: "", organizationId: "", propertyIds: [], rateOverride: "" });
   const [selectedEarnings, setSelectedEarnings] = useState([]);
   const [checkDate, setCheckDate] = useState("");
+  const [resourceSearch, setResourceSearch] = useState("");
+  const [resourceStatusFilter, setResourceStatusFilter] = useState("");
+  const [resourceAvailabilityFilter, setResourceAvailabilityFilter] = useState("");
+  const [resourceOrganizationFilter, setResourceOrganizationFilter] = useState("");
+  const [expandedResourceId, setExpandedResourceId] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -61,6 +82,59 @@ export default function PlatformResources() {
   const approvedEarnings = useMemo(() => (data?.earnings || []).filter(
     (earning) => earning.status === "approved"
   ), [data]);
+  const currentDeployments = useMemo(() => (data?.deployments || []).filter(
+    (item) => item.status !== "ended"
+  ), [data]);
+  const deploymentsByResource = useMemo(() => {
+    const grouped = new Map();
+    currentDeployments.forEach((item) => {
+      const resourceId = id(item.resourceProfileId);
+      if (!grouped.has(resourceId)) grouped.set(resourceId, []);
+      grouped.get(resourceId).push(item);
+    });
+    return grouped;
+  }, [currentDeployments]);
+  const deployedOrganizationOptions = useMemo(() => {
+    const organizations = new Map();
+    currentDeployments.forEach((item) => {
+      const organizationId = id(item.organizationId);
+      if (organizationId) organizations.set(organizationId, item.organizationId?.name || "Organization");
+    });
+    return [...organizations.entries()]
+      .map(([organizationId, name]) => ({ organizationId, name }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [currentDeployments]);
+  const filteredResources = useMemo(() => {
+    const query = resourceSearch.trim().toLowerCase();
+    return (data?.resources || []).filter((resource) => {
+      const deployments = deploymentsByResource.get(id(resource)) || [];
+      const organizationNames = deployments.map((item) => item.organizationId?.name || "");
+      const searchable = [
+        resource.displayName,
+        resource.email,
+        RESOURCE_TYPE_LABELS[resource.resourceType] || resource.resourceType,
+        ...(resource.skills || []),
+        ...(resource.regions || []),
+        ...organizationNames,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return (!query || searchable.includes(query))
+        && (!resourceStatusFilter || resource.status === resourceStatusFilter)
+        && (!resourceAvailabilityFilter || resource.availabilityStatus === resourceAvailabilityFilter)
+        && (!resourceOrganizationFilter || deployments.some(
+          (item) => id(item.organizationId) === resourceOrganizationFilter
+        ));
+    });
+  }, [
+    data,
+    deploymentsByResource,
+    resourceAvailabilityFilter,
+    resourceOrganizationFilter,
+    resourceSearch,
+    resourceStatusFilter,
+  ]);
+  const hasResourceFilters = Boolean(
+    resourceSearch || resourceStatusFilter || resourceAvailabilityFilter || resourceOrganizationFilter
+  );
 
   const run = async (key, operation, successMessage) => {
     setBusy(key);
@@ -98,7 +172,7 @@ export default function PlatformResources() {
 
   async function saveResource(resourceId) {
     const edit = resourceEdits[resourceId];
-    await run(`resource-${resourceId}`, () => api.put(`/api/platform-resources/resources/${resourceId}`, {
+    const saved = await run(`resource-${resourceId}`, () => api.put(`/api/platform-resources/resources/${resourceId}`, {
       displayName: edit.displayName,
       resourceType: edit.resourceType,
       skills: edit.skills,
@@ -113,6 +187,7 @@ export default function PlatformResources() {
         gustoOnboardingStatus: edit.gustoOnboardingStatus,
       } : {}),
     }), "Resource profile updated.");
+    if (saved) setExpandedResourceId("");
   }
 
   async function createDeployment(event) {
@@ -163,27 +238,94 @@ export default function PlatformResources() {
       </section>
 
       <section className="beta-section">
-        <div className="beta-section-heading"><div><h2>Resource Profiles</h2><p>Every resource needs a linked Afterlight identity. Gusto onboarding and per-assignment pay apply only to 1099 contractors.</p></div></div>
-        {data.resources.length ? <div className="platform-resource-grid">
-          {data.resources.map((resource) => {
-            const edit = resourceEdits[resource._id] || {};
-            return <article className="beta-panel platform-resource-card" key={resource._id}>
-              <div className="beta-card-header"><div><h3>{resource.displayName}</h3><p>{resource.email}</p></div><span className={`beta-status ${resource.status === "active" ? "success" : "warning"}`}>{resource.status}</span></div>
-              <div className="beta-form-grid">
-                <label className="beta-form-field full">Display name<input value={edit.displayName || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, displayName: event.target.value } }))} /></label>
-                <label className="beta-form-field">Relationship<select value={edit.resourceType || "contractor"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, resourceType: event.target.value, defaultRate: event.target.value === "contractor" ? edit.defaultRate : "" } }))}><option value="contractor">1099 contractor</option><option value="employee">Afterlight employee</option><option value="owner">Afterlight owner</option></select></label>
-                {edit.resourceType === "contractor" && <label className="beta-form-field">Default contractor pay rate<input min="0" step="0.01" type="number" value={edit.defaultRate || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, defaultRate: event.target.value } }))} /></label>}
-                <label className="beta-form-field">Availability<select value={edit.availabilityStatus || "available"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, availabilityStatus: event.target.value } }))}><option value="available">Available</option><option value="unavailable">Unavailable</option></select></label>
-                <label className="beta-form-field full">Skills<input value={edit.skills || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, skills: event.target.value } }))} /></label>
-                <label className="beta-form-field full">Regions<input value={edit.regions || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, regions: event.target.value } }))} /></label>
-                {edit.resourceType === "contractor" && <label className="beta-form-field full">Gusto contractor UUID (API integrations only)<input value={edit.gustoContractorUuid || ""} placeholder="Leave blank for manual Gusto payments" onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, gustoContractorUuid: event.target.value } }))} /></label>}
-                {edit.resourceType === "contractor" && <label className="beta-form-field">Gusto onboarding<select value={edit.gustoOnboardingStatus || "not_started"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, gustoOnboardingStatus: event.target.value } }))}><option value="not_started">Not started</option><option value="self_onboarding_invited">Invited</option><option value="self_onboarding_started">Started</option><option value="self_onboarding_review">Needs review</option><option value="onboarding_completed">Completed</option></select></label>}
-                <label className="beta-form-field">Afterlight status<select value={edit.status || "invited"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, status: event.target.value } }))}><option value="invited">Invited</option><option value="onboarding">Onboarding</option><option value="active">Active</option><option value="suspended">Suspended</option></select></label>
-              </div>
-              <button type="button" className="beta-button" disabled={busy === `resource-${resource._id}`} onClick={() => saveResource(resource._id)}>Save Resource</button>
-            </article>;
-          })}
-        </div> : <div className="beta-empty-state">No Afterlight resources have been invited.</div>}
+        <div className="beta-section-heading"><div><h2>Resource Profiles</h2><p>Search the resource network, review current access at a glance, or open a profile to edit its details.</p></div></div>
+        {data.resources.length ? <>
+          <div className="platform-resource-directory-controls" aria-label="Resource profile filters">
+            <label className="beta-form-field platform-resource-search">Search resources
+              <input type="search" placeholder="Name, email, skill, region, or organization" value={resourceSearch} onChange={(event) => setResourceSearch(event.target.value)} />
+            </label>
+            <label className="beta-form-field">Resource status
+              <select value={resourceStatusFilter} onChange={(event) => setResourceStatusFilter(event.target.value)}>
+                <option value="">All statuses</option>
+                <option value="invited">Invited</option>
+                <option value="onboarding">Onboarding</option>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </label>
+            <label className="beta-form-field">Resource availability
+              <select value={resourceAvailabilityFilter} onChange={(event) => setResourceAvailabilityFilter(event.target.value)}>
+                <option value="">All availability</option>
+                <option value="available">Available</option>
+                <option value="unavailable">Unavailable</option>
+              </select>
+            </label>
+            <label className="beta-form-field">Deployed organization
+              <select value={resourceOrganizationFilter} onChange={(event) => setResourceOrganizationFilter(event.target.value)}>
+                <option value="">All organizations</option>
+                {deployedOrganizationOptions.map((organization) => <option key={organization.organizationId} value={organization.organizationId}>{organization.name}</option>)}
+              </select>
+            </label>
+            {hasResourceFilters && <button type="button" className="beta-button secondary compact platform-resource-clear" onClick={() => {
+              setResourceSearch("");
+              setResourceStatusFilter("");
+              setResourceAvailabilityFilter("");
+              setResourceOrganizationFilter("");
+            }}>Clear filters</button>}
+          </div>
+          <p className="platform-resource-result-count" role="status">Showing {filteredResources.length} of {data.resources.length} resources</p>
+          {filteredResources.length ? <div className="platform-resource-directory">
+            {filteredResources.map((resource) => {
+              const edit = resourceEdits[resource._id] || {};
+              const resourceDeployments = deploymentsByResource.get(id(resource)) || [];
+              const deploymentLabels = [...new Set(resourceDeployments.map((item) => {
+                const name = item.organizationId?.name || "Organization";
+                return item.status === "paused" ? `${name} (paused)` : name;
+              }))];
+              const expanded = expandedResourceId === resource._id;
+              return <article className="beta-panel platform-resource-card" key={resource._id}>
+                <div className="platform-resource-summary">
+                  <div className="platform-resource-identity">
+                    <div className="platform-resource-title-row">
+                      <h3>{resource.displayName}</h3>
+                      <span className={`beta-status ${resourceStatusTone(resource.status)}`}>{readableStatus(resource.status)}</span>
+                    </div>
+                    <a className="platform-resource-email" href={`mailto:${resource.email}`}>{resource.email}</a>
+                    <dl className="platform-resource-facts">
+                      <div><dt>Relationship</dt><dd>{RESOURCE_TYPE_LABELS[resource.resourceType] || readableStatus(resource.resourceType)}</dd></div>
+                      <div><dt>Availability</dt><dd>{readableStatus(resource.availabilityStatus || "available")}</dd></div>
+                      <div className="platform-resource-deployment-fact"><dt>Deployed to</dt><dd>{deploymentLabels.length ? deploymentLabels.join(", ") : "No current deployments"}</dd></div>
+                    </dl>
+                  </div>
+                  <button
+                    type="button"
+                    className="beta-button secondary compact platform-resource-edit-toggle"
+                    aria-expanded={expanded}
+                    aria-controls={`resource-editor-${resource._id}`}
+                    onClick={() => setExpandedResourceId((current) => current === resource._id ? "" : resource._id)}
+                  >{expanded ? "Close details" : "Edit details"}</button>
+                </div>
+                {expanded && <form id={`resource-editor-${resource._id}`} className="platform-resource-editor" onSubmit={(event) => { event.preventDefault(); saveResource(resource._id); }}>
+                  <div className="beta-form-grid">
+                    <label className="beta-form-field full">Display name<input value={edit.displayName || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, displayName: event.target.value } }))} /></label>
+                    <label className="beta-form-field">Relationship<select value={edit.resourceType || "contractor"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, resourceType: event.target.value, defaultRate: event.target.value === "contractor" ? edit.defaultRate : "" } }))}><option value="contractor">1099 contractor</option><option value="employee">Afterlight employee</option><option value="owner">Afterlight owner</option></select></label>
+                    {edit.resourceType === "contractor" && <label className="beta-form-field">Default contractor pay rate<input min="0" step="0.01" type="number" value={edit.defaultRate || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, defaultRate: event.target.value } }))} /></label>}
+                    <label className="beta-form-field">Availability<select value={edit.availabilityStatus || "available"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, availabilityStatus: event.target.value } }))}><option value="available">Available</option><option value="unavailable">Unavailable</option></select></label>
+                    <label className="beta-form-field full">Skills<input value={edit.skills || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, skills: event.target.value } }))} /></label>
+                    <label className="beta-form-field full">Regions<input value={edit.regions || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, regions: event.target.value } }))} /></label>
+                    {edit.resourceType === "contractor" && <label className="beta-form-field full">Gusto contractor UUID (API integrations only)<input value={edit.gustoContractorUuid || ""} placeholder="Leave blank for manual Gusto payments" onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, gustoContractorUuid: event.target.value } }))} /></label>}
+                    {edit.resourceType === "contractor" && <label className="beta-form-field">Gusto onboarding<select value={edit.gustoOnboardingStatus || "not_started"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, gustoOnboardingStatus: event.target.value } }))}><option value="not_started">Not started</option><option value="self_onboarding_invited">Invited</option><option value="self_onboarding_started">Started</option><option value="self_onboarding_review">Needs review</option><option value="onboarding_completed">Completed</option></select></label>}
+                    <label className="beta-form-field">Afterlight status<select value={edit.status || "invited"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, status: event.target.value } }))}><option value="invited">Invited</option><option value="onboarding">Onboarding</option><option value="active">Active</option><option value="suspended">Suspended</option></select></label>
+                  </div>
+                  <div className="platform-resource-editor-actions">
+                    <button type="button" className="beta-button secondary" onClick={() => setExpandedResourceId("")}>Cancel</button>
+                    <button type="submit" className="beta-button" disabled={busy === `resource-${resource._id}`}>{busy === `resource-${resource._id}` ? "Saving..." : "Save Resource"}</button>
+                  </div>
+                </form>}
+              </article>;
+            })}
+          </div> : <div className="beta-empty-state">No resource profiles match those filters.</div>}
+        </> : <div className="beta-empty-state">No Afterlight resources have been invited.</div>}
       </section>
 
       <section className="beta-panel">
