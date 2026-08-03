@@ -68,7 +68,7 @@ const dashboard = {
       organizationId: {
         _id: "org-2",
         name: "Beacon Partners",
-        properties: [],
+        properties: [{ _id: "property-2", name: "Property B" }],
       },
       propertyIds: [],
       rateOverrideCents: null,
@@ -77,7 +77,7 @@ const dashboard = {
   ],
   organizations: [
     { _id: "org-1", name: "Atlas Management", serviceModel: "managed", properties: [{ _id: "property-1", name: "Property A" }] },
-    { _id: "org-2", name: "Beacon Partners", serviceModel: "hybrid", properties: [] },
+    { _id: "org-2", name: "Beacon Partners", serviceModel: "hybrid", properties: [{ _id: "property-2", name: "Property B" }] },
   ],
   earnings: [],
   payoutBatches: [],
@@ -153,4 +153,36 @@ test("expanded resource details retain the existing save workflow", async () => 
   ));
   expect(await screen.findByText("Resource profile updated.")).toBeInTheDocument();
   expect(within(card).queryByDisplayValue("Alpha Resource")).not.toBeInTheDocument();
+});
+
+test("current deployments can move organizations and change eligible property scope", async () => {
+  api.put.mockResolvedValueOnce({ organizationChanged: true });
+  render(<PlatformResources />);
+
+  await screen.findByRole("heading", { name: "Alpha Resource" });
+  fireEvent.click(screen.getByRole("button", { name: "Edit deployment for Alpha Resource" }));
+
+  expect(screen.getByRole("heading", { name: "Edit Resource Deployment" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Resource")).toHaveValue("resource-1");
+  expect(screen.getByLabelText("Resource")).toBeDisabled();
+  expect(screen.getByLabelText("Managed or hybrid organization")).toHaveValue("org-1");
+  expect(screen.getByLabelText("Contractor pay override")).toHaveValue(90);
+  expect([...screen.getByLabelText("Eligible properties").selectedOptions].map((option) => option.value)).toEqual(["property-1"]);
+
+  fireEvent.change(screen.getByLabelText("Managed or hybrid organization"), { target: { value: "org-2" } });
+  const propertySelect = screen.getByLabelText("Eligible properties");
+  screen.getByRole("option", { name: "Property B" }).selected = true;
+  fireEvent.change(propertySelect);
+  fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+  await waitFor(() => expect(api.put).toHaveBeenCalledWith(
+    "/api/platform-resources/deployments/deployment-1/scope",
+    {
+      organizationId: "org-2",
+      propertyIds: ["property-2"],
+      rateOverrideCents: 9000,
+    }
+  ));
+  expect(await screen.findByText(/Resource moved to the new organization/)).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Deploy a Resource" })).toBeInTheDocument();
 });

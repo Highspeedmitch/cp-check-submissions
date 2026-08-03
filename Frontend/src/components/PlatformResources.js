@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api";
 
 const EMPTY_RESOURCE = {
@@ -39,6 +39,7 @@ export default function PlatformResources() {
   const [resourceDraft, setResourceDraft] = useState(EMPTY_RESOURCE);
   const [resourceEdits, setResourceEdits] = useState({});
   const [deployment, setDeployment] = useState({ resourceId: "", organizationId: "", propertyIds: [], rateOverride: "" });
+  const [editingDeploymentId, setEditingDeploymentId] = useState("");
   const [selectedEarnings, setSelectedEarnings] = useState([]);
   const [checkDate, setCheckDate] = useState("");
   const [resourceSearch, setResourceSearch] = useState("");
@@ -49,6 +50,7 @@ export default function PlatformResources() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const deploymentEditorRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -190,19 +192,43 @@ export default function PlatformResources() {
     if (saved) setExpandedResourceId("");
   }
 
-  async function createDeployment(event) {
+  function resetDeploymentDraft() {
+    setDeployment({ resourceId: "", organizationId: "", propertyIds: [], rateOverride: "" });
+    setEditingDeploymentId("");
+  }
+
+  function editDeployment(item) {
+    setDeployment({
+      resourceId: id(item.resourceProfileId),
+      organizationId: id(item.organizationId),
+      propertyIds: (item.propertyIds || []).map(String),
+      rateOverride: item.rateOverrideCents == null ? "" : (item.rateOverrideCents / 100).toFixed(2),
+    });
+    setEditingDeploymentId(item._id);
+    setError("");
+    setMessage("");
+    deploymentEditorRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }
+
+  async function saveDeployment(event) {
     event.preventDefault();
-    const completed = await run("deployment", () => api.post(
-      `/api/platform-resources/resources/${deployment.resourceId}/deployments`,
-      {
-        organizationId: deployment.organizationId,
-        propertyIds: deployment.propertyIds,
-        rateOverrideCents: deployment.rateOverride
-          ? Math.round(Number(deployment.rateOverride) * 100)
-          : null,
-      }
-    ), "Resource deployment saved.");
-    if (completed) setDeployment({ resourceId: "", organizationId: "", propertyIds: [], rateOverride: "" });
+    const payload = {
+      organizationId: deployment.organizationId,
+      propertyIds: deployment.propertyIds,
+      rateOverrideCents: deployment.rateOverride
+        ? Math.round(Number(deployment.rateOverride) * 100)
+        : null,
+    };
+    const busyKey = editingDeploymentId ? `deployment-scope-${editingDeploymentId}` : "deployment";
+    const completed = await run(busyKey, () => editingDeploymentId
+      ? api.put(`/api/platform-resources/deployments/${editingDeploymentId}/scope`, payload)
+      : api.post(`/api/platform-resources/resources/${deployment.resourceId}/deployments`, payload),
+    editingDeploymentId
+      ? (result) => result.organizationChanged
+        ? "Resource moved to the new organization. Historical assignments remain linked to the original deployment."
+        : "Deployment scope updated for future scheduling."
+      : "Resource deployment saved.");
+    if (completed) resetDeploymentDraft();
   }
 
   async function createPayoutBatch(event) {
@@ -328,19 +354,22 @@ export default function PlatformResources() {
         </> : <div className="beta-empty-state">No Afterlight resources have been invited.</div>}
       </section>
 
-      <section className="beta-panel">
-        <div className="beta-section-heading"><div><p className="beta-eyebrow">Tenant access</p><h2>Deploy a Resource</h2><p>An empty property selection makes the resource eligible across the organization.</p></div></div>
-        <form className="beta-form-grid" onSubmit={createDeployment}>
-          <label className="beta-form-field">Active resource<select required value={deployment.resourceId} onChange={(event) => setDeployment((current) => ({ ...current, resourceId: event.target.value }))}><option value="">Select resource</option>{data.resources.filter((resource) => resource.status === "active").map((resource) => <option key={resource._id} value={resource._id}>{resource.displayName}</option>)}</select></label>
+      <section className="beta-panel" ref={deploymentEditorRef}>
+        <div className="beta-section-heading"><div><p className="beta-eyebrow">Tenant access</p><h2>{editingDeploymentId ? "Edit Resource Deployment" : "Deploy a Resource"}</h2><p>{editingDeploymentId ? "Update its organization or eligible properties for future scheduling. Historical assignments stay unchanged." : "An empty property selection makes the resource eligible across the organization."}</p></div></div>
+        <form className="beta-form-grid" onSubmit={saveDeployment}>
+          <label className="beta-form-field">{editingDeploymentId ? "Resource" : "Active resource"}<select required disabled={Boolean(editingDeploymentId)} value={deployment.resourceId} onChange={(event) => setDeployment((current) => ({ ...current, resourceId: event.target.value }))}><option value="">Select resource</option>{data.resources.filter((resource) => resource.status === "active" || (editingDeploymentId && resource._id === deployment.resourceId)).map((resource) => <option key={resource._id} value={resource._id}>{resource.displayName}</option>)}</select></label>
           <label className="beta-form-field">Managed or hybrid organization<select required value={deployment.organizationId} onChange={(event) => setDeployment((current) => ({ ...current, organizationId: event.target.value, propertyIds: [] }))}><option value="">Select organization</option>{data.organizations.map((organization) => <option key={organization._id} value={organization._id}>{organization.name} ({organization.serviceModel})</option>)}</select></label>
           {selectedResource?.resourceType === "contractor" && <label className="beta-form-field">Contractor pay override<input min="0.01" step="0.01" type="number" value={deployment.rateOverride} placeholder="Use resource default" onChange={(event) => setDeployment((current) => ({ ...current, rateOverride: event.target.value }))} /></label>}
           <label className="beta-form-field full">Eligible properties<select multiple value={deployment.propertyIds} onChange={(event) => setDeployment((current) => ({ ...current, propertyIds: [...event.target.selectedOptions].map((option) => option.value) }))}>{(selectedOrganization?.properties || []).map((property) => <option key={property._id} value={property._id}>{property.name}</option>)}</select></label>
-          <div className="beta-card-actions full"><button className="beta-button" disabled={busy === "deployment"}>Save Deployment</button></div>
+          <div className="beta-card-actions full">
+            {editingDeploymentId && <button type="button" className="beta-button secondary" onClick={resetDeploymentDraft}>Cancel Edit</button>}
+            <button className="beta-button" disabled={busy === (editingDeploymentId ? `deployment-scope-${editingDeploymentId}` : "deployment")}>{busy === (editingDeploymentId ? `deployment-scope-${editingDeploymentId}` : "deployment") ? "Saving..." : editingDeploymentId ? "Save Changes" : "Save Deployment"}</button>
+          </div>
         </form>
         {data.deployments.length > 0 && <div className="beta-table-wrap"><table className="beta-data-table"><thead><tr><th>Resource</th><th>Organization</th><th>Scope</th><th>Rate</th><th>Status</th><th>Action</th></tr></thead><tbody>{data.deployments.map((item) => {
           const resource = data.resources.find((candidate) => candidate._id === id(item.resourceProfileId));
           const propertyNames = (item.organizationId?.properties || []).filter((property) => (item.propertyIds || []).map(String).includes(String(property._id))).map((property) => property.name);
-          return <tr key={item._id}><td>{resource?.displayName || "Resource"}</td><td>{item.organizationId?.name}</td><td>{propertyNames.length ? propertyNames.join(", ") : "All properties"}</td><td>{resource?.resourceType === "contractor" ? item.rateOverrideCents == null ? "Resource default" : money(item.rateOverrideCents) : "Not payable per assignment"}</td><td>{item.status}</td><td>{item.status !== "ended" && <button className="beta-text-button" onClick={() => run(`deployment-${item._id}`, () => api.put(`/api/platform-resources/deployments/${item._id}`, { status: item.status === "active" ? "paused" : "active" }), "Deployment updated.")}>{item.status === "active" ? "Pause" : "Reactivate"}</button>}</td></tr>;
+          return <tr key={item._id}><td>{resource?.displayName || "Resource"}</td><td>{item.organizationId?.name}</td><td>{propertyNames.length ? propertyNames.join(", ") : "All properties"}</td><td>{resource?.resourceType === "contractor" ? item.rateOverrideCents == null ? "Resource default" : money(item.rateOverrideCents) : "Not payable per assignment"}</td><td>{item.status}</td><td>{item.status !== "ended" && <div className="beta-table-actions"><button type="button" className="beta-text-button" aria-label={`Edit deployment for ${resource?.displayName || "resource"}`} onClick={() => editDeployment(item)}>Edit</button><button type="button" className="beta-text-button" onClick={() => run(`deployment-${item._id}`, () => api.put(`/api/platform-resources/deployments/${item._id}`, { status: item.status === "active" ? "paused" : "active" }), "Deployment updated.")}>{item.status === "active" ? "Pause" : "Reactivate"}</button></div>}</td></tr>;
         })}</tbody></table></div>}
       </section>
 

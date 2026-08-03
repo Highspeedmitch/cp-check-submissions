@@ -101,6 +101,14 @@ test("billing router exposes the platform-owned service invoice lifecycle", () =
   }
 });
 
+test("platform resource deployments expose an editable organization and scope path", () => {
+  const inventory = routeInventory(require("../Routes/platformResources"));
+  assert.deepEqual(
+    inventory.find((candidate) => candidate.path === "/deployments/:deploymentId/scope"),
+    { path: "/deployments/:deploymentId/scope", methods: ["put"] }
+  );
+});
+
 test("service model requests expose organization and platform review paths", () => {
   assert.deepEqual(routeInventory(require("../Routes/serviceModelChanges")), [
     { path: "/", methods: ["get"] },

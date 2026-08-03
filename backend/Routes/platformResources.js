@@ -12,6 +12,7 @@ const PlatformAudit = require("../models/platformAudit");
 const { createInvitation, normalizeInvitationEmail } = require("../services/organizationInvitations");
 const { ensureWorkforceOrganization } = require("../services/workforceOrganization");
 const { buildPayoutLines, newBatchNumber } = require("../services/contractorPayouts");
+const { updateResourceDeploymentScope } = require("../services/resourceDeployments");
 const { sendSystemEmail } = require("../services/systemEmail");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 
@@ -318,6 +319,33 @@ router.post("/resources/:resourceId/deployments", async (req, res) => {
   } catch (error) {
     if (error?.name === "CastError") return res.status(400).json({ error: "Select valid resource and organization records." });
     return res.status(error.status || 500).json({ error: error.status ? error.message : "Unable to deploy the resource." });
+  }
+});
+
+router.put("/deployments/:deploymentId/scope", async (req, res) => {
+  try {
+    const result = await updateResourceDeploymentScope({
+      deploymentId: req.params.deploymentId,
+      organizationId: req.body.organizationId,
+      propertyIds: req.body.propertyIds,
+      rateOverrideCents: req.body.rateOverrideCents,
+      actorUserId: req.user.userId,
+      audit: {
+        ipAddress: req.ip || "",
+        userAgent: req.get("user-agent"),
+      },
+    });
+    return res.json(result);
+  } catch (error) {
+    if (error?.name === "CastError") {
+      return res.status(400).json({ error: "Select valid deployment, organization, and property records." });
+    }
+    if (error?.code === 11000) {
+      return res.status(409).json({ error: "This resource already has a deployment in that organization." });
+    }
+    return res.status(error.status || 500).json({
+      error: error.status ? error.message : "Unable to update the deployment scope.",
+    });
   }
 });
 
