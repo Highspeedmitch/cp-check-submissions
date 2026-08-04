@@ -5,6 +5,11 @@ import { logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import DashboardNavigation from "./ui/DashboardNavigation";
+import {
+  NOTIFICATION_SECTIONS,
+  useMarkNotificationsRead,
+  useNotificationBadges,
+} from "../services/notificationCenter";
 
 const STATUS_LABELS = {
   pending_approval: "Pending approval",
@@ -34,6 +39,11 @@ export default function ResourceDashboard({ setUser }) {
   const [navOpen, setNavOpen] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const notificationBadges = useNotificationBadges(true);
+  useMarkNotificationsRead([
+    ...NOTIFICATION_SECTIONS.dashboard,
+    ...NOTIFICATION_SECTIONS.resources,
+  ]);
 
   useEffect(() => {
     api.get("/api/resource-workspace/dashboard")
@@ -70,6 +80,10 @@ export default function ResourceDashboard({ setUser }) {
         navigate={navigate}
         onLogout={logout}
         showMileageTracking={false}
+        notificationBadges={{
+          ...notificationBadges,
+          dashboard: notificationBadges.dashboard + notificationBadges.resources,
+        }}
       />
       <main className="beta-dashboard-main beta-resource-workspace">
         <div className="beta-mobile-topbar">

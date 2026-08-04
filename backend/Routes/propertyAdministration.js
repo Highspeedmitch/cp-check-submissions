@@ -4,6 +4,7 @@ const User = require("../models/user");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
 const { canAccessProperty } = require("../services/propertyAccess");
 const { consumeGrant } = require("../services/organizationPasskeys");
+const { normalizePropertyEmails } = require("../services/propertyEmails");
 const {
   validateFulfillmentSource,
   propertyDefaultSource,
@@ -56,7 +57,7 @@ router.post("/add-property", async (req, res) => {
         role: "property_manager",
         accountStatus: { $ne: "inactive" },
         organizationArchivedAt: null,
-      }).select("_id").lean();
+      }).select("_id email").lean();
       if (!assignedPropertyManager) {
         return res.status(400).json({
           error: "Select an active property manager from this organization.",
@@ -67,7 +68,9 @@ router.post("/add-property", async (req, res) => {
       name,
       lat,
       lng,
-      emails: emails || [],
+      emails: normalizePropertyEmails(emails || [], {
+        automaticEmails: assignedPropertyManager ? [assignedPropertyManager.email] : [],
+      }),
       propertyManagers: assignedPropertyManager ? [assignedPropertyManager._id] : [],
       fulfillmentPolicy: {
         defaultSource: fulfillmentOverride,

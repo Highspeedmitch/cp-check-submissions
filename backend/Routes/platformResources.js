@@ -17,6 +17,14 @@ const { updateResourceDeploymentScope } = require("../services/resourceDeploymen
 const { sendSystemEmail } = require("../services/systemEmail");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const {
+  notifyPlatformAdministrators,
+  sendUserNotification,
+} = require("../services/notifications");
+const {
+  contractorEarningChanged,
+  gustoBatchChanged,
+} = require("../services/notificationEvents");
+const {
   archiveResourceProfile,
   restoreResourceProfile,
 } = require("../services/directoryArchival");
@@ -41,6 +49,59 @@ function cleanList(value, limit = 20) {
       .map((item) => String(item).trim())
       .filter(Boolean)
   )].slice(0, limit);
+}
+
+async function notifyResourceOfEarning(earning, status) {
+  if (!earning.userId) return;
+  await sendUserNotification({
+    organizationId: earning.organizationId,
+    contextOrganizationId: earning.organizationId,
+    userId: earning.userId,
+    recipientScope: "afterlight_resource",
+    ...contractorEarningChanged(earning, status),
+  });
+}
+
+async function notifyPayoutBatchRecipients(batch, status) {
+  const profileIds = [...new Set((batch.lines || []).map(
+    (line) => String(line.resourceProfileId)
+  ))];
+  if (!profileIds.length) return;
+  const profiles = await ResourceProfile.find({
+    _id: { $in: profileIds },
+    userId: { $ne: null },
+  }).select("_id userId").lean();
+  const userIds = profiles.map((profile) => profile.userId).filter(Boolean);
+  const users = await User.find({
+    _id: { $in: userIds },
+    accountStatus: { $ne: "inactive" },
+  }).select("_id organizationId").lean();
+  const userById = new Map(users.map((user) => [String(user._id), user]));
+  const profileById = new Map(profiles.map((profile) => [String(profile._id), profile]));
+  await Promise.allSettled((batch.lines || []).map((line) => {
+    const profile = profileById.get(String(line.resourceProfileId));
+    const user = profile && userById.get(String(profile.userId));
+    if (!user?.organizationId) return Promise.resolve();
+    return sendUserNotification({
+      organizationId: user.organizationId,
+      userId: user._id,
+      recipientScope: "afterlight_resource",
+      ...gustoBatchChanged(batch, status, { amountCents: line.totalAmountCents }),
+    });
+  }));
+}
+
+function notifyPayoutTransition(batch, status, actorUserId) {
+  Promise.allSettled([
+    notifyPlatformAdministrators({
+      event: gustoBatchChanged(batch, status, { platform: true }),
+      excludeUserId: actorUserId,
+    }),
+    notifyPayoutBatchRecipients(batch, status),
+  ]).then((results) => {
+    const failures = results.filter((result) => result.status === "rejected");
+    if (failures.length) console.error(`Gusto ${status} notification failures:`, failures.length);
+  });
 }
 
 function validCents(value, { optional = false } = {}) {
@@ -505,6 +566,9 @@ router.post("/earnings/:earningId/approve", async (req, res) => {
       targetOrganizationId: earning.organizationId,
       metadata: { earningId: earning._id, resourceProfileId: earning.resourceProfileId, amountCents: earning.grossAmountCents },
     });
+    notifyResourceOfEarning(earning, "approved").catch((notificationError) => {
+      console.error("Earning approval notification error:", notificationError);
+    });
     return res.json(earning);
   } catch (error) {
     return res.status(500).json({ error: "Unable to approve the earning." });
@@ -526,6 +590,9 @@ router.post("/earnings/:earningId/void", async (req, res) => {
       action: "contractor_earning_voided",
       targetOrganizationId: earning.organizationId,
       metadata: { earningId: earning._id, reason },
+    });
+    notifyResourceOfEarning(earning, "void").catch((notificationError) => {
+      console.error("Earning void notification error:", notificationError);
     });
     return res.json(earning);
   } catch (error) {
@@ -585,6 +652,7 @@ router.post("/payout-batches", async (req, res) => {
       action: "gusto_payout_batch_created",
       metadata: { payoutBatchId: batch._id, batchNumber: batch.batchNumber, totalAmountCents: batch.totalAmountCents },
     });
+    notifyPayoutTransition(batch, "created", req.user.userId);
     return res.status(201).json(batch);
   } catch (error) {
     return res.status(error.status || 500).json({ error: error.status ? error.message : "Unable to create the payout batch." });
@@ -619,6 +687,7 @@ router.post("/payout-batches/:batchId/record-submission", async (req, res) => {
       action: "gusto_payout_batch_submission_recorded",
       metadata: { payoutBatchId: batch._id, gustoSubmissionReference },
     });
+    notifyPayoutTransition(batch, "submitted", req.user.userId);
     return res.json(batch);
   } catch (error) {
     return res.status(500).json({ error: "Unable to record the Gusto submission." });
@@ -666,6 +735,7 @@ router.post("/payout-batches/:batchId/mark-paid", async (req, res) => {
         gustoSubmissionReference: batch.gustoSubmissionReference || batch.gustoPaymentGroupUuid,
       },
     });
+    notifyPayoutTransition(batch, "paid", req.user.userId);
     return res.json(batch);
   } catch (error) {
     return res.status(error.status || 500).json({ error: error.status ? error.message : "Unable to mark the payout batch paid." });

@@ -6,6 +6,7 @@ const Organization = require("../models/organization");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
 const ResourceProfile = require("../models/resourceProfile");
+const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails");
 const { registrationLimiter } = require("../middleware/rateLimits");
 const { hashInvitationToken, invitationRoleLabel } = require("../services/organizationInvitations");
 
@@ -108,6 +109,12 @@ router.post("/accept", async (req, res) => {
           property[field] = property[field] || [];
           if (!(property[field] || []).some((id) => String(id) === String(createdUser._id))) {
             property[field].push(createdUser._id);
+          }
+          if (invitation.role === "property_manager") {
+            property.emails = withoutAutomaticPropertyEmails(
+              property.emails,
+              [createdUser.email]
+            );
           }
         });
         await organization.save({ session });

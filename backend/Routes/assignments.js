@@ -5,6 +5,7 @@ const User = require("../models/user");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
 const { managedProperties } = require("../services/propertyAccess");
 const { sendUserNotification } = require("../services/notifications");
+const { assignmentChanged } = require("../services/notificationEvents");
 const { resolveAssignmentFulfillment } = require("../services/fulfillmentPolicy");
 const {
   resolveAssignmentAssignee,
@@ -267,6 +268,17 @@ function createAssignmentHandlers({
         return res.status(404).json({ error: "Assignment not found" });
       }
 
+      notifyUser({
+        organizationId: canceledAssignment.organizationId,
+        userId: canceledAssignment.userId,
+        recipientScope: canceledAssignment.resourceProfileId
+          ? "afterlight_resource"
+          : "organization",
+        ...assignmentChanged(canceledAssignment, "canceled"),
+      }).catch((error) => {
+        console.error("Assignment cancellation notification error:", error);
+      });
+
       return res.json({
         success: true,
         message: "Assignment canceled successfully",
@@ -309,8 +321,10 @@ function createAssignmentHandlers({
       }
       const needsAssigneeResolution = ["fulfillmentSource", "userId", "propertyName", "startDate"]
         .some((field) => Object.prototype.hasOwnProperty.call(req.body, field));
+      const needsChangeNotification = ["userId", "startDate", "endDate"]
+        .some((field) => Object.prototype.hasOwnProperty.call(req.body, field));
       let existing;
-      if (needsAssigneeResolution || req.user.role === "property_manager") {
+      if (needsAssigneeResolution || needsChangeNotification || req.user.role === "property_manager") {
         const existingQuery = {
           _id: req.params.id,
           organizationId: req.user.organizationId,
@@ -395,6 +409,45 @@ function createAssignmentHandlers({
           success: false,
           error: "Assignment not found",
         });
+      }
+
+
+      if (needsChangeNotification && existing) {
+        const previousUserId = String(existing.userId || "");
+        const nextUserId = String(assignment.userId || "");
+        if (previousUserId && previousUserId !== nextUserId) {
+          notifyUser({
+            organizationId: existing.organizationId,
+            userId: existing.userId,
+            recipientScope: existing.resourceProfileId ? "afterlight_resource" : "organization",
+            ...assignmentChanged(existing, "reassigned", { previousRecipient: true }),
+          }).catch((error) => {
+            console.error("Previous assignee notification error:", error);
+          });
+          notifyUser({
+            organizationId: assignment.organizationId,
+            userId: assignment.userId,
+            recipientScope: assignment.resourceProfileId ? "afterlight_resource" : "organization",
+            ...assignmentChanged(assignment, "reassigned"),
+          }).catch((error) => {
+            console.error("New assignee notification error:", error);
+          });
+        } else {
+          const previousStart = new Date(existing.startDate).getTime();
+          const previousEnd = new Date(existing.endDate).getTime();
+          const nextStart = new Date(assignment.startDate).getTime();
+          const nextEnd = new Date(assignment.endDate).getTime();
+          if (previousStart !== nextStart || previousEnd !== nextEnd) {
+            notifyUser({
+              organizationId: assignment.organizationId,
+              userId: assignment.userId,
+              recipientScope: assignment.resourceProfileId ? "afterlight_resource" : "organization",
+              ...assignmentChanged(assignment, "rescheduled"),
+            }).catch((error) => {
+              console.error("Assignment reschedule notification error:", error);
+            });
+          }
+        }
       }
 
       return res.json({ success: true, assignment });

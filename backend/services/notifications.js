@@ -3,6 +3,7 @@ const webPush = require("web-push");
 const PushToken = require("../models/PushToken");
 const WebPushSubscription = require("../models/webPushSubscription");
 const Notification = require("../models/notification");
+const User = require("../models/user");
 const { getFrontendUrl } = require("../utils/frontendUrls");
 
 const webPushConfigured = Boolean(
@@ -54,13 +55,16 @@ async function sendUserNotification({
   route = "/dashboard",
   entityId = "",
   recipientScope = "organization",
+  contextOrganizationId = null,
   models = { PushToken, WebPushSubscription, Notification },
   messaging = firebaseAdmin.apps.length ? firebaseAdmin.messaging() : null,
   webPushClient = webPushConfigured ? webPush : null,
 }) {
   const notification = await models.Notification.create({
     organizationId,
+    contextOrganizationId,
     userId,
+    recipientScope,
     type,
     title,
     body,
@@ -70,7 +74,7 @@ async function sendUserNotification({
   const recipientQuery = {
     userId,
     enabled: true,
-    ...(recipientScope === "afterlight_resource" ? {} : { organizationId }),
+    ...(recipientScope === "organization" ? { organizationId } : {}),
   };
   const devices = await models.PushToken.find(recipientQuery).select("token").lean();
   const webSubscriptions = models.WebPushSubscription
@@ -153,9 +157,40 @@ async function sendUserNotification({
   };
 }
 
+async function notifyPlatformAdministrators({
+  event,
+  contextOrganizationId = null,
+  excludeUserId = null,
+  UserModel = User,
+  notify = sendUserNotification,
+}) {
+  const query = {
+    platformRole: "platform_admin",
+    accountStatus: { $ne: "inactive" },
+    organizationArchivedAt: null,
+  };
+  if (excludeUserId) query._id = { $ne: excludeUserId };
+  const administrators = await UserModel.find(query)
+    .select("_id organizationId")
+    .lean();
+  const recipients = administrators.filter((administrator) => administrator.organizationId);
+  const deliveries = await Promise.allSettled(recipients.map((administrator) => notify({
+    organizationId: administrator.organizationId,
+    contextOrganizationId,
+    userId: administrator._id,
+    recipientScope: "platform",
+    ...event,
+  })));
+  return {
+    recipientCount: recipients.length,
+    failedNotifications: deliveries.filter((delivery) => delivery.status === "rejected").length,
+  };
+}
+
 module.exports = {
   INVALID_TOKEN_CODES,
   notificationData,
   disableInvalidTokens,
+  notifyPlatformAdministrators,
   sendUserNotification,
 };

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import { storeAuthentication, logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
@@ -8,6 +8,11 @@ import ThemeToggle from "./ui/ThemeToggle";
 import PlatformResources from "./PlatformResources";
 import PlatformServiceBilling from "./PlatformServiceBilling";
 import PlatformServiceModelChanges from "./PlatformServiceModelChanges";
+import {
+  NOTIFICATION_SECTIONS,
+  useMarkNotificationsRead,
+  useNotificationBadges,
+} from "../services/notificationCenter";
 
 const EMPTY_ORGANIZATION = {
   name: "",
@@ -52,7 +57,7 @@ const TIMEZONES = [
   "America/New_York",
 ];
 
-function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganization, onHelp, onLogout }) {
+function PlatformNavigation({ open, activeView, notificationBadges, onClose, onView, onNewOrganization, onHelp, onLogout }) {
   const go = (view) => {
     onView(view);
     onClose();
@@ -74,9 +79,9 @@ function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganizati
         <nav>
           <p className="beta-nav-label">Platform</p>
           <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}>Overview</button>
-          <button type="button" className={`beta-nav-item${activeView === "billing" ? " active" : ""}`} onClick={() => go("billing")}>Service Billing</button>
-          <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}>Resources &amp; Payables</button>
-          <button type="button" className={`beta-nav-item${activeView === "service-models" ? " active" : ""}`} onClick={() => go("service-models")}>Service Model Requests</button>
+          <button type="button" className={`beta-nav-item${activeView === "billing" ? " active" : ""}`} onClick={() => go("billing")}><span>Service Billing</span>{notificationBadges.platformBilling > 0 && <span className="beta-nav-badge">{notificationBadges.platformBilling > 9 ? "9+" : notificationBadges.platformBilling}</span>}</button>
+          <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}><span>Resources &amp; Payables</span>{notificationBadges.resources > 0 && <span className="beta-nav-badge">{notificationBadges.resources > 9 ? "9+" : notificationBadges.resources}</span>}</button>
+          <button type="button" className={`beta-nav-item${activeView === "service-models" ? " active" : ""}`} onClick={() => go("service-models")}><span>Service Model Requests</span>{notificationBadges.serviceModels > 0 && <span className="beta-nav-badge">{notificationBadges.serviceModels > 9 ? "9+" : notificationBadges.serviceModels}</span>}</button>
           <button type="button" className="beta-nav-item" onClick={() => { onHelp(); onClose(); }}>Help Center</button>
           <button type="button" className="beta-nav-item platform-new-org-button" onClick={() => { onNewOrganization(); onClose(); }}>
             <span>New Organization</span><span aria-hidden="true">+</span>
@@ -192,15 +197,36 @@ function OrganizationCard({ organization, busy, onEnter, onResendAdminInvite }) 
 
 export default function PlatformDashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [report, setReport] = useState(null);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [activeView, setActiveView] = useState("overview");
+  const [activeView, setActiveView] = useState(() => {
+    const requestedView = searchParams.get("view");
+    return ["overview", "billing", "resources", "service-models", "prospects"].includes(requestedView)
+      ? requestedView
+      : "overview";
+  });
   const [navOpen, setNavOpen] = useState(false);
   const [newOrganizationOpen, setNewOrganizationOpen] = useState(false);
   const [organizationError, setOrganizationError] = useState("");
+  const notificationBadges = useNotificationBadges(true);
+  const activeNotificationTypes = activeView === "billing"
+    ? NOTIFICATION_SECTIONS.platformBilling
+    : activeView === "resources"
+      ? NOTIFICATION_SECTIONS.resources
+      : activeView === "service-models"
+        ? NOTIFICATION_SECTIONS.serviceModels
+        : [];
+  useMarkNotificationsRead(activeNotificationTypes);
+
+  const selectView = useCallback((view) => {
+    setActiveView(view);
+    if (view === "overview") setSearchParams({});
+    else setSearchParams({ view });
+  }, [setSearchParams]);
 
   const loadReport = useCallback(async () => {
     try {
@@ -230,7 +256,7 @@ export default function PlatformDashboard() {
       setMessage(created.invitationDelivered
         ? `${created.name} was created and its administrator invitation was sent to ${created.initialAdminEmail}.`
         : `${created.name} was created, but its administrator invitation could not be delivered. Support can resend the pending invitation.`);
-      setActiveView("overview");
+      selectView("overview");
     } catch (requestError) {
       setOrganizationError(requestError.message);
     } finally {
@@ -286,7 +312,7 @@ export default function PlatformDashboard() {
 
   return (
     <div className="beta-dashboard platform-dashboard">
-      <PlatformNavigation open={navOpen} activeView={activeView} onClose={() => setNavOpen(false)} onView={setActiveView}
+      <PlatformNavigation open={navOpen} activeView={activeView} notificationBadges={notificationBadges} onClose={() => setNavOpen(false)} onView={selectView}
         onNewOrganization={() => { setOrganizationError(""); setNewOrganizationOpen(true); }} onHelp={() => navigate("/help")} onLogout={logout} />
       <div className="beta-dashboard-main platform-dashboard-main">
         <div className="beta-mobile-topbar">

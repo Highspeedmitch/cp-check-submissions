@@ -374,12 +374,19 @@ useEffect(() => {
       { emails }
     );
     const updatedEmails = result.property.emails || [];
+    const automaticRecipientEmails = result.property.automaticRecipientEmails
+      || emailModalProperty.automaticRecipientEmails
+      || [];
     setProperties((items) => items.map((property) =>
       property._id === emailModalProperty._id
-        ? { ...property, emails: updatedEmails }
+        ? { ...property, emails: updatedEmails, automaticRecipientEmails }
         : property
     ));
-    setEmailModalProperty((property) => ({ ...property, emails: updatedEmails }));
+    setEmailModalProperty((property) => ({
+      ...property,
+      emails: updatedEmails,
+      automaticRecipientEmails,
+    }));
     return updatedEmails;
   };
 

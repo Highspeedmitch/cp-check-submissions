@@ -110,7 +110,7 @@ test("admin can update property inspection recipients through the extracted dial
   renderDashboard("admin");
 
   fireEvent.click(await screen.findByRole("button", { name: "Manage Emails" }));
-  const recipientInput = screen.getByLabelText("Recipient emails");
+  const recipientInput = screen.getByLabelText("Additional recipient emails");
   fireEvent.change(recipientInput, {
     target: { value: "manager@example.com\nops@example.com" },
   });
@@ -123,6 +123,38 @@ test("admin can update property inspection recipients through the extracted dial
     );
   });
   expect(await screen.findByText("Inspection recipients updated.")).toBeInTheDocument();
+});
+
+test("assigned property manager email is automatic and cannot be added twice", async () => {
+  const managedProperty = {
+    ...property,
+    propertyManagers: ["pm-1"],
+    automaticRecipientEmails: ["manager@example.com"],
+  };
+  global.fetch = jest.fn(async (url) => {
+    const data = String(url).includes("latest-statuses")
+      ? { statuses: {} }
+      : String(url).endsWith("/api/properties")
+        ? [managedProperty]
+        : [];
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  renderDashboard("admin");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Manage Emails" }));
+  expect(screen.getByLabelText("Automatic property manager recipients")).toHaveTextContent(
+    "manager@example.com"
+  );
+  fireEvent.change(screen.getByLabelText("Additional recipient emails"), {
+    target: { value: "MANAGER@example.com" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save Emails" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("already included automatically");
+  expect(api.put).not.toHaveBeenCalled();
 });
 
 test("valid admin passkey opens the reducer-backed add property form", async () => {

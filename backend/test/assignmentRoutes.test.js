@@ -507,6 +507,7 @@ test("rescheduling the same contractor revalidates deployment without changing t
     currency: "USD",
   };
   let writtenChanges;
+  let notification;
   const handlers = createAssignmentHandlers({
     OrganizationModel: {
       async findById() {
@@ -520,14 +521,16 @@ test("rescheduling the same contractor revalidates deployment without changing t
           propertyName: "Broadway Center",
           userId: "resource-user-1",
           resourceProfileId: "resource-1",
+          organizationId: "org-1",
           startDate: new Date("2026-08-10T12:00:00.000Z"),
+          endDate: new Date("2026-08-10T13:00:00.000Z"),
           fulfillment: { source: "afterlight_contractor" },
           compensationSnapshot: originalSnapshot,
         };
       },
       async findOneAndUpdate(_query, changes) {
         writtenChanges = changes.$set;
-        return { _id: "assignment-1", ...changes.$set };
+        return { _id: "assignment-1", organizationId: "org-1", propertyName: "Broadway Center", ...changes.$set };
       },
     },
     resolveAssignee: async () => ({
@@ -536,6 +539,7 @@ test("rescheduling the same contractor revalidates deployment without changing t
       resourceDeploymentId: "deployment-1",
       compensationSnapshot: { ...originalSnapshot, amountCents: 9000 },
     }),
+    notifyUser: async (payload) => { notification = payload; },
   });
   const res = response();
 
@@ -548,6 +552,8 @@ test("rescheduling the same contractor revalidates deployment without changing t
   assert.equal(res.statusCode, 200);
   assert.equal(writtenChanges.compensationSnapshot, originalSnapshot);
   assert.equal(writtenChanges.resourceDeploymentId, "deployment-1");
+  assert.equal(notification.type, "assignment_rescheduled");
+  assert.equal(notification.recipientScope, "afterlight_resource");
 });
 
 test("updating only the start date makes the assignment single-day", async () => {
@@ -580,6 +586,7 @@ test("updating only the start date makes the assignment single-day", async () =>
       resourceDeploymentId: null,
       compensationSnapshot: null,
     }),
+    notifyUser: async () => {},
   });
   const res = response();
 
@@ -598,15 +605,23 @@ test("assignment cancellation remains scoped and publishes a calendar revision",
   let cancelQuery;
   let cancelUpdate;
   let cancelOptions;
+  let notification;
   const handlers = createAssignmentHandlers({
     AssignmentModel: {
       async findOneAndUpdate(query, update, options) {
         cancelQuery = query;
         cancelUpdate = update;
         cancelOptions = options;
-        return { _id: "assignment-1" };
+        return {
+          _id: "assignment-1",
+          organizationId: "org-1",
+          userId: "resource-user-1",
+          resourceProfileId: "resource-1",
+          propertyName: "Broadway Center",
+        };
       },
     },
+    notifyUser: async (payload) => { notification = payload; },
   });
   const res = response();
 
@@ -625,10 +640,63 @@ test("assignment cancellation remains scoped and publishes a calendar revision",
   assert.ok(cancelUpdate.$set.canceledAt instanceof Date);
   assert.deepEqual(cancelUpdate.$inc, { calendarSequence: 1 });
   assert.deepEqual(cancelOptions, { new: true });
+  assert.equal(notification.type, "assignment_canceled");
+  assert.equal(notification.recipientScope, "afterlight_resource");
   assert.deepEqual(res.body, {
     success: true,
     message: "Assignment canceled successfully",
   });
+});
+
+test("assignment reassignment notifies the previous and new assignees", async () => {
+  const notifications = [];
+  const existing = {
+    _id: "assignment-1",
+    organizationId: "org-1",
+    propertyName: "Broadway Center",
+    userId: "user-1",
+    resourceProfileId: null,
+    startDate: new Date("2026-08-10T12:00:00.000Z"),
+    endDate: new Date("2026-08-10T13:00:00.000Z"),
+    fulfillment: { source: "customer_employee" },
+  };
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: {
+      async findById() {
+        return { properties: [{ _id: "property-1", name: "Broadway Center" }] };
+      },
+    },
+    AssignmentModel: {
+      async findOne() { return existing; },
+      async findOneAndUpdate(_query, update) {
+        return {
+          ...existing,
+          ...update.$set,
+          userId: "resource-user-2",
+          resourceProfileId: "resource-2",
+        };
+      },
+    },
+    resolveAssignee: async () => ({
+      userId: "resource-user-2",
+      resourceProfileId: "resource-2",
+      resourceDeploymentId: "deployment-2",
+      compensationSnapshot: { amountCents: 7000, currency: "USD" },
+    }),
+    notifyUser: async (payload) => { notifications.push(payload); },
+  });
+
+  await handlers.updateAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    params: { id: "assignment-1" },
+    body: { userId: "resource-user-2" },
+  }, response());
+
+  assert.equal(notifications.length, 2);
+  assert.equal(notifications[0].type, "assignment_reassigned");
+  assert.match(notifications[0].body, /no longer assigned/);
+  assert.equal(notifications[1].userId, "resource-user-2");
+  assert.equal(notifications[1].recipientScope, "afterlight_resource");
 });
 
 test("non-admin users cannot update or delete assignments", async () => {

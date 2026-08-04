@@ -14,6 +14,11 @@ const {
   deliverPlatformRequestEmail,
   deliverRequesterDecisionEmail,
 } = require("../services/serviceModelChangeEmails");
+const {
+  notifyPlatformAdministrators,
+  sendUserNotification,
+} = require("../services/notifications");
+const { serviceModelChangeEvent } = require("../services/notificationEvents");
 
 const router = express.Router();
 const ACTIVE_STATUSES = ["pending_review", "information_requested"];
@@ -111,6 +116,8 @@ function createServiceModelChangeHandlers({
   FulfillmentAuditModel = FulfillmentAudit,
   sendPlatformEmail = deliverPlatformRequestEmail,
   sendRequesterEmail = deliverRequesterDecisionEmail,
+  notifyPlatform = notifyPlatformAdministrators,
+  notifyUser = sendUserNotification,
   now = () => new Date(),
 } = {}) {
   async function createRequest(req, res) {
@@ -178,6 +185,12 @@ function createServiceModelChangeHandlers({
         console.error("Service model request email error:", error.message);
       }
       await request.save();
+      notifyPlatform({
+        event: serviceModelChangeEvent(request, organization.name, "requested"),
+        contextOrganizationId: organization._id,
+      }).catch((notificationError) => {
+        console.error("Service model request notification error:", notificationError);
+      });
       return res.status(201).json({ ...requestResult(request), emailDelivered });
     } catch (error) {
       return res.status(error.status || 500).json({
@@ -229,6 +242,12 @@ function createServiceModelChangeHandlers({
         action: "service_model_change_information_supplied",
         targetOrganizationId: organization._id,
         metadata: { requestId: request._id },
+      });
+      notifyPlatform({
+        event: serviceModelChangeEvent(request, organization.name, "information_supplied"),
+        contextOrganizationId: organization._id,
+      }).catch((notificationError) => {
+        console.error("Service model information notification error:", notificationError);
       });
       return res.json({ ...requestResult(request), emailDelivered });
     } catch (error) {
@@ -342,6 +361,13 @@ function createServiceModelChangeHandlers({
           currentServiceModel: request.currentServiceModel,
           requestedServiceModel: request.requestedServiceModel,
         },
+      });
+      notifyUser({
+        organizationId: organization._id,
+        userId: requester._id,
+        ...serviceModelChangeEvent(request, organization.name, request.status),
+      }).catch((notificationError) => {
+        console.error("Service model decision notification error:", notificationError);
       });
       return res.json({ ...requestResult(request), emailDelivered });
     } catch (error) {

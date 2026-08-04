@@ -8,8 +8,13 @@ const Organization = require("../models/organization");
 const PlatformAudit = require("../models/platformAudit");
 const s3 = require("../awsConfig");
 const { generateInvoicePDF } = require("../invoicePdfService");
-const { sendUserNotification } = require("../services/notifications");
 const {
+  notifyPlatformAdministrators,
+  sendUserNotification,
+} = require("../services/notifications");
+const {
+  afterlightServiceInvoicePaid,
+  invoiceApDeliveryChanged,
   invoiceSubmitted,
   invoiceSubmittedForPropertyManager,
   invoiceReviewChanged,
@@ -243,6 +248,27 @@ async function notifyPropertyManagersOfSubmittedInvoice(invoice, organizationId,
     sendUserNotification({
       organizationId,
       userId: manager._id,
+      ...event,
+    })
+  ));
+}
+
+async function notifyApDeliveryState(invoice, status) {
+  const organizationId = invoice.organizationId;
+  const event = invoiceApDeliveryChanged(invoice, status);
+  if (isAfterlightServiceInvoice(invoice)) {
+    return notifyPlatformAdministrators({
+      event,
+      contextOrganizationId: organizationId,
+    });
+  }
+  const managers = await assignedPropertyManagers(invoice, organizationId);
+  const recipientIds = new Set(managers.map((manager) => String(manager._id)));
+  if (invoice.submitterId) recipientIds.add(String(invoice.submitterId));
+  return Promise.allSettled([...recipientIds].map((userId) =>
+    sendUserNotification({
+      organizationId,
+      userId,
       ...event,
     })
   ));
@@ -487,6 +513,13 @@ router.post("/platform-service-invoices/:id/mark-paid", requirePlatformAdmin, as
     await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_paid", {
       invoiceNumber: invoice.invoiceNumber,
     }));
+    notifyPlatformAdministrators({
+      event: afterlightServiceInvoicePaid(invoice),
+      contextOrganizationId: invoice.organizationId,
+      excludeUserId: req.user.userId,
+    }).catch((notificationError) => {
+      console.error("Platform invoice payment notification error:", notificationError);
+    });
     return res.json(platformInvoiceResult(invoice));
   } catch (error) {
     console.error("Platform service invoice payment error:", error.message);
@@ -850,7 +883,11 @@ router.post("/:id/approve", async (req, res) => {
       providerMessageId: invoice.delivery.providerMessageId,
       attemptCount: invoice.delivery.attemptCount,
     }));
-    if (!isAfterlightServiceInvoice(invoice)) {
+    if (deliveryResult.status === "accepted") {
+      notifyApDeliveryState(invoice, "queued").catch((notificationError) => {
+        console.error("AP delivery queued notification error:", notificationError);
+      });
+    } else if (!isAfterlightServiceInvoice(invoice)) {
       sendUserNotification({
         organizationId: req.user.organizationId,
         userId: invoice.submitterId,
@@ -869,6 +906,9 @@ router.post("/:id/approve", async (req, res) => {
       invoice.delivery.errorCode = String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR");
       invoice.statusHistory.push({ status: "failed", changedBy: req.user.userId });
       await invoice.save().catch(() => {});
+      notifyApDeliveryState(invoice, "failed").catch((notificationError) => {
+        console.error("AP delivery failure notification error:", notificationError);
+      });
     }
     console.error(JSON.stringify({
       event: "invoice_ap_delivery_failed",

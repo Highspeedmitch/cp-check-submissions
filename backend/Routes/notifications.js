@@ -7,6 +7,18 @@ const router = express.Router();
 const PLATFORMS = ["ios", "android", "web"];
 
 function notificationOwner(req) {
+  if (req.user.platformRole === "platform_admin" && !req.user.assumedOrganization) {
+    return {
+      userId: req.user.userId,
+      $or: [
+        { recipientScope: "platform" },
+        {
+          organizationId: req.user.organizationId,
+          recipientScope: { $ne: "platform" },
+        },
+      ],
+    };
+  }
   return {
     userId: req.user.userId,
     ...(req.user.accountScope === "afterlight_resource"
@@ -172,3 +184,4 @@ router.put("/:notificationId/read", async (req, res) => {
 });
 
 module.exports = router;
+module.exports.notificationOwner = notificationOwner;

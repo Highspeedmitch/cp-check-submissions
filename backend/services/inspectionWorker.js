@@ -18,12 +18,20 @@ const {
 } = require("./billingPolicy");
 const { resolveBillingAddress } = require("./propertyAddresses");
 const { sendSystemEmail } = require("./systemEmail");
-const { sendUserNotification } = require("./notifications");
-const { inspectionSubmitted, assignmentCompleted } = require("./notificationEvents");
+const {
+  notifyPlatformAdministrators,
+  sendUserNotification,
+} = require("./notifications");
+const {
+  assignmentCompleted,
+  contractorEarningCreated,
+  inspectionSubmitted,
+} = require("./notificationEvents");
 const { resolveDirectSubmissionFulfillment } = require("./fulfillmentPolicy");
 const { ensureContractorEarning } = require("./contractorEarnings");
 const { billingOwnerForFulfillment } = require("./serviceBilling");
 const { prepareAfterlightServiceInvoiceForReview } = require("./invoiceReview");
+const { mergePropertyInspectionRecipients } = require("./propertyEmails");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -172,17 +180,17 @@ async function ensureSubmission(job, organization, property, assignment) {
       }
     );
   }
-  if (assignment) {
-    await ensureContractorEarning({ assignment, submission, property });
-  }
+  const contractorEarning = assignment
+    ? await ensureContractorEarning({ assignment, submission, property })
+    : null;
   if (!job.submissionId) {
     job.submissionId = submission._id;
     await job.save();
   }
-  return submission;
+  return { submission, contractorEarning };
 }
 
-async function deliverNotifications(job, property, submission, assignment) {
+async function deliverNotifications(job, property, submission, assignment, contractorEarning) {
   if (job.notificationsSentAt) return;
   const propertyManagerIds = [...new Set(
     (property.propertyManagers || []).map((id) => id.toString())
@@ -207,6 +215,21 @@ async function deliverNotifications(job, property, submission, assignment) {
       userId: recipientUserId,
       ...event,
     });
+  }
+  if (contractorEarning) {
+    await Promise.all([
+      sendUserNotification({
+        organizationId: contractorEarning.organizationId,
+        contextOrganizationId: contractorEarning.organizationId,
+        userId: contractorEarning.userId,
+        recipientScope: "afterlight_resource",
+        ...contractorEarningCreated(contractorEarning, property.name),
+      }),
+      notifyPlatformAdministrators({
+        event: contractorEarningCreated(contractorEarning, property.name, { platform: true }),
+        contextOrganizationId: contractorEarning.organizationId,
+      }),
+    ]);
   }
   if (assignment) {
     await Assignment.updateOne(
@@ -309,7 +332,12 @@ async function processInspectionJob(job) {
         status: "scheduled",
       });
   const generated = await ensurePdf(job);
-  const submission = await ensureSubmission(job, organization, property, assignment);
+  const { submission, contractorEarning } = await ensureSubmission(
+    job,
+    organization,
+    property,
+    assignment
+  );
   let invoiceReviewResult = null;
   if (submission.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing") {
     const invoice = await Invoice.findOne({ submissionId: submission._id });
@@ -320,10 +348,24 @@ async function processInspectionJob(job) {
       },
     });
   }
-  await deliverNotifications(job, property, submission, assignment);
+  await deliverNotifications(job, property, submission, assignment, contractorEarning);
 
+  const managerIds = [...new Set((property.propertyManagers || []).map(String))];
+  const propertyManagers = managerIds.length
+    ? await User.find({
+        _id: { $in: managerIds },
+        organizationId: job.organizationId,
+        role: "property_manager",
+        accountStatus: { $ne: "inactive" },
+        organizationArchivedAt: null,
+      }).select("email").lean()
+    : [];
+  const recipients = mergePropertyInspectionRecipients(
+    property.emails,
+    propertyManagers.map((manager) => manager.email)
+  );
   const fallback = process.env.INSPECTION_FALLBACK_EMAIL || process.env.SYSTEM_EMAIL_ADDRESS;
-  const recipients = property.emails?.length ? property.emails : fallback ? [fallback] : [];
+  if (!recipients.length && fallback) recipients.push(fallback);
   await deliverInspectionEmailWithReviewFallback(
     job,
     recipients,

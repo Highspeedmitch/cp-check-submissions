@@ -1,16 +1,41 @@
 const express = require("express");
 const router = express.Router();
 const Organization = require("../models/organization");
+const User = require("../models/user");
 const Submission = require("../models/submission");
 const Assignment = require("../models/assignment");
 const Invoice = require("../models/invoice");
 const Notification = require("../models/notification");
 const { managedProperties, canAccessProperty } = require("../services/propertyAccess");
-const { normalizePropertyEmails } = require("../services/propertyEmails");
+const {
+  normalizePropertyEmails,
+  withoutAutomaticPropertyEmails,
+} = require("../services/propertyEmails");
 const { normalizePropertyDetails } = require("../services/propertyDetails");
 const { propertyDefaultSource } = require("../services/fulfillmentPolicy");
 const { assignedResourceContext } = require("../services/resourceAccess");
 const requireCurrentOrganizationPresence = require("../middleware/requireCurrentOrganizationPresence");
+
+async function propertyManagerEmailMap(organization, properties) {
+  const managerIds = [...new Set(properties.flatMap((property) =>
+    (property.propertyManagers || []).map(String)
+  ))];
+  if (!managerIds.length) return new Map();
+  const managers = await User.find({
+    _id: { $in: managerIds },
+    organizationId: organization._id,
+    role: "property_manager",
+    accountStatus: { $ne: "inactive" },
+    organizationArchivedAt: null,
+  }).select("_id email").lean();
+  return new Map(managers.map((manager) => [String(manager._id), manager.email]));
+}
+
+function automaticRecipientEmails(property, managerEmails) {
+  return [...new Set((property.propertyManagers || [])
+    .map((id) => managerEmails.get(String(id)))
+    .filter(Boolean))];
+}
 
 router.get("/", requireCurrentOrganizationPresence, async (req, res) => {
   try {
@@ -18,19 +43,29 @@ router.get("/", requireCurrentOrganizationPresence, async (req, res) => {
     if (!organization) {
       return res.status(404).json({ error: "Organization not found" });
     }
-    const properties = managedProperties(organization, req.user).map((property) => ({
-      _id: property._id,
-      name: property.name,
-      lat: property.lat,
-      lng: property.lng,
-      emails: property.emails,
-      propertyManagers: property.propertyManagers || [],
-      orgType: organization.orgType,
-      fulfillment: {
-        defaultSource: property.fulfillmentPolicy?.defaultSource || null,
-        resolvedSource: propertyDefaultSource(organization, property),
-      },
-    }));
+    const visibleProperties = managedProperties(organization, req.user);
+    const managerEmails = req.user.role === "admin"
+      ? await propertyManagerEmailMap(organization, visibleProperties)
+      : new Map();
+    const properties = visibleProperties.map((property) => {
+      const automaticEmails = automaticRecipientEmails(property, managerEmails);
+      return {
+        _id: property._id,
+        name: property.name,
+        lat: property.lat,
+        lng: property.lng,
+        emails: withoutAutomaticPropertyEmails(property.emails, automaticEmails),
+        propertyManagers: property.propertyManagers || [],
+        ...(req.user.role === "admin" && {
+          automaticRecipientEmails: automaticEmails,
+        }),
+        orgType: organization.orgType,
+        fulfillment: {
+          defaultSource: property.fulfillmentPolicy?.defaultSource || null,
+          resolvedSource: propertyDefaultSource(organization, property),
+        },
+      };
+    });
     return res.json(properties);
   } catch (error) {
     console.error("Error fetching properties:", error);
@@ -145,7 +180,11 @@ router.put("/:propertyId/emails", requireCurrentOrganizationPresence, async (req
     }
 
     const property = organization.properties.id(req.params.propertyId);
-    property.emails = normalizePropertyEmails(req.body.emails);
+    const managerEmails = await propertyManagerEmailMap(organization, [property]);
+    const automaticEmails = automaticRecipientEmails(property, managerEmails);
+    property.emails = normalizePropertyEmails(req.body.emails, {
+      automaticEmails,
+    });
     await organization.save();
 
     res.json({
@@ -154,6 +193,7 @@ router.put("/:propertyId/emails", requireCurrentOrganizationPresence, async (req
         _id: property._id,
         name: property.name,
         emails: property.emails,
+        automaticRecipientEmails: automaticEmails,
       },
     });
   } catch (error) {

@@ -4,6 +4,10 @@ import { api } from "../services/api";
 import PageHeader from "./ui/PageHeader";
 import AdminVerificationDialog from "./dashboard/dialogs/AdminVerificationDialog";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import {
+  NOTIFICATION_SECTIONS,
+  useMarkNotificationsRead,
+} from "../services/notificationCenter";
 
 const SERVICE_MODEL_LABELS = {
   platform: "Full-stack SaaS",
@@ -36,6 +40,7 @@ const EMPTY_REQUEST = { requestedServiceModel: "", reason: "", proposedEffective
 
 export default function ServiceDeliverySettings() {
   const navigate = useNavigate();
+  useMarkNotificationsRead(NOTIFICATION_SECTIONS.serviceModels);
   const [settings, setSettings] = useState(null);
   const [audit, setAudit] = useState([]);
   const [draft, setDraft] = useState(null);

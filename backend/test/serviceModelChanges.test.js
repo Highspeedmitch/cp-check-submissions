@@ -67,6 +67,7 @@ test("organization administrators submit a non-mutating request and notify platf
   let createdRequest;
   let emailDetails;
   let platformAudit;
+  let platformNotification;
   const handlers = createServiceModelChangeHandlers({
     OrganizationModel: { async findById() { return org; } },
     UserModel: { findById() { return userQuery(requester); } },
@@ -87,6 +88,8 @@ test("organization administrators submit a non-mutating request and notify platf
     },
     PlatformAuditModel: { async create(entry) { platformAudit = entry; } },
     sendPlatformEmail: async (details) => { emailDetails = details; },
+    notifyPlatform: async (details) => { platformNotification = details; },
+    notifyUser: async () => {},
     now: () => new Date("2026-08-03T12:00:00.000Z"),
   });
   const res = response();
@@ -108,6 +111,8 @@ test("organization administrators submit a non-mutating request and notify platf
   assert.equal(emailDetails.organization, org);
   assert.equal(emailDetails.requester, requester);
   assert.equal(platformAudit.action, "service_model_change_requested");
+  assert.equal(platformNotification.event.type, "service_model_change_requested");
+  assert.equal(platformNotification.contextOrganizationId, "org-1");
   assert.equal(res.body.emailDelivered, true);
 });
 
@@ -131,6 +136,7 @@ test("platform approval applies the model to future work and clears property ove
   let fulfillmentAudit;
   let platformAudit;
   let requesterEmail;
+  let requesterNotification;
   const handlers = createServiceModelChangeHandlers({
     RequestModel: { async findOne() { return request; } },
     OrganizationModel: { async findById() { return org; } },
@@ -138,6 +144,8 @@ test("platform approval applies the model to future work and clears property ove
     FulfillmentAuditModel: { async create(entry) { fulfillmentAudit = entry; } },
     PlatformAuditModel: { async create(entry) { platformAudit = entry; } },
     sendRequesterEmail: async (details) => { requesterEmail = details; },
+    notifyPlatform: async () => {},
+    notifyUser: async (details) => { requesterNotification = details; },
     now: () => new Date("2026-08-04T12:00:00.000Z"),
   });
   const res = response();
@@ -155,6 +163,8 @@ test("platform approval applies the model to future work and clears property ove
   assert.equal(fulfillmentAudit.metadata.clearedPropertyOverrides, 1);
   assert.equal(platformAudit.action, "service_model_change_approved");
   assert.equal(requesterEmail.request, request);
+  assert.equal(requesterNotification.type, "service_model_change_approved");
+  assert.equal(requesterNotification.route, "/service-delivery");
   assert.equal(res.body.emailDelivered, true);
 });
 
@@ -175,6 +185,8 @@ test("platform admins can request information and the organization can respond",
     createdAt: new Date("2026-08-03T12:00:00.000Z"),
     async save() {},
   };
+  const platformNotifications = [];
+  const requesterNotifications = [];
   const handlers = createServiceModelChangeHandlers({
     RequestModel: {
       async findOne(query) {
@@ -188,6 +200,8 @@ test("platform admins can request information and the organization can respond",
     PlatformAuditModel: { async create() {} },
     sendRequesterEmail: async () => {},
     sendPlatformEmail: async () => {},
+    notifyPlatform: async (details) => { platformNotifications.push(details); },
+    notifyUser: async (details) => { requesterNotifications.push(details); },
     now: () => new Date("2026-08-04T12:00:00.000Z"),
   });
   const reviewRes = response();
@@ -200,6 +214,7 @@ test("platform admins can request information and the organization can respond",
   assert.equal(reviewRes.statusCode, 200);
   assert.equal(request.status, "information_requested");
   assert.equal(request.messages[0].actorScope, "platform_admin");
+  assert.equal(requesterNotifications[0].type, "service_model_information_requested");
 
   const respondRes = response();
   const respondReq = organizationRequest({ message: "Winterhaven Square only." });
@@ -210,4 +225,5 @@ test("platform admins can request information and the organization can respond",
   assert.equal(respondRes.body.emailDelivered, true);
   assert.equal(request.status, "pending_review");
   assert.equal(request.messages[1].message, "Winterhaven Square only.");
+  assert.equal(platformNotifications[0].event.type, "service_model_information_supplied");
 });

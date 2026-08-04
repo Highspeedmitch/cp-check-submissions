@@ -24,6 +24,7 @@ const {
   resendInvitation,
   expireInvitations,
 } = require("../services/organizationInvitations");
+const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "client", "contractor", "cleaner"];
@@ -281,6 +282,9 @@ router.put("/:userId", async (req, res) => {
       if (assignedIds.has(property._id.toString())) {
         const assignmentField = role === "client" ? "clientOwners" : "propertyManagers";
         property[assignmentField].push(user._id);
+        if (role === "property_manager") {
+          property.emails = withoutAutomaticPropertyEmails(property.emails, [email]);
+        }
       }
     });
     user.username = username.trim();
