@@ -611,6 +611,23 @@
 .beta-submission-metadata div { min-width: 0; }
 .beta-submission-metadata dt { margin-bottom: 4px; color: var(--beta-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .beta-submission-metadata dd { margin: 0; overflow-wrap: anywhere; }
+.beta-submission-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--beta-border);
+  border-radius: var(--beta-radius);
+  background: var(--beta-surface);
+}
+.beta-submission-filters select { width: 100%; min-width: 0; margin-top: 6px; }
+.beta-submission-clear-filters { min-width: 120px; }
+.beta-submission-clear-filters:disabled,
+.beta-submission-pagination .beta-button:disabled { cursor: not-allowed; opacity: .55; }
+.beta-submission-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 18px; }
+.beta-submission-pagination .beta-button { min-width: 110px; }
+.beta-submission-pagination span { color: var(--beta-muted); font-size: 14px; text-align: center; }
 .beta-inspection-page { max-width: 880px; }
 .beta-inspection-page form { display: grid; gap: 16px; }
 .beta-inspection-section h2 { margin: 0 0 18px; font-size: 20px; }
@@ -1548,6 +1565,10 @@
 .beta-scheduler-shell .rbc-today { background: var(--beta-soft-blue); }
 
 @media (max-width: 760px) {
+  .beta-submission-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .beta-submission-clear-filters { width: 100%; }
+  .beta-submission-pagination { align-items: stretch; flex-direction: column; }
+  .beta-submission-pagination .beta-button { width: 100%; }
   .beta-submission-list article { align-items: stretch; flex-direction: column; }
   .beta-submission-list article .beta-button { width: 100%; }
   .beta-submission-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1799,6 +1820,7 @@
 }
 
 @media (max-width: 480px) {
+  .beta-submission-filters { grid-template-columns: 1fr; }
   .platform-metric-board div { padding: 15px 13px; }
   .platform-metric-board strong { font-size: 22px; }
   .platform-organization-card { padding: 17px; }

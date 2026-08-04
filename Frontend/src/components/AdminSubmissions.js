@@ -7,12 +7,33 @@ import { apiUrl } from "../services/api";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 
 const FULFILLMENT_LABELS = {
+  direct_submission: "Direct submission",
   customer_employee: "Customer employee",
   customer_contractor: "Customer contractor",
   afterlight_staff: "Afterlight staff",
   afterlight_contractor: "Afterlight contractor",
   legacy: "Legacy submission",
 };
+
+const EMPTY_FILTERS = {
+  submitter: "",
+  assigner: "",
+  fulfillment: "",
+};
+
+const EMPTY_FILTER_OPTIONS = {
+  submitters: [],
+  assigners: [],
+  includeUnassignedAssigner: false,
+  fulfillmentTypes: [],
+};
+
+function userOptionLabel(user) {
+  if (!user) return "Unknown user";
+  return user.email && user.email !== user.name
+    ? `${user.name} (${user.email})`
+    : user.name;
+}
 
 function activityDate(value) {
   if (!value) return "Not recorded";
@@ -27,6 +48,15 @@ function AdminSubmissions() {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
   const [months, setMonths] = useState(12);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [filterOptions, setFilterOptions] = useState(EMPTY_FILTER_OPTIONS);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 1,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const token = localStorage.getItem("token");
@@ -44,8 +74,15 @@ function AdminSubmissions() {
     const controller = new AbortController();
     setLoading(true);
     setError("");
+    const query = new URLSearchParams({
+      months: String(months),
+      page: String(page),
+    });
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) query.set(key, value);
+    });
 
-    fetch(apiUrl(`/api/admin/submissions/${encodeURIComponent(property)}?months=${months}`), {
+    fetch(apiUrl(`/api/admin/submissions/${encodeURIComponent(property)}?${query}`), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
@@ -57,7 +94,17 @@ function AdminSubmissions() {
         return res.json();
       })
       .then((data) => {
-        setSubmissions(data);
+        const items = Array.isArray(data) ? data : data.items || [];
+        setSubmissions(items);
+        setPagination(Array.isArray(data) ? {
+          page: 1,
+          pageSize: items.length,
+          total: items.length,
+          totalPages: 1,
+        } : data.pagination);
+        if (!Array.isArray(data)) {
+          setFilterOptions(data.filters || EMPTY_FILTER_OPTIONS);
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -67,7 +114,15 @@ function AdminSubmissions() {
         setLoading(false);
       });
     return () => controller.abort();
-  }, [property, months, token, navigate]);
+  }, [property, months, page, filters, token, navigate]);
+
+  const updateFilter = (name, value) => {
+    setFilters((current) => ({ ...current, [name]: value }));
+    setPage(1);
+  };
+  const hasActiveFilters = months !== 12 || Object.values(filters).some(Boolean);
+  const firstRecord = pagination.total ? ((pagination.page - 1) * pagination.pageSize) + 1 : 0;
+  const lastRecord = Math.min(pagination.page * pagination.pageSize, pagination.total);
 
   return (
     <div className="beta-page">
@@ -80,28 +135,63 @@ function AdminSubmissions() {
         actions={<ContextualHelpLink slug="review-property-submissions" />}
       />
       <div className="beta-toolbar">
-        <div><h2>Submission history</h2><p>{submissions.length} records in this view</p></div>
-      <div className="submission-range-filter">
-        <label htmlFor="submission-months">Show submissions from the last</label>
-        <select
-          id="submission-months"
-          value={months}
-          onChange={(event) => setMonths(Number(event.target.value))}
+        <div><h2>Submission history</h2><p>{pagination.total} {hasActiveFilters ? "matching" : "total"} {pagination.total === 1 ? "record" : "records"}</p></div>
+      </div>
+      <section className="beta-submission-filters" aria-label="Submission history filters">
+        <label className="beta-form-field" htmlFor="submission-months">Date range
+          <select
+            id="submission-months"
+            value={months}
+            onChange={(event) => {
+              setMonths(Number(event.target.value));
+              setPage(1);
+            }}
+          >
+            {[1, 3, 6, 12, 18].map((month) => (
+              <option key={month} value={month}>
+                Last {month} {month === 1 ? "month" : "months"}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="beta-form-field" htmlFor="submission-submitter">Submitted by
+          <select id="submission-submitter" value={filters.submitter} onChange={(event) => updateFilter("submitter", event.target.value)}>
+            <option value="">All submitters</option>
+            {filterOptions.submitters.map((user) => <option key={user._id} value={user._id}>{userOptionLabel(user)}</option>)}
+          </select>
+        </label>
+        <label className="beta-form-field" htmlFor="submission-assigner">Assigned by
+          <select id="submission-assigner" value={filters.assigner} onChange={(event) => updateFilter("assigner", event.target.value)}>
+            <option value="">All assigners</option>
+            {filterOptions.assigners.map((user) => <option key={user._id} value={user._id}>{userOptionLabel(user)}</option>)}
+            {filterOptions.includeUnassignedAssigner && <option value="unassigned">Not recorded / direct</option>}
+          </select>
+        </label>
+        <label className="beta-form-field" htmlFor="submission-fulfillment">Fulfillment
+          <select id="submission-fulfillment" value={filters.fulfillment} onChange={(event) => updateFilter("fulfillment", event.target.value)}>
+            <option value="">All fulfillment types</option>
+            {filterOptions.fulfillmentTypes.map((value) => <option key={value} value={value}>{FULFILLMENT_LABELS[value] || value}</option>)}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="beta-button secondary beta-submission-clear-filters"
+          disabled={!hasActiveFilters}
+          onClick={() => {
+            setMonths(12);
+            setFilters(EMPTY_FILTERS);
+            setPage(1);
+          }}
         >
-          {[1, 3, 6, 12, 18].map((month) => (
-            <option key={month} value={month}>
-              {month} {month === 1 ? "month" : "months"}
-            </option>
-          ))}
-        </select>
-      </div>
-      </div>
+          Clear filters
+        </button>
+      </section>
       {loading ? (
         <div className="beta-empty-state">Loading submissions...</div>
       ) : error ? (
         <p className="beta-alert error">{error}</p>
       ) : submissions.length === 0 ? (
-        <div className="beta-empty-state">No submissions found for the last {months} {months === 1 ? "month" : "months"}.</div>
+        <div className="beta-empty-state">No submissions match the selected filters.</div>
       ) : (
         <section className="beta-panel beta-submission-list">
           {submissions.map((sub) => (
@@ -121,6 +211,13 @@ function AdminSubmissions() {
             </article>
           ))}
         </section>
+      )}
+      {!loading && !error && pagination.totalPages > 1 && (
+        <nav className="beta-submission-pagination" aria-label="Submission history pages">
+          <button type="button" className="beta-button secondary" disabled={pagination.page <= 1} onClick={() => setPage((current) => current - 1)}>Previous</button>
+          <span>Showing {firstRecord}-{lastRecord} of {pagination.total} {"\u00b7"} Page {pagination.page} of {pagination.totalPages}</span>
+          <button type="button" className="beta-button secondary" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)}>Next</button>
+        </nav>
       )}
     </main>
     </div>
