@@ -89,9 +89,22 @@ const InvoiceSchema = new mongoose.Schema({
   delivery: {
     method: String,
     destination: String,
+    status: {
+      type: String,
+      enum: ["", "sending", "accepted", "delivered", "recorded", "failed"],
+      default: "",
+    },
+    provider: { type: String, default: "" },
+    providerMessageId: { type: String, default: "" },
+    attemptCount: { type: Number, min: 0, default: 0 },
+    lastAttemptAt: { type: Date, default: null },
+    acceptedAt: { type: Date, default: null },
+    deliveredAt: { type: Date, default: null },
+    failedAt: { type: Date, default: null },
     sentAt: Date,
     confirmationNumber: String,
     error: String,
+    errorCode: { type: String, default: "" },
   },
   statusHistory: [{
     status: String,

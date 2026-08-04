@@ -43,7 +43,8 @@ Saving a revised amount invalidates the previous PDF. Generate a new PDF before 
 - **Awaiting customer review:** The assigned property manager must approve or decline the invoice.
 - **Needs revision:** Read the displayed customer feedback, correct the amount if appropriate, regenerate the PDF, and send it for review again. Declined invoices are not automatically resubmitted.
 - **AP delivery failed:** The customer approved the invoice, but its configured AP delivery failed. Correct the property AP destination from the organization's Billing settings, then have the property manager retry delivery.
-- **Sent to AP:** The customer approved the invoice and Afterlight recorded delivery to the configured AP route.
+- **AP email queued:** Amazon SES accepted the approved invoice for processing. Use the stored provider reference to correlate delivery events; provider acceptance is not proof that the destination mailbox received it.
+- **Sent to AP:** The customer approved a manual-download or portal route and Afterlight recorded that submission.
 
 ## Reconcile customer payment
 

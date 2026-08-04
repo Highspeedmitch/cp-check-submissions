@@ -6,11 +6,21 @@ const STATUS_LABELS = {
   pending_review: "Awaiting customer review",
   declined: "Needs revision",
   approving: "Sending to AP",
-  submitted: "Sent to AP",
+  submitted: "AP delivery submitted",
   paid: "Paid",
   failed: "AP delivery failed",
   void: "Void",
 };
+
+function statusLabel(invoice) {
+  if (invoice.status === "submitted" && invoice.delivery?.status === "accepted") {
+    return "AP email queued";
+  }
+  if (invoice.status === "submitted" && invoice.delivery?.status === "delivered") {
+    return "Delivered to AP";
+  }
+  return STATUS_LABELS[invoice.status] || invoice.status.replaceAll("_", " ");
+}
 
 function money(cents) {
   return new Intl.NumberFormat("en-US", {
@@ -118,8 +128,8 @@ export default function PlatformServiceBilling() {
                     <h3>{invoice.propertySnapshot?.name || "Property inspection"}</h3>
                     <p>{new Date(invoice.inspectionDate).toLocaleDateString()} · Performed by {invoice.submitterId?.username || invoice.submitterId?.email || "resource"}</p>
                   </div>
-                  <span className={`beta-status ${invoice.status === "paid" || invoice.status === "submitted" ? "success" : invoice.status === "declined" || invoice.status === "failed" ? "declined" : "warning"}`}>
-                    {STATUS_LABELS[invoice.status] || invoice.status.replaceAll("_", " ")}
+                  <span className={`beta-status ${invoice.status === "paid" || ["delivered", "recorded"].includes(invoice.delivery?.status) ? "success" : invoice.status === "declined" || invoice.status === "failed" ? "declined" : "warning"}`}>
+                    {statusLabel(invoice)}
                   </span>
                 </div>
 
@@ -128,6 +138,7 @@ export default function PlatformServiceBilling() {
                   <div><dt>Client amount</dt><dd>{invoice.amountCents == null ? "Not set" : money(invoice.amountCents)}</dd></div>
                   <div><dt>AP method</dt><dd>{invoice.propertySnapshot?.apMethod || "download"}</dd></div>
                   <div><dt>AP destination</dt><dd>{apDestination(invoice)}</dd></div>
+                  {invoice.delivery?.providerMessageId && <div><dt>Delivery provider reference</dt><dd>{invoice.delivery.providerMessageId}</dd></div>}
                 </dl>
 
                 {invoice.status === "declined" && invoice.review?.declineReason && (

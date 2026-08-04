@@ -21,6 +21,8 @@ const {
 const { resolveBillingAddress } = require("../services/propertyAddresses");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const { sendSystemEmail } = require("../services/systemEmail");
+const { sendApprovedInvoiceToAp } = require("../services/apDelivery");
+const { normalizeEmailAddress } = require("../services/propertyEmails");
 const {
   isAfterlightServiceInvoice,
   afterlightServiceInvoiceScope,
@@ -120,8 +122,15 @@ router.put("/properties/:propertyId", async (req, res) => {
     property.defaultInspectionAmountCents = Number.isInteger(defaultInspectionAmountCents)
       ? defaultInspectionAmountCents
       : null;
-    property.apMethod = apMethod || "download";
-    property.apEmail = apEmail || "";
+    const normalizedApMethod = apMethod || "download";
+    if (!["email", "portal", "download"].includes(normalizedApMethod)) {
+      return res.status(400).json({ error: "Select a valid AP delivery method." });
+    }
+    const normalizedApEmail = normalizedApMethod === "email"
+      ? normalizeEmailAddress(apEmail, "AP email address")
+      : String(apEmail || "").trim().toLowerCase();
+    property.apMethod = normalizedApMethod;
+    property.apEmail = normalizedApEmail;
     property.apPortal = apPortal || "";
     await organization.save();
     await Invoice.updateMany(
@@ -146,9 +155,25 @@ router.put("/properties/:propertyId", async (req, res) => {
         },
       }
     );
+    await Invoice.updateMany(
+      {
+        organizationId: organization._id,
+        propertyId: property._id,
+        status: { $in: ["pending_review", "failed"] },
+      },
+      {
+        $set: {
+          "propertySnapshot.apMethod": property.apMethod,
+          "propertySnapshot.apEmail": property.apEmail,
+          "propertySnapshot.apPortal": property.apPortal,
+        },
+      }
+    );
     res.json(property);
   } catch (error) {
-    res.status(500).json({ error: "Unable to save property billing settings." });
+    res.status(error.status || 500).json({
+      error: error.status ? error.message : "Unable to save property billing settings.",
+    });
   }
 });
 
@@ -263,45 +288,6 @@ async function emailPropertyManagersForReview(invoice, managers) {
       contentType: "application/pdf",
     }],
   });
-}
-
-async function sendApprovedInvoiceToAp(invoice, confirmationNumber = "") {
-  const method = invoice.propertySnapshot.apMethod || "download";
-  if (method === "email") {
-    const destination = invoice.propertySnapshot.apEmail;
-    if (!destination) throw new Error("The property has no AP email configured.");
-    const file = await s3.getObject({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: invoice.pdfKey,
-    }).promise();
-    const amount = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(invoice.amountCents / 100);
-    await sendSystemEmail({
-      to: destination,
-      subject: `Approved property inspection invoice ${invoice.invoiceNumber}`,
-      text: [
-        `Invoice ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} has been reviewed and approved by the assigned property manager.`,
-        `Property code: ${invoice.propertySnapshot.propertyCode}`,
-        `Approved amount: ${amount}`,
-        `Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}`,
-        "The approved invoice is attached for processing.",
-      ].join("\n"),
-      attachments: [{
-        filename: `${invoice.invoiceNumber}.pdf`,
-        content: file.Body,
-        contentType: "application/pdf",
-      }],
-    });
-    invoice.delivery.destination = destination;
-  } else {
-    invoice.delivery.destination = invoice.propertySnapshot.apPortal || "Manual AP submission";
-    invoice.delivery.confirmationNumber = confirmationNumber;
-  }
-  invoice.delivery.method = method;
-  invoice.delivery.sentAt = new Date();
-  invoice.delivery.error = "";
 }
 
 function platformAuditDetails(req, invoice, action, metadata = {}) {
@@ -845,10 +831,25 @@ router.post("/:id/approve", async (req, res) => {
       return res.status(409).json({ error: "Another reviewer has already acted on this invoice." });
     }
 
-    await sendApprovedInvoiceToAp(invoice, String(req.body.confirmationNumber || "").trim());
+    const deliveryResult = await sendApprovedInvoiceToAp(
+      invoice,
+      String(req.body.confirmationNumber || "").trim()
+    );
     invoice.status = "submitted";
     invoice.statusHistory.push({ status: "submitted", changedBy: req.user.userId });
     await invoice.save();
+    console.info(JSON.stringify({
+      event: deliveryResult.status === "accepted"
+        ? "invoice_ap_delivery_accepted"
+        : "invoice_ap_delivery_recorded",
+      invoiceId: String(invoice._id),
+      organizationId: String(invoice.organizationId),
+      method: invoice.delivery.method,
+      deliveryStatus: invoice.delivery.status,
+      provider: invoice.delivery.provider,
+      providerMessageId: invoice.delivery.providerMessageId,
+      attemptCount: invoice.delivery.attemptCount,
+    }));
     if (!isAfterlightServiceInvoice(invoice)) {
       sendUserNotification({
         organizationId: req.user.organizationId,
@@ -858,16 +859,30 @@ router.post("/:id/approve", async (req, res) => {
         console.error("Invoice approval notification error:", notificationError);
       });
     }
-    res.json(invoice);
+    res.json({ ...invoice.toObject(), warning: deliveryResult.warning });
   } catch (error) {
-    console.error("Invoice approval error:", error);
     if (invoice) {
       invoice.status = "failed";
+      invoice.delivery.status = "failed";
+      invoice.delivery.failedAt = new Date();
       invoice.delivery.error = error.message || "AP delivery failed.";
+      invoice.delivery.errorCode = String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR");
       invoice.statusHistory.push({ status: "failed", changedBy: req.user.userId });
       await invoice.save().catch(() => {});
     }
-    const configurationError = /no AP email configured/i.test(error.message || "");
+    console.error(JSON.stringify({
+      event: "invoice_ap_delivery_failed",
+      invoiceId: invoice?._id ? String(invoice._id) : String(req.params.id),
+      organizationId: invoice?.organizationId ? String(invoice.organizationId) : String(req.user.organizationId),
+      method: invoice?.delivery?.method || "unknown",
+      deliveryStatus: "failed",
+      provider: invoice?.delivery?.provider || "ses",
+      providerMessageId: invoice?.delivery?.providerMessageId || "",
+      attemptCount: invoice?.delivery?.attemptCount || 0,
+      errorCode: String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR"),
+      errorMessage: String(error.message || "AP delivery failed.").slice(0, 500),
+    }));
+    const configurationError = /no AP email configured|valid AP email address/i.test(error.message || "");
     res.status(configurationError ? 400 : 502).json({
       error: configurationError
         ? error.message

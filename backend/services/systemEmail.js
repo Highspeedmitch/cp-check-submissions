@@ -64,6 +64,7 @@ async function sendWithSes(mimeMessage, config, sesClient = createSesClient(conf
   }).promise();
   return {
     accepted: true,
+    status: "accepted",
     provider: "ses",
     messageId: result.MessageId,
     sender: config.senderAddress,

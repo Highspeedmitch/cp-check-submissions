@@ -40,11 +40,14 @@ function invoiceSubmittedForPropertyManager(invoice) {
 
 function invoiceReviewChanged(invoice, decision) {
   const approved = decision === "approved";
+  const emailQueued = approved && invoice.delivery?.status === "accepted";
   return {
     type: "invoice_review_changed",
     title: approved ? "Invoice approved" : "Invoice needs revision",
     body: approved
-      ? `Your invoice for ${invoice.propertySnapshot.name} was approved and sent to AP.`
+      ? emailQueued
+        ? `Your invoice for ${invoice.propertySnapshot.name} was approved and queued for AP email delivery.`
+        : `Your invoice for ${invoice.propertySnapshot.name} was approved and sent to AP.`
       : `Your invoice for ${invoice.propertySnapshot.name} was declined and needs your attention.`,
     route: "/billing",
     entityId: invoice._id,

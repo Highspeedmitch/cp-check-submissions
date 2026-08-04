@@ -24,10 +24,11 @@ A useful decline reason identifies both the problem and the expected correction.
 
 ## What happens after approval
 
-- The invoice moves to **Sent to AP** after successful delivery processing.
-- For an email AP method, Afterlight emails the approved PDF to the configured AP address.
+- For an email AP method, the invoice moves to **AP Email Queued** after Amazon SES accepts the approved PDF for delivery. This confirms provider acceptance, not final mailbox delivery.
+- Afterlight records the provider message ID so support can correlate a later delivery or bounce event.
 - For a manual-download or portal AP method, follow your organization’s AP procedure after approval.
-- If delivery fails, the status changes to **AP Delivery Failed**. Open Billing and select **Retry AP Delivery** after the configuration or delivery problem is corrected.
+- A synchronous provider rejection changes the status to **AP Delivery Failed**. Open Billing and select **Retry AP Delivery** after the configuration or delivery problem is corrected.
+- A syntactically invalid AP email is rejected when billing settings are saved. A valid-looking address for a mailbox or domain that does not exist can be accepted initially and bounce later; final bounce handling requires SES delivery-event publishing.
 
 ## What happens after a decline
 

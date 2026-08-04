@@ -95,6 +95,8 @@ test("sends MIME email with attachments through Amazon SES", async () => {
     }, { sesClient });
 
     assert.equal(result.provider, "ses");
+    assert.equal(result.status, "accepted");
+    assert.equal(result.accepted, true);
     assert.equal(result.messageId, "ses-message-id");
     assert.equal(request.Source, "notifications@afterlightinspections.com");
     const mime = request.RawMessage.Data.toString("utf8");

@@ -58,7 +58,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Awaiting PM Review | The invoice was sent to an assigned property manager. | Property manager |
 | Needs Revision | The property manager returned the invoice with a reason. | Submitter, or Afterlight platform billing for Afterlight-delivered work |
 | Sending to AP | Approval and delivery are in progress. | No action unless an error appears |
-| Sent to AP | The property manager approved the invoice. | Platform billing marks Afterlight service invoices paid; customer oversight handles customer-contractor invoices |
+| AP delivery submitted | The property manager approved the invoice. Email delivery may still be queued with the provider. | Platform billing marks Afterlight service invoices paid only after customer payment is received; customer oversight handles customer-contractor invoices |
 | AP Delivery Failed | Approval succeeded, but AP delivery failed. | Property manager retries delivery |
 | Paid | Payment was recorded. | Property manager or administrator may archive it |
 

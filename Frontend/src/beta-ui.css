@@ -387,6 +387,7 @@
 .beta-amount-input { width: 92px; margin: 0; }
 .beta-alert { padding: 12px 14px; border-radius: 8px; background: var(--beta-surface); }
 .beta-alert.error { border: 1px solid #f3c0c5; }
+.beta-alert.notice { border: 1px solid #e3c56f; }
 .beta-alert.success { border: 1px solid #bde2ca; }
 .beta-invoice-total { display: grid; justify-items: end; gap: 8px; }
 .beta-invoice-total > strong { font-size: 19px; }

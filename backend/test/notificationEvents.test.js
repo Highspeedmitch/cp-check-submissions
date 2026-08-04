@@ -33,6 +33,7 @@ test("invoice events confirm submission and describe a later status change", () 
     _id: "invoice-1",
     status: "paid",
     propertySnapshot: { name: "Broadway Center" },
+    delivery: { status: "accepted" },
   };
   assert.match(invoiceSubmitted(invoice).body, /property manager for review/);
   const managerEvent = invoiceSubmittedForPropertyManager(invoice);
@@ -40,7 +41,7 @@ test("invoice events confirm submission and describe a later status change", () 
   assert.equal(managerEvent.route, "/billing/review/invoice-1");
   assert.equal(managerEvent.entityId, "invoice-1");
   assert.match(managerEvent.body, /ready for your review/);
-  assert.match(invoiceReviewChanged(invoice, "approved").body, /approved and sent to AP/);
+  assert.match(invoiceReviewChanged(invoice, "approved").body, /approved and queued for AP email delivery/);
   assert.match(invoiceReviewChanged(invoice, "declined").body, /declined/);
   assert.match(invoiceStatusChanged(invoice).body, /now paid/);
 });

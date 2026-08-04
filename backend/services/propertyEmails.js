@@ -1,6 +1,16 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_PROPERTY_RECIPIENTS = 25;
 
+function normalizeEmailAddress(value, label = "email address") {
+  const email = String(value || "").trim().toLowerCase();
+  if (!email || !EMAIL_PATTERN.test(email)) {
+    const error = new Error(`Enter a valid ${label}.`);
+    error.status = 400;
+    throw error;
+  }
+  return email;
+}
+
 function normalizePropertyEmails(value) {
   if (!Array.isArray(value)) {
     const error = new Error("Emails must be provided as a list.");
@@ -30,5 +40,6 @@ function normalizePropertyEmails(value) {
 
 module.exports = {
   MAX_PROPERTY_RECIPIENTS,
+  normalizeEmailAddress,
   normalizePropertyEmails,
 };
