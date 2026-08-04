@@ -5,7 +5,6 @@ import CalendarFeedCard from "./CalendarFeedCard";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import DashboardNavigation from "./ui/DashboardNavigation";
 import PageHeader from "./ui/PageHeader";
-import ThemeToggle from "./ui/ThemeToggle";
 
 export default function ExternalConnections({ setUser }) {
   const navigate = useNavigate();
@@ -49,14 +48,7 @@ export default function ExternalConnections({ setUser }) {
           eyebrow={resourceWorkspace ? "Afterlight Resource Network" : `Working on behalf of ${orgName}`}
           title="External Connections"
           subtitle="Manage services connected to your Afterlight account."
-          actions={(
-            <div className="beta-resource-header-actions">
-              <WorkspaceSwitcher />
-              <button type="button" className="beta-back-link" onClick={() => navigate("/help")}>Help Center</button>
-              <ThemeToggle />
-              <button type="button" className="beta-back-link" onClick={logout}>Log out</button>
-            </div>
-          )}
+          actions={<WorkspaceSwitcher />}
         />
         <CalendarFeedCard />
       </main>

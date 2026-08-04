@@ -28,4 +28,7 @@ test("resource workspace moves calendar management into External Connections nav
   expect(await screen.findByRole("heading", { name: "Test Resource" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "External Connections" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Connect My Calendar" })).not.toBeInTheDocument();
+  expect(screen.getAllByRole("checkbox", { name: "Dark mode" })).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: "Help Center" })).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: "Log out" })).toHaveLength(1);
 });

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
-import ThemeToggle from "./ui/ThemeToggle";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import DashboardNavigation from "./ui/DashboardNavigation";
 
@@ -84,14 +83,7 @@ export default function ResourceDashboard({ setUser }) {
           subtitle={isContractor
             ? "Review assigned work and track contractor earnings separately from customer billing."
             : "Review Afterlight-assigned work across your active customer deployments."}
-          actions={(
-            <div className="beta-resource-header-actions">
-              <WorkspaceSwitcher />
-              <button type="button" className="beta-back-link" onClick={() => navigate("/help")}>Help Center</button>
-              <ThemeToggle />
-              <button type="button" className="beta-back-link" onClick={logout}>Log out</button>
-            </div>
-          )}
+          actions={<WorkspaceSwitcher />}
         />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {!data && !error ? <div className="beta-empty-state">Loading your assigned work...</div> : data && (
