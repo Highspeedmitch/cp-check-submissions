@@ -10,6 +10,11 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
 import PageHeader from "./ui/PageHeader";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import {
+  propertySuggestedAmount,
+  schedulerAssigneeLabel,
+} from "../services/schedulerPresentation";
+import AssignmentHistoryDialog from "./scheduler/AssignmentHistoryDialog";
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -49,6 +54,10 @@ function Scheduler() {
   const [users, setUsers] = useState([]);
   const [fulfillmentSettings, setFulfillmentSettings] = useState(null);
   const [newAssignment, setNewAssignment] = useState(EMPTY_ASSIGNMENT);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [assignmentHistory, setAssignmentHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   const [editingAssignment, setEditingAssignment] = useState(null); // Holds event being edited
 
@@ -234,6 +243,23 @@ function Scheduler() {
       .catch((err) => console.error("Error deleting assignment:", err));
   };
 
+  const openAssignmentHistory = async () => {
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const response = await fetch(apiUrl("/api/assignments/history"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Unable to load assignment history.");
+      setAssignmentHistory(await response.json());
+    } catch (error) {
+      setHistoryError(error.message || "Unable to load assignment history.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   // Handle Double Click (Edit Event)
   const handleEventDoubleClick = (event) => {
     // Find matching property
@@ -344,11 +370,7 @@ const events = assignments.map((assignment) => {
     <option value="">Select User</option>
     {eligibleUsers.map((user) => (
       <option key={user._id} value={user._id}>
-        {user.displayName || user.email} ({user.accountScope === "afterlight_resource"
-          ? user.resourceType === "contractor"
-            ? `Afterlight contractor · ${(user.rateCents / 100).toLocaleString("en-US", { style: "currency", currency: user.currency || "USD" })}`
-            : user.resourceType === "owner" ? "Afterlight owner" : "Afterlight employee"
-          : user.role})
+        {schedulerAssigneeLabel(user)}
       </option>
     ))}
   </select>
@@ -372,6 +394,12 @@ const events = assignments.map((assignment) => {
   <div className="beta-assignment-routing-preview">
     <strong>{effectivePolicy.queue === "afterlight_coverage" ? "Afterlight Coverage" : "Customer Assigned"}</strong>
     <span>{effectivePolicy.invoiceLabel}</span>
+  </div>
+
+  <label>Suggested client amount:</label>
+  <div className="beta-assignment-routing-preview">
+    <strong>{selectedProperty ? propertySuggestedAmount(selectedProperty) : "Select a property"}</strong>
+    <span>Property billing setting</span>
   </div>
 
   {newAssignment.fulfillmentSource && (
@@ -422,16 +450,29 @@ const events = assignments.map((assignment) => {
   }
   placeholder="Enter any additional request for this specific assignment..."
 />
-  <button type="submit" className="create-button">
-    {editingAssignment ? "Update Assignment" : "Create Assignment"}
-  </button>
-
-  {editingAssignment && (
-    <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
-      Cancel Assignment
+  <div className="beta-scheduler-actions">
+    <button type="submit" className="create-button">
+      {editingAssignment ? "Update Assignment" : "Create Assignment"}
     </button>
-  )}
+    <button type="button" className="history-button" onClick={openAssignmentHistory}>
+      Assignment History
+    </button>
+    {editingAssignment && (
+      <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
+        Cancel Assignment
+      </button>
+    )}
+  </div>
 </form>
+
+      {historyOpen && (
+        <AssignmentHistoryDialog
+          assignments={assignmentHistory}
+          loading={historyLoading}
+          error={historyError}
+          onClose={() => setHistoryOpen(false)}
+        />
+      )}
 
       <DndProvider backend={HTML5Backend}>
       <DnDCalendar

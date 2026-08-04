@@ -114,7 +114,7 @@ async function deployedSchedulerResources({
     status: "active",
     availabilityStatus: "available",
     archivedAt: null,
-  }).select("_id userId email displayName resourceType defaultRateCents currency").lean();
+  }).select("_id userId email displayName resourceType").lean();
   const deploymentsByResource = new Map(
     deployments.map((deployment) => [String(deployment.resourceProfileId), deployment])
   );
@@ -131,10 +131,6 @@ async function deployedSchedulerResources({
       resourceProfileId: profile._id,
       resourceDeploymentId: deployment._id,
       propertyIds: deployment.propertyIds || [],
-      rateCents: resourceType === "contractor"
-        ? deployment.rateOverrideCents ?? profile.defaultRateCents
-        : null,
-      currency: profile.currency || "USD",
     };
   });
 }

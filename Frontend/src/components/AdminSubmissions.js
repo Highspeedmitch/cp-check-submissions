@@ -6,6 +6,22 @@ import { useMarkNotificationsRead } from "../services/notificationCenter";
 import { apiUrl } from "../services/api";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 
+const FULFILLMENT_LABELS = {
+  customer_employee: "Customer employee",
+  customer_contractor: "Customer contractor",
+  afterlight_staff: "Afterlight staff",
+  afterlight_contractor: "Afterlight contractor",
+  legacy: "Legacy submission",
+};
+
+function activityDate(value) {
+  if (!value) return "Not recorded";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? "Not recorded"
+    : parsed.toLocaleDateString();
+}
+
 function AdminSubmissions() {
   const { property } = useParams();
   const navigate = useNavigate();
@@ -90,8 +106,16 @@ function AdminSubmissions() {
         <section className="beta-panel beta-submission-list">
           {submissions.map((sub) => (
             <article key={sub._id}>
-              <div><strong>{new Date(sub.submittedAt).toLocaleDateString()}</strong>
-                <small>{new Date(sub.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small>
+              <div className="beta-submission-summary">
+                <div className="beta-submission-date"><strong>{new Date(sub.submittedAt).toLocaleDateString()}</strong>
+                  <small>{new Date(sub.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small>
+                </div>
+                <dl className="beta-submission-metadata">
+                  <div><dt>Submitted by</dt><dd>{sub.submittedBy?.name || "Unknown user"}</dd></div>
+                  <div><dt>Date assigned</dt><dd>{activityDate(sub.assignment?.scheduledAt)}</dd></div>
+                  <div><dt>Assigned by</dt><dd>{sub.assignment?.assignedBy?.name || "Not recorded"}</dd></div>
+                  <div><dt>Fulfillment</dt><dd>{FULFILLMENT_LABELS[sub.assignment?.fulfillmentType] || "Direct submission"}</dd></div>
+                </dl>
               </div>
               <a className="beta-button secondary" href={sub.signedPdfUrl} target="_blank" rel="noopener noreferrer">View PDF</a>
             </article>

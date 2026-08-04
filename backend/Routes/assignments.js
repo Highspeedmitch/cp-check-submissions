@@ -2,6 +2,7 @@ const express = require("express");
 const Assignment = require("../models/assignment");
 const Organization = require("../models/organization");
 const User = require("../models/user");
+const Submission = require("../models/submission");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
 const { managedProperties } = require("../services/propertyAccess");
 const { sendUserNotification } = require("../services/notifications");
@@ -34,10 +35,28 @@ function resolveAssignmentDates(startDate, endDate) {
   return { startDate: normalizedStartDate, endDate: normalizedEndDate };
 }
 
+function tenantAssignmentResult(assignment) {
+  const value = typeof assignment?.toObject === "function"
+    ? assignment.toObject()
+    : { ...assignment };
+  delete value.compensationSnapshot;
+  return value;
+}
+
+function publicUser(user) {
+  if (!user) return null;
+  return {
+    _id: user._id,
+    name: user.username || user.displayName || user.email || "Unknown user",
+    email: user.email || "",
+  };
+}
+
 function createAssignmentHandlers({
   AssignmentModel = Assignment,
   OrganizationModel = Organization,
   UserModel = User,
+  SubmissionModel = Submission,
   FulfillmentAuditModel = FulfillmentAudit,
   notifyUser = sendUserNotification,
   managedPropertiesForUser = managedProperties,
@@ -124,6 +143,7 @@ function createAssignmentHandlers({
         resourceProfileId: assignee.resourceProfileId,
         resourceDeploymentId: assignee.resourceDeploymentId,
         compensationSnapshot: assignee.compensationSnapshot,
+        assignedBy: req.user.userId,
       });
       await assignment.save();
 
@@ -165,7 +185,7 @@ function createAssignmentHandlers({
       return res.json({
         success: true,
         message: "Assignment created successfully",
-        assignment,
+        assignment: tenantAssignmentResult(assignment),
       });
     } catch (error) {
       console.error("Error creating assignment:", error);
@@ -203,7 +223,7 @@ function createAssignmentHandlers({
           req.user.organizationId
         );
       }
-      return res.json(assignments);
+      return res.json(assignments.map(tenantAssignmentResult));
     } catch (error) {
       console.error("Error fetching assignments:", error);
       return res.status(500).json({ error: "Server error fetching assignments" });
@@ -233,6 +253,73 @@ function createAssignmentHandlers({
     } catch (error) {
       console.error("Error fetching users:", error);
       return res.status(500).json({ error: "Server error fetching users" });
+    }
+  }
+
+  async function listAssignmentHistory(req, res) {
+    try {
+      if (!isManagement(req.user)) {
+        return res.status(403).json({ error: "Management access required." });
+      }
+      const query = {
+        organizationId: req.user.organizationId,
+        status: { $in: ["completed", "canceled"] },
+      };
+      if (req.user.role === "property_manager") {
+        const organization = await OrganizationModel.findById(req.user.organizationId);
+        query.propertyName = {
+          $in: managedPropertiesForUser(organization, req.user)
+            .map((property) => property.name),
+        };
+      }
+      const assignments = await AssignmentModel.find(query)
+        .select("propertyName userId assignedBy startDate endDate createdAt updatedAt completedAt canceledAt status eventType fulfillment.source fulfillment.resolvedBy")
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .lean();
+      const assignmentIds = assignments.map((assignment) => assignment._id);
+      const submissions = assignmentIds.length
+        ? await SubmissionModel.find({ assignmentId: { $in: assignmentIds } })
+            .select("assignmentId submittedAt")
+            .lean()
+        : [];
+      const completionByAssignment = new Map(submissions.map((submission) => [
+        String(submission.assignmentId),
+        submission.submittedAt,
+      ]));
+      const userIds = [...new Set(assignments.flatMap((assignment) => [
+        assignment.userId,
+        assignment.assignedBy || assignment.fulfillment?.resolvedBy,
+      ]).filter(Boolean).map(String))];
+      const users = userIds.length
+        ? await UserModel.find({ _id: { $in: userIds } })
+            .select("_id username email")
+            .lean()
+        : [];
+      const userById = new Map(users.map((user) => [String(user._id), user]));
+      return res.json(assignments.map((assignment) => {
+        const assignerId = assignment.assignedBy || assignment.fulfillment?.resolvedBy;
+        return {
+          _id: assignment._id,
+          propertyName: assignment.propertyName,
+          status: assignment.status,
+          fulfillmentType: assignment.fulfillment?.source || "legacy",
+          eventType: assignment.eventType || "",
+          assignedTo: publicUser(userById.get(String(assignment.userId))),
+          assignedBy: publicUser(userById.get(String(assignerId))),
+          scheduledAt: assignment.startDate,
+          scheduledThrough: assignment.endDate,
+          assignedAt: assignment.createdAt,
+          completedAt: assignment.completedAt
+            || completionByAssignment.get(String(assignment._id))
+            || (assignment.status === "completed" ? assignment.updatedAt : null)
+            || null,
+          canceledAt: assignment.canceledAt || null,
+        };
+      }));
+    } catch (error) {
+      console.error("Error fetching assignment history:", error);
+      return res.status(500).json({ error: "Unable to load assignment history." });
     }
   }
 
@@ -450,7 +537,7 @@ function createAssignmentHandlers({
         }
       }
 
-      return res.json({ success: true, assignment });
+      return res.json({ success: true, assignment: tenantAssignmentResult(assignment) });
     } catch (error) {
       console.error("Error updating assignment:", error);
       return res.status(error.status || 500).json({ success: false, error: error.message });
@@ -460,6 +547,7 @@ function createAssignmentHandlers({
   return {
     createAssignment,
     listAssignments,
+    listAssignmentHistory,
     listSchedulerUsers,
     deleteAssignment,
     updateAssignment,
@@ -474,6 +562,7 @@ function createAssignmentRouter(
   const handlers = createAssignmentHandlers(dependencies);
   router.post("/assignments", routeAuthentication, handlers.createAssignment);
   router.get("/assignments", routeAuthentication, handlers.listAssignments);
+  router.get("/assignments/history", routeAuthentication, handlers.listAssignmentHistory);
   router.get("/users", routeAuthentication, handlers.listSchedulerUsers);
   router.delete(
     "/assignments/:id",

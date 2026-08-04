@@ -2,6 +2,8 @@ const express = require("express");
 const AWS = require("aws-sdk");
 const Organization = require("../models/organization");
 const Submission = require("../models/submission");
+const Assignment = require("../models/assignment");
+const User = require("../models/user");
 const { canAccessProperty } = require("../services/propertyAccess");
 const { isManagementRole, buildSubmissionQuery } = require("../services/submissionAccess");
 const {
@@ -25,10 +27,43 @@ function signedPdfUrl(pdfUrl, { replacePlus = false } = {}) {
   });
 }
 
-function withSignedPdfUrl(submission, options) {
+function withSignedPdfUrl(submission, options, createSignedPdfUrl = signedPdfUrl) {
+  const value = typeof submission.toObject === "function"
+    ? submission.toObject()
+    : { ...submission };
   return {
-    ...submission.toObject(),
-    signedPdfUrl: signedPdfUrl(submission.pdfUrl, options),
+    ...value,
+    signedPdfUrl: createSignedPdfUrl(submission.pdfUrl, options),
+  };
+}
+
+function activityUser(user) {
+  if (!user) return null;
+  return {
+    _id: user._id,
+    name: user.username || user.email || "Unknown user",
+    email: user.email || "",
+  };
+}
+
+function withSubmissionActivity(
+  submission,
+  assignment,
+  usersById,
+  options,
+  createSignedPdfUrl = signedPdfUrl
+) {
+  const assignerId = assignment?.assignedBy || assignment?.fulfillment?.resolvedBy;
+  return {
+    ...withSignedPdfUrl(submission, options, createSignedPdfUrl),
+    submittedBy: activityUser(usersById.get(String(submission.userId))),
+    assignment: assignment ? {
+      _id: assignment._id,
+      scheduledAt: assignment.startDate,
+      assignedAt: assignment.createdAt,
+      assignedBy: activityUser(usersById.get(String(assignerId))),
+      fulfillmentType: assignment.fulfillment?.source || "legacy",
+    } : null,
   };
 }
 
@@ -83,9 +118,39 @@ router.get("/admin/submissions/:property", async (req, res) => {
       organizationId: req.user.organizationId,
       property: req.params.property,
       submittedAt: { $gte: getSubmissionCutoff(months) },
-    }).sort({ submittedAt: -1 });
-    return res.json(submissions.map((submission) => withSignedPdfUrl(
+    }).sort({ submittedAt: -1 }).lean();
+    const assignmentIds = [...new Set(submissions
+      .map((submission) => submission.assignmentId)
+      .filter(Boolean)
+      .map(String))];
+    const assignments = assignmentIds.length
+      ? await Assignment.find({
+          _id: { $in: assignmentIds },
+          organizationId: req.user.organizationId,
+        })
+          .select("startDate createdAt assignedBy fulfillment.source fulfillment.resolvedBy")
+          .lean()
+      : [];
+    const assignmentById = new Map(assignments.map((assignment) => [
+      String(assignment._id),
+      assignment,
+    ]));
+    const userIds = [...new Set([
+      ...submissions.map((submission) => submission.userId),
+      ...assignments.map((assignment) =>
+        assignment.assignedBy || assignment.fulfillment?.resolvedBy
+      ),
+    ].filter(Boolean).map(String))];
+    const users = userIds.length
+      ? await User.find({ _id: { $in: userIds } })
+          .select("_id username email")
+          .lean()
+      : [];
+    const usersById = new Map(users.map((user) => [String(user._id), user]));
+    return res.json(submissions.map((submission) => withSubmissionActivity(
       submission,
+      assignmentById.get(String(submission.assignmentId)),
+      usersById,
       { replacePlus: true }
     )));
   } catch (error) {
@@ -96,3 +161,4 @@ router.get("/admin/submissions/:property", async (req, res) => {
 
 module.exports = router;
 module.exports.signedPdfUrl = signedPdfUrl;
+module.exports.withSubmissionActivity = withSubmissionActivity;

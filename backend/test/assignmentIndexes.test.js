@@ -21,6 +21,11 @@ test("assignment schema limits exact-date uniqueness to scheduled work", () => {
   assert.equal(Assignment.schema.options.autoIndex, false);
 });
 
+test("assignment schema retains assignment and completion attribution", () => {
+  assert.equal(Assignment.schema.path("assignedBy").options.ref, "User");
+  assert.equal(Assignment.schema.path("completedAt").instance, "Date");
+});
+
 test("assignment index matching distinguishes the legacy and scheduled-only indexes", () => {
   const key = { propertyName: 1, startDate: 1, organizationId: 1 };
   assert.equal(matchesScheduleKey({ key }), true);

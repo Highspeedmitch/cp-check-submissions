@@ -56,6 +56,9 @@ router.get("/", requireCurrentOrganizationPresence, async (req, res) => {
         lng: property.lng,
         emails: withoutAutomaticPropertyEmails(property.emails, automaticEmails),
         propertyManagers: property.propertyManagers || [],
+        ...(["admin", "property_manager"].includes(req.user.role) && {
+          defaultInspectionAmountCents: property.defaultInspectionAmountCents ?? null,
+        }),
         ...(req.user.role === "admin" && {
           automaticRecipientEmails: automaticEmails,
         }),

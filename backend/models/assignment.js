@@ -12,6 +12,8 @@ const assignmentSchema = new mongoose.Schema({
     enum: ["scheduled", "completed", "canceled"],
     default: "scheduled",
   },
+  assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  completedAt: { type: Date, default: null },
   calendarSequence: { type: Number, min: 0, default: 0 },
   canceledAt: { type: Date, default: null },
   canceledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },

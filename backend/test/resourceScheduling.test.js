@@ -99,7 +99,8 @@ test("organization workers remain tenant-local and have no contractor pay snapsh
   assert.equal(result.compensationSnapshot, undefined);
 });
 
-test("scheduler resources expose deployment property scope and effective rate", async () => {
+test("scheduler resources expose deployment scope without internal contractor rates", async () => {
+  let selectedFields;
   const resources = await deployedSchedulerResources({
     organizationId: "org-1",
     ResourceDeploymentModel: {
@@ -112,17 +113,22 @@ test("scheduler resources expose deployment property scope and effective rate", 
     },
     ResourceProfileModel: {
       find: () => ({
-        select: () => leanResult([{
+        select: (fields) => {
+          selectedFields = fields;
+          return leanResult([{
           _id: "resource-1",
           userId: "resource-user-1",
           email: "resource@example.com",
           displayName: "Riley Resource",
           defaultRateCents: 5000,
           currency: "USD",
-        }]),
+          }]);
+        },
       }),
     },
   });
+
+  assert.doesNotMatch(selectedFields, /rate|currency/i);
 
   assert.deepEqual(resources, [{
     _id: "resource-user-1",
@@ -134,8 +140,6 @@ test("scheduler resources expose deployment property scope and effective rate", 
     resourceProfileId: "resource-1",
     resourceDeploymentId: "deployment-1",
     propertyIds: ["property-1"],
-    rateCents: 7000,
-    currency: "USD",
   }]);
 });
 

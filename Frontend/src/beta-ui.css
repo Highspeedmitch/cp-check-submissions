@@ -605,6 +605,12 @@
 .beta-submission-list article:last-child { border-bottom: 0; }
 .beta-submission-list article > div { display: flex; flex-direction: column; gap: 4px; }
 .beta-submission-list small { color: var(--beta-muted); }
+.beta-submission-list .beta-submission-summary { flex: 1; gap: 14px; }
+.beta-submission-date { display: flex; flex-direction: column; gap: 4px; }
+.beta-submission-metadata { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 12px 24px; margin: 0; }
+.beta-submission-metadata div { min-width: 0; }
+.beta-submission-metadata dt { margin-bottom: 4px; color: var(--beta-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.beta-submission-metadata dd { margin: 0; overflow-wrap: anywhere; }
 .beta-inspection-page { max-width: 880px; }
 .beta-inspection-page form { display: grid; gap: 16px; }
 .beta-inspection-section h2 { margin: 0 0 18px; font-size: 20px; }
@@ -1481,14 +1487,26 @@
   background: var(--beta-control);
 }
 .beta-assignment-routing-preview span { color: var(--beta-muted); font-size: 13px; }
-.beta-scheduler-form .create-button,
-.beta-scheduler-form .delete-button {
+.beta-scheduler-actions {
   grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+.beta-scheduler-form .create-button,
+.beta-scheduler-form .history-button,
+.beta-scheduler-form .delete-button {
   width: fit-content;
   min-width: 180px;
-  margin: 4px 0 0;
+  margin: 0;
 }
+.beta-scheduler-form .history-button { background: var(--beta-control); color: var(--beta-ink); border: 1px solid var(--beta-border); }
 .beta-scheduler-form .delete-button { background: var(--beta-danger); }
+.beta-assignment-history-dialog { width: min(1100px, 100%); max-width: 1100px; }
+.beta-assignment-history-dialog .beta-table-wrap { max-height: 58vh; overflow: auto; }
+.beta-assignment-history-table { min-width: 920px; }
+.beta-assignment-history-table td > small { display: block; margin-top: 4px; color: var(--beta-muted); }
 .beta-assignment-note {
   margin: 14px 0;
   padding: 12px 14px;
@@ -1530,6 +1548,9 @@
 .beta-scheduler-shell .rbc-today { background: var(--beta-soft-blue); }
 
 @media (max-width: 760px) {
+  .beta-submission-list article { align-items: stretch; flex-direction: column; }
+  .beta-submission-list article .beta-button { width: 100%; }
+  .beta-submission-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .beta-invitation-row { align-items: flex-start; flex-direction: column; }
   .beta-invitation-row .beta-card-actions { width: 100%; }
   .beta-invitation-row .beta-card-actions .beta-button { flex: 1 1 120px; }
@@ -1565,9 +1586,10 @@
   .beta-add-property-actions .beta-button { width: 100%; }
   .beta-add-property-actions { flex-direction: column; }
   .beta-scheduler-form::before,
+  .beta-scheduler-actions { grid-column: 1; }
+  .beta-scheduler-actions { display: grid; }
   .beta-scheduler-form .create-button,
-  .beta-scheduler-form .delete-button { grid-column: 1; }
-  .beta-scheduler-form .create-button,
+  .beta-scheduler-form .history-button,
   .beta-scheduler-form .delete-button { width: 100%; }
   .beta-scheduler-shell { overflow-x: hidden; }
   .beta-scheduler-shell > .rbc-calendar { min-width: 0; padding: 12px 6px; overflow: hidden; }

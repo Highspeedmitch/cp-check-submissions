@@ -34,6 +34,7 @@ test("assignment router preserves the existing scheduler API paths", () => {
   assert.deepEqual(routes, [
     { path: "/assignments", methods: ["post"] },
     { path: "/assignments", methods: ["get"] },
+    { path: "/assignments/history", methods: ["get"] },
     { path: "/users", methods: ["get"] },
     { path: "/assignments/:id", methods: ["delete"] },
     { path: "/assignments/:id", methods: ["put"] },
@@ -136,6 +137,7 @@ test("assignment creation retains admin and organization scoping", async () => {
   assert.equal(overlapQuery.propertyName, "Broadway Center");
   assert.equal(overlapQuery.status, "scheduled");
   assert.equal(savedAssignment.organizationId, "org-1");
+  assert.equal(savedAssignment.assignedBy, req.user.userId);
   assert.equal(savedAssignment.eventType, "Maintenance");
   assert.equal(savedAssignment.fulfillment.source, "customer_employee");
   assert.equal(savedAssignment.fulfillment.queue, "customer_assigned");
@@ -328,13 +330,17 @@ test("Afterlight contractor assignments retain deployment and immutable compensa
   assert.equal(savedAssignment.resourceProfileId, "resource-1");
   assert.equal(savedAssignment.resourceDeploymentId, "deployment-1");
   assert.equal(savedAssignment.compensationSnapshot, snapshot);
+  assert.equal(res.body.assignment.compensationSnapshot, undefined);
   assert.equal(notification.route, "/resource");
   assert.equal(notification.recipientScope, "afterlight_resource");
 });
 
 test("property managers only list assignments for managed properties", async () => {
   let assignmentQuery;
-  const assignments = [{ _id: "assignment-1" }];
+  const assignments = [{
+    _id: "assignment-1",
+    compensationSnapshot: { amountCents: 9000, currency: "USD" },
+  }];
   const handlers = createAssignmentHandlers({
     OrganizationModel: {
       async findById(id) {
@@ -369,7 +375,7 @@ test("property managers only list assignments for managed properties", async () 
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body, assignments);
+  assert.deepEqual(res.body, [{ _id: "assignment-1" }]);
   assert.equal(assignmentQuery.organizationId, "org-1");
   assert.deepEqual(assignmentQuery.propertyName, {
     $in: ["Broadway Center", "San Clemente"],
@@ -396,6 +402,142 @@ test("ordinary users only list their own assignments", async () => {
     status: "scheduled",
     userId: "user-1",
   });
+});
+
+test("assignment history returns a read-only audit view without contractor compensation", async () => {
+  let assignmentQuery;
+  const assignedAt = new Date("2026-08-01T16:00:00.000Z");
+  const scheduledAt = new Date("2026-08-03T16:00:00.000Z");
+  const submittedAt = new Date("2026-08-03T18:30:00.000Z");
+  const handlers = createAssignmentHandlers({
+    AssignmentModel: {
+      find(query) {
+        assignmentQuery = query;
+        return {
+          select() { return this; },
+          sort() { return this; },
+          limit() { return this; },
+          async lean() {
+            return [{
+              _id: "assignment-1",
+              propertyName: "Black Crown",
+              userId: "resource-user-1",
+              assignedBy: null,
+              startDate: scheduledAt,
+              endDate: scheduledAt,
+              createdAt: assignedAt,
+              completedAt: null,
+              status: "completed",
+              eventType: "QA Check",
+              fulfillment: {
+                source: "afterlight_contractor",
+                resolvedBy: "admin-1",
+              },
+              compensationSnapshot: { amountCents: 9000, currency: "USD" },
+            }];
+          },
+        };
+      },
+    },
+    SubmissionModel: {
+      find() {
+        return {
+          select() { return this; },
+          async lean() {
+            return [{ assignmentId: "assignment-1", submittedAt }];
+          },
+        };
+      },
+    },
+    UserModel: {
+      find() {
+        return {
+          select() { return this; },
+          async lean() {
+            return [
+              { _id: "resource-user-1", username: "Inspector One", email: "inspector@example.com" },
+              { _id: "admin-1", username: "Admin One", email: "admin@example.com" },
+            ];
+          },
+        };
+      },
+    },
+  });
+  const res = response();
+
+  await handlers.listAssignmentHistory({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+  }, res);
+
+  assert.deepEqual(assignmentQuery, {
+    organizationId: "org-1",
+    status: { $in: ["completed", "canceled"] },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, [{
+    _id: "assignment-1",
+    propertyName: "Black Crown",
+    status: "completed",
+    fulfillmentType: "afterlight_contractor",
+    eventType: "QA Check",
+    assignedTo: {
+      _id: "resource-user-1",
+      name: "Inspector One",
+      email: "inspector@example.com",
+    },
+    assignedBy: {
+      _id: "admin-1",
+      name: "Admin One",
+      email: "admin@example.com",
+    },
+    scheduledAt,
+    scheduledThrough: scheduledAt,
+    assignedAt,
+    completedAt: submittedAt,
+    canceledAt: null,
+  }]);
+  assert.equal(res.body[0].compensationSnapshot, undefined);
+});
+
+test("assignment history is restricted to a property manager's managed properties", async () => {
+  let assignmentQuery;
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: {
+      async findById() {
+        return { properties: [{ name: "Black Crown" }, { name: "Other Property" }] };
+      },
+    },
+    AssignmentModel: {
+      find(query) {
+        assignmentQuery = query;
+        return {
+          select() { return this; },
+          sort() { return this; },
+          limit() { return this; },
+          async lean() { return []; },
+        };
+      },
+    },
+    managedPropertiesForUser: () => [{ name: "Black Crown" }],
+  });
+
+  await handlers.listAssignmentHistory({
+    user: { role: "property_manager", userId: "pm-1", organizationId: "org-1" },
+  }, response());
+
+  assert.deepEqual(assignmentQuery.propertyName, { $in: ["Black Crown"] });
+});
+
+test("ordinary users cannot access assignment history", async () => {
+  const handlers = createAssignmentHandlers();
+  const res = response();
+
+  await handlers.listAssignmentHistory({
+    user: { role: "user", userId: "user-1", organizationId: "org-1" },
+  }, res);
+
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(res.body, { error: "Management access required." });
 });
 
 test("scheduler user lookup retains organization and role filters", async () => {
