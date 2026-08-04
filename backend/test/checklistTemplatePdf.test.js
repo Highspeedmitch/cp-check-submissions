@@ -1,6 +1,39 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { generateChecklistPDF } = require("../pdfservice");
+const {
+  generateChecklistPDF,
+  getObservationSummary,
+  findingSectionHeight,
+  buildChecklistFileName,
+} = require("../pdfservice");
+
+test("names inspection PDFs with a safe property name and timestamp", () => {
+  assert.equal(
+    buildChecklistFileName(
+      { selectedProperty: "Álamo Plaza / East: Phase*1" },
+      "2026-08-04_09-05-06-AZMT"
+    ),
+    "Alamo Plaza East Phase 1 - 2026-08-04_09-05-06-AZMT.pdf"
+  );
+  assert.equal(
+    buildChecklistFileName({}, "2026-08-04_09-05-06-AZMT"),
+    "Property - 2026-08-04_09-05-06-AZMT.pdf"
+  );
+});
+
+test("normalizes submitted line breaks for PDF text", () => {
+  assert.equal(
+    getObservationSummary({ additionalComments: "First line\r\nSecond line\rThird line" }),
+    "First line\nSecond line\nThird line"
+  );
+});
+
+test("measures complete finding sections including every photo row", () => {
+  assert.equal(findingSectionHeight(62, 0), 99);
+  assert.equal(findingSectionHeight(62, 1), 268);
+  assert.equal(findingSectionHeight(62, 3), 458);
+  assert.equal(findingSectionHeight(62, 6), 648);
+});
 
 test("generates a COM checklist PDF from an effective inspection template", async () => {
   const template = {

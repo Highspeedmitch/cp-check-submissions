@@ -1,5 +1,12 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
+const path = require('path');
+
+const DEFAULT_LOGO_PATH = path.resolve(__dirname, '../Frontend/public/logo512.png');
+const DETAIL_PAGE_TOP = 84;
+const DETAIL_PAGE_BOTTOM_MARGIN = 58;
+const PHOTO_CARD_HEIGHT = 180;
+const PHOTO_ROW_HEIGHT = 190;
 
 const COLORS = {
   navy: '#17324D',
@@ -101,7 +108,26 @@ function getAZTimestamps(date = new Date()) {
 
 function cleanValue(value) {
   if (value === undefined || value === null) return '';
-  return String(value).trim();
+  return String(value).replace(/\r\n?/g, '\n').trim();
+}
+
+function safeFilenameSegment(value, fallback = 'Property') {
+  const normalized = cleanValue(value)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[.\s]+|[.\s]+$/g, '');
+  const limited = normalized.slice(0, 90).trim().replace(/[.\s]+$/g, '');
+  return limited || fallback;
+}
+
+function buildChecklistFileName(formData, filenameStamp) {
+  const propertyName = formData?.selectedProperty
+    || formData?.property
+    || formData?.businessName;
+  return `${safeFilenameSegment(propertyName)} - ${filenameStamp}.pdf`;
 }
 
 function hasValue(value) {
@@ -157,9 +183,16 @@ function groupPhotos(photoBuffers) {
   return grouped;
 }
 
-function drawBrandMark(doc, x, y, logoPath = '') {
-  if (logoPath && fs.existsSync(logoPath)) {
-    doc.image(logoPath, x, y, { fit: [42, 42], align: 'center', valign: 'center' });
+function drawBrandMark(doc, x, y, logoPath = DEFAULT_LOGO_PATH) {
+  const selectedLogoPath = logoPath || DEFAULT_LOGO_PATH;
+  if (fs.existsSync(selectedLogoPath)) {
+    doc.save();
+    doc.roundedRect(x, y, 42, 42, 7).clip();
+    // The source icon includes generous square padding. Enlarging it inside
+    // the clipped tile keeps the owl legible at report-header size.
+    doc.image(selectedLogoPath, x - 14, y - 11, { width: 69, height: 69 });
+    doc.restore();
+    doc.save().lineWidth(0.8).strokeColor(COLORS.white).roundedRect(x, y, 42, 42, 7).stroke().restore();
     return;
   }
   doc.save();
@@ -394,7 +427,7 @@ function addDetailPage(doc, propertyName, options = {}) {
 }
 
 function ensureDetailSpace(doc, y, needed, propertyName, options = {}) {
-  if (y + needed <= doc.page.height - 58) return y;
+  if (y + needed <= doc.page.height - DETAIL_PAGE_BOTTOM_MARGIN) return y;
   return addDetailPage(doc, propertyName, options);
 }
 
@@ -428,8 +461,7 @@ function drawDetailNotes(doc, formData, propertyName, startY, template, options 
 }
 
 function drawPhotoCard(doc, buffer, x, y, width, caption) {
-  const cardHeight = 180;
-  doc.roundedRect(x, y, width, cardHeight, 5).fillAndStroke(COLORS.white, COLORS.line);
+  doc.roundedRect(x, y, width, PHOTO_CARD_HEIGHT, 5).fillAndStroke(COLORS.white, COLORS.line);
   doc.rect(x + 7, y + 7, width - 14, 143).fill(COLORS.panel);
   try {
     doc.image(buffer, x + 7, y + 7, {
@@ -449,21 +481,80 @@ function drawPhotoCard(doc, buffer, x, y, width, caption) {
     .font('Helvetica')
     .fontSize(7.8)
     .text(caption, x + 9, y + 158, { width: width - 18, align: 'center', ellipsis: true, height: 11 });
-  return cardHeight;
+  return PHOTO_CARD_HEIGHT;
 }
 
-function drawFindingSection(doc, result, buffers, propertyName, startY, options = {}) {
+function findingDescription(result) {
+  return cleanValue(result.description) || 'No description was provided.';
+}
+
+function measureFindingCard(doc, result) {
   const contentWidth = doc.page.width - 88;
-  let y = ensureDetailSpace(doc, startY, 78, propertyName, options);
-  doc.rect(44, y, 4, 37).fill(COLORS.orange);
-  doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(11).text(result.label, 57, y + 1, { width: 290 });
-  drawBadge(doc, doc.page.width - 143, y, 99, 'ATTENTION', 'attention');
+  const titleWidth = contentWidth - 143;
+  const descriptionWidth = contentWidth - 26;
+  const titleHeight = Math.max(
+    13,
+    doc.font('Helvetica-Bold').fontSize(11).heightOfString(result.label, { width: titleWidth })
+  );
+  const descriptionTop = 11 + titleHeight + 7;
+  const descriptionHeight = Math.max(
+    11,
+    doc.font('Helvetica').fontSize(8.7).heightOfString(findingDescription(result), {
+      width: descriptionWidth,
+      lineGap: 1,
+    })
+  );
+  return {
+    contentWidth,
+    titleWidth,
+    descriptionWidth,
+    descriptionTop,
+    height: Math.max(62, descriptionTop + descriptionHeight + 12),
+  };
+}
+
+function findingSectionHeight(cardHeight, photoCount) {
+  if (!photoCount) return cardHeight + 37;
+  return cardHeight + 12 + Math.ceil(photoCount / 2) * PHOTO_ROW_HEIGHT + 4;
+}
+
+function canKeepFindingTogether(doc, sectionHeight) {
+  return sectionHeight <= doc.page.height - DETAIL_PAGE_BOTTOM_MARGIN - DETAIL_PAGE_TOP;
+}
+
+function drawFindingCard(doc, result, y, layout) {
+  doc.roundedRect(44, y, layout.contentWidth, layout.height, 5).fillAndStroke(COLORS.panel, COLORS.line);
+  doc.rect(44, y + 6, 4, layout.height - 12).fill(COLORS.orange);
+  doc
+    .fillColor(COLORS.navyDark)
+    .font('Helvetica-Bold')
+    .fontSize(11)
+    .text(result.label, 57, y + 11, { width: layout.titleWidth });
+  drawBadge(doc, doc.page.width - 143, y + 9, 99, 'ATTENTION', 'attention');
   doc
     .fillColor(COLORS.slate)
     .font('Helvetica')
     .fontSize(8.7)
-    .text(result.description || 'No description was provided.', 57, y + 20, { width: contentWidth - 13 });
-  y += 50;
+    .text(findingDescription(result), 57, y + layout.descriptionTop, {
+      width: layout.descriptionWidth,
+      lineGap: 1,
+    });
+}
+
+function drawFindingSection(doc, result, buffers, propertyName, startY, options = {}) {
+  const contentWidth = doc.page.width - 88;
+  const cardLayout = measureFindingCard(doc, result);
+  const sectionHeight = findingSectionHeight(cardLayout.height, buffers?.length || 0);
+  const initialSpace = buffers?.length ? cardLayout.height + 12 + PHOTO_ROW_HEIGHT : sectionHeight;
+  let y = ensureDetailSpace(
+    doc,
+    startY,
+    canKeepFindingTogether(doc, sectionHeight) ? sectionHeight : initialSpace,
+    propertyName,
+    options
+  );
+  drawFindingCard(doc, result, y, cardLayout);
+  y += cardLayout.height + 12;
 
   if (!buffers || buffers.length === 0) {
     doc.fillColor(COLORS.muted).font('Helvetica-Oblique').fontSize(8).text('No photo evidence submitted.', 57, y);
@@ -473,12 +564,12 @@ function drawFindingSection(doc, result, buffers, propertyName, startY, options 
   const gap = 12;
   const cardWidth = (contentWidth - gap) / 2;
   for (let index = 0; index < buffers.length; index += 2) {
-    y = ensureDetailSpace(doc, y, 192, propertyName, options);
+    y = ensureDetailSpace(doc, y, PHOTO_ROW_HEIGHT, propertyName, options);
     drawPhotoCard(doc, buffers[index], 44, y, cardWidth, `${result.label} · Photo ${index + 1}`);
     if (buffers[index + 1]) {
       drawPhotoCard(doc, buffers[index + 1], 44 + cardWidth + gap, y, cardWidth, `${result.label} · Photo ${index + 2}`);
     }
-    y += 192;
+    y += PHOTO_ROW_HEIGHT;
   }
   return y + 4;
 }
@@ -511,7 +602,20 @@ function drawCommercialDetails(doc, formData, results, groupedPhotos, propertyNa
   y = drawDetailNotes(doc, formData, propertyName, y, template, options);
 
   if (attentionResults.length > 0) {
-    y = ensureDetailSpace(doc, y, 30, propertyName, options);
+    const firstResult = attentionResults[0];
+    const firstCard = measureFindingCard(doc, firstResult);
+    const firstSectionHeight = findingSectionHeight(
+      firstCard.height,
+      groupedPhotos[firstResult.key]?.length || 0
+    );
+    const titleAndFirstFindingHeight = 28 + firstSectionHeight;
+    y = ensureDetailSpace(
+      doc,
+      y,
+      canKeepFindingTogether(doc, titleAndFirstFindingHeight) ? titleAndFirstFindingHeight : 30,
+      propertyName,
+      options
+    );
     doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(13)
       .text(options.findingsTitle || 'Items Requiring Attention', 44, y);
     y += 28;
@@ -610,7 +714,7 @@ function generateChecklistPDF(formData, photoBuffers, template = null, options =
       const sourceDate = formData?.submittedAt ? new Date(formData.submittedAt) : new Date();
       const safeSourceDate = Number.isNaN(sourceDate.getTime()) ? new Date() : sourceDate;
       const { filenameStamp, displayStamp } = getAZTimestamps(safeSourceDate);
-      const fileName = `checklist-${filenameStamp}.pdf`;
+      const fileName = buildChecklistFileName(formData, filenameStamp);
       const doc = new PDFDocument({
         size: 'LETTER',
         margin: 44,
@@ -639,4 +743,9 @@ function generateChecklistPDF(formData, photoBuffers, template = null, options =
   });
 }
 
-module.exports = { generateChecklistPDF, getObservationSummary };
+module.exports = {
+  generateChecklistPDF,
+  getObservationSummary,
+  findingSectionHeight,
+  buildChecklistFileName,
+};

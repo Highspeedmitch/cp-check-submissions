@@ -66,14 +66,25 @@ async function downloadAndValidatePhoto(photo, s3 = inspectionS3()) {
   return { fieldName: photo.fieldName, imageBuffer: file.buffer };
 }
 
+function inlinePdfContentDisposition(fileName) {
+  const safeName = String(fileName || "Property Inspection.pdf")
+    .replace(/[\r\n"\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `inline; filename="${safeName || "Property Inspection.pdf"}"`;
+}
+
 async function uploadInspectionPdf({ pdfBuffer, fileName, organizationId, propertyName }, s3 = inspectionS3()) {
-  const safeProperty = String(propertyName || "property").replace(/[^a-zA-Z0-9._-]+/g, "-");
-  const key = `${organizationId}/${safeProperty}/${Date.now()}-${fileName}`;
+  const safeProperty = String(propertyName || "property")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "property";
+  const key = `${organizationId}/${safeProperty}/${Date.now()}/${fileName}`;
   const result = await s3.upload({
     Bucket: bucketName(),
     Key: key,
     Body: pdfBuffer,
     ContentType: "application/pdf",
+    ContentDisposition: inlinePdfContentDisposition(fileName),
   }).promise();
   return { key, location: result.Location };
 }
@@ -96,6 +107,7 @@ module.exports = {
   createPhotoUploadPost,
   inspectUploadedPhoto,
   downloadAndValidatePhoto,
+  inlinePdfContentDisposition,
   uploadInspectionPdf,
   downloadInspectionPdf,
   deleteInspectionPhotos,
