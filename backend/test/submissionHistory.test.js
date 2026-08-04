@@ -24,14 +24,32 @@ test("submission history query parsing validates every server-side filter", () =
   }), {
     months: 12,
     page: 2,
+    paginated: true,
     submitter: SUBMITTER_ID,
     assigner: ASSIGNER_ID,
     fulfillment: "afterlight_staff",
   });
+  assert.equal(parseSubmissionHistoryQuery({ months: "12" }).paginated, false);
   assert.equal(parseSubmissionHistoryQuery({ assigner: "unassigned" }).assigner, "unassigned");
   assert.throws(() => parseSubmissionHistoryQuery({ page: "0" }), /positive whole number/);
   assert.throws(() => parseSubmissionHistoryQuery({ submitter: "not-an-id" }), /valid user ID/);
   assert.throws(() => parseSubmissionHistoryQuery({ fulfillment: "internal_rate" }), /supported filter/);
+});
+
+test("legacy submission history requests remain unpaginated", () => {
+  const pipeline = buildSubmissionHistoryPipeline({
+    organizationId: ORGANIZATION_ID,
+    property: "Winterhaven Square",
+    cutoff: new Date("2025-08-04T12:00:00.000Z"),
+    page: 1,
+    paginated: false,
+    assignmentCollection: "assignments",
+  });
+  const rows = pipeline.at(-1).$facet.rows;
+
+  assert.equal(rows.some((stage) => Object.hasOwn(stage, "$skip")), false);
+  assert.equal(rows.some((stage) => Object.hasOwn(stage, "$limit")), false);
+  assert.deepEqual(rows[1], { $sort: { submittedAt: -1, _id: -1 } });
 });
 
 test("submission filters and total count run before pagination", () => {

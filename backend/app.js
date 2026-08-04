@@ -6,10 +6,19 @@ const authenticateToken = require("./middleware/authenticateToken");
 const requireAdmin = require("./middleware/requireAdmin");
 const requireCurrentOrganizationPresence = require("./middleware/requireCurrentOrganizationPresence");
 const { getAllowedFrontendOrigins } = require("./utils/frontendUrls");
+const mongoose = require("mongoose");
 
-function createApp() {
+function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}) {
   const app = express();
   app.set("trust proxy", 1);
+  app.get("/health", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const ready = isReady();
+    return res.status(ready ? 200 : 503).json({
+      status: ready ? "ok" : "unavailable",
+      service: "afterlight-api",
+    });
+  });
   app.use(cors({
     origin: getAllowedFrontendOrigins(),
     methods: "GET,POST,PUT,DELETE",

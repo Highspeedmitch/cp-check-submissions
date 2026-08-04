@@ -3,6 +3,9 @@
     "name": "cp-check-submission",
     "version": "0.1.0",
     "private": true,
+    "engines": {
+        "node": "24.x"
+    },
     "dependencies": {
         "@capacitor-firebase/messaging": "^7.0.0",
         "@capacitor/android": "^7.0.1",

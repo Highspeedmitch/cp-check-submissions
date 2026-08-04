@@ -43,6 +43,7 @@ function historyObjectId(value, label) {
 }
 
 function parseSubmissionHistoryQuery(query = {}) {
+  const paginated = query.page !== undefined && query.page !== "";
   const months = parseSubmissionMonths(query.months);
   if (months === null) {
     throw historyRequestError(
@@ -65,6 +66,7 @@ function parseSubmissionHistoryQuery(query = {}) {
   return {
     months,
     page: Number(pageValue),
+    paginated,
     submitter: historyObjectId(query.submitter, "submitter"),
     assigner,
     fulfillment,
@@ -85,6 +87,7 @@ function buildSubmissionHistoryPipeline({
   submitter,
   assigner,
   fulfillment,
+  paginated = true,
   assignmentCollection = Assignment.collection.name,
 }) {
   const resultMatch = {};
@@ -95,6 +98,27 @@ function buildSubmissionHistoryPipeline({
     resultMatch.historyAssignerId = mongoObjectId(assigner);
   }
   if (fulfillment) resultMatch.historyFulfillment = fulfillment;
+
+  const rowStages = [
+    { $match: resultMatch },
+    { $sort: { submittedAt: -1, _id: -1 } },
+  ];
+  if (paginated) {
+    rowStages.push(
+      { $skip: (page - 1) * SUBMISSION_HISTORY_PAGE_SIZE },
+      { $limit: SUBMISSION_HISTORY_PAGE_SIZE }
+    );
+  }
+  rowStages.push({
+    $project: {
+      _id: 1,
+      userId: 1,
+      assignmentId: 1,
+      pdfUrl: 1,
+      submittedAt: 1,
+      historyAssignment: 1,
+    },
+  });
 
   return [
     {
@@ -171,22 +195,7 @@ function buildSubmissionHistoryPipeline({
     },
     {
       $facet: {
-        rows: [
-          { $match: resultMatch },
-          { $sort: { submittedAt: -1, _id: -1 } },
-          { $skip: (page - 1) * SUBMISSION_HISTORY_PAGE_SIZE },
-          { $limit: SUBMISSION_HISTORY_PAGE_SIZE },
-          {
-            $project: {
-              _id: 1,
-              userId: 1,
-              assignmentId: 1,
-              pdfUrl: 1,
-              submittedAt: 1,
-              historyAssignment: 1,
-            },
-          },
-        ],
+        rows: rowStages,
         total: [
           { $match: resultMatch },
           { $count: "count" },
@@ -315,16 +324,21 @@ router.get("/admin/submissions/:property", async (req, res) => {
     };
     const sortUsers = (left, right) => left.name.localeCompare(right.name);
     const total = history.total?.[0]?.count || 0;
+    const items = rows.map((row) => {
+      const { historyAssignment, ...submission } = row;
+      return withSubmissionActivity(
+        submission,
+        historyAssignment,
+        usersById,
+        { replacePlus: true }
+      );
+    });
+    // Installed PWA clients from before submission-history pagination expect an
+    // unpaginated array. Current clients always send `page` and receive the
+    // structured response below.
+    if (!historyQuery.paginated) return res.json(items);
     return res.json({
-      items: rows.map((row) => {
-        const { historyAssignment, ...submission } = row;
-        return withSubmissionActivity(
-          submission,
-          historyAssignment,
-          usersById,
-          { replacePlus: true }
-        );
-      }),
+      items,
       pagination: {
         page: historyQuery.page,
         pageSize: SUBMISSION_HISTORY_PAGE_SIZE,
