@@ -228,6 +228,21 @@ test("eligible properties remain hidden until an organization is selected", asyn
   expect(screen.getByRole("option", { name: "Property A" })).toBeInTheDocument();
 });
 
+test("deployment records expose responsive labels inside the deployment panel", async () => {
+  render(<PlatformResources />);
+
+  const heading = await screen.findByRole("heading", { name: "Deploy a Resource" });
+  const panel = heading.closest("section");
+  const table = within(panel).getByRole("table");
+  const resourceCell = within(table).getByText("Alpha Resource").closest("td");
+  const scopeCell = within(table).getByText("Property A").closest("td");
+
+  expect(panel).toHaveClass("platform-resource-deployment-panel");
+  expect(table).toHaveClass("platform-resource-deployment-table");
+  expect(resourceCell).toHaveAttribute("data-label", "Resource");
+  expect(scopeCell).toHaveAttribute("data-label", "Scope");
+});
+
 test("current deployments can move organizations and change eligible property scope", async () => {
   api.put.mockResolvedValueOnce({ organizationChanged: true });
   render(<PlatformResources />);
