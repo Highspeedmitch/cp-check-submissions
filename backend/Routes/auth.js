@@ -169,6 +169,7 @@ router.post("/login", loginLimiter, requireTrustedSessionOrigin, async (req, res
     if (!user.organizationId.orgType) {
       return res.status(500).json({ message: "Organization type not found for this organization." });
     }
+    const workspace = await workspaceAuthentication(user);
     if (requiresTotp(user, user.organizationId)) {
       const challengeToken = randomChallengeToken();
       const enrollmentRequired = !user.mfa?.totpEnabled;
@@ -196,12 +197,16 @@ router.post("/login", loginLimiter, requireTrustedSessionOrigin, async (req, res
         okta: { issuer: config.issuer, clientId: config.clientIds[0] },
       });
     }
-    const workspace = await workspaceAuthentication(user);
     const authentication = authResponse(user, getJwtSecret(), workspace);
     await createRefreshSession({ user, req, res, accountScope: workspace.accountScope });
     return res.json({ message: "Login successful", ...authentication });
   } catch (error) {
     console.error("Login processing error:", error?.code || error?.name || "unknown_error");
+    if (error.status === 403) {
+      return res.status(403).json({
+        message: "This account does not currently have an available workspace. Contact an administrator.",
+      });
+    }
     return res.status(500).json({ message: "Unable to sign in right now. Please try again." });
   }
 });

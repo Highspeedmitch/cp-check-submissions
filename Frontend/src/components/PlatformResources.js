@@ -47,6 +47,8 @@ export default function PlatformResources() {
   const [resourceAvailabilityFilter, setResourceAvailabilityFilter] = useState("");
   const [resourceOrganizationFilter, setResourceOrganizationFilter] = useState("");
   const [expandedResourceId, setExpandedResourceId] = useState("");
+  const [resourceDirectory, setResourceDirectory] = useState("current");
+  const [archivedResources, setArchivedResources] = useState(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -74,6 +76,11 @@ export default function PlatformResources() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const directoryResources = useMemo(
+    () => resourceDirectory === "archived" ? archivedResources || [] : data?.resources || [],
+    [archivedResources, data, resourceDirectory]
+  );
 
   const selectedOrganization = useMemo(() => data?.organizations.find(
     (organization) => organization._id === deployment.organizationId
@@ -108,7 +115,7 @@ export default function PlatformResources() {
   }, [currentDeployments]);
   const filteredResources = useMemo(() => {
     const query = resourceSearch.trim().toLowerCase();
-    return (data?.resources || []).filter((resource) => {
+    return directoryResources.filter((resource) => {
       const deployments = deploymentsByResource.get(id(resource)) || [];
       const organizationNames = deployments.map((item) => item.organizationId?.name || "");
       const searchable = [
@@ -127,7 +134,7 @@ export default function PlatformResources() {
         ));
     });
   }, [
-    data,
+    directoryResources,
     deploymentsByResource,
     resourceAvailabilityFilter,
     resourceOrganizationFilter,
@@ -137,6 +144,28 @@ export default function PlatformResources() {
   const hasResourceFilters = Boolean(
     resourceSearch || resourceStatusFilter || resourceAvailabilityFilter || resourceOrganizationFilter
   );
+
+  async function changeResourceDirectory(nextDirectory) {
+    setResourceDirectory(nextDirectory);
+    setExpandedResourceId("");
+    setResourceSearch("");
+    setResourceStatusFilter("");
+    setResourceAvailabilityFilter("");
+    setResourceOrganizationFilter("");
+    setError("");
+    setMessage("");
+    if (nextDirectory === "archived" && archivedResources === null) {
+      setBusy("archived-directory");
+      try {
+        const result = await api.get("/api/platform-resources/resources?directory=archived");
+        setArchivedResources(result.resources || []);
+      } catch (requestError) {
+        setError(requestError.message);
+      } finally {
+        setBusy("");
+      }
+    }
+  }
 
   const run = async (key, operation, successMessage) => {
     setBusy(key);
@@ -190,6 +219,56 @@ export default function PlatformResources() {
       } : {}),
     }), "Resource profile updated.");
     if (saved) setExpandedResourceId("");
+  }
+
+  async function archiveResource(resource) {
+    const reason = window.prompt(
+      `Why should ${resource.displayName} be archived? Historical assignments and earnings will be retained.`
+    );
+    if (!reason?.trim()) return;
+    if (!window.confirm(`Archive ${resource.displayName}? Active deployments will be paused.`)) return;
+    const archived = await run(
+      `archive-${resource._id}`,
+      () => api.post(`/api/platform-resources/resources/${resource._id}/archive`, { reason: reason.trim() }),
+      (result) => result.message || "Resource archived."
+    );
+    if (archived) {
+      setExpandedResourceId("");
+      setArchivedResources(null);
+    }
+  }
+
+  async function restoreResource(resource) {
+    if (!window.confirm(`Restore ${resource.displayName} to Current Resources? Access will remain suspended until reviewed.`)) return;
+    setBusy(`restore-${resource._id}`);
+    setError("");
+    setMessage("");
+    try {
+      const result = await api.post(`/api/platform-resources/resources/${resource._id}/restore`, {});
+      const [dashboard, archived] = await Promise.all([
+        api.get("/api/platform-resources/dashboard"),
+        api.get("/api/platform-resources/resources?directory=archived"),
+      ]);
+      setData(dashboard);
+      setResourceEdits(Object.fromEntries(dashboard.resources.map((item) => [item._id, {
+        displayName: item.displayName,
+        resourceType: item.resourceType || "contractor",
+        skills: (item.skills || []).join(", "),
+        regions: (item.regions || []).join(", "),
+        defaultRate: ((item.defaultRateCents || 0) / 100).toFixed(2),
+        availabilityStatus: item.availabilityStatus,
+        status: item.status,
+        gustoContractorUuid: item.gusto?.contractorUuid || "",
+        gustoOnboardingStatus: item.gusto?.onboardingStatus || "not_started",
+      }])));
+      setArchivedResources(archived.resources || []);
+      setExpandedResourceId("");
+      setMessage(result.message || "Resource restored.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy("");
+    }
   }
 
   function resetDeploymentDraft() {
@@ -264,12 +343,19 @@ export default function PlatformResources() {
       </section>
 
       <section className="beta-section">
-        <div className="beta-section-heading"><div><h2>Resource Profiles</h2><p>Search the resource network, review current access at a glance, or open a profile to edit its details.</p></div></div>
-        {data.resources.length ? <>
+        <div className="beta-section-heading">
+          <div><h2>{resourceDirectory === "archived" ? "Archived Resources" : "Resource Profiles"}</h2><p>{resourceDirectory === "archived" ? "Search retained Resource Network records and restore a profile when appropriate." : "Search the resource network, review current access at a glance, or open a profile to edit its details."}</p></div>
+          <div className="beta-card-actions">
+            <button type="button" className={`beta-button compact${resourceDirectory === "current" ? "" : " secondary"}`} onClick={() => changeResourceDirectory("current")}>Current resources</button>
+            <button type="button" className={`beta-button compact${resourceDirectory === "archived" ? "" : " secondary"}`} onClick={() => changeResourceDirectory("archived")}>Find archived resource</button>
+          </div>
+        </div>
+        {busy === "archived-directory" ? <div className="beta-empty-state">Loading archived resources...</div> : directoryResources.length ? <>
           <div className="platform-resource-directory-controls" aria-label="Resource profile filters">
             <label className="beta-form-field platform-resource-search">Search resources
               <input type="search" placeholder="Name, email, skill, region, or organization" value={resourceSearch} onChange={(event) => setResourceSearch(event.target.value)} />
             </label>
+            {resourceDirectory === "current" && <>
             <label className="beta-form-field">Resource status
               <select value={resourceStatusFilter} onChange={(event) => setResourceStatusFilter(event.target.value)}>
                 <option value="">All statuses</option>
@@ -292,6 +378,7 @@ export default function PlatformResources() {
                 {deployedOrganizationOptions.map((organization) => <option key={organization.organizationId} value={organization.organizationId}>{organization.name}</option>)}
               </select>
             </label>
+            </>}
             {hasResourceFilters && <button type="button" className="beta-button secondary compact platform-resource-clear" onClick={() => {
               setResourceSearch("");
               setResourceStatusFilter("");
@@ -299,28 +386,30 @@ export default function PlatformResources() {
               setResourceOrganizationFilter("");
             }}>Clear filters</button>}
           </div>
-          <p className="platform-resource-result-count" role="status">Showing {filteredResources.length} of {data.resources.length} resources</p>
+          <p className="platform-resource-result-count" role="status">Showing {filteredResources.length} of {directoryResources.length} {resourceDirectory} resources</p>
           {filteredResources.length ? <div className="platform-resource-directory">
             {filteredResources.map((resource) => {
               const edit = resourceEdits[resource._id] || {};
               const resourceDeployments = deploymentsByResource.get(id(resource)) || [];
-              const deploymentLabels = [...new Set(resourceDeployments.map((item) => {
-                const name = item.organizationId?.name || "Organization";
-                return item.status === "paused" ? `${name} (paused)` : name;
-              }))];
+              const deploymentLabels = resourceDirectory === "archived"
+                ? resource.deployedOrganizations || []
+                : [...new Set(resourceDeployments.map((item) => {
+                    const name = item.organizationId?.name || "Organization";
+                    return item.status === "paused" ? `${name} (paused)` : name;
+                  }))];
               const expanded = expandedResourceId === resource._id;
               return <article className="beta-panel platform-resource-card" key={resource._id}>
                 <div className="platform-resource-summary">
                   <div className="platform-resource-identity">
                     <div className="platform-resource-title-row">
                       <h3>{resource.displayName}</h3>
-                      <span className={`beta-status ${resourceStatusTone(resource.status)}`}>{readableStatus(resource.status)}</span>
+                      <span className={`beta-status ${resourceDirectory === "archived" ? "declined" : resourceStatusTone(resource.status)}`}>{resourceDirectory === "archived" ? "Archived" : readableStatus(resource.status)}</span>
                     </div>
                     <a className="platform-resource-email" href={`mailto:${resource.email}`}>{resource.email}</a>
                     <dl className="platform-resource-facts">
                       <div><dt>Relationship</dt><dd>{RESOURCE_TYPE_LABELS[resource.resourceType] || readableStatus(resource.resourceType)}</dd></div>
-                      <div><dt>Availability</dt><dd>{readableStatus(resource.availabilityStatus || "available")}</dd></div>
-                      <div className="platform-resource-deployment-fact"><dt>Deployed to</dt><dd>{deploymentLabels.length ? deploymentLabels.join(", ") : "No current deployments"}</dd></div>
+                      <div><dt>{resourceDirectory === "archived" ? "Assignments" : "Availability"}</dt><dd>{resourceDirectory === "archived" ? resource.assignmentCount || 0 : readableStatus(resource.availabilityStatus || "available")}</dd></div>
+                      <div className="platform-resource-deployment-fact"><dt>{resourceDirectory === "archived" ? "Previously deployed to" : "Deployed to"}</dt><dd>{deploymentLabels.length ? deploymentLabels.join(", ") : "No deployments"}</dd></div>
                     </dl>
                   </div>
                   <button
@@ -329,9 +418,22 @@ export default function PlatformResources() {
                     aria-expanded={expanded}
                     aria-controls={`resource-editor-${resource._id}`}
                     onClick={() => setExpandedResourceId((current) => current === resource._id ? "" : resource._id)}
-                  >{expanded ? "Close details" : "Edit details"}</button>
+                  >{expanded ? "Close details" : resourceDirectory === "archived" ? "View details" : "Edit details"}</button>
                 </div>
-                {expanded && <form id={`resource-editor-${resource._id}`} className="platform-resource-editor" onSubmit={(event) => { event.preventDefault(); saveResource(resource._id); }}>
+                {expanded && (resourceDirectory === "archived" ? <div id={`resource-editor-${resource._id}`} className="platform-resource-editor">
+                  <dl className="platform-resource-facts">
+                    <div><dt>Archived</dt><dd>{resource.archivedAt ? new Date(resource.archivedAt).toLocaleString() : "Unknown"}</dd></div>
+                    <div><dt>Completed assignments</dt><dd>{resource.completedAssignmentCount || 0}</dd></div>
+                    <div><dt>Earning records</dt><dd>{resource.earningCount || 0}</dd></div>
+                    <div><dt>Deployment records</dt><dd>{resource.deploymentCount || 0}</dd></div>
+                  </dl>
+                  <div className="beta-policy-notice"><strong>Archive reason</strong><p>{resource.archiveReason || "No reason recorded."}</p></div>
+                  <p>Restoring a linked resource returns it in suspended and unavailable status. Review its profile and deployments before reactivation.</p>
+                  <div className="platform-resource-editor-actions">
+                    <button type="button" className="beta-button secondary" onClick={() => setExpandedResourceId("")}>Close</button>
+                    <button type="button" className="beta-button" disabled={busy === `restore-${resource._id}`} onClick={() => restoreResource(resource)}>{busy === `restore-${resource._id}` ? "Restoring..." : "Restore Resource"}</button>
+                  </div>
+                </div> : <form id={`resource-editor-${resource._id}`} className="platform-resource-editor" onSubmit={(event) => { event.preventDefault(); saveResource(resource._id); }}>
                   <div className="beta-form-grid">
                     <label className="beta-form-field full">Display name<input value={edit.displayName || ""} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, displayName: event.target.value } }))} /></label>
                     <label className="beta-form-field">Relationship<select value={edit.resourceType || "contractor"} onChange={(event) => setResourceEdits((current) => ({ ...current, [resource._id]: { ...edit, resourceType: event.target.value, defaultRate: event.target.value === "contractor" ? edit.defaultRate : "" } }))}><option value="contractor">1099 contractor</option><option value="employee">Afterlight employee</option><option value="owner">Afterlight owner</option></select></label>
@@ -345,13 +447,14 @@ export default function PlatformResources() {
                   </div>
                   <div className="platform-resource-editor-actions">
                     <button type="button" className="beta-button secondary" onClick={() => setExpandedResourceId("")}>Cancel</button>
+                    <button type="button" className="beta-button danger" disabled={busy === `archive-${resource._id}`} onClick={() => archiveResource(resource)}>{busy === `archive-${resource._id}` ? "Archiving..." : "Archive Resource"}</button>
                     <button type="submit" className="beta-button" disabled={busy === `resource-${resource._id}`}>{busy === `resource-${resource._id}` ? "Saving..." : "Save Resource"}</button>
                   </div>
-                </form>}
+                </form>)}
               </article>;
             })}
           </div> : <div className="beta-empty-state">No resource profiles match those filters.</div>}
-        </> : <div className="beta-empty-state">No Afterlight resources have been invited.</div>}
+        </> : <div className="beta-empty-state">No {resourceDirectory} resources found.</div>}
       </section>
 
       <section className="beta-panel" ref={deploymentEditorRef}>

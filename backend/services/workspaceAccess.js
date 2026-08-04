@@ -12,13 +12,14 @@ function defaultWorkspace(user) {
 
 async function availableWorkspaces(user, ResourceProfileModel = ResourceProfile) {
   const available = [];
-  if (defaultWorkspace(user) !== RESOURCE_WORKSPACE) {
+  if (defaultWorkspace(user) !== RESOURCE_WORKSPACE && !user?.organizationArchivedAt) {
     available.push(ORGANIZATION_WORKSPACE);
   }
 
   const resourceProfile = user?._id && await ResourceProfileModel.findOne({
     userId: user._id,
     status: { $ne: "suspended" },
+    archivedAt: null,
   }).select("_id").lean();
   if (resourceProfile) available.push(RESOURCE_WORKSPACE);
 

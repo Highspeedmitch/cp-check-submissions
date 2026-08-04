@@ -22,7 +22,7 @@ router.get("/users", async (req, res) => {
     const adminOrgId = req.user.organizationId;
     // Get only non-admin users from the admin's organization
     const users = await User.find(
-      { organizationId: adminOrgId, role: "user" },
+      { organizationId: adminOrgId, role: "user", organizationArchivedAt: null },
       "username _id lastPaidDate"
     ).lean();
 

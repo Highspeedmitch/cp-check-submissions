@@ -97,6 +97,8 @@ router.post("/assign-client", async (req, res) => {
       email: clientEmail,
       organizationId: req.user.organizationId,
       role: "client",
+      accountStatus: { $ne: "inactive" },
+      organizationArchivedAt: null,
     });
     if (!client) {
       return res.status(404).json({ error: "No registered client with this email." });

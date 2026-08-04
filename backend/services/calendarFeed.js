@@ -218,7 +218,7 @@ async function calendarForToken(token, {
   const user = await UserModel.findOne({
     _id: subscription.userId,
     accountStatus: { $ne: "inactive" },
-  }).select("_id accountScope organizationId").lean();
+  }).select("_id accountScope organizationId organizationArchivedAt").lean();
   if (!user) {
     return buildAssignmentCalendar({ generatedAt: now });
   }

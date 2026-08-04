@@ -72,7 +72,12 @@ async function createInvitation({
   now = new Date(),
 }) {
   const normalizedEmail = normalizeInvitationEmail(email);
-  const existingUser = await UserModel.findOne({ email: normalizedEmail }).select("_id").lean();
+  const existingUser = await UserModel.findOne({ email: normalizedEmail })
+    .select("_id organizationId organizationArchivedAt").lean();
+  if (existingUser?.organizationArchivedAt
+    && String(existingUser.organizationId) === String(organization._id)) {
+    throw new Error("An archived user already exists for that email address. Restore the archived user instead.");
+  }
   if (existingUser) throw new Error("That email address already belongs to an Afterlight account.");
   if (role === "admin" && inviterScope !== "platform") {
     throw new Error("Administrator invitations must be issued by a platform administrator.");

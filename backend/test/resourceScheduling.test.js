@@ -23,6 +23,7 @@ test("Afterlight contractor assignments require an active deployment and snapsho
           userId: "resource-user-1",
           status: "active",
           availabilityStatus: "available",
+          archivedAt: null,
         });
         return leanResult({
           _id: "resource-1",

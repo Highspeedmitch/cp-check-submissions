@@ -47,9 +47,13 @@ const ResourceProfileSchema = new mongoose.Schema({
   },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  archivedAt: { type: Date, default: null, index: true },
+  archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  archiveReason: { type: String, default: "", trim: true, maxlength: 500 },
 }, { timestamps: true });
 
 ResourceProfileSchema.index({ status: 1, availabilityStatus: 1, displayName: 1 });
+ResourceProfileSchema.index({ archivedAt: 1, displayName: 1 });
 ResourceProfileSchema.index(
   { userId: 1 },
   { unique: true, partialFilterExpression: { userId: { $exists: true } } }

@@ -26,6 +26,7 @@ async function resolveAssignmentAssignee({
       organizationId,
       accountScope: { $ne: "afterlight_resource" },
       accountStatus: { $ne: "inactive" },
+      organizationArchivedAt: null,
     }).select("_id").lean();
     if (!assignedUser) {
       throw validationError("Assigned user is not active in this organization.");
@@ -42,6 +43,7 @@ async function resolveAssignmentAssignee({
     userId,
     status: "active",
     availabilityStatus: "available",
+    archivedAt: null,
   }).lean();
   if (!resource) {
     throw validationError("Select an active and available Afterlight resource.");
@@ -111,6 +113,7 @@ async function deployedSchedulerResources({
     userId: { $ne: null },
     status: "active",
     availabilityStatus: "available",
+    archivedAt: null,
   }).select("_id userId email displayName resourceType defaultRateCents currency").lean();
   const deploymentsByResource = new Map(
     deployments.map((deployment) => [String(deployment.resourceProfileId), deployment])

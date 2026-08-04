@@ -7,6 +7,7 @@ const {
   validateFields,
 } = require("../services/inspectionTemplates");
 const { assignedResourceContext } = require("../services/resourceAccess");
+const requireCurrentOrganizationPresence = require("../middleware/requireCurrentOrganizationPresence");
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ function sendError(res, error) {
   return res.status(status).json({ error: error.message || "Unable to process inspection template." });
 }
 
-router.get("/organization", async (req, res) => {
+router.get("/organization", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only organization administrators can manage the organization template." });
@@ -27,7 +28,7 @@ router.get("/organization", async (req, res) => {
   }
 });
 
-router.put("/organization", async (req, res) => {
+router.put("/organization", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only organization administrators can manage the organization template." });
@@ -76,7 +77,7 @@ router.get("/properties/:propertyName/effective", async (req, res) => {
   }
 });
 
-router.put("/properties/:propertyId/override", async (req, res) => {
+router.put("/properties/:propertyId/override", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.status(403).json({ error: "Management access required." });

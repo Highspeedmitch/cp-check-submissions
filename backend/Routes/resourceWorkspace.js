@@ -15,7 +15,10 @@ router.use((req, res, next) => {
 
 router.get("/dashboard", async (req, res) => {
   try {
-    const profile = await ResourceProfile.findOne({ userId: req.user.userId }).lean();
+    const profile = await ResourceProfile.findOne({
+      userId: req.user.userId,
+      archivedAt: null,
+    }).lean();
     if (!profile) return res.status(404).json({ error: "Resource profile not found." });
     const [assignments, earnings] = await Promise.all([
       Assignment.find({

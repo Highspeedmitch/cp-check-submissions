@@ -43,3 +43,22 @@ test("a normal organization user cannot enter the resource workspace", async () 
     (error) => error.status === 403 && /not available/.test(error.message)
   );
 });
+
+test("an archived organization presence does not remove a dual user's resource workspace", async () => {
+  const user = {
+    _id: "user-1",
+    accountScope: "organization",
+    organizationArchivedAt: new Date("2026-08-04T12:00:00Z"),
+  };
+  assert.deepEqual(
+    await availableWorkspaces(user, resourceLookup({ _id: "resource-1" })),
+    ["afterlight_resource"]
+  );
+  assert.deepEqual(
+    await workspaceAuthentication(user, undefined, resourceLookup({ _id: "resource-1" })),
+    {
+      accountScope: "afterlight_resource",
+      availableWorkspaces: ["afterlight_resource"],
+    }
+  );
+});

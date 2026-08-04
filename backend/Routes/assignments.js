@@ -221,6 +221,8 @@ function createAssignmentHandlers({
       const users = await UserModel.find({
         organizationId: req.user.organizationId,
         role: { $in: roleFilter },
+        accountStatus: { $ne: "inactive" },
+        organizationArchivedAt: null,
       }).select("_id email role");
       const resources = req.query.roles === "all"
         ? await schedulerResources({ organizationId: req.user.organizationId })

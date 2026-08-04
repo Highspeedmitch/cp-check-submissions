@@ -44,6 +44,7 @@ async function assignedPropertyManagers(
     organizationId,
     role: "property_manager",
     accountStatus: { $ne: "inactive" },
+    organizationArchivedAt: null,
   }).select("_id username email").lean();
 }
 

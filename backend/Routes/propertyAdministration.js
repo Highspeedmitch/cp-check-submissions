@@ -55,6 +55,7 @@ router.post("/add-property", async (req, res) => {
         organizationId: organization._id,
         role: "property_manager",
         accountStatus: { $ne: "inactive" },
+        organizationArchivedAt: null,
       }).select("_id").lean();
       if (!assignedPropertyManager) {
         return res.status(400).json({

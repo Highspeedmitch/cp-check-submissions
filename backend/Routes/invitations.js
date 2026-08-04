@@ -84,6 +84,7 @@ router.post("/accept", async (req, res) => {
             email: invitation.email,
             invitationId: invitation._id,
             userId: null,
+            archivedAt: null,
           },
           {
             $set: {

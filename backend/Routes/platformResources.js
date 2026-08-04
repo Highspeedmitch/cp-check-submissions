@@ -4,6 +4,7 @@ const authenticateToken = require("../middleware/authenticateToken");
 const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const Organization = require("../models/organization");
 const User = require("../models/user");
+const Assignment = require("../models/assignment");
 const ResourceProfile = require("../models/resourceProfile");
 const ResourceDeployment = require("../models/resourceDeployment");
 const ContractorEarning = require("../models/contractorEarning");
@@ -15,6 +16,10 @@ const { buildPayoutLines, newBatchNumber } = require("../services/contractorPayo
 const { updateResourceDeploymentScope } = require("../services/resourceDeployments");
 const { sendSystemEmail } = require("../services/systemEmail");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
+const {
+  archiveResourceProfile,
+  restoreResourceProfile,
+} = require("../services/directoryArchival");
 
 const router = express.Router();
 router.use(authenticateToken, requirePlatformAdmin);
@@ -60,7 +65,9 @@ function auditDetails(req) {
 router.get("/dashboard", async (_req, res) => {
   try {
     const [resources, deployments, organizations, earnings, payoutBatches] = await Promise.all([
-      ResourceProfile.find().populate("userId", "username email accountStatus").sort({ displayName: 1 }).lean(),
+      ResourceProfile.find({ archivedAt: null })
+        .populate("userId", "username email accountStatus")
+        .sort({ displayName: 1 }).lean(),
       ResourceDeployment.find().populate("organizationId", "name serviceModel properties._id properties.name").sort({ createdAt: -1 }).lean(),
       Organization.find({
         workspaceType: { $ne: "afterlight_workforce" },
@@ -70,10 +77,98 @@ router.get("/dashboard", async (_req, res) => {
         .populate("organizationId", "name").sort({ earnedAt: -1 }).limit(250).lean(),
       ContractorPayoutBatch.find().sort({ createdAt: -1 }).limit(100).lean(),
     ]);
-    return res.json({ resources, deployments, organizations, earnings, payoutBatches });
+    const currentResourceIds = new Set(resources.map((resource) => String(resource._id)));
+    return res.json({
+      resources,
+      deployments: deployments.filter((deployment) => currentResourceIds.has(String(deployment.resourceProfileId))),
+      organizations,
+      earnings,
+      payoutBatches,
+    });
   } catch (error) {
     console.error("Resource dashboard error:", error.message);
     return res.status(500).json({ error: "Unable to load Afterlight resources." });
+  }
+});
+
+router.get("/resources", async (req, res) => {
+  try {
+    const directory = req.query.directory === "archived" ? "archived" : "current";
+    const profiles = await ResourceProfile.find({
+      archivedAt: directory === "archived" ? { $ne: null } : null,
+    })
+      .populate("userId", "username email accountStatus")
+      .populate("archivedBy", "username email")
+      .sort({ displayName: 1 }).lean();
+    if (directory !== "archived") return res.json({ resources: profiles });
+    const resources = await Promise.all(profiles.map(async (profile) => {
+      const [assignmentCount, completedAssignmentCount, earningCount, deployments] = await Promise.all([
+        Assignment.countDocuments({ resourceProfileId: profile._id }),
+        Assignment.countDocuments({ resourceProfileId: profile._id, status: "completed" }),
+        ContractorEarning.countDocuments({ resourceProfileId: profile._id }),
+        ResourceDeployment.find({ resourceProfileId: profile._id })
+          .populate("organizationId", "name").select("organizationId status").lean(),
+      ]);
+      return {
+        ...profile,
+        assignmentCount,
+        completedAssignmentCount,
+        earningCount,
+        deploymentCount: deployments.length,
+        deployedOrganizations: [...new Set(deployments
+          .map((deployment) => deployment.organizationId?.name)
+          .filter(Boolean))],
+      };
+    }));
+    return res.json({ resources });
+  } catch (error) {
+    console.error("Resource directory error:", error.message);
+    return res.status(500).json({ error: "Unable to load the resource directory." });
+  }
+});
+
+function archivalError(res, error, fallback) {
+  return res.status(error.status || 500).json({
+    error: error.status ? error.message : fallback,
+    ...(error.code ? { code: error.code } : {}),
+    ...(error.scheduledAssignments ? { scheduledAssignments: error.scheduledAssignments } : {}),
+  });
+}
+
+router.post("/resources/:resourceId/archive", async (req, res) => {
+  try {
+    const result = await archiveResourceProfile({
+      resourceId: req.params.resourceId,
+      actorUserId: req.user.userId,
+      reason: req.body.reason,
+    });
+    return res.json({
+      message: `Resource archived. ${result.pausedDeployments} active deployment${result.pausedDeployments === 1 ? " was" : "s were"} paused.`,
+      resourceId: result.profile._id,
+      pausedDeployments: result.pausedDeployments,
+    });
+  } catch (error) {
+    console.error("Resource archive error:", error.message);
+    return archivalError(res, error, "Unable to archive the resource.");
+  }
+});
+
+router.post("/resources/:resourceId/restore", async (req, res) => {
+  try {
+    const result = await restoreResourceProfile({
+      resourceId: req.params.resourceId,
+      actorUserId: req.user.userId,
+    });
+    return res.json({
+      message: result.profile.userId
+        ? "Resource restored in suspended and unavailable status. Review and reactivate it when ready."
+        : "Resource restored to the invited directory.",
+      resourceId: result.profile._id,
+      status: result.profile.status,
+    });
+  } catch (error) {
+    console.error("Resource restore error:", error.message);
+    return archivalError(res, error, "Unable to restore the resource.");
   }
 });
 
@@ -90,11 +185,15 @@ router.post("/resources", async (req, res) => {
       return res.status(400).json({ error: "Resource name must be between 2 and 100 characters." });
     }
     const [existingProfile, existingUser] = await Promise.all([
-      ResourceProfile.findOne({ email }).select("_id").lean(),
+      ResourceProfile.findOne({ email }).select("_id archivedAt").lean(),
       User.findOne({ email }).select("_id username email role accountStatus").lean(),
     ]);
     if (existingProfile) {
-      return res.status(409).json({ error: "That email already belongs to an Afterlight resource." });
+      return res.status(409).json({
+        error: existingProfile.archivedAt
+          ? "An archived resource already exists for that email address. Restore it instead."
+          : "That email already belongs to an Afterlight resource.",
+      });
     }
     if (existingUser && (
       existingUser.accountStatus === "inactive"
@@ -190,7 +289,10 @@ router.post("/resources", async (req, res) => {
 
 router.put("/resources/:resourceId", async (req, res) => {
   try {
-    const profile = await ResourceProfile.findById(req.params.resourceId);
+    const profile = await ResourceProfile.findOne({
+      _id: req.params.resourceId,
+      archivedAt: null,
+    });
     if (!profile) return res.status(404).json({ error: "Resource not found." });
     if (req.body.displayName !== undefined) {
       const name = String(req.body.displayName).trim().replace(/\s+/g, " ");
@@ -264,7 +366,7 @@ router.put("/resources/:resourceId", async (req, res) => {
 router.post("/resources/:resourceId/deployments", async (req, res) => {
   try {
     const [resource, organization] = await Promise.all([
-      ResourceProfile.findById(req.params.resourceId),
+      ResourceProfile.findOne({ _id: req.params.resourceId, archivedAt: null }),
       Organization.findOne({
         _id: req.body.organizationId,
         workspaceType: { $ne: "afterlight_workforce" },
@@ -355,6 +457,16 @@ router.put("/deployments/:deploymentId", async (req, res) => {
     return res.status(400).json({ error: "Select a valid deployment status." });
   }
   try {
+    const existingDeployment = await ResourceDeployment.findById(req.params.deploymentId)
+      .select("resourceProfileId").lean();
+    if (!existingDeployment) return res.status(404).json({ error: "Deployment not found." });
+    const currentResource = await ResourceProfile.findOne({
+      _id: existingDeployment.resourceProfileId,
+      archivedAt: null,
+    }).select("_id").lean();
+    if (!currentResource) {
+      return res.status(409).json({ error: "Restore the archived resource before changing its deployments." });
+    }
     const deployment = await ResourceDeployment.findByIdAndUpdate(
       req.params.deploymentId,
       {

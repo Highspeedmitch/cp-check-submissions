@@ -70,7 +70,7 @@ async function updateResourceDeploymentScope({
           serviceModel: { $in: ["managed", "hybrid"] },
         }), session),
       ]);
-      if (!resource) throw operationError("Resource not found.", 404);
+      if (!resource || resource.archivedAt) throw operationError("Current resource not found.", 404);
       if (!organization) throw operationError("Select an eligible managed or hybrid organization.", 400);
 
       const validPropertyIds = new Set((organization.properties || []).map((property) => String(property._id)));

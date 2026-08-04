@@ -60,11 +60,11 @@ test("client and AzRoots routes rely on centralized authentication", () => {
   const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.match(
     appSource,
-    /app\.use\("\/api\/client", authenticateToken, require\("\.\/Routes\/ClientRoutes"\)\)/
+    /app\.use\("\/api\/client", authenticateToken, requireCurrentOrganizationPresence, require\("\.\/Routes\/ClientRoutes"\)\)/
   );
   assert.match(
     appSource,
-    /app\.use\("\/api\/azroots\/properties", authenticateToken, require\("\.\/Routes\/azrootsProperties"\)\)/
+    /app\.use\("\/api\/azroots\/properties", authenticateToken, requireCurrentOrganizationPresence, require\("\.\/Routes\/azrootsProperties"\)\)/
   );
 
   for (const routeFile of ["ClientRoutes.js", "azrootsProperties.js"]) {

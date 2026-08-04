@@ -10,8 +10,9 @@ const { normalizePropertyEmails } = require("../services/propertyEmails");
 const { normalizePropertyDetails } = require("../services/propertyDetails");
 const { propertyDefaultSource } = require("../services/fulfillmentPolicy");
 const { assignedResourceContext } = require("../services/resourceAccess");
+const requireCurrentOrganizationPresence = require("../middleware/requireCurrentOrganizationPresence");
 
-router.get("/", async (req, res) => {
+router.get("/", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
@@ -38,7 +39,7 @@ router.get("/", async (req, res) => {
 });
 
 // ✅ Global Search for Properties (Admins Only)
-router.get("/search", async (req, res) => {
+router.get("/search", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.status(403).json({ error: "Management access required." });
@@ -68,7 +69,7 @@ router.get("/search", async (req, res) => {
 });
 
 // ✅ Get Properties by Region (Admins Only)
-router.get("/region/:region", async (req, res) => {
+router.get("/region/:region", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     const { region } = req.params;
 
@@ -96,7 +97,7 @@ router.get("/region/:region", async (req, res) => {
 });
 
 // ✅ Update Property Region (Admins Only)
-router.put("/:propertyId/region", async (req, res) => {
+router.put("/:propertyId/region", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can update property regions." });
@@ -129,7 +130,7 @@ router.put("/:propertyId/region", async (req, res) => {
   }
 });
 
-router.put("/:propertyId/emails", async (req, res) => {
+router.put("/:propertyId/emails", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only organization administrators can update inspection recipients." });
@@ -163,7 +164,7 @@ router.put("/:propertyId/emails", async (req, res) => {
   }
 });
 
-router.get("/:propertyId/details", async (req, res) => {
+router.get("/:propertyId/details", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.status(403).json({ error: "Management access required." });
@@ -187,7 +188,7 @@ router.get("/:propertyId/details", async (req, res) => {
   }
 });
 
-router.put("/:propertyId/details", async (req, res) => {
+router.put("/:propertyId/details", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.status(403).json({ error: "Management access required." });
@@ -268,7 +269,8 @@ router.put("/:propertyId/details", async (req, res) => {
 
 // GET /api/properties/regions
 router.get(
-  "/regions", 
+  "/regions",
+  requireCurrentOrganizationPresence,
   async (req, res) => {
     try {
       // 2) check role

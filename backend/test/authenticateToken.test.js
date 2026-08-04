@@ -101,3 +101,43 @@ test("a dual user can fall back to organization access after resource access is 
     ResourceProfile.findOne = originalResourceFindOne;
   }
 });
+
+test("an archived organization presence is retained on an authorized resource request", async () => {
+  const originalFindById = User.findById;
+  const originalResourceFindOne = ResourceProfile.findOne;
+  const archivedAt = new Date("2026-08-03T12:00:00.000Z");
+  User.findById = () => ({
+    select: () => ({
+      lean: async () => ({
+        _id: "user-1",
+        accountStatus: "active",
+        accountScope: "organization",
+        tokenVersion: 2,
+        role: "user",
+        organizationId: { toString: () => "org-1" },
+        organizationArchivedAt: archivedAt,
+      }),
+    }),
+  });
+  ResourceProfile.findOne = () => ({
+    select: () => ({ lean: async () => ({ _id: "resource-1" }) }),
+  });
+  const token = jwt.sign(
+    { userId: "user-1", tokenVersion: 2, accountScope: "afterlight_resource" },
+    process.env.JWT_SECRET
+  );
+  const req = { headers: { authorization: `Bearer ${token}` } };
+  const res = {
+    status: () => res,
+    json: (body) => assert.fail(`unexpected response: ${JSON.stringify(body)}`),
+  };
+
+  try {
+    await new Promise((resolve) => authenticateToken(req, res, resolve));
+    assert.equal(req.user.accountScope, "afterlight_resource");
+    assert.equal(req.user.organizationArchivedAt, archivedAt);
+  } finally {
+    User.findById = originalFindById;
+    ResourceProfile.findOne = originalResourceFindOne;
+  }
+});

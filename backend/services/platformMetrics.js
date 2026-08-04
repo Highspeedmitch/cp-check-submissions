@@ -29,7 +29,7 @@ async function getPlatformOrganizationMetrics({
         propertyCount: { $size: { $ifNull: ["$properties", []] } },
       },
     }, { $sort: { name: 1 } }]),
-    UserModel.aggregate([{ $match: { accountStatus: { $ne: "inactive" } } }, {
+    UserModel.aggregate([{ $match: { accountStatus: { $ne: "inactive" }, organizationArchivedAt: null } }, {
       $group: { _id: "$organizationId", count: { $sum: 1 } },
     }]),
     SubmissionModel.aggregate([{ $match: { submittedAt: { $gte: recentCutoff } } }, {

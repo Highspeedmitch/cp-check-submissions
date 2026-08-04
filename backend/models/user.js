@@ -29,11 +29,20 @@ const UserSchema = new mongoose.Schema({
     recoveryCodeHashes: { type: [String], default: [], select: false },
   },
   accountStatus: { type: String, enum: ["active", "inactive"], default: "active", index: true },
+  organizationArchivedAt: { type: Date, default: null, index: true },
+  organizationArchivedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+  organizationArchiveReason: { type: String, default: "", trim: true, maxlength: 500 },
   tokenVersion: { type: Number, default: 0 },
   lastPaidDate: { type: Date, default: null },
   paymentStatus: { type: String, enum: ["Awaiting Payment", "Paid"], default: "Awaiting Payment" },
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },
 });
+
+UserSchema.index({ organizationId: 1, organizationArchivedAt: 1, username: 1 });
 
 module.exports = mongoose.model("User", UserSchema);

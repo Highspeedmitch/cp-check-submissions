@@ -83,11 +83,35 @@ const dashboard = {
   payoutBatches: [],
 };
 
+const archivedDirectory = {
+  resources: [{
+    _id: "resource-archived",
+    displayName: "Archived Inspector",
+    email: "archived@example.com",
+    resourceType: "contractor",
+    skills: ["inspections"],
+    regions: ["Tucson"],
+    status: "suspended",
+    availabilityStatus: "unavailable",
+    archivedAt: "2026-08-04T12:00:00.000Z",
+    archiveReason: "Contract ended",
+    assignmentCount: 12,
+    completedAssignmentCount: 10,
+    earningCount: 8,
+    deploymentCount: 2,
+    deployedOrganizations: ["Atlas Management"],
+  }],
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
-  api.get.mockResolvedValue(dashboard);
+  api.get.mockImplementation(async (path) => path.includes("directory=archived")
+    ? archivedDirectory
+    : dashboard);
   api.put.mockResolvedValue({});
   api.post.mockResolvedValue({});
+  window.confirm = jest.fn(() => true);
+  window.prompt = jest.fn(() => "Contract ended");
 });
 
 test("resource profiles are compact by default and expose the editor on demand", async () => {
@@ -153,6 +177,44 @@ test("expanded resource details retain the existing save workflow", async () => 
   ));
   expect(await screen.findByText("Resource profile updated.")).toBeInTheDocument();
   expect(within(card).queryByDisplayValue("Alpha Resource")).not.toBeInTheDocument();
+});
+
+test("platform admins can find and restore an archived resource without losing its history", async () => {
+  api.post.mockResolvedValueOnce({ message: "Resource restored.", status: "suspended" });
+  render(<PlatformResources />);
+
+  await screen.findByRole("heading", { name: "Alpha Resource" });
+  fireEvent.click(screen.getByRole("button", { name: "Find archived resource" }));
+
+  const heading = await screen.findByRole("heading", { name: "Archived Inspector" });
+  const card = heading.closest("article");
+  expect(within(card).getByText("Atlas Management")).toBeInTheDocument();
+  fireEvent.click(within(card).getByRole("button", { name: "View details" }));
+  expect(within(card).getByText("Contract ended")).toBeInTheDocument();
+  expect(within(card).getByText("10")).toBeInTheDocument();
+
+  fireEvent.click(within(card).getByRole("button", { name: "Restore Resource" }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/platform-resources/resources/resource-archived/restore",
+    {}
+  ));
+  expect(await screen.findByText("Resource restored.")).toBeInTheDocument();
+});
+
+test("archiving a current resource requires a reason and uses the dedicated lifecycle endpoint", async () => {
+  api.post.mockResolvedValueOnce({ message: "Resource archived.", pausedDeployments: 1 });
+  render(<PlatformResources />);
+
+  const heading = await screen.findByRole("heading", { name: "Alpha Resource" });
+  const card = heading.closest("article");
+  fireEvent.click(within(card).getByRole("button", { name: "Edit details" }));
+  fireEvent.click(within(card).getByRole("button", { name: "Archive Resource" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/platform-resources/resources/resource-1/archive",
+    { reason: "Contract ended" }
+  ));
+  expect(await screen.findByText("Resource archived.")).toBeInTheDocument();
 });
 
 test("eligible properties remain hidden until an organization is selected", async () => {
