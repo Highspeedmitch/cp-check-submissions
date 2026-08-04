@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const MileageTracking = require("../models/mileageTracking");
-const User = require("../models/user"); // ✅ Import User model
 
 // ✅ Start or Resume Tracking (Called when the user enables the toggle)
 router.post("/start", async (req, res) => {
@@ -57,50 +56,5 @@ router.post("/update", async (req, res) => {
     }
   });
   
-
-// ✅ Get User's Mileage for Admin
-// GET /api/mileage/user/:userId
-// Return { totalMiles, ytdMiles } so the admin page can display both
-router.get("/user/:userId", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      if (req.user.role !== "admin" && req.user.userId.toString() !== userId) {
-        return res.status(403).json({ error: "You cannot view another user's mileage." });
-      }
-      const user = await User.findOne({
-        _id: userId,
-        organizationId: req.user.organizationId,
-      }).select("_id").lean();
-      if (!user) {
-        return res.status(404).json({ error: "User not found in this organization." });
-      }
-      const currentYear = new Date().getFullYear();
-  
-      const record = await MileageTracking.findOne({
-        userId,
-        organizationId: req.user.organizationId,
-      }).lean();
-      if (!record) {
-        return res.json({ totalMiles: 0, ytdMiles: 0 });
-      }
-  
-      // totalMiles is what's accumulated since last payment
-      const totalMiles = record.totalMiles;
-  
-      // Summation of all milesPaid in `history` for the current year
-      let ytdMiles = 0;
-      for (const entry of record.history) {
-        const yr = new Date(entry.paidDate).getFullYear();
-        if (yr === currentYear) {
-          ytdMiles += entry.milesPaid;
-        }
-      }
-  
-      res.json({ totalMiles, ytdMiles });
-    } catch (err) {
-      console.error("Error in GET mileage:", err);
-      res.status(500).json({ error: "Server error fetching mileage" });
-    }
-  });  
 
 module.exports = router;

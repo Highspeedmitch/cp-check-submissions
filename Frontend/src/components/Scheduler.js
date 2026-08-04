@@ -10,9 +10,39 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
 import PageHeader from "./ui/PageHeader";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import {
+  propertySuggestedAmount,
+  schedulerAssigneeLabel,
+} from "../services/schedulerPresentation";
+import AssignmentHistoryDialog from "./scheduler/AssignmentHistoryDialog";
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
+
+const FULFILLMENT_LABELS = {
+  customer_employee: "Customer employee",
+  customer_contractor: "Customer contractor",
+  afterlight_staff: "Afterlight staff",
+  afterlight_contractor: "Afterlight contractor",
+  legacy: "Legacy assignment",
+};
+
+const SOURCE_POLICIES = {
+  customer_employee: { queue: "customer_assigned", invoiceRequired: false, invoiceLabel: "No invoice" },
+  customer_contractor: { queue: "customer_assigned", invoiceRequired: true, invoiceLabel: "Customer accounts payable" },
+  afterlight_staff: { queue: "afterlight_coverage", invoiceRequired: true, invoiceLabel: "Afterlight service billing" },
+  afterlight_contractor: { queue: "afterlight_coverage", invoiceRequired: true, invoiceLabel: "Afterlight service billing" },
+};
+
+const EMPTY_ASSIGNMENT = {
+  propertyName: "",
+  userId: "",
+  startDate: "",
+  endDate: "",
+  oneTimeCheckRequest: "",
+  fulfillmentSource: "",
+  fulfillmentOverrideReason: "",
+};
 
 function Scheduler() {
   const navigate = useNavigate();
@@ -22,13 +52,12 @@ function Scheduler() {
   const [assignments, setAssignments] = useState([]);
   const [properties, setProperties] = useState([]);
   const [users, setUsers] = useState([]);
-  const [newAssignment, setNewAssignment] = useState({
-    propertyName: "",
-    userId: "",
-    startDate: "",
-    endDate: "",
-    oneTimeCheckRequest: "", // New field for one-time request
-  });
+  const [fulfillmentSettings, setFulfillmentSettings] = useState(null);
+  const [newAssignment, setNewAssignment] = useState(EMPTY_ASSIGNMENT);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [assignmentHistory, setAssignmentHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   const [editingAssignment, setEditingAssignment] = useState(null); // Holds event being edited
 
@@ -59,7 +88,7 @@ function Scheduler() {
   // Fetch users (exclude admins)
   useEffect(() => {
     if (!token) return;
-    fetch(apiUrl("/api/users"), {
+    fetch(apiUrl("/api/users?roles=all"), {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -70,6 +99,36 @@ function Scheduler() {
       })
       .catch((err) => console.error("Error fetching users:", err));
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(apiUrl("/api/fulfillment"), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then(setFulfillmentSettings)
+      .catch((err) => console.error("Error fetching fulfillment settings:", err));
+  }, [token]);
+
+  const selectedProperty = properties.find((property) => property.name === newAssignment.propertyName);
+  const savedEditingSource = editingAssignment?.fulfillment?.source;
+  const effectiveFulfillmentSource = newAssignment.fulfillmentSource
+    || savedEditingSource
+    || selectedProperty?.fulfillment?.resolvedSource
+    || fulfillmentSettings?.organization?.defaultSource
+    || "afterlight_staff";
+  const effectivePolicy = SOURCE_POLICIES[effectiveFulfillmentSource] || SOURCE_POLICIES.afterlight_staff;
+  const eligibleUsers = users.filter((user) => {
+    const isAfterlightResource = user.accountScope === "afterlight_resource";
+    if (!["afterlight_staff", "afterlight_contractor"].includes(effectiveFulfillmentSource)) {
+      return !isAfterlightResource;
+    }
+    if (!isAfterlightResource) return false;
+    if (effectiveFulfillmentSource === "afterlight_contractor" && user.resourceType !== "contractor") return false;
+    if (effectiveFulfillmentSource === "afterlight_staff" && user.resourceType === "contractor") return false;
+    if (!selectedProperty || !(user.propertyIds || []).length) return true;
+    return user.propertyIds.map(String).includes(String(selectedProperty._id));
+  });
 
   // Handle form submission (New or Editing)
   const handleSaveAssignment = async (e) => {
@@ -92,14 +151,19 @@ function Scheduler() {
       return;
     }
 
+    const effectiveEndDate = newAssignment.endDate || newAssignment.startDate;
     const formattedAssignment = {
       organizationId: storedOrgId,  
       propertyName: newAssignment.propertyName,
       userId: newAssignment.userId,
       startDate: new Date(newAssignment.startDate).toISOString(),
-      endDate: new Date(newAssignment.endDate).toISOString(),
+      endDate: new Date(effectiveEndDate).toISOString(),
       oneTimeCheckRequest: newAssignment.oneTimeCheckRequest, // Include this in the request
     };
+    if (newAssignment.fulfillmentSource) {
+      formattedAssignment.fulfillmentSource = newAssignment.fulfillmentSource;
+      formattedAssignment.fulfillmentOverrideReason = newAssignment.fulfillmentOverrideReason;
+    }
   
     try {
       const response = await fetch(url, {
@@ -127,25 +191,8 @@ function Scheduler() {
           .catch((err) => console.error("❌ Error refreshing assignments:", err));
   
         setEditingAssignment(null);
-        setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+        setNewAssignment(EMPTY_ASSIGNMENT);
   
-        // ✅ Send push notification
-        const notifResponse = await fetch(
-          apiUrl("/api/send-push-notification"),
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              userId: newAssignment.userId,
-              propertyName: newAssignment.propertyName,
-            }),
-          }
-        );
-  
-        await notifResponse.json();
       } else {
         console.error("❌ Server error:", data);
         alert("❌ " + (data.error || "Failed to save assignment."));
@@ -176,7 +223,7 @@ function Scheduler() {
   const handleDeleteAssignment = () => {
     if (!editingAssignment) return;
 
-    if (!window.confirm("Are you sure you want to delete this assignment?")) return;
+    if (!window.confirm("Are you sure you want to cancel this assignment?")) return;
 
     fetch(apiUrl(`/api/assignments/${editingAssignment._id}`), {
       method: "DELETE",
@@ -185,15 +232,32 @@ function Scheduler() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          alert("✅ Assignment deleted successfully!");
+          alert("✅ Assignment canceled successfully!");
           setAssignments(assignments.filter((a) => a._id !== editingAssignment._id));
           setEditingAssignment(null);
-          setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+          setNewAssignment(EMPTY_ASSIGNMENT);
         } else {
-          alert("❌ " + (data.error || "Failed to delete assignment."));
+          alert("❌ " + (data.error || "Failed to cancel assignment."));
         }
       })
       .catch((err) => console.error("Error deleting assignment:", err));
+  };
+
+  const openAssignmentHistory = async () => {
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const response = await fetch(apiUrl("/api/assignments/history"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Unable to load assignment history.");
+      setAssignmentHistory(await response.json());
+    } catch (error) {
+      setHistoryError(error.message || "Unable to load assignment history.");
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   // Handle Double Click (Edit Event)
@@ -202,13 +266,18 @@ function Scheduler() {
     const matchedProperty = properties.find(prop => prop.name === event.title.split(" - ")[0]); 
     const propertyName = matchedProperty ? matchedProperty.name : event.title; // Fallback if not found
   
+    const savedStartDate = event.assignmentStartDate || event.start;
+    const savedEndDate = event.assignmentEndDate || event.end;
+    const isSingleDay = moment(savedStartDate).isSame(moment(savedEndDate), "day");
     setEditingAssignment(event);
     setNewAssignment({
       propertyName: propertyName, // ✅ Ensure correct property is populated
       userId: event.userId,
-      startDate: moment(event.start).format("YYYY-MM-DDTHH:mm"),
-      endDate: moment(event.end).format("YYYY-MM-DDTHH:mm"),
+      startDate: moment(savedStartDate).format("YYYY-MM-DD"),
+      endDate: isSingleDay ? "" : moment(savedEndDate).format("YYYY-MM-DD"),
       oneTimeCheckRequest: event.oneTimeCheckRequest || "",
+      fulfillmentSource: "",
+      fulfillmentOverrideReason: "",
     });
   };
 
@@ -236,11 +305,20 @@ const events = assignments.map((assignment) => {
       title: `${assignment.propertyName} - ${assignedUserEmail}`,
       start: startDate,
       end: endDate,
+      assignmentStartDate: assignment.startDate,
+      assignmentEndDate: assignment.endDate,
       userId: assignment.userId,
       oneTimeCheckRequest: assignment.oneTimeCheckRequest || "",
+      fulfillment: assignment.fulfillment || null,
       allDay: true, // This flag tells react-big-calendar to treat this as an all-day event
     };
   });
+
+  const queueForAssignment = (assignment) => assignment.fulfillment?.queue
+    || SOURCE_POLICIES[fulfillmentSettings?.organization?.defaultSource]?.queue
+    || "afterlight_coverage";
+  const customerAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "customer_assigned");
+  const afterlightAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "afterlight_coverage");
   
 
   return (
@@ -256,12 +334,25 @@ const events = assignments.map((assignment) => {
         actions={<ContextualHelpLink slug="create-a-scheduler-assignment" />}
       />
 
+      <section className="beta-fulfillment-queues" aria-label="Fulfillment queues">
+        <div className="beta-fulfillment-queue customer">
+          <span>Customer Assigned</span>
+          <strong>{customerAssignments.length}</strong>
+          <small>Customer employees and contractors</small>
+        </div>
+        <div className="beta-fulfillment-queue afterlight">
+          <span>Afterlight Coverage</span>
+          <strong>{afterlightAssignments.length}</strong>
+          <small>Afterlight staff and contractor coverage</small>
+        </div>
+      </section>
+
       {/* Form Section */}
       <form onSubmit={handleSaveAssignment} className="assignment-form beta-scheduler-form">
   <label>Property:</label>
   <select
     value={newAssignment.propertyName}
-    onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value })}
+    onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value, userId: "", fulfillmentSource: "", fulfillmentOverrideReason: "" })}
     required
   >
     <option value="">Select Property</option>
@@ -277,27 +368,80 @@ const events = assignments.map((assignment) => {
     required
   >
     <option value="">Select User</option>
-    {users.map((user) => (
-      <option key={user._id} value={user._id}>{user.email}</option>
+    {eligibleUsers.map((user) => (
+      <option key={user._id} value={user._id}>
+        {schedulerAssigneeLabel(user)}
+      </option>
     ))}
   </select>
 
+  <label>Fulfillment:</label>
+  <select
+    value={newAssignment.fulfillmentSource}
+    onChange={(e) => setNewAssignment({ ...newAssignment, userId: "", fulfillmentSource: e.target.value })}
+  >
+    <option value="">
+      {editingAssignment
+        ? `Keep saved choice (${FULFILLMENT_LABELS[savedEditingSource] || FULFILLMENT_LABELS[effectiveFulfillmentSource]})`
+        : `Use property default (${FULFILLMENT_LABELS[effectiveFulfillmentSource]})`}
+    </option>
+    {Object.entries(FULFILLMENT_LABELS).filter(([value]) => value !== "legacy").map(([value, label]) => (
+      <option key={value} value={value}>{label}</option>
+    ))}
+  </select>
+
+  <label>Routing:</label>
+  <div className="beta-assignment-routing-preview">
+    <strong>{effectivePolicy.queue === "afterlight_coverage" ? "Afterlight Coverage" : "Customer Assigned"}</strong>
+    <span>{effectivePolicy.invoiceLabel}</span>
+  </div>
+
+  <label>Suggested client amount:</label>
+  <div className="beta-assignment-routing-preview">
+    <strong>{selectedProperty ? propertySuggestedAmount(selectedProperty) : "Select a property"}</strong>
+    <span>Property billing setting</span>
+  </div>
+
+  {newAssignment.fulfillmentSource && (
+    <>
+      <label>Override note:</label>
+      <input
+        type="text"
+        value={newAssignment.fulfillmentOverrideReason}
+        onChange={(e) => setNewAssignment({ ...newAssignment, fulfillmentOverrideReason: e.target.value })}
+        placeholder="Optional reason for this assignment"
+      />
+    </>
+  )}
+
   {/* ✅ Start Date */}
-  <label>Start Date:</label>
+  <label htmlFor="assignment-start-date">Start Date:</label>
 <input
+  id="assignment-start-date"
   type="date"
   value={newAssignment.startDate || ""}
-  onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
+  onChange={(e) => {
+    const startDate = e.target.value;
+    const endDate = newAssignment.endDate && newAssignment.endDate < startDate
+      ? ""
+      : newAssignment.endDate;
+    setNewAssignment({ ...newAssignment, startDate, endDate });
+  }}
   required
 />
 
-<label>End Date:</label>
-<input
-  type="date"
-  value={newAssignment.endDate || ""}
-  onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
-  required
-/>
+<label htmlFor="assignment-end-date">End Date (optional):</label>
+<div className="beta-scheduler-date-field">
+  <input
+    id="assignment-end-date"
+    type="date"
+    min={newAssignment.startDate || undefined}
+    value={newAssignment.endDate || ""}
+    onChange={(e) => setNewAssignment({ ...newAssignment, endDate: e.target.value })}
+    aria-describedby="assignment-end-date-help"
+  />
+  <small id="assignment-end-date-help">Leave blank when the assignment must be completed on the start date.</small>
+</div>
 <label>One-Time Additional Check Request:</label>
 <textarea
   value={newAssignment.oneTimeCheckRequest || ""}
@@ -306,16 +450,29 @@ const events = assignments.map((assignment) => {
   }
   placeholder="Enter any additional request for this specific assignment..."
 />
-  <button type="submit" className="create-button">
-    {editingAssignment ? "Update Assignment" : "Create Assignment"}
-  </button>
-
-  {editingAssignment && (
-    <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
-      Delete Assignment
+  <div className="beta-scheduler-actions">
+    <button type="submit" className="create-button">
+      {editingAssignment ? "Update Assignment" : "Create Assignment"}
     </button>
-  )}
+    <button type="button" className="history-button" onClick={openAssignmentHistory}>
+      Assignment History
+    </button>
+    {editingAssignment && (
+      <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
+        Cancel Assignment
+      </button>
+    )}
+  </div>
 </form>
+
+      {historyOpen && (
+        <AssignmentHistoryDialog
+          assignments={assignmentHistory}
+          loading={historyLoading}
+          error={historyError}
+          onClose={() => setHistoryOpen(false)}
+        />
+      )}
 
       <DndProvider backend={HTML5Backend}>
       <DnDCalendar

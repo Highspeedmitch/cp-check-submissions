@@ -14,6 +14,11 @@ test("organization setup normalizes platform input", () => {
     name: "Example Commercial",
     orgType: "COM",
     reportingTimezone: "America/Phoenix",
+    serviceModel: "managed",
+    fulfillmentPolicy: {
+      defaultSource: "afterlight_staff",
+      version: 1,
+    },
   });
 });
 

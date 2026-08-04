@@ -2,7 +2,14 @@ const mongoose = require("mongoose");
 
 const NotificationSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
+  contextOrganizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", default: null },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  recipientScope: {
+    type: String,
+    enum: ["organization", "afterlight_resource", "platform"],
+    default: "organization",
+    index: true,
+  },
   type: { type: String, required: true },
   title: { type: String, required: true },
   body: { type: String, required: true },
@@ -17,5 +24,6 @@ const NotificationSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 NotificationSchema.index({ organizationId: 1, userId: 1, createdAt: -1 });
+NotificationSchema.index({ recipientScope: 1, userId: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Notification", NotificationSchema);

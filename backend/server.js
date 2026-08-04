@@ -5,6 +5,8 @@ const { initializeFirebase } = require("./config/firebase");
 const { config: validateTotpConfig } = require("./services/totpMfa");
 const { createApp } = require("./app");
 const { purgeExpiredProspectAssessments } = require("./services/prospectRetention");
+const { ensureAssignmentSchedulingIndex } = require("./services/assignmentIndexes");
+const CalendarFeedSubscription = require("./models/calendarFeedSubscription");
 
 const PROSPECT_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -21,28 +23,26 @@ function scheduleProspectCleanup() {
   return timer;
 }
 
-function startInspectionWorkerWhenReady() {
-  mongoose.connection.once("open", () => {
-    if (String(process.env.RUN_INSPECTION_WORKER || "true").toLowerCase() === "false") {
-      return;
-    }
-    require("./services/inspectionWorker").startInspectionWorker();
-    console.log("Inspection job worker started in the web process.");
-  });
-}
-
-function startServer() {
+async function startServer() {
   validateRuntimeConfig();
   validateTotpConfig();
   initializeFirebase();
-  startInspectionWorkerWhenReady();
 
-  mongoose.connect(process.env.MONGO_URI, {
+  await mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-  })
-    .then(() => console.log("MongoDB connected."))
-    .catch((error) => console.error("MongoDB connection error:", error));
+  });
+  console.log("MongoDB connected.");
+  const assignmentIndex = await ensureAssignmentSchedulingIndex();
+  if (assignmentIndex.changed) {
+    console.log("Assignment scheduling index migrated to scheduled-only uniqueness.");
+  }
+  await CalendarFeedSubscription.createIndexes();
+
+  if (String(process.env.RUN_INSPECTION_WORKER || "true").toLowerCase() !== "false") {
+    require("./services/inspectionWorker").startInspectionWorker();
+    console.log("Inspection job worker started in the web process.");
+  }
 
   const port = process.env.PORT || 10000;
   const server = createApp().listen(port, () => {
@@ -53,7 +53,10 @@ function startServer() {
 }
 
 if (require.main === module) {
-  startServer();
+  startServer().catch((error) => {
+    console.error("Server startup error:", error);
+    process.exit(1);
+  });
 }
 
 module.exports = {

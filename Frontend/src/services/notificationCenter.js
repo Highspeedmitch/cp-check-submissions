@@ -2,15 +2,44 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 
 export const NOTIFICATION_SECTIONS = {
-  dashboard: ["assignment_created", "inspection_submitted", "assignment_completed"],
+  dashboard: [
+    "assignment_created",
+    "assignment_rescheduled",
+    "assignment_reassigned",
+    "assignment_canceled",
+    "inspection_submitted",
+    "assignment_completed",
+  ],
   billing: [
     "invoice_submitted",
     "invoice_submitted_for_review",
     "invoice_review_changed",
     "invoice_status_changed",
     "payment_processed",
+    "invoice_ap_delivery_queued",
+    "invoice_ap_delivery_failed",
   ],
   bids: ["bid_request_submitted", "bid_request_received", "bid_request_status_changed"],
+  resources: [
+    "contractor_earning_created",
+    "contractor_earning_approved",
+    "contractor_earning_voided",
+    "gusto_batch_created",
+    "gusto_batch_submitted",
+    "gusto_batch_paid",
+  ],
+  serviceModels: [
+    "service_model_change_requested",
+    "service_model_information_requested",
+    "service_model_information_supplied",
+    "service_model_change_approved",
+    "service_model_change_denied",
+  ],
+  platformBilling: [
+    "invoice_ap_delivery_queued",
+    "invoice_ap_delivery_failed",
+    "afterlight_service_invoice_paid",
+  ],
 };
 
 const PROPERTY_ACTIVITY_TYPES = new Set(["inspection_submitted", "assignment_completed"]);
@@ -19,7 +48,12 @@ export function groupUnreadNotifications(notifications) {
   const unread = notifications.filter((notification) => !notification.readAt);
   return Object.fromEntries(Object.entries(NOTIFICATION_SECTIONS).map(([section, types]) => [
     section,
-    unread.filter((notification) => types.includes(notification.type)).length,
+    unread.filter((notification) => {
+      if (!types.includes(notification.type)) return false;
+      if (section === "platformBilling") return notification.recipientScope === "platform";
+      if (section === "billing") return notification.recipientScope !== "platform";
+      return true;
+    }).length,
   ]));
 }
 
@@ -40,6 +74,9 @@ export function useNotificationBadges(enabled = true) {
     dashboard: 0,
     billing: 0,
     bids: 0,
+    resources: 0,
+    serviceModels: 0,
+    platformBilling: 0,
     propertyActivityRoutes: [],
   });
 

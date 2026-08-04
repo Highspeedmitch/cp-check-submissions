@@ -13,3 +13,18 @@ test("invoice suggestions are distinguishable from submitter-entered amounts", (
   assert.equal(suggested.amountSetBySubmitter, false);
   assert.equal(submitted.amountSetBySubmitter, true);
 });
+
+test("Afterlight service invoices retain platform ownership and preparation audit", () => {
+  const preparedAt = new Date("2026-08-02T12:00:00Z");
+  const invoice = new Invoice({
+    billingOwner: "afterlight_platform",
+    platformPreparation: {
+      preparedBy: "507f191e810c19729de860ed",
+      preparedAt,
+    },
+  });
+
+  assert.equal(invoice.billingOwner, "afterlight_platform");
+  assert.equal(invoice.platformPreparation.preparedBy.toString(), "507f191e810c19729de860ed");
+  assert.equal(invoice.platformPreparation.preparedAt, preparedAt);
+});

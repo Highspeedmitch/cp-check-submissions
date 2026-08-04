@@ -38,6 +38,7 @@ test("organization invitations persist only the token hash and send the one-time
     propertyIds: ["property-1"],
     invitedBy: "admin-1",
     inviterScope: "organization",
+    accountScope: "afterlight_resource",
     UserModel: {
       findOne: () => ({ select: () => ({ lean: async () => null }) }),
     },
@@ -54,9 +55,11 @@ test("organization invitations persist only the token hash and send the one-time
 
   assert.equal(result.delivered, true);
   assert.equal(createdRecord.email, "person@example.com");
+  assert.equal(createdRecord.accountScope, "afterlight_resource");
   assert.equal(createdRecord.tokenHash.length, 64);
   assert.equal(sentMail.text.includes(createdRecord.tokenHash), false);
   assert.match(sentMail.text, /\/join#/);
+  assert.match(sentMail.text, /\/help\/resource-account-setup/);
   assert.match(sentMail.subject, /Example Organization/);
 });
 

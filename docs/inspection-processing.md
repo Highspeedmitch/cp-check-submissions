@@ -30,6 +30,14 @@ The inspection bucket must permit browser POSTs from every deployed frontend ori
 
 The backend AWS identity needs `s3:PutObject`, `s3:GetObject`, and `s3:DeleteObject` for the inspection bucket. Add an S3 lifecycle rule that expires incomplete objects under `inspection-uploads/` after two days as a final safeguard against abandoned browser uploads.
 
+## Amazon SES delivery
+
+Inspection email uses its own `SES_REGION`, `SES_ACCESS_KEY_ID`, and `SES_SECRET_ACCESS_KEY` configuration. Updating the `AWS_*` S3 credentials does not update these separate SES credentials.
+
+If the SES access key is a temporary `ASIA...` credential, also configure the matching `SES_SESSION_TOKEN`. All three values must come from the same temporary credential set. Long-lived `AKIA...` credentials do not use a session token, so remove any stale `SES_SESSION_TOKEN` when switching to one.
+
+The SES identity must be allowed to call `ses:SendRawEmail` in `SES_REGION`, and `SYSTEM_EMAIL_ADDRESS` must be a verified SES identity in that region. Email delivery is best-effort: a delivery failure is recorded on the completed job but does not retry PDF generation or delay the saved submission.
+
 ## Render deployment
 
 The web service runs the worker by default, which makes this change backward-compatible with the current deployment. To isolate PDF work from API traffic:

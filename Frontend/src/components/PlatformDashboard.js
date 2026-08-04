@@ -1,14 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import { storeAuthentication, logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
 import ProspectAssessments from "./ProspectAssessments";
 import ThemeToggle from "./ui/ThemeToggle";
+import PlatformResources from "./PlatformResources";
+import PlatformServiceBilling from "./PlatformServiceBilling";
+import PlatformServiceModelChanges from "./PlatformServiceModelChanges";
+import {
+  NOTIFICATION_SECTIONS,
+  useMarkNotificationsRead,
+  useNotificationBadges,
+} from "../services/notificationCenter";
 
 const EMPTY_ORGANIZATION = {
   name: "",
   orgType: "COM",
+  serviceModel: "managed",
+  defaultFulfillmentSource: "afterlight_staff",
   reportingTimezone: "America/Phoenix",
   initialAdminEmail: "",
 };
@@ -20,6 +30,25 @@ const ORGANIZATION_TYPES = {
   STR: "Short-term rental",
 };
 
+const SERVICE_MODELS = {
+  platform: "Full-stack SaaS",
+  managed: "Managed service",
+  hybrid: "Hybrid",
+};
+
+const SERVICE_MODEL_DEFAULTS = {
+  platform: "customer_employee",
+  managed: "afterlight_staff",
+  hybrid: "customer_employee",
+};
+
+const FULFILLMENT_SOURCES = {
+  customer_employee: "Customer employee",
+  customer_contractor: "Customer contractor",
+  afterlight_staff: "Afterlight staff",
+  afterlight_contractor: "Afterlight contractor",
+};
+
 const TIMEZONES = [
   "America/Phoenix",
   "America/Los_Angeles",
@@ -28,7 +57,7 @@ const TIMEZONES = [
   "America/New_York",
 ];
 
-function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganization, onLogout }) {
+function PlatformNavigation({ open, activeView, notificationBadges, onClose, onView, onNewOrganization, onHelp, onLogout }) {
   const go = (view) => {
     onView(view);
     onClose();
@@ -50,6 +79,10 @@ function PlatformNavigation({ open, activeView, onClose, onView, onNewOrganizati
         <nav>
           <p className="beta-nav-label">Platform</p>
           <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}>Overview</button>
+          <button type="button" className={`beta-nav-item${activeView === "billing" ? " active" : ""}`} onClick={() => go("billing")}><span>Service Billing</span>{notificationBadges.platformBilling > 0 && <span className="beta-nav-badge">{notificationBadges.platformBilling > 9 ? "9+" : notificationBadges.platformBilling}</span>}</button>
+          <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}><span>Resources &amp; Payables</span>{notificationBadges.resources > 0 && <span className="beta-nav-badge">{notificationBadges.resources > 9 ? "9+" : notificationBadges.resources}</span>}</button>
+          <button type="button" className={`beta-nav-item${activeView === "service-models" ? " active" : ""}`} onClick={() => go("service-models")}><span>Service Model Requests</span>{notificationBadges.serviceModels > 0 && <span className="beta-nav-badge">{notificationBadges.serviceModels > 9 ? "9+" : notificationBadges.serviceModels}</span>}</button>
+          <button type="button" className="beta-nav-item" onClick={() => { onHelp(); onClose(); }}>Help Center</button>
           <button type="button" className="beta-nav-item platform-new-org-button" onClick={() => { onNewOrganization(); onClose(); }}>
             <span>New Organization</span><span aria-hidden="true">+</span>
           </button>
@@ -94,6 +127,23 @@ function NewOrganizationDialog({ open, busy, error, onClose, onCreate }) {
           <label className="beta-form-field">Organization type
             <select value={draft.orgType} onChange={(event) => update("orgType", event.target.value)}>
               {Object.entries(ORGANIZATION_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="beta-form-field">Service model
+            <select value={draft.serviceModel} onChange={(event) => {
+              const serviceModel = event.target.value;
+              setDraft((current) => ({
+                ...current,
+                serviceModel,
+                defaultFulfillmentSource: SERVICE_MODEL_DEFAULTS[serviceModel],
+              }));
+            }}>
+              {Object.entries(SERVICE_MODELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="beta-form-field">Default fulfillment
+            <select value={draft.defaultFulfillmentSource} onChange={(event) => update("defaultFulfillmentSource", event.target.value)}>
+              {Object.entries(FULFILLMENT_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
           <label className="beta-form-field">Reporting timezone
@@ -147,15 +197,36 @@ function OrganizationCard({ organization, busy, onEnter, onResendAdminInvite }) 
 
 export default function PlatformDashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [report, setReport] = useState(null);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [activeView, setActiveView] = useState("overview");
+  const [activeView, setActiveView] = useState(() => {
+    const requestedView = searchParams.get("view");
+    return ["overview", "billing", "resources", "service-models", "prospects"].includes(requestedView)
+      ? requestedView
+      : "overview";
+  });
   const [navOpen, setNavOpen] = useState(false);
   const [newOrganizationOpen, setNewOrganizationOpen] = useState(false);
   const [organizationError, setOrganizationError] = useState("");
+  const notificationBadges = useNotificationBadges(true);
+  const activeNotificationTypes = activeView === "billing"
+    ? NOTIFICATION_SECTIONS.platformBilling
+    : activeView === "resources"
+      ? NOTIFICATION_SECTIONS.resources
+      : activeView === "service-models"
+        ? NOTIFICATION_SECTIONS.serviceModels
+        : [];
+  useMarkNotificationsRead(activeNotificationTypes);
+
+  const selectView = useCallback((view) => {
+    setActiveView(view);
+    if (view === "overview") setSearchParams({});
+    else setSearchParams({ view });
+  }, [setSearchParams]);
 
   const loadReport = useCallback(async () => {
     try {
@@ -185,7 +256,7 @@ export default function PlatformDashboard() {
       setMessage(created.invitationDelivered
         ? `${created.name} was created and its administrator invitation was sent to ${created.initialAdminEmail}.`
         : `${created.name} was created, but its administrator invitation could not be delivered. Support can resend the pending invitation.`);
-      setActiveView("overview");
+      selectView("overview");
     } catch (requestError) {
       setOrganizationError(requestError.message);
     } finally {
@@ -241,20 +312,20 @@ export default function PlatformDashboard() {
 
   return (
     <div className="beta-dashboard platform-dashboard">
-      <PlatformNavigation open={navOpen} activeView={activeView} onClose={() => setNavOpen(false)} onView={setActiveView}
-        onNewOrganization={() => { setOrganizationError(""); setNewOrganizationOpen(true); }} onLogout={logout} />
+      <PlatformNavigation open={navOpen} activeView={activeView} notificationBadges={notificationBadges} onClose={() => setNavOpen(false)} onView={selectView}
+        onNewOrganization={() => { setOrganizationError(""); setNewOrganizationOpen(true); }} onHelp={() => navigate("/help")} onLogout={logout} />
       <div className="beta-dashboard-main platform-dashboard-main">
         <div className="beta-mobile-topbar">
           <button type="button" className="beta-menu-button" onClick={() => setNavOpen(true)} aria-label="Open menu">☰</button>
           <strong>Platform</strong><span className="beta-avatar" aria-hidden="true">A</span>
         </div>
         <PageHeader eyebrow="Platform administration"
-          title={activeView === "overview" ? "Organization Overview" : "Complimentary Reports"}
-          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : "Create and manage standalone property opportunity reports."} />
+          title={activeView === "overview" ? "Organization Overview" : activeView === "billing" ? "Service Billing" : activeView === "resources" ? "Resources & Payables" : activeView === "service-models" ? "Service Model Requests" : "Complimentary Reports"}
+          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization contract-change requests." : "Create and manage standalone property opportunity reports."} />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}
 
-        {activeView === "prospects" ? <ProspectAssessments /> : !report ? (
+        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "resources" ? <PlatformResources /> : activeView === "service-models" ? <PlatformServiceModelChanges /> : !report ? (
           <div className="beta-empty-state">Loading platform metrics...</div>
         ) : (
           <>

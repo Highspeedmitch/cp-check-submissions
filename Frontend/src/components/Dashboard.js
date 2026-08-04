@@ -15,6 +15,7 @@ import AdminVerificationDialog from "./dashboard/dialogs/AdminVerificationDialog
 import PropertyRecipientsDialog from "./dashboard/dialogs/PropertyRecipientsDialog";
 import AddPropertyForm from "./dashboard/AddPropertyForm";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import {
   useMarkNotificationsRead,
   useNotificationBadges,
@@ -109,13 +110,36 @@ const handleRegionFilter = async () => {
   const token = localStorage.getItem("token");
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const role = localStorage.getItem("role") || "user";
+  const accountScope = localStorage.getItem("accountScope") || "organization";
   const isManagement = role === "admin" || role === "property_manager";
   const adminOrgType = localStorage.getItem("orgType") || "COM";
+  const [canAccessBilling, setCanAccessBilling] = useState(false);
   const notificationBadges = useNotificationBadges(Boolean(token));
   useMarkNotificationsRead(["assignment_created"]);
   const [loginTime] = useState(
     () => localStorage.getItem("loginTime") || new Date().toISOString()
   );
+
+  useEffect(() => {
+    let active = true;
+    if (!token || adminOrgType !== "COM") {
+      setCanAccessBilling(false);
+      return () => { active = false; };
+    }
+    api.get("/api/billing/access")
+      .then((result) => {
+        if (!active) return;
+        const allowed = Boolean(result?.canAccess);
+        localStorage.setItem("billingAccess", allowed ? "true" : "false");
+        setCanAccessBilling(allowed);
+      })
+      .catch(() => {
+        if (!active) return;
+        localStorage.setItem("billingAccess", "false");
+        setCanAccessBilling(false);
+      });
+    return () => { active = false; };
+  }, [adminOrgType, token]);
 
   // ----------- "Add Property" Admin Flow -----------
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
@@ -350,12 +374,19 @@ useEffect(() => {
       { emails }
     );
     const updatedEmails = result.property.emails || [];
+    const automaticRecipientEmails = result.property.automaticRecipientEmails
+      || emailModalProperty.automaticRecipientEmails
+      || [];
     setProperties((items) => items.map((property) =>
       property._id === emailModalProperty._id
-        ? { ...property, emails: updatedEmails }
+        ? { ...property, emails: updatedEmails, automaticRecipientEmails }
         : property
     ));
-    setEmailModalProperty((property) => ({ ...property, emails: updatedEmails }));
+    setEmailModalProperty((property) => ({
+      ...property,
+      emails: updatedEmails,
+      automaticRecipientEmails,
+    }));
     return updatedEmails;
   };
 
@@ -377,6 +408,7 @@ useEffect(() => {
         lat: parseFloat(form.lat) || 0,
         lng: parseFloat(form.lng) || 0,
         propertyManagerId: form.propertyManagerId || null,
+        defaultFulfillmentSource: form.fulfillmentSource || null,
         ...(adminOrgType === "COM" && {
           propertyCode: form.propertyCode.trim(),
           physicalAddress: form.address.trim(),
@@ -608,7 +640,9 @@ useEffect(() => {
         mileageCount={mileageCount}
         onMileageToggle={handleMileageToggle}
         onLogout={handleLogout}
+        canAccessBilling={canAccessBilling}
         notificationBadges={notificationBadges}
+        accountScope={accountScope}
       />
       {/* STR user action dialog */}
       {showModal && (
@@ -641,6 +675,7 @@ useEffect(() => {
           title="Dashboard"
           actions={(
             <>
+              <WorkspaceSwitcher />
               <ContextualHelpLink label="Help Center" />
               <button type="button" className="beta-back-link" onClick={handleLogout}>Log out</button>
             </>

@@ -48,6 +48,12 @@ const uploadLimiter = limiter({
   keyGenerator: (req) => String(req.user?.userId || req.ip),
 });
 
+const calendarFeedLimiter = limiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 240,
+  message: "Too many calendar refreshes. Please try again later.",
+});
+
 module.exports = {
   apiLimiter,
   loginLimiter,
@@ -55,4 +61,5 @@ module.exports = {
   accountRecoveryLimiter,
   registrationLimiter,
   uploadLimiter,
+  calendarFeedLimiter,
 };

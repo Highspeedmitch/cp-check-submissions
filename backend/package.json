@@ -5,12 +5,18 @@
   "scripts": {
     "test": "node --test",
     "worker:inspections": "node inspectionWorker.js",
-    "grant-platform-admin": "node scripts/grantPlatformAdmin.js"
+    "grant-platform-admin": "node scripts/grantPlatformAdmin.js",
+    "configure-production-organizations": "node scripts/configureProductionOrganizations.js",
+    "provision-dev-platform-admin": "node scripts/provisionDevPlatformAdmin.js",
+    "provision-dev-owner-resource": "node scripts/provisionDevOwnerResource.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": "24.x"
+  },
   "description": "",
   "dependencies": {
     "@okta/jwt-verifier": "^4.0.2",

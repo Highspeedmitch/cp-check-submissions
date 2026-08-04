@@ -21,6 +21,7 @@ export default function InviteRegistration() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
+  const isResourceInvitation = invitation?.accountScope === "afterlight_resource";
 
   useEffect(() => {
     if (!token) return;
@@ -58,9 +59,9 @@ export default function InviteRegistration() {
           <aside className="beta-register-intro">
             <img src="/apple-touch-icon.png" alt="" className="beta-register-logo" />
             <p className="beta-eyebrow">Your Afterlight workspace</p>
-            <h2>Join with the right access from the start.</h2>
-            <p>Your organization and role are secured by your invitation, so account setup stays simple.</p>
-            <ul><li>Organization-bound membership</li><li>Role-based workspace access</li><li>Multi-factor protection where required</li></ul>
+            <h2>{isResourceInvitation ? "One identity for every approved deployment." : "Join with the right access from the start."}</h2>
+            <p>{isResourceInvitation ? "Your Afterlight Resource Network account remains independent from customer organizations." : "Your organization and role are secured by your invitation, so account setup stays simple."}</p>
+            <ul>{isResourceInvitation ? <><li>One shared Afterlight login</li><li>Deployment-based property access</li><li>Relationship-appropriate work and earnings</li></> : <><li>Organization-bound membership</li><li>Role-based workspace access</li><li>Multi-factor protection where required</li></>}</ul>
           </aside>
 
           <section className="beta-panel beta-register-card beta-invite-registration-card">
@@ -79,6 +80,7 @@ export default function InviteRegistration() {
                 <p className="beta-eyebrow">Invitation required</p>
                 <h1>{error ? "This link cannot be used" : "Create an invited account"}</h1>
                 <p>{error || "Afterlight accounts are created from secure invitations sent by a platform or organization administrator."}</p>
+                <Link className="beta-text-button" to="/help/resource-account-setup">Resource account setup help</Link>
                 <Link className="beta-button secondary" to="/login">Return to Sign In</Link>
               </div>
             ) : (
@@ -112,6 +114,7 @@ export default function InviteRegistration() {
                     {submitting ? "Creating account..." : "Accept Invitation and Create Account"}
                   </button>
                   <p className="beta-register-signin">Already registered? <button type="button" onClick={() => navigate("/login")}>Sign in</button></p>
+                  {isResourceInvitation && <p className="beta-register-signin"><Link to="/help/resource-account-setup" target="_blank" rel="noreferrer">Need help setting up your resource account?</Link></p>}
                 </form>
               </>
             )}

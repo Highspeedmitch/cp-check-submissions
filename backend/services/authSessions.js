@@ -33,6 +33,7 @@ function clearRefreshCookie(res) {
 
 function accessTokenPayload(user, authentication = {}) {
   const organization = user.organizationId;
+  const accountScope = authentication.accountScope || user.accountScope || "organization";
   return {
     email: user.email,
     organizationId: organization._id,
@@ -41,6 +42,8 @@ function accessTokenPayload(user, authentication = {}) {
     userId: user._id,
     tokenVersion: user.tokenVersion || 0,
     orgType: organization.orgType,
+    accountScope,
+    availableWorkspaces: authentication.availableWorkspaces || [accountScope],
     ...(authentication.mfaAuthenticatedAt
       ? { mfaAuthenticatedAt: authentication.mfaAuthenticatedAt }
       : {}),
@@ -56,12 +59,14 @@ function authResponse(user, secretKey, authentication = {}) {
     orgType: payload.orgType,
     role: payload.role,
     platformRole: payload.platformRole,
+    accountScope: payload.accountScope,
+    availableWorkspaces: payload.availableWorkspaces,
     assumedOrganization: false,
   };
 }
 
 async function createRefreshSession({
-  user, req, res, expiresAt, mfaAuthenticatedAt, model = RefreshSession,
+  user, req, res, expiresAt, mfaAuthenticatedAt, accountScope, model = RefreshSession,
 }) {
   const token = newRefreshToken();
   const absoluteExpiry = expiresAt || new Date(
@@ -72,6 +77,7 @@ async function createRefreshSession({
     organizationId: user.organizationId._id,
     tokenHash: hashToken(token),
     tokenVersion: user.tokenVersion || 0,
+    accountScope: accountScope || user.accountScope || "organization",
     expiresAt: absoluteExpiry,
     userAgent: req.get?.("user-agent") || "",
     ipAddress: req.ip || "",

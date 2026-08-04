@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
@@ -15,6 +15,9 @@ import {
 function LongTermRental() {
   const { property } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const assignmentId = searchParams.get("assignmentId") || "";
+  const dashboardPath = localStorage.getItem("accountScope") === "afterlight_resource" ? "/resource" : "/dashboard";
 
   const [formData, setFormData] = useState({
     businessName: "",
@@ -62,6 +65,7 @@ function LongTermRental() {
         key: draftKey,
         responses,
         photoGroups: photos,
+        assignmentId,
         metadata: draftMetadata,
       });
 
@@ -71,6 +75,7 @@ function LongTermRental() {
         orgType: "LTR",
         responses,
         photoGroups: photos,
+        assignmentId,
         onProgress: ({ phase, completed, total }) => {
           if (phase === "preparing") setMessage("Preparing photo uploads…");
           if (phase === "uploading") setMessage(`Uploading photo ${completed} of ${total}…`);
@@ -99,7 +104,7 @@ function LongTermRental() {
 
       {!submitted && (
         <div className="return-to-dash">
-          <button onClick={() => navigate("/dashboard")}>Return To Dashboard</button>
+          <button onClick={() => navigate(dashboardPath)}>Return To Dashboard</button>
           <ContextualHelpLink slug="complete-and-submit-an-inspection" />
         </div>
       )}
@@ -107,7 +112,7 @@ function LongTermRental() {
       {submitted ? (
         <div>
           <h2>{message}</h2>
-          <button onClick={() => navigate("/dashboard")}>Return To Dashboard</button>
+          <button onClick={() => navigate(dashboardPath)}>Return To Dashboard</button>
         </div>
       ) : (
         <form onSubmit={handleSubmit}>

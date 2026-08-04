@@ -14,11 +14,11 @@ function renderHelpCenter(role, orgType = "COM") {
 
 beforeEach(() => localStorage.clear());
 
-test("shows only commercial submitter help to a commercial submitter", () => {
+test("shows inspection help without contractor billing to a commercial employee", () => {
   renderHelpCenter("user");
 
   expect(screen.getByRole("heading", { name: "Complete and submit an inspection" })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Prepare and send an invoice for approval" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Prepare and send an invoice for approval" })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Review, approve, or decline an invoice" })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Create and manage a scheduler assignment" })).not.toBeInTheDocument();
 });
@@ -27,6 +27,17 @@ test("omits commercial billing help for a short-term-rental submitter", () => {
 
   expect(screen.getByRole("heading", { name: "Complete and submit an inspection" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: /invoice/i })).not.toBeInTheDocument();
+});
+
+test("shows resource portal guidance instead of organization billing to an Afterlight contractor", () => {
+  localStorage.setItem("accountScope", "afterlight_resource");
+  renderHelpCenter("contractor");
+
+  expect(screen.getByRole("heading", { name: "Set up your Afterlight resource account" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Use the Afterlight Resource Portal" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Complete an assigned Afterlight resource inspection" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Understand your contractor earnings" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /send an invoice/i })).not.toBeInTheDocument();
 });
 
 test("search narrows the role-visible article list", () => {
@@ -38,4 +49,30 @@ test("search narrows the role-visible article list", () => {
 
   expect(screen.getByRole("heading", { name: "Create and manage a scheduler assignment" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Review inspection submissions for a property" })).not.toBeInTheDocument();
+});
+
+test("shows the platform operations guide to a platform administrator", () => {
+  localStorage.setItem("platformRole", "platform_admin");
+  renderHelpCenter("admin");
+
+  expect(screen.getByRole("heading", {
+    name: "Manage Afterlight resources and contractor payables",
+  })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Configure Gusto for Afterlight contractor payments",
+  })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Process Afterlight service invoices",
+  })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", {
+    name: "Create and manage a scheduler assignment",
+  })).not.toBeInTheDocument();
+});
+
+test("hides platform service billing guidance from organization administrators", () => {
+  renderHelpCenter("admin");
+
+  expect(screen.queryByRole("heading", {
+    name: "Process Afterlight service invoices",
+  })).not.toBeInTheDocument();
 });

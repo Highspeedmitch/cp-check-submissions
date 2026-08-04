@@ -41,7 +41,11 @@ Progress messages may say **Preparing secure photo uploads**, **Uploading photo*
 
 The inspection is received when the page displays **Inspection complete**. Select **Return to Dashboard**.
 
-For commercial properties, a new invoice is created automatically after the inspection report finishes processing. Continue with [Prepare and send an invoice for approval](submitter-submit-invoice.md).
+What happens next depends on how the work was assigned:
+
+- **Customer employee:** The inspection goes to the property manager. You do not receive a Billing task.
+- **Customer contractor:** A customer-owned invoice may appear in Billing when the assignment requires it. Continue with [Prepare and send an invoice for approval](submitter-submit-invoice.md).
+- **Afterlight resource:** Afterlight creates and controls any customer service invoice. The resource does not see or edit the customer amount.
 
 ## If something goes wrong
 

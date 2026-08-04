@@ -28,6 +28,7 @@ function Login({ setUser }) {
     localStorage.setItem("loginTime", new Date().toISOString());
     if (setUser) setUser(true);
     if (data.platformRole === "platform_admin") navigate("/platform");
+    else if (data.accountScope === "afterlight_resource") navigate("/resource");
     else if (data.role === "client") navigate("/client/dashboard");
     else navigate(returnTo || "/dashboard");
   };
@@ -41,6 +42,8 @@ function Login({ setUser }) {
         navigate(
           decoded.platformRole === "platform_admin"
             ? "/platform"
+            : decoded.accountScope === "afterlight_resource"
+              ? "/resource"
             : decoded.role === "client"
               ? "/client/dashboard"
               : returnTo || "/dashboard"

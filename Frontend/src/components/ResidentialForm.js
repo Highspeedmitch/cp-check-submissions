@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
@@ -23,6 +23,9 @@ const CONDITION_FIELDS = [
 export default function ResidentialForm() {
   const { property } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const assignmentId = searchParams.get("assignmentId") || "";
+  const dashboardPath = localStorage.getItem("accountScope") === "afterlight_resource" ? "/resource" : "/dashboard";
   const [responses, setResponses] = useState({});
   const [photos, setPhotos] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -45,6 +48,7 @@ export default function ResidentialForm() {
         key: draftKey,
         responses,
         photoGroups: photos,
+        assignmentId,
         metadata: draftMetadata,
       });
       const result = await submitInspectionJob({
@@ -53,6 +57,7 @@ export default function ResidentialForm() {
         orgType: "RES",
         responses,
         photoGroups: photos,
+        assignmentId,
         onProgress: ({ phase, completed, total }) => {
           if (phase === "preparing") setProgress("Preparing photo uploads…");
           if (phase === "uploading") setProgress(`Uploading photo ${completed} of ${total}…`);
@@ -73,7 +78,7 @@ export default function ResidentialForm() {
   return (
     <div className="beta-page">
       <main className="beta-page-shell beta-inspection-page">
-        <PageHeader onBack={() => navigate("/dashboard")} eyebrow={property}
+        <PageHeader onBack={() => navigate(dashboardPath)} eyebrow={property}
           title="Residential Property Inspection Checklist"
           subtitle="Complete the inspection and attach photographic evidence for any concerns."
           actions={<ContextualHelpLink slug="complete-and-submit-an-inspection" />} />
@@ -93,7 +98,7 @@ export default function ResidentialForm() {
         />}
         {submitted ? <section className="beta-panel">
           <h2>Inspection complete</h2>
-          <button className="beta-button" onClick={() => navigate("/dashboard")}>Return to Dashboard</button>
+          <button className="beta-button" onClick={() => navigate(dashboardPath)}>Return to Dashboard</button>
         </section> : <form onSubmit={submit}>
           <section className="beta-panel beta-inspection-section">
             <div className="beta-form-grid">

@@ -18,6 +18,7 @@ async function getPaymentSummary({
     _id: userId,
     organizationId,
     role: "user",
+    organizationArchivedAt: null,
   }).select("username lastPaidDate");
   const user = await queryWithSession(userQuery, session).lean();
   if (!user) return null;

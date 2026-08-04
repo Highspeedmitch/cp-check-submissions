@@ -22,14 +22,14 @@ async function getPlatformOrganizationMetrics({
   recentCutoff.setDate(recentCutoff.getDate() - 30);
 
   const [organizations, users, recentSubmissions, pendingBids, pendingInvoices, pendingAdminInvitations] = await Promise.all([
-    OrganizationModel.aggregate([{
+    OrganizationModel.aggregate([{ $match: { workspaceType: { $ne: "afterlight_workforce" } } }, {
       $project: {
         name: 1,
         orgType: 1,
         propertyCount: { $size: { $ifNull: ["$properties", []] } },
       },
     }, { $sort: { name: 1 } }]),
-    UserModel.aggregate([{ $match: { accountStatus: { $ne: "inactive" } } }, {
+    UserModel.aggregate([{ $match: { accountStatus: { $ne: "inactive" }, organizationArchivedAt: null } }, {
       $group: { _id: "$organizationId", count: { $sum: 1 } },
     }]),
     SubmissionModel.aggregate([{ $match: { submittedAt: { $gte: recentCutoff } } }, {

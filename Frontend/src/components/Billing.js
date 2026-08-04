@@ -10,7 +10,7 @@ function dollars(cents) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }
 
-function statusLabel(status) {
+function statusLabel(invoice) {
   const labels = {
     unbilled: "Draft",
     pending_review: "Awaiting PM Review",
@@ -21,7 +21,25 @@ function statusLabel(status) {
     paid: "Paid",
     void: "Void",
   };
-  return labels[status] || status;
+  if (invoice.status === "submitted" && invoice.delivery?.status === "accepted") {
+    return "AP Email Queued";
+  }
+  if (invoice.status === "submitted" && invoice.delivery?.status === "delivered") {
+    return "Delivered to AP";
+  }
+  return labels[invoice.status] || invoice.status;
+}
+
+function invoiceRoutingLabel(invoice) {
+  const routing = invoice.fulfillmentSnapshot?.invoiceRouting;
+  if (routing === "afterlight_service_billing") return "Afterlight service";
+  if (routing === "customer_accounts_payable") return "Customer contractor";
+  return "Standard billing";
+}
+
+function isAfterlightServiceInvoice(invoice) {
+  return invoice.billingOwner === "afterlight_platform"
+    || invoice.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing";
 }
 
 export default function Billing() {
@@ -177,7 +195,9 @@ export default function Billing() {
   }
 
   async function decline(invoice) {
-    const reason = window.prompt("Why is this invoice being declined? The submitter will use this to revise it.");
+    const reason = window.prompt(isAfterlightServiceInvoice(invoice)
+      ? "Why is this invoice being declined? Afterlight billing will use this to revise it."
+      : "Why is this invoice being declined? The submitter will use this to revise it.");
     if (reason === null) return;
     if (!reason.trim()) {
       setError("A decline reason is required.");
@@ -221,7 +241,7 @@ export default function Billing() {
             {isBusy("approve") ? "Retrying…" : "Retry AP Delivery"}
           </button>
         )}
-        {isOversight && invoice.status === "submitted" && (
+        {isOversight && !isAfterlightServiceInvoice(invoice) && invoice.status === "submitted" && (
           <button className="beta-button compact" disabled={isBusy("mark-paid")} onClick={() => action(invoice._id, "mark-paid")}>
             {isBusy("mark-paid") ? "Updating…" : "Mark Paid"}
           </button>
@@ -318,7 +338,7 @@ export default function Billing() {
                 <option value="unbilled">Draft</option>
                 <option value="pending_review">Awaiting PM review</option>
                 <option value="declined">Needs revision</option>
-                <option value="submitted">Sent to AP</option>
+                <option value="submitted">AP delivery submitted</option>
                 <option value="failed">AP delivery failed</option>
                 <option value="paid">Paid</option>
               </select>
@@ -347,7 +367,7 @@ export default function Billing() {
         </div>
 
         {error && <p className="beta-alert error">{error}</p>}
-        {message && <p className="beta-alert success">{message}</p>}
+        {message && <p className={`beta-alert ${/queued/i.test(message) ? "notice" : "success"}`}>{message}</p>}
         {loading && <div className="beta-empty-state">Loading invoices…</div>}
 
         {!loading && <section className="beta-panel beta-desktop-table">
@@ -355,7 +375,7 @@ export default function Billing() {
             <thead>
               <tr>
                 <th>Property</th><th>Inspection</th>
-                {isOversight && <th>Submitter</th>}
+                {isOversight && <th>Submitter / performer</th>}
                 <th>Amount</th><th>Status</th><th>AP Method</th><th>Actions</th>
               </tr>
             </thead>
@@ -373,11 +393,12 @@ export default function Billing() {
                       : <strong>{dollars(invoice.amountCents)}</strong>}
                   </td>
                   <td>
-                    <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice.status)}</span>
+                    <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice)}</span>
                     {invoice.review?.declineReason && <><br/><small>{invoice.review.declineReason}</small></>}
                     {invoice.delivery?.error && <><br/><small>{invoice.delivery.error}</small></>}
+                    {invoice.delivery?.providerMessageId && <><br/><small>Provider ref: {invoice.delivery.providerMessageId}</small></>}
                   </td>
-                  <td>{invoice.propertySnapshot.apMethod || "download"}</td>
+                  <td>{invoice.propertySnapshot.apMethod || "download"}<br/><small>{invoiceRoutingLabel(invoice)}</small></td>
                   <td><InvoiceActions invoice={invoice} /></td>
                 </tr>
               ))}
@@ -396,15 +417,17 @@ export default function Billing() {
                 </div>
                 <div className="beta-invoice-total">
                   <strong>{dollars(invoice.amountCents)}</strong>
-                  <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice.status)}</span>
+                  <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice)}</span>
                 </div>
               </div>
               <dl className="beta-detail-list">
                 <div><dt>Inspection date</dt><dd>{new Date(invoice.inspectionDate).toLocaleDateString()}</dd></div>
                 <div><dt>AP method</dt><dd>{invoice.propertySnapshot.apMethod || "download"}</dd></div>
-                {isOversight && <div><dt>Submitter</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
+                <div><dt>Billing route</dt><dd>{invoiceRoutingLabel(invoice)}</dd></div>
+                {isOversight && <div><dt>{isAfterlightServiceInvoice(invoice) ? "Inspection performed by" : "Submitter"}</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
                 {invoice.review?.declineReason && <div><dt>Decline reason</dt><dd>{invoice.review.declineReason}</dd></div>}
                 {invoice.delivery?.error && <div><dt>Delivery error</dt><dd>{invoice.delivery.error}</dd></div>}
+                {invoice.delivery?.providerMessageId && <div><dt>Delivery provider reference</dt><dd>{invoice.delivery.providerMessageId}</dd></div>}
                 {invoice.archivedAt && <div><dt>Archived</dt><dd>{new Date(invoice.archivedAt).toLocaleDateString()}</dd></div>}
               </dl>
               {!isOversight && ["unbilled", "declined"].includes(invoice.status) && (

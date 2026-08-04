@@ -9,6 +9,7 @@ const EMAIL_ENV_KEYS = [
   "SES_REGION",
   "SES_ACCESS_KEY_ID",
   "SES_SECRET_ACCESS_KEY",
+  "SES_SESSION_TOKEN",
   "SYSTEM_EMAIL_ADDRESS",
   "SYSTEM_EMAIL_NAME",
 ];
@@ -57,6 +58,17 @@ test("uses Amazon SES as the only email provider", () => {
   }
 });
 
+test("supports temporary Amazon SES credentials with a session token", () => {
+  const previous = preserveEnvironment();
+  try {
+    configureSesEnvironment();
+    process.env.SES_SESSION_TOKEN = "test-session-token";
+    assert.equal(requiredEmailConfig().sessionToken, "test-session-token");
+  } finally {
+    restoreEnvironment(previous);
+  }
+});
+
 test("sends MIME email with attachments through Amazon SES", async () => {
   const previous = preserveEnvironment();
   let request;
@@ -83,6 +95,8 @@ test("sends MIME email with attachments through Amazon SES", async () => {
     }, { sesClient });
 
     assert.equal(result.provider, "ses");
+    assert.equal(result.status, "accepted");
+    assert.equal(result.accepted, true);
     assert.equal(result.messageId, "ses-message-id");
     assert.equal(request.Source, "notifications@afterlightinspections.com");
     const mime = request.RawMessage.Data.toString("utf8");

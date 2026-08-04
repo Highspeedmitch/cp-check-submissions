@@ -4,13 +4,33 @@ These articles cover the most common inspection, billing, and scheduling workflo
 
 The screenshots are source-verified UI illustrations built from the current application. They use fictional names, dates, addresses, and amounts. Your organization may use different property names and checklist questions.
 
+## Afterlight platform administrators
+
+| Task | Article | Typical time |
+| --- | --- | --- |
+| Review and decide organization service model requests | [Review service model change requests](platform-review-service-model-changes.md) | 3-8 minutes |
+| Prepare and reconcile customer invoices for Afterlight-delivered work | [Process Afterlight service invoices](platform-process-service-invoices.md) | 3-5 minutes |
+| Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
+| Configure and operate the Gusto contractor-payment workflow | [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md) | 12-20 minutes |
+
 ## Submitters
 
 | Task | Article | Typical time |
 | --- | --- | --- |
 | Complete assigned property work | [Complete and submit an inspection](submitter-submit-inspection.md) | 5-15 minutes |
+| Subscribe to assigned work in an external calendar | [Connect My Calendar](connect-my-calendar.md) | 3-5 minutes |
 | Create an invoice after a commercial inspection | [Prepare and send an invoice for approval](submitter-submit-invoice.md) | 2-3 minutes |
 | Respond to property-manager feedback | [Revise and resubmit a declined invoice](submitter-revise-invoice.md) | 2-3 minutes |
+
+## Afterlight Resource Network contractors
+
+| Task | Article | Typical time |
+| --- | --- | --- |
+| Accept an invitation and activate an account | [Set up your Afterlight contractor account](resource-account-setup.md) | 3-5 minutes |
+| Find assignments and use the contractor workspace | [Use the Afterlight Resource Portal](resource-portal-overview.md) | 2-3 minutes |
+| Subscribe to assigned work in an external calendar | [Connect My Calendar](connect-my-calendar.md) | 3-5 minutes |
+| Complete assigned work | [Complete an assigned contractor inspection](resource-complete-assignment.md) | 5-15 minutes |
+| Understand earnings and Gusto status | [Understand your contractor earnings](resource-understand-earnings.md) | 2-3 minutes |
 
 ## Property managers
 
@@ -19,23 +39,26 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Approve or return an invoice | [Review, approve, or decline an invoice](property-manager-review-invoice.md) | 2-5 minutes |
 | Open completed inspection reports | [Review inspection submissions for a property](property-manager-review-submissions.md) | 1-2 minutes |
 
-## Organization administrators
+## Organization administrators and property managers
 
 | Task | Article | Typical time |
 | --- | --- | --- |
-| Schedule work for a submitter | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
+| Request a contracted service model change | [Request a service model change](organization-request-service-model-change.md) | 3-5 minutes |
+| Schedule work for a submitter or deployed resource | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
 
-> **Role note:** The current application allows only organization administrators to create, change, or delete Scheduler assignments. Property managers can view activity for their managed properties, but they cannot create assignments.
+> **Role note:** Organization administrators can manage Scheduler assignments across the organization. Property managers can manage assignments only for properties assigned to them.
+
+> **Contractor billing note:** Afterlight Resource Network contractors do not prepare customer invoices. Their earnings appear in the Resource Portal and are paid separately through Gusto.
 
 ## Invoice status quick reference
 
 | Status | Meaning | Who acts next |
 | --- | --- | --- |
-| Draft | The inspection created an invoice that has not been sent for review. | Submitter |
+| Draft | The inspection created an invoice that has not been sent for review. | Submitter, or Afterlight platform billing for Afterlight-delivered work |
 | Awaiting PM Review | The invoice was sent to an assigned property manager. | Property manager |
-| Needs Revision | The property manager returned the invoice with a reason. | Submitter |
+| Needs Revision | The property manager returned the invoice with a reason. | Submitter, or Afterlight platform billing for Afterlight-delivered work |
 | Sending to AP | Approval and delivery are in progress. | No action unless an error appears |
-| Sent to AP | The property manager approved the invoice. | Property manager or administrator can later mark it paid |
+| AP delivery submitted | The property manager approved the invoice. Email delivery may still be queued with the provider. | Platform billing marks Afterlight service invoices paid only after customer payment is received; customer oversight handles customer-contractor invoices |
 | AP Delivery Failed | Approval succeeded, but AP delivery failed. | Property manager retries delivery |
 | Paid | Payment was recorded. | Property manager or administrator may archive it |
 

@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 
-function AdminVerificationDialog({ onVerify, onClose }) {
+function AdminVerificationDialog({
+  onVerify,
+  onClose,
+  title = "Add a new property",
+  description = "Enter your organization passkey to continue to property setup.",
+  continueLabel = "Continue",
+}) {
   const [passkey, setPasskey] = useState("");
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -39,7 +45,7 @@ function AdminVerificationDialog({ onVerify, onClose }) {
       if (!valid) setError("That passkey is not valid. Please try again.");
     } catch (verifyError) {
       console.error("Error verifying passkey:", verifyError);
-      setError("We could not verify the passkey. Please try again.");
+      setError(verifyError.message || "We could not verify the passkey. Please try again.");
     } finally {
       verifyingRef.current = false;
       setVerifying(false);
@@ -57,14 +63,14 @@ function AdminVerificationDialog({ onVerify, onClose }) {
         className="beta-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="add-property-passkey-title"
-        aria-describedby="add-property-passkey-description"
+        aria-labelledby="admin-verification-title"
+        aria-describedby="admin-verification-description"
         onSubmit={handleSubmit}
       >
         <div className="beta-dialog-header">
           <div>
             <span className="beta-eyebrow">Admin verification</span>
-            <h2 id="add-property-passkey-title">Add a new property</h2>
+            <h2 id="admin-verification-title">{title}</h2>
           </div>
           <button
             type="button"
@@ -76,14 +82,14 @@ function AdminVerificationDialog({ onVerify, onClose }) {
             ×
           </button>
         </div>
-        <p id="add-property-passkey-description" className="beta-dialog-copy">
-          Enter your organization passkey to continue to property setup.
+        <p id="admin-verification-description" className="beta-dialog-copy">
+          {description}
         </p>
-        <label className="beta-field" htmlFor="add-property-passkey">
+        <label className="beta-field" htmlFor="admin-verification-passkey">
           <span>Organization passkey</span>
           <input
             ref={inputRef}
-            id="add-property-passkey"
+            id="admin-verification-passkey"
             type="password"
             autoComplete="current-password"
             value={passkey}
@@ -102,7 +108,7 @@ function AdminVerificationDialog({ onVerify, onClose }) {
             Cancel
           </button>
           <button type="submit" className="beta-button" disabled={!passkey.trim() || verifying}>
-            {verifying ? "Verifying…" : "Continue"}
+            {verifying ? "Verifying…" : continueLabel}
           </button>
         </div>
       </form>

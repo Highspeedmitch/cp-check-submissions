@@ -12,6 +12,8 @@ function assumedAccessPayload({ user, organization, platformSessionId }) {
     organizationId: organization._id,
     orgType: organization.orgType,
     platformRole: "platform_admin",
+    accountScope: "organization",
+    availableWorkspaces: ["organization"],
     assumedOrganization: true,
     platformSessionId,
   };
@@ -26,6 +28,8 @@ function createAssumedAccessResponse({ user, organization, platformSessionId, se
     orgType: organization.orgType,
     role: "admin",
     platformRole: "platform_admin",
+    accountScope: "organization",
+    availableWorkspaces: ["organization"],
     assumedOrganization: true,
     platformSessionId,
   };

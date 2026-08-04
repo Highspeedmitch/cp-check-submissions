@@ -1,10 +1,10 @@
 # Create and manage a scheduler assignment
 
-**Audience:** Organization administrators
+**Audience:** Organization administrators and property managers
 
-**Current access:** Administrator only
+**Current access:** Administrators across their organization; property managers for properties assigned to them
 
-Use Scheduler to assign property work to an active user, set the work dates, and include instructions that the submitter will see on their Dashboard and inspection form.
+Use Scheduler to assign property work to an eligible organization user or deployed Afterlight resource, set the work dates, and include instructions shown with the assignment.
 
 ## Create an assignment
 
@@ -13,13 +13,14 @@ Use Scheduler to assign property work to an active user, set the work dates, and
 From the Dashboard navigation, open **Scheduler**, then use the numbered areas in the illustration:
 
 1. Choose the **Property**.
-2. Choose the **User** who will complete the work.
-3. Set the **Start Date** and **End Date**. Avoid dates that overlap another assignment for the same property.
-4. In **One-Time Additional Check Request**, enter only instructions for this assignment. Be concise and do not place passwords, alarm codes, or other secrets here.
-5. Select **Create Assignment**.
-6. Confirm that the new assignment appears on the calendar.
+2. Confirm the **Fulfillment** source. Choose **Afterlight contractor** for a deployed 1099 resource or **Afterlight staff** for a deployed Afterlight employee or owner.
+3. Choose the **User** who will complete the work. The list updates for the selected property and fulfillment source.
+4. Set the required **Start Date**. Leave **End Date (optional)** blank when the work must be completed on that same date. Enter an end date only when the assignee may complete the work during a date range. Avoid dates that overlap another assignment for the same property.
+5. In **One-Time Additional Check Request**, enter only instructions for this assignment. Be concise and do not place passwords, alarm codes, or other secrets here.
+6. Select **Create Assignment**.
+7. Confirm that the new assignment appears on the calendar.
 
-Afterlight adds the assignment to the calendar, displays it under the user’s **My Assignments**, and sends the user an in-app or push notification when available.
+Afterlight adds the assignment to the calendar and sends an in-app or push notification when available. Organization users see the work on their Dashboard. Afterlight resources see it in the Resource Portal. Only 1099 contractor assignments include snapshotted compensation and create a contractor earning after completion.
 
 Some organizations also display an **Event Type** field with options such as **QA Check**, **Maintenance**, and **Cleaning**. Choose the type that matches the work before selecting the user.
 
@@ -34,8 +35,11 @@ You can also drag an assignment to new dates in the calendar. Open it afterward 
 ## If something goes wrong
 
 - **The user is missing:** Only active, eligible users in the organization appear. Check the user’s account and role.
+- **An Afterlight contractor is missing:** Confirm that **Afterlight contractor** is the selected fulfillment source and that the resource has an active deployment for the selected property and date.
+- **An Afterlight employee or owner is missing:** Confirm that **Afterlight staff** is selected and that the resource relationship and deployment are active for the selected property and date.
 - **The assignment overlaps:** Choose different dates or edit the existing assignment for that property.
-- **The assignment is created but the user did not receive a push:** The assignment still appears on their Dashboard. Ask them to sign in and check **My Assignments**.
-- **A property manager cannot create the assignment:** This is expected in the current application. An organization administrator must create, change, or delete Scheduler assignments.
+- **The assignment is created but the user did not receive a push:** Ask them to sign in and check **My Assignments** or the Resource Portal.
+- **A property manager cannot select the property:** An organization administrator must assign that property to the manager before they can schedule its work.
+- **A completed assignment cannot be edited or deleted:** This protects the inspection and any contractor earning created from it.
 
 [Back to the knowledge base](README.md)

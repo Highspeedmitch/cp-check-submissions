@@ -29,6 +29,18 @@ test("access tokens expire in approximately two hours", () => {
   assert.equal(payload.tokenVersion, 3);
   assert.ok(payload.exp - payload.iat >= 7199);
   assert.ok(payload.exp - payload.iat <= 7200);
+  assert.deepEqual(response.availableWorkspaces, ["organization"]);
+});
+
+test("authentication can issue a resource token while retaining both workspace choices", () => {
+  const response = authResponse(userFixture(), "test-secret", {
+    accountScope: "afterlight_resource",
+    availableWorkspaces: ["organization", "afterlight_resource"],
+  });
+  const payload = jwt.verify(response.token, "test-secret");
+  assert.equal(payload.accountScope, "afterlight_resource");
+  assert.deepEqual(payload.availableWorkspaces, ["organization", "afterlight_resource"]);
+  assert.deepEqual(response.availableWorkspaces, ["organization", "afterlight_resource"]);
 });
 
 test("normal authentication retains platform privilege without assuming an organization", () => {
@@ -53,9 +65,11 @@ test("MFA authentication time is carried in access tokens and refresh sessions",
     req: { get: () => "test-agent", ip: "127.0.0.1" },
     res: { cookie: () => {} },
     mfaAuthenticatedAt,
+    accountScope: "afterlight_resource",
     model: { create: async (record) => { saved = record; } },
   });
   assert.equal(saved.mfaAuthenticatedAt, mfaAuthenticatedAt);
+  assert.equal(saved.accountScope, "afterlight_resource");
 });
 
 test("refresh cookies are HTTP-only and use production cross-site protections", () => {

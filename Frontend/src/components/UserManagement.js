@@ -15,18 +15,42 @@ export default function UserManagement() {
   const [busyAction, setBusyAction] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteDraft, setInviteDraft] = useState({ email: "", role: "user", propertyIds: [] });
+  const [directory, setDirectory] = useState("current");
+  const [userSearch, setUserSearch] = useState("");
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveReason, setArchiveReason] = useState("");
 
   const load = useCallback(async () => {
     try {
-      setData(await api.get("/api/admin-users"));
+      setLoading(true);
+      setData(await api.get(`/api/admin-users?directory=${directory}`));
       setError("");
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [directory]);
   useEffect(() => { load(); }, [load]);
+
+  const visibleUsers = data.users.filter((user) => {
+    const search = userSearch.trim().toLowerCase();
+    if (!search) return true;
+    return [user.username, user.email, user.role]
+      .some((value) => String(value || "").toLowerCase().includes(search));
+  });
+
+  function changeDirectory(nextDirectory) {
+    setDirectory(nextDirectory);
+    setSelectedId("");
+    setDraft(null);
+    setPropertyIds([]);
+    setArchiveOpen(false);
+    setArchiveReason("");
+    setUserSearch("");
+    setMessage("");
+    setError("");
+  }
 
   function chooseUser(userId) {
     const user = data.users.find((item) => item._id === userId);
@@ -38,6 +62,47 @@ export default function UserManagement() {
       .map((property) => property._id) : []);
     setMessage("");
     setError("");
+    setArchiveOpen(false);
+    setArchiveReason("");
+  }
+
+  async function archiveUser() {
+    if (!draft || busyAction || archiveReason.trim().length < 3) return;
+    if (!window.confirm(`Archive ${draft.username || draft.email}? They will be removed from the current user directory.`)) return;
+    setBusyAction("archive");
+    setMessage("");
+    setError("");
+    try {
+      const result = await api.post(`/api/admin-users/${selectedId}/archive`, { reason: archiveReason.trim() });
+      setMessage(result.message || "User archived.");
+      setSelectedId("");
+      setDraft(null);
+      setArchiveOpen(false);
+      setArchiveReason("");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function restoreUser() {
+    if (!draft || busyAction || !window.confirm(`Restore ${draft.username || draft.email} to the current user directory?`)) return;
+    setBusyAction("restore");
+    setMessage("");
+    setError("");
+    try {
+      const result = await api.post(`/api/admin-users/${selectedId}/restore`, {});
+      setMessage(result.message || "User restored.");
+      setSelectedId("");
+      setDraft(null);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAction("");
+    }
   }
 
   async function save() {
@@ -149,7 +214,7 @@ export default function UserManagement() {
       {message && <p className="beta-alert success" role="status">{message}</p>}
       {error && <p className="beta-alert error" role="alert">{error}</p>}
 
-      <section className="beta-panel beta-invitation-panel">
+      {directory === "current" && <section className="beta-panel beta-invitation-panel">
         <div className="beta-section-heading">
           <div><h2>Invitations</h2><p>Invite users with their organization and role already assigned.</p></div>
           <button className="beta-button compact" type="button" onClick={() => setInviteOpen((open) => !open)}>
@@ -209,25 +274,55 @@ export default function UserManagement() {
             ))}
           </div>
         )}
-      </section>
+      </section>}
 
       <div className="beta-user-layout">
         <section className="beta-panel beta-user-list">
-          <h2>Users</h2>
+          <div className="beta-section-heading">
+            <div>
+              <h2>{directory === "archived" ? "Archived Users" : "Current Users"}</h2>
+              <p>{directory === "archived" ? "Search retained user records and restore access when appropriate." : "Select a user to review their role and access."}</p>
+            </div>
+          </div>
+          <div className="beta-card-actions">
+            <button type="button" className={`beta-button compact${directory === "current" ? "" : " secondary"}`} onClick={() => changeDirectory("current")}>Current users</button>
+            <button type="button" className={`beta-button compact${directory === "archived" ? "" : " secondary"}`} onClick={() => changeDirectory("archived")}>Find archived user</button>
+          </div>
+          <label className="beta-form-field">Search {directory === "archived" ? "archived" : "current"} users
+            <input type="search" value={userSearch} placeholder="Name, email, or role" onChange={(event) => setUserSearch(event.target.value)} />
+          </label>
           {loading && <div className="beta-empty-state">Loading users…</div>}
           {error && !data.users.length && <p className="beta-alert error">{error}</p>}
-          {data.users.map((user) => (
+          {!loading && !visibleUsers.length && <div className="beta-empty-state">No {directory} users match this search.</div>}
+          {visibleUsers.map((user) => (
             <button key={user._id} onClick={() => chooseUser(user._id)}
               className={`beta-user-row${selectedId === user._id ? " active" : ""}`}>
               <span>{user.username || user.email}</span>
-              <small>{user.role.replace("_", " ")} · {user.accountStatus || "active"}</small>
+              <small>{user.role.replace("_", " ")} · {directory === "archived" ? "archived" : user.accountStatus || "active"}</small>
             </button>
           ))}
         </section>
 
         <section className="beta-panel beta-user-editor">
           {!draft ? <div className="beta-empty-state">Select a user to review or edit.</div> : (
-            <>
+            directory === "archived" ? <>
+              <div className="beta-section-heading">
+                <div><h2>{draft.username || draft.email}</h2><p>Archived organization user</p></div>
+                <span className="beta-status declined">Archived</span>
+              </div>
+              <dl className="platform-resource-facts">
+                <div><dt>Email</dt><dd>{draft.email}</dd></div>
+                <div><dt>Former role</dt><dd>{draft.role.replaceAll("_", " ")}</dd></div>
+                <div><dt>Archived</dt><dd>{draft.organizationArchivedAt ? new Date(draft.organizationArchivedAt).toLocaleString() : "Unknown"}</dd></div>
+                <div><dt>Submissions</dt><dd>{draft.submissionCount || 0}</dd></div>
+                <div><dt>Assignments</dt><dd>{draft.assignmentCount || 0}</dd></div>
+              </dl>
+              <div className="beta-policy-notice"><strong>Archive reason</strong><p>{draft.organizationArchiveReason || "No reason recorded."}</p></div>
+              <p>Restoring returns this record to Current Users. Its previous active or inactive account status is preserved, and property access must be reassigned manually.</p>
+              <button type="button" className="beta-button" disabled={Boolean(busyAction)} onClick={restoreUser}>
+                {busyAction === "restore" ? "Restoring…" : "Restore User"}
+              </button>
+            </> : <>
               <div className="beta-section-heading"><div><h2>{draft.username || draft.email}</h2><p>Edit account details and access.</p></div>
                 <span className={`beta-status ${draft.accountStatus === "active" ? "success" : "declined"}`}>{draft.accountStatus || "active"}</span>
               </div>
@@ -274,7 +369,20 @@ export default function UserManagement() {
                 <button className="beta-button secondary" disabled={Boolean(busyAction)} onClick={sendReset}>
                   {busyAction === "reset" ? "Sending…" : "Send Password Reset"}
                 </button>
+                <button className="beta-button danger" disabled={Boolean(busyAction)} onClick={() => setArchiveOpen((open) => !open)}>
+                  {archiveOpen ? "Cancel Archive" : "Archive User"}
+                </button>
               </div>
+              {archiveOpen && <div className="beta-policy-notice">
+                <strong>Archive this user</strong>
+                <p>They will lose organization access and disappear from Current Users. Historical submissions and assignments remain available.</p>
+                <label className="beta-form-field">Archive reason
+                  <textarea maxLength="500" value={archiveReason} onChange={(event) => setArchiveReason(event.target.value)} placeholder="Why is this user leaving the active directory?" />
+                </label>
+                <button type="button" className="beta-button danger" disabled={Boolean(busyAction) || archiveReason.trim().length < 3} onClick={archiveUser}>
+                  {busyAction === "archive" ? "Archiving…" : "Confirm Archive"}
+                </button>
+              </div>}
             </>
           )}
         </section>

@@ -29,6 +29,7 @@ test("authentication router preserves public session and recovery paths", () => 
     { path: "/auth/okta/challenge", methods: ["post"] },
     { path: "/auth/okta", methods: ["post"] },
     { path: "/auth/refresh", methods: ["post"] },
+    { path: "/auth/workspace", methods: ["post"] },
     { path: "/auth/logout", methods: ["post"] },
     { path: "/forgot-password", methods: ["post"] },
     { path: "/reset-password", methods: ["post"] },
@@ -52,5 +53,68 @@ test("property administration and access-instruction paths remain stable", () =>
   assert.deepEqual(routeInventory(require("../Routes/accessInstructions")), [
     { path: "/:propertyName", methods: ["get"] },
     { path: "/:propertyName", methods: ["put"] },
+  ]);
+});
+
+test("client and AzRoots routes rely on centralized authentication", () => {
+  const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.match(
+    appSource,
+    /app\.use\("\/api\/client", authenticateToken, requireCurrentOrganizationPresence, require\("\.\/Routes\/ClientRoutes"\)\)/
+  );
+  assert.match(
+    appSource,
+    /app\.use\("\/api\/azroots\/properties", authenticateToken, requireCurrentOrganizationPresence, require\("\.\/Routes\/azrootsProperties"\)\)/
+  );
+
+  for (const routeFile of ["ClientRoutes.js", "azrootsProperties.js"]) {
+    const routeSource = fs.readFileSync(
+      path.join(__dirname, "..", "Routes", routeFile),
+      "utf8"
+    );
+    assert.doesNotMatch(routeSource, /authenticateToken/);
+  }
+});
+
+test("payment administration uses the consolidated summary routes", () => {
+  assert.deepEqual(routeInventory(require("../Routes/admin")), [
+    { path: "/users", methods: ["get"] },
+    { path: "/payment-summary/:userId", methods: ["get"] },
+    { path: "/process-payment", methods: ["post"] },
+  ]);
+  assert.deepEqual(routeInventory(require("../Routes/mileageTracking")), [
+    { path: "/start", methods: ["post"] },
+    { path: "/update", methods: ["post"] },
+  ]);
+});
+
+test("billing router exposes the platform-owned service invoice lifecycle", () => {
+  const inventory = routeInventory(require("../Routes/billing"));
+  for (const route of [
+    { path: "/platform-service-invoices", methods: ["get"] },
+    { path: "/platform-service-invoices/:id/amount", methods: ["put"] },
+    { path: "/platform-service-invoices/:id/generate", methods: ["post"] },
+    { path: "/platform-service-invoices/:id/submit", methods: ["post"] },
+    { path: "/platform-service-invoices/:id/mark-paid", methods: ["post"] },
+  ]) {
+    assert.deepEqual(inventory.find((candidate) => candidate.path === route.path), route);
+  }
+});
+
+test("platform resource deployments expose an editable organization and scope path", () => {
+  const inventory = routeInventory(require("../Routes/platformResources"));
+  assert.deepEqual(
+    inventory.find((candidate) => candidate.path === "/deployments/:deploymentId/scope"),
+    { path: "/deployments/:deploymentId/scope", methods: ["put"] }
+  );
+});
+
+test("service model requests expose organization and platform review paths", () => {
+  assert.deepEqual(routeInventory(require("../Routes/serviceModelChanges")), [
+    { path: "/", methods: ["get"] },
+    { path: "/", methods: ["post"] },
+    { path: "/:id/respond", methods: ["post"] },
+    { path: "/platform", methods: ["get"] },
+    { path: "/platform/:id/review", methods: ["post"] },
   ]);
 });

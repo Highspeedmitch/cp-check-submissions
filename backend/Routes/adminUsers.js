@@ -4,6 +4,8 @@ const { buildFrontendUrl } = require("../utils/frontendUrls");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
+const Assignment = require("../models/assignment");
+const Submission = require("../models/submission");
 const PlatformAudit = require("../models/platformAudit");
 const OrganizationInvitation = require("../models/organizationInvitation");
 const {
@@ -13,11 +15,16 @@ const {
 const { revokeUserSessions } = require("../services/authSessions");
 const { sendSystemEmail } = require("../services/systemEmail");
 const {
+  archiveOrganizationUser,
+  restoreOrganizationUser,
+} = require("../services/directoryArchival");
+const {
   ORGANIZATION_INVITE_ROLES,
   createInvitation,
   resendInvitation,
   expireInvitations,
 } = require("../services/organizationInvitations");
+const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "client", "contractor", "cleaner"];
@@ -29,20 +36,43 @@ router.use((req, res, next) => {
 
 router.get("/", async (req, res) => {
   await expireInvitations({ organizationId: req.user.organizationId });
+  const directory = req.query.directory === "archived" ? "archived" : "current";
+  const search = String(req.query.search || "").trim().slice(0, 100);
+  const userQuery = {
+    organizationId: req.user.organizationId,
+    role: { $in: editableRoles },
+    organizationArchivedAt: directory === "archived" ? { $ne: null } : null,
+  };
+  if (search) {
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    userQuery.$or = [
+      { username: { $regex: escaped, $options: "i" } },
+      { email: { $regex: escaped, $options: "i" } },
+      { role: { $regex: escaped, $options: "i" } },
+    ];
+  }
   const [organization, users, invitations] = await Promise.all([
     Organization.findById(req.user.organizationId).lean(),
-    User.find({
-      organizationId: req.user.organizationId,
-      role: { $in: editableRoles },
-    }).select("username email role accountStatus tokenVersion").sort({ username: 1 }).lean(),
+    User.find(userQuery)
+      .select("username email role accountStatus tokenVersion organizationArchivedAt organizationArchivedBy organizationArchiveReason")
+      .sort({ username: 1 }).lean(),
     OrganizationInvitation.find({
       organizationId: req.user.organizationId,
       status: { $in: ["pending", "expired"] },
     }).select("email role propertyIds status expiresAt lastSentAt createdAt")
       .sort({ createdAt: -1 }).lean(),
   ]);
+  const usersWithStats = directory === "archived"
+    ? await Promise.all(users.map(async (user) => {
+        const [submissionCount, assignmentCount] = await Promise.all([
+          Submission.countDocuments({ organizationId: req.user.organizationId, userId: user._id }),
+          Assignment.countDocuments({ organizationId: req.user.organizationId, userId: user._id }),
+        ]);
+        return { ...user, submissionCount, assignmentCount };
+      }))
+    : users;
   res.json({
-    users,
+    users: usersWithStats,
     invitations,
     properties: organization.properties.map((property) => ({
       _id: property._id,
@@ -51,6 +81,53 @@ router.get("/", async (req, res) => {
       clientOwners: property.clientOwners || [],
     })),
   });
+});
+
+function archivalError(res, error, fallback) {
+  return res.status(error.status || 500).json({
+    error: error.status ? error.message : fallback,
+    ...(error.code ? { code: error.code } : {}),
+    ...(error.scheduledAssignments ? { scheduledAssignments: error.scheduledAssignments } : {}),
+  });
+}
+
+router.post("/:userId/archive", async (req, res) => {
+  try {
+    const result = await archiveOrganizationUser({
+      organizationId: req.user.organizationId,
+      userId: req.params.userId,
+      actorUserId: req.user.userId,
+      reason: req.body.reason,
+    });
+    return res.json({
+      message: "User archived. Their organization access and current property assignments were removed.",
+      userId: result.user._id,
+      removedPropertyIds: result.removedPropertyIds,
+    });
+  } catch (error) {
+    console.error("User archive error:", error.message);
+    return archivalError(res, error, "Unable to archive the user.");
+  }
+});
+
+router.post("/:userId/restore", async (req, res) => {
+  try {
+    const result = await restoreOrganizationUser({
+      organizationId: req.user.organizationId,
+      userId: req.params.userId,
+      actorUserId: req.user.userId,
+    });
+    return res.json({
+      message: result.user.accountStatus === "inactive"
+        ? "User restored to the current directory. Their account remains inactive."
+        : "User restored to the current directory.",
+      userId: result.user._id,
+      accountStatus: result.user.accountStatus,
+    });
+  } catch (error) {
+    console.error("User restore error:", error.message);
+    return archivalError(res, error, "Unable to restore the user.");
+  }
 });
 
 router.post("/invitations", async (req, res) => {
@@ -103,7 +180,7 @@ router.post("/invitations", async (req, res) => {
     if (error?.code === 11000) {
       return res.status(409).json({ error: "A pending invitation already exists for that email address." });
     }
-    if (/valid invitation|already belongs|Administrator invitations/i.test(error.message || "")) {
+    if (/valid invitation|already belongs|archived user|Administrator invitations/i.test(error.message || "")) {
       return res.status(400).json({ error: error.message });
     }
     console.error("Invitation creation error:", error.message);
@@ -162,6 +239,7 @@ router.put("/:userId", async (req, res) => {
       _id: req.params.userId,
       organizationId: req.user.organizationId,
       role: { $ne: "admin" },
+      organizationArchivedAt: null,
     });
     if (!user) return res.status(404).json({ error: "Editable user not found." });
 
@@ -204,6 +282,9 @@ router.put("/:userId", async (req, res) => {
       if (assignedIds.has(property._id.toString())) {
         const assignmentField = role === "client" ? "clientOwners" : "propertyManagers";
         property[assignmentField].push(user._id);
+        if (role === "property_manager") {
+          property.emails = withoutAutomaticPropertyEmails(property.emails, [email]);
+        }
       }
     });
     user.username = username.trim();
@@ -246,6 +327,7 @@ router.post("/:userId/send-password-reset", async (req, res) => {
       _id: req.params.userId,
       organizationId: req.user.organizationId,
       role: { $ne: "admin" },
+      organizationArchivedAt: null,
     });
     if (!user) return res.status(404).json({ error: "User not found." });
     const resetToken = crypto.randomBytes(32).toString("hex");

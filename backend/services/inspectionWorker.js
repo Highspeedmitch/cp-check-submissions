@@ -18,8 +18,20 @@ const {
 } = require("./billingPolicy");
 const { resolveBillingAddress } = require("./propertyAddresses");
 const { sendSystemEmail } = require("./systemEmail");
-const { sendUserNotification } = require("./notifications");
-const { inspectionSubmitted, assignmentCompleted } = require("./notificationEvents");
+const {
+  notifyPlatformAdministrators,
+  sendUserNotification,
+} = require("./notifications");
+const {
+  assignmentCompleted,
+  contractorEarningCreated,
+  inspectionSubmitted,
+} = require("./notificationEvents");
+const { resolveDirectSubmissionFulfillment } = require("./fulfillmentPolicy");
+const { ensureContractorEarning } = require("./contractorEarnings");
+const { billingOwnerForFulfillment } = require("./serviceBilling");
+const { prepareAfterlightServiceInvoiceForReview } = require("./invoiceReview");
+const { mergePropertyInspectionRecipients } = require("./propertyEmails");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -80,7 +92,21 @@ async function ensurePdf(job) {
   return generated;
 }
 
-async function ensureSubmission(job, organization, property) {
+function assignmentFulfillmentSnapshot(assignment, organization, job) {
+  if (!assignment?.fulfillment?.source) {
+    return resolveDirectSubmissionFulfillment({
+      organization,
+      actorUserId: job.userId,
+    });
+  }
+  const stored = typeof assignment.fulfillment.toObject === "function"
+    ? assignment.fulfillment.toObject()
+    : assignment.fulfillment;
+  return { ...stored };
+}
+
+async function ensureSubmission(job, organization, property, assignment) {
+  const initialFulfillment = assignmentFulfillmentSnapshot(assignment, organization, job);
   let submission = job.submissionId
     ? await Submission.findById(job.submissionId)
     : await Submission.findOne({ processingJobId: job._id });
@@ -96,13 +122,22 @@ async function ensureSubmission(job, organization, property) {
           submittedAt: job.createdAt,
           responses: job.submissionData,
           templateSnapshot: job.templateSnapshot,
+          assignmentId: assignment?._id || null,
+          fulfillmentSnapshot: initialFulfillment,
           processingJobId: job._id,
         },
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
   }
-  if (job.orgType === "COM") {
+  if (!submission.fulfillmentSnapshot
+    || (!assignment && submission.fulfillmentSnapshot.source === "legacy")) {
+    submission.fulfillmentSnapshot = initialFulfillment;
+    submission.assignmentId = assignment?._id || null;
+    await submission.save();
+  }
+  const fulfillmentSnapshot = submission.fulfillmentSnapshot || initialFulfillment;
+  if (job.orgType === "COM" && fulfillmentSnapshot.invoiceRequired !== false) {
     const { policy } = await ensureOrganizationBillingPolicy(job.organizationId);
     await Invoice.findOneAndUpdate(
       { submissionId: submission._id },
@@ -112,9 +147,11 @@ async function ensureSubmission(job, organization, property) {
           propertyId: property._id,
           submissionId: submission._id,
           submitterId: job.userId,
+          billingOwner: billingOwnerForFulfillment(fulfillmentSnapshot),
           inspectionDate: submission.submittedAt,
           amountCents: property.defaultInspectionAmountCents || null,
           policySnapshot: createPolicySnapshot(policy),
+          fulfillmentSnapshot,
           propertySnapshot: {
             name: property.name,
             propertyCode: property.propertyCode,
@@ -131,21 +168,30 @@ async function ensureSubmission(job, organization, property) {
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
+  } else if (job.orgType === "COM") {
+    await Invoice.updateMany(
+      {
+        submissionId: submission._id,
+        status: { $in: ["unbilled", "pending_review", "declined", "failed"] },
+      },
+      {
+        $set: { status: "void" },
+        $push: { statusHistory: { status: "void", changedBy: job.userId } },
+      }
+    );
   }
+  const contractorEarning = assignment
+    ? await ensureContractorEarning({ assignment, submission, property })
+    : null;
   if (!job.submissionId) {
     job.submissionId = submission._id;
     await job.save();
   }
-  return submission;
+  return { submission, contractorEarning };
 }
 
-async function deliverNotifications(job, property, submission) {
+async function deliverNotifications(job, property, submission, assignment, contractorEarning) {
   if (job.notificationsSentAt) return;
-  const assignment = await Assignment.findOne({
-    organizationId: job.organizationId,
-    propertyName: job.propertyName,
-    userId: job.userId,
-  });
   const propertyManagerIds = [...new Set(
     (property.propertyManagers || []).map((id) => id.toString())
   )];
@@ -170,7 +216,33 @@ async function deliverNotifications(job, property, submission) {
       ...event,
     });
   }
-  if (assignment) await Assignment.deleteOne({ _id: assignment._id });
+  if (contractorEarning) {
+    await Promise.all([
+      sendUserNotification({
+        organizationId: contractorEarning.organizationId,
+        contextOrganizationId: contractorEarning.organizationId,
+        userId: contractorEarning.userId,
+        recipientScope: "afterlight_resource",
+        ...contractorEarningCreated(contractorEarning, property.name),
+      }),
+      notifyPlatformAdministrators({
+        event: contractorEarningCreated(contractorEarning, property.name, { platform: true }),
+        contextOrganizationId: contractorEarning.organizationId,
+      }),
+    ]);
+  }
+  if (assignment) {
+    await Assignment.updateOne(
+      { _id: assignment._id, status: "scheduled" },
+      {
+        $set: {
+          status: "completed",
+          completedAt: submission.submittedAt || new Date(),
+        },
+        $inc: { calendarSequence: 1 },
+      }
+    );
+  }
   job.notificationsSentAt = new Date();
   await job.save();
 }
@@ -196,6 +268,51 @@ function inspectionEmail(job, recipientEmails, pdfBuffer) {
   };
 }
 
+async function deliverInspectionEmail(
+  job,
+  recipients,
+  generated,
+  { sendEmail = sendSystemEmail } = {}
+) {
+  if (job.emailSentAt) return { sent: true, warning: "" };
+  if (!recipients.length) {
+    const warning = "No inspection email recipient is configured.";
+    job.emailError = warning;
+    console.error(`Inspection email delivery skipped for job ${job._id}: ${warning}`);
+    return { sent: false, warning };
+  }
+  try {
+    await sendEmail(inspectionEmail(job, recipients, generated.pdfBuffer));
+    job.emailSentAt = new Date();
+    job.emailError = "";
+    return { sent: true, warning: "" };
+  } catch (error) {
+    const warning = String(error?.message || "Inspection email delivery failed.").slice(0, 500);
+    job.emailError = warning;
+    console.error(`Inspection email delivery failed for job ${job._id}:`, warning);
+    return { sent: false, warning };
+  }
+}
+
+async function deliverInspectionEmailWithReviewFallback(
+  job,
+  recipients,
+  generated,
+  invoiceReviewResult,
+  { deliverStandalone = deliverInspectionEmail } = {}
+) {
+  const reviewEmailSentAt = invoiceReviewResult?.invoice?.review?.emailSentAt;
+  if (reviewEmailSentAt) {
+    job.emailSentAt = reviewEmailSentAt;
+    job.emailError = "";
+    return { sent: true, warning: "", delivery: "invoice_review" };
+  }
+  return {
+    ...await deliverStandalone(job, recipients, generated),
+    delivery: "standalone",
+  };
+}
+
 async function processInspectionJob(job) {
   const organization = await Organization.findById(job.organizationId);
   if (!organization) {
@@ -209,18 +326,55 @@ async function processInspectionJob(job) {
     error.permanent = true;
     throw error;
   }
+  const assignment = job.assignmentId
+    ? await Assignment.findById(job.assignmentId)
+    : await Assignment.findOne({
+        organizationId: job.organizationId,
+        propertyName: job.propertyName,
+        userId: job.userId,
+        status: "scheduled",
+      });
   const generated = await ensurePdf(job);
-  const submission = await ensureSubmission(job, organization, property);
-  await deliverNotifications(job, property, submission);
-
-  if (!job.emailSentAt) {
-    const fallback = process.env.INSPECTION_FALLBACK_EMAIL || process.env.SYSTEM_EMAIL_ADDRESS;
-    const recipients = property.emails?.length ? property.emails : fallback ? [fallback] : [];
-    if (!recipients.length) throw new Error("No inspection email recipient is configured.");
-    await sendSystemEmail(inspectionEmail(job, recipients, generated.pdfBuffer));
-    job.emailSentAt = new Date();
-    job.emailError = "";
+  const { submission, contractorEarning } = await ensureSubmission(
+    job,
+    organization,
+    property,
+    assignment
+  );
+  let invoiceReviewResult = null;
+  if (submission.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing") {
+    const invoice = await Invoice.findOne({ submissionId: submission._id });
+    invoiceReviewResult = await prepareAfterlightServiceInvoiceForReview(invoice, {
+      inspectionPdf: {
+        filename: generated.fileName,
+        content: generated.pdfBuffer,
+      },
+    });
   }
+  await deliverNotifications(job, property, submission, assignment, contractorEarning);
+
+  const managerIds = [...new Set((property.propertyManagers || []).map(String))];
+  const propertyManagers = managerIds.length
+    ? await User.find({
+        _id: { $in: managerIds },
+        organizationId: job.organizationId,
+        role: "property_manager",
+        accountStatus: { $ne: "inactive" },
+        organizationArchivedAt: null,
+      }).select("email").lean()
+    : [];
+  const recipients = mergePropertyInspectionRecipients(
+    property.emails,
+    propertyManagers.map((manager) => manager.email)
+  );
+  const fallback = process.env.INSPECTION_FALLBACK_EMAIL || process.env.SYSTEM_EMAIL_ADDRESS;
+  if (!recipients.length && fallback) recipients.push(fallback);
+  await deliverInspectionEmailWithReviewFallback(
+    job,
+    recipients,
+    generated,
+    invoiceReviewResult
+  );
 
   job.status = "completed";
   job.completedAt = new Date();
@@ -329,4 +483,6 @@ module.exports = {
   processNextInspectionJob,
   cleanupExpiredInspectionUploads,
   startInspectionWorker,
+  deliverInspectionEmail,
+  deliverInspectionEmailWithReviewFallback,
 };

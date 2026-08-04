@@ -8,6 +8,7 @@ function PropertyRecipientsDialog({ property, onSave, onClose }) {
   const savingRef = useRef(false);
   const inputRef = useRef(null);
   const onCloseRef = useRef(onClose);
+  const automaticEmails = property.automaticRecipientEmails || [];
   onCloseRef.current = onClose;
 
   useEffect(() => {
@@ -36,6 +37,14 @@ function PropertyRecipientsDialog({ property, onSave, onClose }) {
       .split(/[\n,;]+/)
       .map((email) => email.trim())
       .filter(Boolean);
+    const automaticEmailSet = new Set(automaticEmails.map((email) => email.toLowerCase()));
+    const duplicateManagerEmail = emails.find((email) =>
+      automaticEmailSet.has(email.toLowerCase())
+    );
+    if (duplicateManagerEmail) {
+      setError(`${duplicateManagerEmail} is already included automatically as an assigned property manager.`);
+      return;
+    }
 
     savingRef.current = true;
     setSaving(true);
@@ -85,10 +94,17 @@ function PropertyRecipientsDialog({ property, onSave, onClose }) {
         </div>
         <p id="property-email-description" className="beta-dialog-copy">
           Inspection reports for <strong>{property.name}</strong> will be sent to
-          these addresses. Enter one address per line, or separate them with commas.
+          the assigned property managers and the additional addresses below.
+          Enter one additional address per line, or separate them with commas.
         </p>
+        <div className="beta-dialog-note" aria-label="Automatic property manager recipients">
+          <strong>Automatic property manager recipients</strong>
+          {automaticEmails.length
+            ? <ul>{automaticEmails.map((email) => <li key={email}>{email}</li>)}</ul>
+            : <p>No property manager is currently assigned.</p>}
+        </div>
         <label className="beta-field" htmlFor="property-recipient-emails">
-          <span>Recipient emails</span>
+          <span>Additional recipient emails</span>
           <textarea
             ref={inputRef}
             id="property-recipient-emails"
@@ -106,7 +122,8 @@ function PropertyRecipientsDialog({ property, onSave, onClose }) {
           />
         </label>
         <p className="beta-dialog-note">
-          Leaving this empty removes all property-specific inspection recipients.
+          Leaving this empty removes additional recipients. Assigned property managers
+          will continue receiving inspection reports automatically.
         </p>
         {error && <p id="property-email-error" className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}

@@ -1,8 +1,14 @@
 const express = require("express");
 const Organization = require("../models/organization");
 const User = require("../models/user");
+const FulfillmentAudit = require("../models/fulfillmentAudit");
 const { canAccessProperty } = require("../services/propertyAccess");
 const { consumeGrant } = require("../services/organizationPasskeys");
+const { normalizePropertyEmails } = require("../services/propertyEmails");
+const {
+  validateFulfillmentSource,
+  propertyDefaultSource,
+} = require("../services/fulfillmentPolicy");
 
 const router = express.Router();
 
@@ -28,12 +34,16 @@ router.post("/add-property", async (req, res) => {
       maintenanceInfo, generalInfo, propertyCode, physicalAddress, billingAddress,
       defaultInspectionAmountCents, apMethod, apEmail, apPortal,
       billingInstructions, purchaseOrder, propertyManagerId,
+      defaultFulfillmentSource,
     } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Property name is required" });
     }
     const isSTR = organization.orgType === "STR";
     const isCOM = organization.orgType === "COM";
+    const fulfillmentOverride = defaultFulfillmentSource
+      ? validateFulfillmentSource(defaultFulfillmentSource)
+      : null;
     if (isCOM && (!propertyCode || !physicalAddress || !billingAddress)) {
       return res.status(400).json({
         error: "Property code, physical address, and billing address are required for commercial properties.",
@@ -46,7 +56,8 @@ router.post("/add-property", async (req, res) => {
         organizationId: organization._id,
         role: "property_manager",
         accountStatus: { $ne: "inactive" },
-      }).select("_id").lean();
+        organizationArchivedAt: null,
+      }).select("_id email").lean();
       if (!assignedPropertyManager) {
         return res.status(400).json({
           error: "Select an active property manager from this organization.",
@@ -57,8 +68,15 @@ router.post("/add-property", async (req, res) => {
       name,
       lat,
       lng,
-      emails: emails || [],
+      emails: normalizePropertyEmails(emails || [], {
+        automaticEmails: assignedPropertyManager ? [assignedPropertyManager.email] : [],
+      }),
       propertyManagers: assignedPropertyManager ? [assignedPropertyManager._id] : [],
+      fulfillmentPolicy: {
+        defaultSource: fulfillmentOverride,
+        updatedBy: fulfillmentOverride ? req.user.userId : null,
+        updatedAt: fulfillmentOverride ? new Date() : null,
+      },
       region,
       ...(isCOM && {
         propertyCode: propertyCode.trim(),
@@ -81,16 +99,43 @@ router.post("/add-property", async (req, res) => {
         customFields: Array.isArray(customFields) ? customFields : [],
       }),
     });
+    const savedProperty = organization.properties[organization.properties.length - 1];
     await organization.save();
-    const savedProperty = organization.properties.find((property) => property.name === name);
+    if (fulfillmentOverride && savedProperty) {
+      await FulfillmentAudit.create({
+        organizationId: organization._id,
+        actorUserId: req.user.userId,
+        entityType: "property",
+        entityId: savedProperty._id.toString(),
+        action: "property_fulfillment_override_created",
+        previousValue: { defaultSource: null },
+        nextValue: {
+          defaultSource: fulfillmentOverride,
+          resolvedSource: propertyDefaultSource(organization, savedProperty),
+        },
+        metadata: {
+          propertyName: savedProperty.name,
+          createdDuringPropertySetup: true,
+          appliesTo: "future_assignments_only",
+        },
+        ipAddress: req.ip || "",
+        userAgent: typeof req.get === "function" ? req.get("user-agent") || "" : "",
+      });
+    }
     return res.json({
       success: true,
       message: "Property added successfully",
       propertyName: savedProperty ? savedProperty.name : null,
+      fulfillmentSource: savedProperty
+        ? propertyDefaultSource(organization, savedProperty)
+        : null,
+      fulfillmentInherited: !fulfillmentOverride,
     });
   } catch (error) {
     console.error("Error adding property:", error);
-    return res.status(500).json({ error: "Server error adding property" });
+    return res.status(error.status || 500).json({
+      error: error.status ? error.message : "Server error adding property",
+    });
   }
 });
 

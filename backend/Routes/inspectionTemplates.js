@@ -6,6 +6,8 @@ const {
   normalizePropertyOverride,
   validateFields,
 } = require("../services/inspectionTemplates");
+const { assignedResourceContext } = require("../services/resourceAccess");
+const requireCurrentOrganizationPresence = require("../middleware/requireCurrentOrganizationPresence");
 
 const router = express.Router();
 
@@ -14,7 +16,7 @@ function sendError(res, error) {
   return res.status(status).json({ error: error.message || "Unable to process inspection template." });
 }
 
-router.get("/organization", async (req, res) => {
+router.get("/organization", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only organization administrators can manage the organization template." });
@@ -26,7 +28,7 @@ router.get("/organization", async (req, res) => {
   }
 });
 
-router.put("/organization", async (req, res) => {
+router.put("/organization", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only organization administrators can manage the organization template." });
@@ -55,10 +57,16 @@ router.put("/organization", async (req, res) => {
 
 router.get("/properties/:propertyName/effective", async (req, res) => {
   try {
-    const result = await resolvePropertyInspectionTemplate({
-      organizationId: req.user.organizationId,
-      propertyName: decodeURIComponent(req.params.propertyName),
+    const context = await assignedResourceContext({
       user: req.user,
+      assignmentId: req.query.assignmentId,
+      propertyName: decodeURIComponent(req.params.propertyName),
+    });
+    const organizationId = context?.organization?._id || req.user.organizationId;
+    const result = await resolvePropertyInspectionTemplate({
+      organizationId,
+      propertyName: decodeURIComponent(req.params.propertyName),
+      user: context ? { ...req.user, role: "admin", organizationId } : req.user,
     });
     res.json({
       property: { _id: result.property._id, name: result.property.name },
@@ -69,7 +77,7 @@ router.get("/properties/:propertyName/effective", async (req, res) => {
   }
 });
 
-router.put("/properties/:propertyId/override", async (req, res) => {
+router.put("/properties/:propertyId/override", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.status(403).json({ error: "Management access required." });

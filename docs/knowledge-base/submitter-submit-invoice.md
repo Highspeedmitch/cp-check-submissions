@@ -27,7 +27,7 @@ After a commercial inspection report finishes processing, Afterlight automatical
 
 The invoice status changes to **Awaiting PM Review**. Afterlight notifies the active property manager assigned to that property and attempts to email the review request.
 
-You cannot change the invoice while it is awaiting review. The status changes to **Sent to AP** if the property manager approves it, or **Needs Revision** if they return it.
+You cannot change the invoice while it is awaiting review. If the property manager approves an email delivery, the status changes to **AP Email Queued** after the email provider accepts it; this does not yet confirm mailbox delivery. Manual and portal submissions show **Sent to AP**. A returned invoice changes to **Needs Revision**.
 
 ## If something goes wrong
 

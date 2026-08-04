@@ -3,11 +3,7 @@ const router = express.Router();
 const Communication = require("../models/Communication");
 const Organization = require("../models/organization");
 const User = require("../models/user");
-const authenticateToken = require("../middleware/authenticateToken");
 const mongoose = require("mongoose");
-
-// ✅ All routes below require authentication
-router.use(authenticateToken);
 
 /**
  * ADMIN: Create a New Communication
@@ -101,6 +97,8 @@ router.post("/assign-client", async (req, res) => {
       email: clientEmail,
       organizationId: req.user.organizationId,
       role: "client",
+      accountStatus: { $ne: "inactive" },
+      organizationArchivedAt: null,
     });
     if (!client) {
       return res.status(404).json({ error: "No registered client with this email." });

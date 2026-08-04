@@ -30,12 +30,21 @@ test("authentication metadata is stored and cleared together", () => {
     organizationId: "org-1",
     orgType: "COM",
     role: "property_manager",
+    accountScope: "afterlight_resource",
+    availableWorkspaces: ["organization", "afterlight_resource"],
   });
   expect(localStorage.getItem("userId")).toBe("user-1");
   expect(localStorage.getItem("role")).toBe("property_manager");
+  expect(localStorage.getItem("accountScope")).toBe("afterlight_resource");
+  expect(JSON.parse(localStorage.getItem("availableWorkspaces"))).toEqual([
+    "organization",
+    "afterlight_resource",
+  ]);
   clearAuthentication();
   expect(localStorage.getItem("token")).toBeNull();
   expect(localStorage.getItem("role")).toBeNull();
+  expect(localStorage.getItem("accountScope")).toBeNull();
+  expect(localStorage.getItem("availableWorkspaces")).toBeNull();
 });
 
 test("assumed organization metadata is stored and cleared", () => {

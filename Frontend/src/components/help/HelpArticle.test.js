@@ -51,8 +51,9 @@ afterEach(() => {
 });
 
 test("loads Markdown and routes local article and image links through the Help Center", async () => {
-  localStorage.setItem("role", "user");
+  localStorage.setItem("role", "contractor");
   localStorage.setItem("orgType", "COM");
+  localStorage.setItem("billingAccess", "true");
   renderArticle("/help/complete-and-submit-an-inspection");
 
   expect(await screen.findByText("Article introduction.")).toBeInTheDocument();
@@ -74,4 +75,14 @@ test("redirects a role that cannot view the requested article", async () => {
 
   expect(await screen.findByText("Help landing")).toBeInTheDocument();
   expect(global.fetch).not.toHaveBeenCalled();
+});
+
+test("loads the public contractor setup article before sign-in", async () => {
+  renderArticle("/help/resource-account-setup");
+
+  expect(await screen.findByText("Article introduction.")).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledWith(
+    "/help/resource-account-setup.md",
+    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  );
 });

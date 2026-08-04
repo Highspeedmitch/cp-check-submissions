@@ -1,13 +1,20 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const { v4: uuidv4 } = require("uuid");
+const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const Invoice = require("../models/invoice");
 const User = require("../models/user");
 const Organization = require("../models/organization");
+const PlatformAudit = require("../models/platformAudit");
 const s3 = require("../awsConfig");
 const { generateInvoicePDF } = require("../invoicePdfService");
-const { sendUserNotification } = require("../services/notifications");
 const {
+  notifyPlatformAdministrators,
+  sendUserNotification,
+} = require("../services/notifications");
+const {
+  afterlightServiceInvoicePaid,
+  invoiceApDeliveryChanged,
   invoiceSubmitted,
   invoiceSubmittedForPropertyManager,
   invoiceReviewChanged,
@@ -19,8 +26,39 @@ const {
 const { resolveBillingAddress } = require("../services/propertyAddresses");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const { sendSystemEmail } = require("../services/systemEmail");
+const { sendApprovedInvoiceToAp } = require("../services/apDelivery");
+const { normalizeEmailAddress } = require("../services/propertyEmails");
+const {
+  isAfterlightServiceInvoice,
+  afterlightServiceInvoiceScope,
+} = require("../services/serviceBilling");
+const { billingWorkspaceAccess } = require("../services/billingAccess");
 
 const router = express.Router();
+
+router.get("/access", async (req, res) => {
+  try {
+    return res.json(await billingWorkspaceAccess(req.user));
+  } catch (error) {
+    console.error("Billing access check error:", error.message);
+    return res.status(500).json({ error: "Unable to verify billing access." });
+  }
+});
+
+router.use(async (req, res, next) => {
+  try {
+    const access = await billingWorkspaceAccess(req.user);
+    if (!access.canAccess) {
+      return res.status(403).json({
+        error: "Billing is not part of this account's assigned responsibilities.",
+      });
+    }
+    req.billingAccess = access;
+    return next();
+  } catch (error) {
+    return res.status(500).json({ error: "Unable to verify billing access." });
+  }
+});
 
 function escapeHtml(value) {
   return String(value || "")
@@ -89,8 +127,15 @@ router.put("/properties/:propertyId", async (req, res) => {
     property.defaultInspectionAmountCents = Number.isInteger(defaultInspectionAmountCents)
       ? defaultInspectionAmountCents
       : null;
-    property.apMethod = apMethod || "download";
-    property.apEmail = apEmail || "";
+    const normalizedApMethod = apMethod || "download";
+    if (!["email", "portal", "download"].includes(normalizedApMethod)) {
+      return res.status(400).json({ error: "Select a valid AP delivery method." });
+    }
+    const normalizedApEmail = normalizedApMethod === "email"
+      ? normalizeEmailAddress(apEmail, "AP email address")
+      : String(apEmail || "").trim().toLowerCase();
+    property.apMethod = normalizedApMethod;
+    property.apEmail = normalizedApEmail;
     property.apPortal = apPortal || "";
     await organization.save();
     await Invoice.updateMany(
@@ -115,14 +160,35 @@ router.put("/properties/:propertyId", async (req, res) => {
         },
       }
     );
+    await Invoice.updateMany(
+      {
+        organizationId: organization._id,
+        propertyId: property._id,
+        status: { $in: ["pending_review", "failed"] },
+      },
+      {
+        $set: {
+          "propertySnapshot.apMethod": property.apMethod,
+          "propertySnapshot.apEmail": property.apEmail,
+          "propertySnapshot.apPortal": property.apPortal,
+        },
+      }
+    );
     res.json(property);
   } catch (error) {
-    res.status(500).json({ error: "Unable to save property billing settings." });
+    res.status(error.status || 500).json({
+      error: error.status ? error.message : "Unable to save property billing settings.",
+    });
   }
 });
 
 function invoiceScope(req, id) {
-  const scope = { _id: id, organizationId: req.user.organizationId };
+  const scope = {
+    _id: id,
+    organizationId: req.user.organizationId,
+    billingOwner: { $ne: "afterlight_platform" },
+    "fulfillmentSnapshot.invoiceRouting": { $ne: "afterlight_service_billing" },
+  };
   if (req.user.role !== "admin") scope.submitterId = req.user.userId;
   return scope;
 }
@@ -142,6 +208,8 @@ async function visibleInvoiceScope(req) {
     };
   } else if (req.user.role !== "admin") {
     scope.submitterId = req.user.userId;
+    scope.billingOwner = { $ne: "afterlight_platform" };
+    scope["fulfillmentSnapshot.invoiceRouting"] = { $ne: "afterlight_service_billing" };
   }
   return scope;
 }
@@ -167,6 +235,7 @@ async function assignedPropertyManagers(invoice, organizationId) {
     organizationId,
     role: "property_manager",
     accountStatus: { $ne: "inactive" },
+    organizationArchivedAt: null,
   }).select("_id username email").lean();
 }
 
@@ -179,6 +248,27 @@ async function notifyPropertyManagersOfSubmittedInvoice(invoice, organizationId,
     sendUserNotification({
       organizationId,
       userId: manager._id,
+      ...event,
+    })
+  ));
+}
+
+async function notifyApDeliveryState(invoice, status) {
+  const organizationId = invoice.organizationId;
+  const event = invoiceApDeliveryChanged(invoice, status);
+  if (isAfterlightServiceInvoice(invoice)) {
+    return notifyPlatformAdministrators({
+      event,
+      contextOrganizationId: organizationId,
+    });
+  }
+  const managers = await assignedPropertyManagers(invoice, organizationId);
+  const recipientIds = new Set(managers.map((manager) => String(manager._id)));
+  if (invoice.submitterId) recipientIds.add(String(invoice.submitterId));
+  return Promise.allSettled([...recipientIds].map((userId) =>
+    sendUserNotification({
+      organizationId,
+      userId,
       ...event,
     })
   ));
@@ -226,44 +316,216 @@ async function emailPropertyManagersForReview(invoice, managers) {
   });
 }
 
-async function sendApprovedInvoiceToAp(invoice, confirmationNumber = "") {
-  const method = invoice.propertySnapshot.apMethod || "download";
-  if (method === "email") {
-    const destination = invoice.propertySnapshot.apEmail;
-    if (!destination) throw new Error("The property has no AP email configured.");
-    const file = await s3.getObject({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: invoice.pdfKey,
-    }).promise();
-    const amount = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(invoice.amountCents / 100);
-    await sendSystemEmail({
-      to: destination,
-      subject: `Approved property inspection invoice ${invoice.invoiceNumber}`,
-      text: [
-        `Invoice ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} has been reviewed and approved by the assigned property manager.`,
-        `Property code: ${invoice.propertySnapshot.propertyCode}`,
-        `Approved amount: ${amount}`,
-        `Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}`,
-        "The approved invoice is attached for processing.",
-      ].join("\n"),
-      attachments: [{
-        filename: `${invoice.invoiceNumber}.pdf`,
-        content: file.Body,
-        contentType: "application/pdf",
-      }],
-    });
-    invoice.delivery.destination = destination;
-  } else {
-    invoice.delivery.destination = invoice.propertySnapshot.apPortal || "Manual AP submission";
-    invoice.delivery.confirmationNumber = confirmationNumber;
-  }
-  invoice.delivery.method = method;
-  invoice.delivery.sentAt = new Date();
-  invoice.delivery.error = "";
+function platformAuditDetails(req, invoice, action, metadata = {}) {
+  return {
+    actorUserId: req.user.userId,
+    action,
+    targetOrganizationId: invoice.organizationId,
+    metadata: { invoiceId: invoice._id, ...metadata },
+    ipAddress: req.ip || "",
+    userAgent: req.get("user-agent") || "",
+  };
 }
+
+function platformInvoiceResult(invoice) {
+  const object = invoice.toObject ? invoice.toObject() : invoice;
+  return {
+    ...object,
+    pdfUrl: object.pdfKey
+      ? s3.getSignedUrl("getObject", {
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: object.pdfKey,
+          Expires: 3600,
+        })
+      : null,
+  };
+}
+
+const PLATFORM_INVOICE_STATUSES = new Set([
+  "unbilled", "pending_review", "declined", "approving", "submitted", "paid", "failed", "void",
+]);
+
+router.get("/platform-service-invoices", requirePlatformAdmin, async (req, res) => {
+  try {
+    const status = String(req.query.status || "").trim();
+    if (status && !PLATFORM_INVOICE_STATUSES.has(status)) {
+      return res.status(400).json({ error: "Select a valid invoice status." });
+    }
+    const query = afterlightServiceInvoiceScope({ archivedAt: null });
+    if (status) query.status = status;
+    const invoices = await Invoice.find(query)
+      .populate("organizationId", "name")
+      .populate("submitterId", "username email")
+      .sort({ createdAt: -1 })
+      .limit(250);
+    return res.json(invoices.map(platformInvoiceResult));
+  } catch (error) {
+    console.error("Platform service invoice list error:", error.message);
+    return res.status(500).json({ error: "Unable to load Afterlight service invoices." });
+  }
+});
+
+router.put("/platform-service-invoices/:id/amount", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const amountCents = Number(req.body.amountCents);
+    if (!Number.isInteger(amountCents) || amountCents <= 0) {
+      return res.status(400).json({ error: "Enter a valid customer invoice amount." });
+    }
+    const invoice = await Invoice.findOneAndUpdate(
+      afterlightServiceInvoiceScope({
+        _id: req.params.id,
+        status: { $in: ["unbilled", "declined"] },
+      }),
+      {
+        $set: {
+          billingOwner: "afterlight_platform",
+          amountCents,
+          amountSetBySubmitter: false,
+          pdfKey: "",
+          status: "unbilled",
+          "platformPreparation.preparedBy": req.user.userId,
+          "platformPreparation.preparedAt": new Date(),
+          "review.requestedBy": null,
+          "review.requestedAt": null,
+          "review.reviewedBy": null,
+          "review.reviewedAt": null,
+          "review.decision": "",
+          "review.declineReason": "",
+          "review.emailSentAt": null,
+          "review.emailError": "",
+        },
+        $push: { statusHistory: { status: "unbilled", changedBy: req.user.userId } },
+      },
+      { new: true }
+    );
+    if (!invoice) return res.status(404).json({ error: "Editable Afterlight service invoice not found." });
+    await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_amount_set", { amountCents }));
+    return res.json(platformInvoiceResult(invoice));
+  } catch (error) {
+    console.error("Platform service invoice amount error:", error.message);
+    return res.status(500).json({ error: "Unable to update the customer invoice amount." });
+  }
+});
+
+router.post("/platform-service-invoices/:id/generate", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const invoice = await Invoice.findOne(afterlightServiceInvoiceScope({
+      _id: req.params.id,
+      status: { $in: ["unbilled", "declined"] },
+    }));
+    if (!invoice) return res.status(404).json({ error: "Afterlight service invoice not found." });
+    if (!invoice.amountCents) return res.status(400).json({ error: "Set the customer amount before generating the invoice." });
+    if (!invoice.propertySnapshot.propertyCode) {
+      return res.status(400).json({ error: "Configure the property's billing code before generating the invoice." });
+    }
+    if (!invoice.invoiceNumber) invoice.invoiceNumber = `${invoice.propertySnapshot.propertyCode}-${Date.now()}`;
+    const buffer = await generateInvoicePDF(invoice);
+    const key = `${invoice.organizationId}/invoices/${uuidv4()}-${invoice.invoiceNumber}.pdf`;
+    await s3.upload({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: "application/pdf",
+      ACL: "private",
+    }).promise();
+    invoice.billingOwner = "afterlight_platform";
+    invoice.pdfKey = key;
+    invoice.status = "unbilled";
+    invoice.platformPreparation.preparedBy = req.user.userId;
+    invoice.platformPreparation.preparedAt = new Date();
+    invoice.review.decision = "";
+    invoice.review.declineReason = "";
+    await invoice.save();
+    await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_generated", {
+      invoiceNumber: invoice.invoiceNumber,
+    }));
+    return res.json(platformInvoiceResult(invoice));
+  } catch (error) {
+    console.error("Platform service invoice generation error:", error.message);
+    return res.status(500).json({ error: "Unable to generate the Afterlight service invoice PDF." });
+  }
+});
+
+router.post("/platform-service-invoices/:id/submit", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const invoice = await Invoice.findOne(afterlightServiceInvoiceScope({
+      _id: req.params.id,
+      status: "unbilled",
+    }));
+    if (!invoice) return res.status(404).json({ error: "Afterlight service invoice not found." });
+    if (!invoice.pdfKey) return res.status(400).json({ error: "Generate the PDF before submitting it." });
+    const organizationId = invoice.organizationId.toString();
+    const managers = await assignedPropertyManagers(invoice, organizationId);
+    if (!managers.length) {
+      return res.status(400).json({
+        error: "Assign an active property manager before submitting this invoice for customer review.",
+      });
+    }
+    invoice.billingOwner = "afterlight_platform";
+    invoice.status = "pending_review";
+    invoice.review.requestedBy = req.user.userId;
+    invoice.review.requestedAt = new Date();
+    invoice.review.reviewedBy = null;
+    invoice.review.reviewedAt = null;
+    invoice.review.decision = "";
+    invoice.review.declineReason = "";
+    invoice.review.emailSentAt = null;
+    invoice.review.emailError = "";
+    invoice.statusHistory.push({ status: "pending_review", changedBy: req.user.userId });
+    await invoice.save();
+    notifyPropertyManagersOfSubmittedInvoice(invoice, organizationId, managers)
+      .catch((notificationError) => console.error("Platform invoice notification error:", notificationError));
+    let warning = "";
+    try {
+      await emailPropertyManagersForReview(invoice, managers);
+      invoice.review.emailSentAt = new Date();
+    } catch (emailError) {
+      console.error("Platform invoice review email error:", emailError);
+      invoice.review.emailError = "Review email delivery failed.";
+      warning = "The invoice is awaiting customer review, but the review email could not be delivered. The property manager was still notified in the app.";
+    }
+    await invoice.save();
+    await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_submitted", {
+      invoiceNumber: invoice.invoiceNumber,
+    }));
+    return res.json({ ...platformInvoiceResult(invoice), warning });
+  } catch (error) {
+    console.error("Platform service invoice submission error:", error.message);
+    return res.status(500).json({ error: "Unable to submit the Afterlight service invoice." });
+  }
+});
+
+router.post("/platform-service-invoices/:id/mark-paid", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const invoice = await Invoice.findOneAndUpdate(
+      afterlightServiceInvoiceScope({ _id: req.params.id, status: "submitted" }),
+      {
+        $set: { billingOwner: "afterlight_platform", status: "paid" },
+        $push: { statusHistory: { status: "paid", changedBy: req.user.userId } },
+      },
+      { new: true }
+    );
+    if (!invoice) return res.status(409).json({ error: "Only a submitted Afterlight service invoice can be marked paid." });
+    await PlatformAudit.create(platformAuditDetails(req, invoice, "afterlight_service_invoice_paid", {
+      invoiceNumber: invoice.invoiceNumber,
+    }));
+    notifyPlatformAdministrators({
+      event: afterlightServiceInvoicePaid(invoice),
+      contextOrganizationId: invoice.organizationId,
+      excludeUserId: req.user.userId,
+    }).catch((notificationError) => {
+      console.error("Platform invoice payment notification error:", notificationError);
+    });
+    return res.json(platformInvoiceResult(invoice));
+  } catch (error) {
+    console.error("Platform service invoice payment error:", error.message);
+    return res.status(500).json({ error: "Unable to mark the Afterlight service invoice paid." });
+  }
+});
 
 router.get("/filter-options", async (req, res) => {
   try {
@@ -602,27 +864,65 @@ router.post("/:id/approve", async (req, res) => {
       return res.status(409).json({ error: "Another reviewer has already acted on this invoice." });
     }
 
-    await sendApprovedInvoiceToAp(invoice, String(req.body.confirmationNumber || "").trim());
+    const deliveryResult = await sendApprovedInvoiceToAp(
+      invoice,
+      String(req.body.confirmationNumber || "").trim()
+    );
     invoice.status = "submitted";
     invoice.statusHistory.push({ status: "submitted", changedBy: req.user.userId });
     await invoice.save();
-    sendUserNotification({
-      organizationId: req.user.organizationId,
-      userId: invoice.submitterId,
-      ...invoiceReviewChanged(invoice, "approved"),
-    }).catch((notificationError) => {
-      console.error("Invoice approval notification error:", notificationError);
-    });
-    res.json(invoice);
+    console.info(JSON.stringify({
+      event: deliveryResult.status === "accepted"
+        ? "invoice_ap_delivery_accepted"
+        : "invoice_ap_delivery_recorded",
+      invoiceId: String(invoice._id),
+      organizationId: String(invoice.organizationId),
+      method: invoice.delivery.method,
+      deliveryStatus: invoice.delivery.status,
+      provider: invoice.delivery.provider,
+      providerMessageId: invoice.delivery.providerMessageId,
+      attemptCount: invoice.delivery.attemptCount,
+    }));
+    if (deliveryResult.status === "accepted") {
+      notifyApDeliveryState(invoice, "queued").catch((notificationError) => {
+        console.error("AP delivery queued notification error:", notificationError);
+      });
+    } else if (!isAfterlightServiceInvoice(invoice)) {
+      sendUserNotification({
+        organizationId: req.user.organizationId,
+        userId: invoice.submitterId,
+        ...invoiceReviewChanged(invoice, "approved"),
+      }).catch((notificationError) => {
+        console.error("Invoice approval notification error:", notificationError);
+      });
+    }
+    res.json({ ...invoice.toObject(), warning: deliveryResult.warning });
   } catch (error) {
-    console.error("Invoice approval error:", error);
     if (invoice) {
       invoice.status = "failed";
+      invoice.delivery.status = "failed";
+      invoice.delivery.failedAt = new Date();
       invoice.delivery.error = error.message || "AP delivery failed.";
+      invoice.delivery.errorCode = String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR");
       invoice.statusHistory.push({ status: "failed", changedBy: req.user.userId });
       await invoice.save().catch(() => {});
+      notifyApDeliveryState(invoice, "failed").catch((notificationError) => {
+        console.error("AP delivery failure notification error:", notificationError);
+      });
     }
-    const configurationError = /no AP email configured/i.test(error.message || "");
+    console.error(JSON.stringify({
+      event: "invoice_ap_delivery_failed",
+      invoiceId: invoice?._id ? String(invoice._id) : String(req.params.id),
+      organizationId: invoice?.organizationId ? String(invoice.organizationId) : String(req.user.organizationId),
+      method: invoice?.delivery?.method || "unknown",
+      deliveryStatus: "failed",
+      provider: invoice?.delivery?.provider || "ses",
+      providerMessageId: invoice?.delivery?.providerMessageId || "",
+      attemptCount: invoice?.delivery?.attemptCount || 0,
+      errorCode: String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR"),
+      errorMessage: String(error.message || "AP delivery failed.").slice(0, 500),
+    }));
+    const configurationError = /no AP email configured|valid AP email address/i.test(error.message || "");
     res.status(configurationError ? 400 : 502).json({
       error: configurationError
         ? error.message
@@ -678,13 +978,15 @@ router.post("/:id/decline", async (req, res) => {
     if (!invoice) {
       return res.status(409).json({ error: "Another reviewer has already acted on this invoice." });
     }
-    sendUserNotification({
-      organizationId: req.user.organizationId,
-      userId: invoice.submitterId,
-      ...invoiceReviewChanged(invoice, "declined"),
-    }).catch((notificationError) => {
-      console.error("Invoice decline notification error:", notificationError);
-    });
+    if (!isAfterlightServiceInvoice(invoice)) {
+      sendUserNotification({
+        organizationId: req.user.organizationId,
+        userId: invoice.submitterId,
+        ...invoiceReviewChanged(invoice, "declined"),
+      }).catch((notificationError) => {
+        console.error("Invoice decline notification error:", notificationError);
+      });
+    }
     res.json(invoice);
   } catch (error) {
     res.status(500).json({ error: "Unable to decline the invoice." });
@@ -696,6 +998,11 @@ router.post("/:id/mark-paid", async (req, res) => {
     const query = { _id: req.params.id, organizationId: req.user.organizationId };
     const invoice = await Invoice.findOne(query);
     if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+    if (isAfterlightServiceInvoice(invoice)) {
+      return res.status(403).json({
+        error: "Afterlight service invoice payment status is managed by platform billing.",
+      });
+    }
     const decision = await evaluateOrganizationBillingAction({
       organizationId: req.user.organizationId,
       action: "mark_paid",

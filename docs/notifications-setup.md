@@ -14,6 +14,28 @@ a possible future native Capacitor application.
 Generate one VAPID key pair and keep it stable. Replacing the key pair requires
 devices to create new subscriptions.
 
+When VAPID or Firebase credentials are absent, workflow events are still saved
+as in-app notifications. This is the expected lower-environment behavior. A
+production deployment begins sending push messages once the credentials are
+configured and each user has enabled a device or browser subscription.
+
+## Operational notification coverage
+
+The following lifecycle transitions use the shared in-app and push delivery
+path:
+
+- AP email delivery accepted by the provider (shown as queued) or failed
+- Afterlight service invoice marked paid
+- Contractor earning created, approved, or voided
+- Gusto payout batch created, submitted, or marked paid
+- Assignment rescheduled, reassigned, or canceled
+- Service-model change requested, information requested or supplied, approved,
+  or denied
+
+Provider acceptance does not prove final mailbox delivery. AP notifications and
+UI copy therefore say **queued** until a later provider delivery event is
+available.
+
 ## PWA requirements
 
 - The application must be served over HTTPS.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, apiUrl } from "../services/api";
 import { submitInspectionJob } from "../services/photoUpload";
 import MultiPhotoField from "./ui/MultiPhotoField";
@@ -15,6 +15,9 @@ import {
 function ShortTermRental() {
   const { property } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const assignmentId = searchParams.get("assignmentId") || "";
+  const dashboardPath = localStorage.getItem("accountScope") === "afterlight_resource" ? "/resource" : "/dashboard";
 
   const [formData, setFormData] = useState({
     businessName: "",
@@ -58,7 +61,7 @@ function ShortTermRental() {
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(
-          apiUrl(`/api/properties/${encodeURIComponent(property)}`),
+          apiUrl(`/api/properties/${encodeURIComponent(property)}${assignmentId ? `?assignmentId=${encodeURIComponent(assignmentId)}` : ""}`),
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -107,6 +110,7 @@ function ShortTermRental() {
             const userAssignment = data.find(
               (assignment) => 
                 assignment.userId === userId && assignment.propertyName === property
+                && (!assignmentId || String(assignment._id) === String(assignmentId))
             );
       
             if (userAssignment) {
@@ -124,7 +128,7 @@ function ShortTermRental() {
       // ✅ Call the new function inside `useEffect`
       fetchAssignmentData();      
     fetchPropertyData();
-  }, [property]);  
+  }, [assignmentId, property]);
 
   // Handle changes for standard text/textarea/select fields
   const handleChange = (e) => {
@@ -159,6 +163,7 @@ function ShortTermRental() {
         key: draftKey,
         responses: draftResponses,
         photoGroups: photos,
+        assignmentId,
         metadata: draftMetadata,
       });
       const responses = {
@@ -171,6 +176,7 @@ function ShortTermRental() {
         orgType,
         responses,
         photoGroups: photos,
+        assignmentId,
         onProgress: ({ phase, completed, total }) => {
           if (phase === "preparing") setMessage("Preparing photo uploads…");
           if (phase === "uploading") setMessage(`Uploading photo ${completed} of ${total}…`);
@@ -199,7 +205,7 @@ function ShortTermRental() {
 
       {!submitted && (
         <div className="return-to-dash">
-          <button onClick={() => navigate("/dashboard")}>Return To Dashboard</button>
+          <button onClick={() => navigate(dashboardPath)}>Return To Dashboard</button>
           <ContextualHelpLink slug="complete-and-submit-an-inspection" />
         </div>
       )}
@@ -207,7 +213,7 @@ function ShortTermRental() {
       {submitted ? (
         <div>
           <h2>{message}</h2>
-          <button onClick={() => navigate("/dashboard")}>Return To Dashboard</button>
+          <button onClick={() => navigate(dashboardPath)}>Return To Dashboard</button>
         </div>
       ) : (
         <form onSubmit={handleSubmit}>

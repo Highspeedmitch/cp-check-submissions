@@ -11,6 +11,16 @@ function dollars(cents) {
   }).format((cents || 0) / 100);
 }
 
+function statusLabel(invoice) {
+  if (invoice.status === "submitted" && invoice.delivery?.status === "accepted") {
+    return "AP email queued";
+  }
+  if (invoice.status === "submitted" && invoice.delivery?.status === "delivered") {
+    return "Delivered to AP";
+  }
+  return invoice.status.replaceAll("_", " ");
+}
+
 export default function InvoiceReview() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -26,10 +36,15 @@ export default function InvoiceReview() {
       .catch((err) => setError(err.message));
   }, [id]);
 
+  const afterlightServiceInvoice = invoice?.billingOwner === "afterlight_platform"
+    || invoice?.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing";
+
   async function decide(action) {
     if (busy) return;
     if (action === "decline" && !reason.trim()) {
-      setError("Enter a reason so the submitter knows what to revise.");
+      setError(afterlightServiceInvoice
+        ? "Enter a reason so Afterlight billing knows what to revise."
+        : "Enter a reason so the submitter knows what to revise.");
       return;
     }
     setBusy(action);
@@ -41,9 +56,11 @@ export default function InvoiceReview() {
         ...updated,
         submitterId: updated.submitterId?.email ? updated.submitterId : current?.submitterId,
       }));
-      setMessage(action === "approve"
+      setMessage(updated.warning || (action === "approve"
         ? "Invoice approved and sent to AP."
-        : "Invoice declined and returned to the submitter.");
+        : afterlightServiceInvoice
+          ? "Invoice declined and returned to Afterlight billing."
+          : "Invoice declined and returned to the submitter."));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -61,12 +78,14 @@ export default function InvoiceReview() {
           onBack={() => navigate("/billing")}
           eyebrow="Property manager review"
           title="Invoice Review"
-          subtitle="Review the contractor invoice before sending it to accounts payable."
+          subtitle={afterlightServiceInvoice
+            ? "Review Afterlight's service invoice before sending it to accounts payable."
+            : "Review the contractor invoice before sending it to accounts payable."}
           actions={<ContextualHelpLink slug="review-an-invoice" />}
         />
 
         {error && <p className="beta-alert error" role="alert">{error}</p>}
-        {message && <p className="beta-alert success" role="status">{message}</p>}
+        {message && <p className={`beta-alert ${/queued/i.test(message) ? "notice" : "success"}`} role="status">{message}</p>}
         {!invoice && !error && <div className="beta-empty-state">Loading invoice…</div>}
 
         {invoice && (
@@ -81,9 +100,11 @@ export default function InvoiceReview() {
             <dl className="beta-detail-list">
               <div><dt>Property code</dt><dd>{invoice.propertySnapshot.propertyCode}</dd></div>
               <div><dt>Inspection date</dt><dd>{new Date(invoice.inspectionDate).toLocaleDateString()}</dd></div>
-              <div><dt>Submitted by</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>
+              <div><dt>{afterlightServiceInvoice ? "Inspection performed by" : "Submitted by"}</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>
+              {afterlightServiceInvoice && <div><dt>Billing owner</dt><dd>Afterlight</dd></div>}
               <div><dt>AP method</dt><dd>{invoice.propertySnapshot.apMethod || "download"}</dd></div>
-              <div><dt>Status</dt><dd>{invoice.status.replaceAll("_", " ")}</dd></div>
+              <div><dt>Status</dt><dd>{statusLabel(invoice)}</dd></div>
+              {invoice.delivery?.providerMessageId && <div><dt>Delivery provider reference</dt><dd>{invoice.delivery.providerMessageId}</dd></div>}
             </dl>
 
             {invoice.pdfUrl && (

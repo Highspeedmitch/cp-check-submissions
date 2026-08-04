@@ -7,6 +7,9 @@ import AssumedAccessBanner from "./components/AssumedAccessBanner";
 import SessionStatusBanner from "./components/SessionStatusBanner";
 import PwaUpdateBanner from "./components/PwaUpdateBanner";
 import { restoreSession, tokenNeedsRefresh } from "./services/session";
+import { helpArticleBySlug } from "./services/helpAccess";
+import { api } from "./services/api";
+import { canAccessExternalConnections } from "./services/externalConnectionsAccess";
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const ClientDashboard = lazy(() => import("./components/ClientDashboard"));
@@ -17,6 +20,7 @@ const FormPage = lazy(() => import("./components/FormPage"));
 const PropertyFormSettings = lazy(() => import("./components/PropertyFormSettings"));
 const OrganizationFormSettings = lazy(() => import("./components/OrganizationFormSettings"));
 const OrganizationSecurity = lazy(() => import("./components/OrganizationSecurity"));
+const ServiceDeliverySettings = lazy(() => import("./components/ServiceDeliverySettings"));
 const Register = lazy(() => import("./components/Register"));
 const InviteRegistration = lazy(() => import("./components/InviteRegistration"));
 const AdminSubmissions = lazy(() => import("./components/AdminSubmissions"));
@@ -38,6 +42,8 @@ const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
 const Reporting = lazy(() => import("./components/Reporting"));
 const PlatformDashboard = lazy(() => import("./components/PlatformDashboard"));
+const ResourceDashboard = lazy(() => import("./components/ResourceDashboard"));
+const ExternalConnections = lazy(() => import("./components/ExternalConnections"));
 const HelpCenter = lazy(() => import("./components/help/HelpCenter"));
 const HelpArticle = lazy(() => import("./components/help/HelpArticle"));
 
@@ -88,14 +94,43 @@ function InvoiceReviewRoute({ user, role }) {
     : <Navigate to="/billing" replace />;
 }
 
-function HelpRoute({ user, platformRole, assumedOrganization, children }) {
+function HelpRoute({ user, children }) {
   const location = useLocation();
-  if (!user) {
+  const slug = location.pathname.match(/^\/help\/([^/]+)$/)?.[1] || "";
+  const publicArticle = Boolean(helpArticleBySlug(slug)?.public);
+  if (!user && !publicArticle) {
     const returnTo = `${location.pathname}${location.search}`;
     return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
   }
-  if (platformRole && !assumedOrganization) return <Navigate to="/platform" replace />;
   return children;
+}
+
+function BillingRoute({ user, role, accountScope }) {
+  const [access, setAccess] = useState(null);
+  useEffect(() => {
+    let active = true;
+    if (!user || role === "client" || accountScope === "afterlight_resource") {
+      setAccess(false);
+      return () => { active = false; };
+    }
+    api.get("/api/billing/access")
+      .then((result) => {
+        if (!active) return;
+        const allowed = Boolean(result?.canAccess);
+        localStorage.setItem("billingAccess", allowed ? "true" : "false");
+        setAccess(allowed);
+      })
+      .catch(() => {
+        if (!active) return;
+        localStorage.setItem("billingAccess", "false");
+        setAccess(false);
+      });
+    return () => { active = false; };
+  }, [accountScope, role, user]);
+
+  if (!user) return <Navigate to="/" />;
+  if (access === null) return <RouteLoading />;
+  return access ? <Billing /> : <Navigate to="/dashboard" replace />;
 }
 
 function App() {
@@ -103,16 +138,29 @@ function App() {
   const [role, setRole] = useState(null);
   const [platformRole, setPlatformRole] = useState(null);
   const [assumedOrganization, setAssumedOrganization] = useState(false);
+  const [accountScope, setAccountScope] = useState(null);
 
   useEffect(() => {
+    const syncStoredSession = () => {
+      setUser(Boolean(localStorage.getItem("token")));
+      setRole(localStorage.getItem("role") || "user");
+      setPlatformRole(localStorage.getItem("platformRole"));
+      setAssumedOrganization(localStorage.getItem("assumedOrganization") === "true");
+      setAccountScope(localStorage.getItem("accountScope") || "organization");
+    };
     const handleSessionCleared = () => {
       setUser(false);
       setRole(null);
       setPlatformRole(null);
       setAssumedOrganization(false);
+      setAccountScope(null);
     };
     window.addEventListener("auth-session-cleared", handleSessionCleared);
-    return () => window.removeEventListener("auth-session-cleared", handleSessionCleared);
+    window.addEventListener("auth-session-changed", syncStoredSession);
+    return () => {
+      window.removeEventListener("auth-session-cleared", handleSessionCleared);
+      window.removeEventListener("auth-session-changed", syncStoredSession);
+    };
   }, []);
 
   useEffect(() => {
@@ -120,6 +168,7 @@ function App() {
       setRole(null);
       setPlatformRole(null);
       setAssumedOrganization(false);
+      setAccountScope(null);
       return;
     }
     const token = localStorage.getItem("token");
@@ -134,6 +183,7 @@ function App() {
         setAssumedOrganization(
           authenticated && localStorage.getItem("assumedOrganization") === "true"
         );
+        setAccountScope(authenticated ? localStorage.getItem("accountScope") || "organization" : null);
       });
       return;
     }
@@ -143,6 +193,7 @@ function App() {
       setRole(null);
       setPlatformRole(null);
       setAssumedOrganization(false);
+      setAccountScope(null);
       return;
     }
 
@@ -157,6 +208,7 @@ function App() {
     }
     setPlatformRole(localStorage.getItem("platformRole"));
     setAssumedOrganization(localStorage.getItem("assumedOrganization") === "true");
+    setAccountScope(localStorage.getItem("accountScope") || "organization");
   }, [user]);
 
   if (user === null) return null;
@@ -171,11 +223,15 @@ function App() {
       <Routes>
       <Route path="/" element={!user
         ? <Login setUser={setUser} />
-        : <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />} />
+        : <Navigate to={platformRole && !assumedOrganization
+          ? "/platform"
+          : accountScope === "afterlight_resource" ? "/resource" : "/dashboard"} />} />
       <Route path="/join" element={<InviteRegistration />} />
       <Route path="/register" element={process.env.REACT_APP_ALLOW_PUBLIC_REGISTRATION === "true" ? <Register /> : <Navigate to="/join" replace />} />
       <Route path="/login" element={user
-        ? <Navigate to={platformRole && !assumedOrganization ? "/platform" : "/dashboard"} />
+        ? <Navigate to={platformRole && !assumedOrganization
+          ? "/platform"
+          : accountScope === "afterlight_resource" ? "/resource" : "/dashboard"} />
         : <Login setUser={setUser} />} />
       <Route path="/login/callback" element={<OktaCallback setUser={setUser} />} />
       <Route path="/login/okta/callback" element={<OktaCallback setUser={setUser} />} />
@@ -184,17 +240,29 @@ function App() {
           ? <PlatformDashboard />
           : <Navigate to="/" />
       } />
+      <Route path="/resource" element={
+        user && accountScope === "afterlight_resource"
+          ? <ResourceDashboard setUser={setUser} />
+          : <Navigate to="/" />
+      } />
 
       {/* ✅ Ensure Clients Redirect Correctly */}
+      <Route path="/external-connections" element={
+        user && canAccessExternalConnections({ role, accountScope })
+          ? <ExternalConnections setUser={setUser} />
+          : <Navigate to="/" />
+      } />
       <Route
         path="/dashboard"
         element={
           user
-            ? platformRole && !assumedOrganization
-              ? <Navigate to="/platform" />
-              : role === "client"
-              ? <Navigate to="/client/dashboard" />
-              : <Dashboard setUser={setUser} />
+            ? accountScope === "afterlight_resource"
+              ? <Navigate to="/resource" />
+              : platformRole && !assumedOrganization
+                ? <Navigate to="/platform" />
+                : role === "client"
+                  ? <Navigate to="/client/dashboard" />
+                  : <Dashboard setUser={setUser} />
             : <Navigate to="/" />
         }
       />
@@ -207,16 +275,23 @@ function App() {
           ? <OrganizationSecurity />
           : <Navigate to="/" />
       } />
+      <Route path="/service-delivery" element={
+        user && role === "admin"
+          ? <ServiceDeliverySettings />
+          : <Navigate to="/" />
+      } />
       <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />
       <Route path="/long-term-rental-form/:property" element={user ? <LongTermRental /> : <Navigate to="/" />} />
       <Route path="/short-term-rental-form/:property" element={user ? <ShortTermRental /> : <Navigate to="/" />} />
       <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/scheduler" element={<SchedulerWrapper />} />
+      <Route path="/scheduler" element={user && ["admin", "property_manager"].includes(role) ? <SchedulerWrapper /> : <Navigate to="/" />} />
       {/* Payments Page - Only Admins */}
       <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
-      <Route path="/billing" element={user && role !== "client" ? <Billing /> : <Navigate to="/" />} />
+      <Route path="/billing" element={
+        <BillingRoute user={user} role={role} accountScope={accountScope} />
+      } />
       <Route path="/billing/review/:id" element={<InvoiceReviewRoute user={user} role={role} />} />
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
       <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />

@@ -4,7 +4,11 @@ const AdminActionGrantSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
   userId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
   tokenHash: { type: String, required: true, unique: true },
-  purpose: { type: String, enum: ["add_property", "remove_property"], required: true },
+  purpose: {
+    type: String,
+    enum: ["add_property", "remove_property", "update_fulfillment_policy"],
+    required: true,
+  },
   passkeyVersion: { type: Number, required: true },
   expiresAt: { type: Date, required: true },
   consumedAt: { type: Date, default: null },

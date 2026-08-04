@@ -10,6 +10,9 @@ const {
 const router = express.Router();
 
 function canViewJob(job, user) {
+  if (user.accountScope === "afterlight_resource") {
+    return String(job.userId) === String(user.userId);
+  }
   return String(job.organizationId) === String(user.organizationId)
     && (String(job.userId) === String(user.userId) || isManagementRole(user));
 }
@@ -25,6 +28,9 @@ function publicJob(job) {
     submissionId: job.submissionId,
     pdfUrl: job.status === "completed" ? job.pdfUrl : "",
     error: job.status === "failed" ? job.lastError : "",
+    warning: job.status === "completed" && job.emailError
+      ? "The inspection completed, but email delivery failed. The report remains available in Afterlight."
+      : "",
   };
 }
 

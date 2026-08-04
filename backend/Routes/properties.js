@@ -1,29 +1,74 @@
 const express = require("express");
 const router = express.Router();
 const Organization = require("../models/organization");
+const User = require("../models/user");
 const Submission = require("../models/submission");
 const Assignment = require("../models/assignment");
 const Invoice = require("../models/invoice");
 const Notification = require("../models/notification");
 const { managedProperties, canAccessProperty } = require("../services/propertyAccess");
-const { normalizePropertyEmails } = require("../services/propertyEmails");
+const {
+  normalizePropertyEmails,
+  withoutAutomaticPropertyEmails,
+} = require("../services/propertyEmails");
 const { normalizePropertyDetails } = require("../services/propertyDetails");
+const { propertyDefaultSource } = require("../services/fulfillmentPolicy");
+const { assignedResourceContext } = require("../services/resourceAccess");
+const requireCurrentOrganizationPresence = require("../middleware/requireCurrentOrganizationPresence");
 
-router.get("/", async (req, res) => {
+async function propertyManagerEmailMap(organization, properties) {
+  const managerIds = [...new Set(properties.flatMap((property) =>
+    (property.propertyManagers || []).map(String)
+  ))];
+  if (!managerIds.length) return new Map();
+  const managers = await User.find({
+    _id: { $in: managerIds },
+    organizationId: organization._id,
+    role: "property_manager",
+    accountStatus: { $ne: "inactive" },
+    organizationArchivedAt: null,
+  }).select("_id email").lean();
+  return new Map(managers.map((manager) => [String(manager._id), manager.email]));
+}
+
+function automaticRecipientEmails(property, managerEmails) {
+  return [...new Set((property.propertyManagers || [])
+    .map((id) => managerEmails.get(String(id)))
+    .filter(Boolean))];
+}
+
+router.get("/", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found" });
     }
-    const properties = managedProperties(organization, req.user).map((property) => ({
-      _id: property._id,
-      name: property.name,
-      lat: property.lat,
-      lng: property.lng,
-      emails: property.emails,
-      propertyManagers: property.propertyManagers || [],
-      orgType: organization.orgType,
-    }));
+    const visibleProperties = managedProperties(organization, req.user);
+    const managerEmails = req.user.role === "admin"
+      ? await propertyManagerEmailMap(organization, visibleProperties)
+      : new Map();
+    const properties = visibleProperties.map((property) => {
+      const automaticEmails = automaticRecipientEmails(property, managerEmails);
+      return {
+        _id: property._id,
+        name: property.name,
+        lat: property.lat,
+        lng: property.lng,
+        emails: withoutAutomaticPropertyEmails(property.emails, automaticEmails),
+        propertyManagers: property.propertyManagers || [],
+        ...(["admin", "property_manager"].includes(req.user.role) && {
+          defaultInspectionAmountCents: property.defaultInspectionAmountCents ?? null,
+        }),
+        ...(req.user.role === "admin" && {
+          automaticRecipientEmails: automaticEmails,
+        }),
+        orgType: organization.orgType,
+        fulfillment: {
+          defaultSource: property.fulfillmentPolicy?.defaultSource || null,
+          resolvedSource: propertyDefaultSource(organization, property),
+        },
+      };
+    });
     return res.json(properties);
   } catch (error) {
     console.error("Error fetching properties:", error);
@@ -32,7 +77,7 @@ router.get("/", async (req, res) => {
 });
 
 // ✅ Global Search for Properties (Admins Only)
-router.get("/search", async (req, res) => {
+router.get("/search", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.status(403).json({ error: "Management access required." });
@@ -62,7 +107,7 @@ router.get("/search", async (req, res) => {
 });
 
 // ✅ Get Properties by Region (Admins Only)
-router.get("/region/:region", async (req, res) => {
+router.get("/region/:region", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     const { region } = req.params;
 
@@ -90,7 +135,7 @@ router.get("/region/:region", async (req, res) => {
 });
 
 // ✅ Update Property Region (Admins Only)
-router.put("/:propertyId/region", async (req, res) => {
+router.put("/:propertyId/region", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only admins can update property regions." });
@@ -123,7 +168,7 @@ router.put("/:propertyId/region", async (req, res) => {
   }
 });
 
-router.put("/:propertyId/emails", async (req, res) => {
+router.put("/:propertyId/emails", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Only organization administrators can update inspection recipients." });
@@ -138,7 +183,11 @@ router.put("/:propertyId/emails", async (req, res) => {
     }
 
     const property = organization.properties.id(req.params.propertyId);
-    property.emails = normalizePropertyEmails(req.body.emails);
+    const managerEmails = await propertyManagerEmailMap(organization, [property]);
+    const automaticEmails = automaticRecipientEmails(property, managerEmails);
+    property.emails = normalizePropertyEmails(req.body.emails, {
+      automaticEmails,
+    });
     await organization.save();
 
     res.json({
@@ -147,6 +196,7 @@ router.put("/:propertyId/emails", async (req, res) => {
         _id: property._id,
         name: property.name,
         emails: property.emails,
+        automaticRecipientEmails: automaticEmails,
       },
     });
   } catch (error) {
@@ -157,7 +207,7 @@ router.put("/:propertyId/emails", async (req, res) => {
   }
 });
 
-router.get("/:propertyId/details", async (req, res) => {
+router.get("/:propertyId/details", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.status(403).json({ error: "Management access required." });
@@ -181,7 +231,7 @@ router.get("/:propertyId/details", async (req, res) => {
   }
 });
 
-router.put("/:propertyId/details", async (req, res) => {
+router.put("/:propertyId/details", requireCurrentOrganizationPresence, async (req, res) => {
   try {
     if (!["admin", "property_manager"].includes(req.user.role)) {
       return res.status(403).json({ error: "Management access required." });
@@ -262,7 +312,8 @@ router.put("/:propertyId/details", async (req, res) => {
 
 // GET /api/properties/regions
 router.get(
-  "/regions", 
+  "/regions",
+  requireCurrentOrganizationPresence,
   async (req, res) => {
     try {
       // 2) check role
@@ -293,12 +344,19 @@ router.get(
 
 router.get("/:propertyName", async (req, res) => {
   try {
-    const organization = await Organization.findById(req.user.organizationId);
+    const propertyName = decodeURIComponent(req.params.propertyName);
+    const context = await assignedResourceContext({
+      user: req.user,
+      assignmentId: req.query.assignmentId,
+      propertyName,
+    });
+    const organization = context?.organization
+      || await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found" });
     }
-    const propertyName = decodeURIComponent(req.params.propertyName);
-    const property = organization.properties.find((item) => item.name === propertyName);
+    const property = context?.property
+      || organization.properties.find((item) => item.name === propertyName);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
@@ -309,7 +367,9 @@ router.get("/:propertyName", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching property details:", error);
-    return res.status(500).json({ error: "Server error retrieving property details" });
+    return res.status(error.status || 500).json({
+      error: error.status ? error.message : "Server error retrieving property details",
+    });
   }
 });
 

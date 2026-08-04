@@ -12,7 +12,32 @@ test("groups only unread notifications into their destination sections", () => {
     { type: "inspection_submitted", readAt: null },
     { type: "assignment_completed", readAt: null },
     { type: "unknown_event", readAt: null },
-  ])).toEqual({ dashboard: 2, billing: 2, bids: 1 });
+  ])).toEqual({
+    dashboard: 2,
+    billing: 2,
+    bids: 1,
+    resources: 0,
+    serviceModels: 0,
+    platformBilling: 0,
+  });
+});
+
+test("separates platform billing events and groups new operational notifications", () => {
+  expect(groupUnreadNotifications([
+    { type: "invoice_ap_delivery_failed", recipientScope: "platform", readAt: null },
+    { type: "invoice_ap_delivery_queued", recipientScope: "organization", readAt: null },
+    { type: "contractor_earning_created", recipientScope: "platform", readAt: null },
+    { type: "gusto_batch_paid", recipientScope: "afterlight_resource", readAt: null },
+    { type: "service_model_change_approved", recipientScope: "organization", readAt: null },
+    { type: "assignment_canceled", recipientScope: "afterlight_resource", readAt: null },
+  ])).toEqual({
+    dashboard: 1,
+    billing: 1,
+    bids: 0,
+    resources: 2,
+    serviceModels: 1,
+    platformBilling: 1,
+  });
 });
 
 test("identifies properties with unread inspection activity", () => {

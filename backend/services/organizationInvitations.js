@@ -40,6 +40,9 @@ function invitationRoleLabel(role) {
 
 async function deliverInvitation({ invitation, organization, token, sendEmail = sendSystemEmail }) {
   const link = invitationUrl(token);
+  const resourceHelp = invitation.accountScope === "afterlight_resource"
+    ? ["", `Resource account setup guide: ${buildFrontendUrl("/help/resource-account-setup")}`]
+    : [];
   await sendEmail({
     to: invitation.email,
     subject: `You're invited to join ${organization.name} in Afterlight`,
@@ -47,6 +50,7 @@ async function deliverInvitation({ invitation, organization, token, sendEmail = 
       `You have been invited to join ${organization.name} in Afterlight as ${invitationRoleLabel(invitation.role)}.`,
       "",
       `Create your account: ${link}`,
+      ...resourceHelp,
       "",
       "This secure invitation expires in 7 days and can only be used once.",
       "If you were not expecting this invitation, you can ignore this email.",
@@ -61,13 +65,19 @@ async function createInvitation({
   propertyIds = [],
   invitedBy,
   inviterScope,
+  accountScope = "organization",
   InvitationModel = OrganizationInvitation,
   UserModel = User,
   sendEmail = sendSystemEmail,
   now = new Date(),
 }) {
   const normalizedEmail = normalizeInvitationEmail(email);
-  const existingUser = await UserModel.findOne({ email: normalizedEmail }).select("_id").lean();
+  const existingUser = await UserModel.findOne({ email: normalizedEmail })
+    .select("_id organizationId organizationArchivedAt").lean();
+  if (existingUser?.organizationArchivedAt
+    && String(existingUser.organizationId) === String(organization._id)) {
+    throw new Error("An archived user already exists for that email address. Restore the archived user instead.");
+  }
   if (existingUser) throw new Error("That email address already belongs to an Afterlight account.");
   if (role === "admin" && inviterScope !== "platform") {
     throw new Error("Administrator invitations must be issued by a platform administrator.");
@@ -91,6 +101,7 @@ async function createInvitation({
     tokenHash: hashInvitationToken(token),
     invitedBy,
     inviterScope,
+    accountScope,
     expiresAt: new Date(now.getTime() + INVITATION_LIFETIME_MS),
     lastSentAt: now,
   });
