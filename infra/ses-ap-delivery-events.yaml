@@ -128,13 +128,25 @@ Resources:
       Topics:
         - !Ref ApDeliveryEventTopic
       PolicyDocument:
+        Id: !Sub "${AWS::StackName}-event-topic-policy"
         Version: "2012-10-17"
         Statement:
           - Sid: AllowAccountManagement
             Effect: Allow
             Principal:
               AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
-            Action: "sns:*"
+            Action:
+              - sns:AddPermission
+              - sns:DeleteTopic
+              - sns:GetDataProtectionPolicy
+              - sns:GetTopicAttributes
+              - sns:ListSubscriptionsByTopic
+              - sns:ListTagsForResource
+              - sns:Publish
+              - sns:PutDataProtectionPolicy
+              - sns:RemovePermission
+              - sns:SetTopicAttributes
+              - sns:Subscribe
             Resource: !Ref ApDeliveryEventTopic
           - Sid: AllowSesConfigurationSetPublishing
             Effect: Allow
@@ -149,7 +161,7 @@ Resources:
           - Sid: DenyUnencryptedTransport
             Effect: Deny
             Principal: "*"
-            Action: "sns:*"
+            Action: sns:Publish
             Resource: !Ref ApDeliveryEventTopic
             Condition:
               Bool:
@@ -216,13 +228,25 @@ Resources:
       Topics:
         - !Ref OperationalAlarmTopic
       PolicyDocument:
+        Id: !Sub "${AWS::StackName}-alarm-topic-policy"
         Version: "2012-10-17"
         Statement:
           - Sid: AllowAccountManagement
             Effect: Allow
             Principal:
               AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
-            Action: "sns:*"
+            Action:
+              - sns:AddPermission
+              - sns:DeleteTopic
+              - sns:GetDataProtectionPolicy
+              - sns:GetTopicAttributes
+              - sns:ListSubscriptionsByTopic
+              - sns:ListTagsForResource
+              - sns:Publish
+              - sns:PutDataProtectionPolicy
+              - sns:RemovePermission
+              - sns:SetTopicAttributes
+              - sns:Subscribe
             Resource: !Ref OperationalAlarmTopic
           - Sid: AllowCloudWatchAlarmPublishing
             Effect: Allow
@@ -238,7 +262,7 @@ Resources:
           - Sid: DenyUnencryptedTransport
             Effect: Deny
             Principal: "*"
-            Action: "sns:*"
+            Action: sns:Publish
             Resource: !Ref OperationalAlarmTopic
             Condition:
               Bool:
@@ -255,12 +279,12 @@ Resources:
       RawMessageDelivery: false
       DeliveryPolicy:
         healthyRetryPolicy:
-          minDelayTarget: 10
-          maxDelayTarget: 600
+          minDelayTarget: 1
+          maxDelayTarget: 60
           numRetries: 50
-          numNoDelayRetries: 0
-          numMinDelayRetries: 3
-          numMaxDelayRetries: 10
+          numNoDelayRetries: 3
+          numMinDelayRetries: 2
+          numMaxDelayRetries: 35
           backoffFunction: exponential
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ApDeliveryEventDeadLetterQueue.Arn
