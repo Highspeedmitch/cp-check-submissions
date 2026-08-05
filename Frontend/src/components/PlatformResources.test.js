@@ -243,6 +243,36 @@ test("deployment records expose responsive labels inside the deployment panel", 
   expect(scopeCell).toHaveAttribute("data-label", "Scope");
 });
 
+test("contractor earnings expose the same responsive card labels on mobile", async () => {
+  api.get.mockResolvedValue({
+    ...dashboard,
+    earnings: [{
+      _id: "earning-1",
+      resourceProfileId: { _id: "resource-1", displayName: "Alpha Resource" },
+      organizationId: { _id: "org-1", name: "Atlas Management" },
+      earnedAt: "2026-08-04T12:00:00.000Z",
+      grossAmountCents: 9000,
+      reimbursementCents: 0,
+      currency: "USD",
+      status: "pending_approval",
+    }],
+  });
+  render(<PlatformResources />);
+
+  const heading = await screen.findByRole("heading", { name: "Contractor Earnings" });
+  const panel = heading.closest("section");
+  const table = within(panel).getByRole("table");
+  const resourceCell = within(table).getByText("Alpha Resource").closest("td");
+  const amountCell = within(table).getByText("$90.00").closest("td");
+  const selectCell = within(table).getByRole("checkbox", { name: "Select earning for Alpha Resource" }).closest("td");
+
+  expect(panel).toHaveClass("platform-contractor-earnings-panel");
+  expect(table).toHaveClass("platform-contractor-earnings-table");
+  expect(resourceCell).toHaveAttribute("data-label", "Resource");
+  expect(amountCell).toHaveAttribute("data-label", "Amount");
+  expect(selectCell).toHaveAttribute("data-label", "Select");
+});
+
 test("current deployments can move organizations and change eligible property scope", async () => {
   api.put.mockResolvedValueOnce({ organizationChanged: true });
   render(<PlatformResources />);

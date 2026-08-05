@@ -1390,7 +1390,11 @@
 .platform-resource-deployment-panel,
 .platform-resource-deployment-panel .beta-section-heading > div,
 .platform-resource-deployment-panel .beta-form-grid,
-.platform-resource-deployment-panel .beta-form-field { min-width: 0; }
+.platform-resource-deployment-panel .beta-form-field,
+.platform-contractor-earnings-panel,
+.platform-contractor-earnings-panel .beta-section-heading > div,
+.platform-contractor-earnings-panel .beta-form-grid,
+.platform-contractor-earnings-panel .beta-form-field { min-width: 0; }
 .platform-resource-deployment-panel .beta-form-field input,
 .platform-resource-deployment-panel .beta-form-field select {
   display: block;
@@ -1405,7 +1409,8 @@
   color: var(--beta-ink);
   font-size: 14px;
 }
-.platform-resource-deployment-panel .beta-table-wrap {
+.platform-resource-deployment-panel .beta-table-wrap,
+.platform-contractor-earnings-panel .beta-table-wrap {
   max-width: 100%;
   overflow-x: auto;
 }
@@ -1425,11 +1430,16 @@
   .platform-resource-deployment-fact { grid-column: auto; }
   .platform-resource-editor-actions { flex-direction: column-reverse; }
   .platform-resource-editor-actions .beta-button { width: 100%; }
-  .platform-resource-deployment-panel .beta-table-wrap { overflow: visible; }
+  .platform-resource-deployment-panel .beta-table-wrap,
+  .platform-contractor-earnings-panel .beta-table-wrap { overflow: visible; }
   .platform-resource-deployment-table,
   .platform-resource-deployment-table tbody,
-  .platform-resource-deployment-table tr { display: block; width: 100%; }
-  .platform-resource-deployment-table thead {
+  .platform-resource-deployment-table tr,
+  .platform-contractor-earnings-table,
+  .platform-contractor-earnings-table tbody,
+  .platform-contractor-earnings-table tr { display: block; width: 100%; }
+  .platform-resource-deployment-table thead,
+  .platform-contractor-earnings-table thead {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1439,15 +1449,18 @@
     white-space: nowrap;
     border: 0;
   }
-  .platform-resource-deployment-table tbody { display: grid; gap: 12px; }
-  .platform-resource-deployment-table tr {
+  .platform-resource-deployment-table tbody,
+  .platform-contractor-earnings-table tbody { display: grid; gap: 12px; }
+  .platform-resource-deployment-table tr,
+  .platform-contractor-earnings-table tr {
     padding: 12px 14px;
     box-sizing: border-box;
     border: 1px solid var(--beta-border);
     border-radius: 10px;
     background: var(--beta-subtle);
   }
-  .platform-resource-deployment-table td {
+  .platform-resource-deployment-table td,
+  .platform-contractor-earnings-table td {
     display: grid;
     grid-template-columns: minmax(82px, .45fr) minmax(0, 1fr);
     gap: 12px;
@@ -1456,7 +1469,8 @@
     border-bottom: 0;
     overflow-wrap: anywhere;
   }
-  .platform-resource-deployment-table td::before {
+  .platform-resource-deployment-table td::before,
+  .platform-contractor-earnings-table td::before {
     content: attr(data-label);
     color: var(--beta-muted);
     font-size: 11px;
@@ -1465,6 +1479,8 @@
     text-transform: uppercase;
   }
   .platform-resource-deployment-table .beta-table-actions { margin-top: -6px; }
+  .platform-contractor-earnings-table .beta-card-actions { justify-content: flex-start; margin: 0; }
+  .platform-contractor-earnings-table input[type="checkbox"] { margin: 0; }
 }
 
 .platform-service-invoice-list { display: grid; gap: 16px; }
