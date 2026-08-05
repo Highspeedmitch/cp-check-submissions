@@ -25,6 +25,12 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
     allowedHeaders: "Content-Type,Authorization",
     credentials: true,
   }));
+  app.use(
+    "/api/integrations/ses-events",
+    apiLimiter,
+    express.text({ type: ["application/json", "text/plain"], limit: "256kb" }),
+    require("./Routes/sesEvents")
+  );
   app.use("/api", apiLimiter);
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "2mb", extended: true }));

@@ -57,11 +57,16 @@ function createSesClient(config) {
   });
 }
 
-async function sendWithSes(mimeMessage, config, sesClient = createSesClient(config)) {
-  const result = await sesClient.sendRawEmail({
+async function sendWithSes(mimeMessage, config, sesOptions = {}, sesClient = createSesClient(config)) {
+  const params = {
     Source: config.senderAddress,
     RawMessage: { Data: mimeMessage },
-  }).promise();
+  };
+  if (sesOptions.configurationSetName) {
+    params.ConfigurationSetName = sesOptions.configurationSetName;
+  }
+  if (sesOptions.tags?.length) params.Tags = sesOptions.tags;
+  const result = await sesClient.sendRawEmail(params).promise();
   return {
     accepted: true,
     status: "accepted",
@@ -73,8 +78,9 @@ async function sendWithSes(mimeMessage, config, sesClient = createSesClient(conf
 
 async function sendSystemEmail(mailOptions, dependencies = {}) {
   const config = requiredEmailConfig();
-  const mimeMessage = await createMimeMessage(mailOptions, config);
-  return sendWithSes(mimeMessage, config, dependencies.sesClient);
+  const { ses: sesOptions = {}, ...mimeOptions } = mailOptions;
+  const mimeMessage = await createMimeMessage(mimeOptions, config);
+  return sendWithSes(mimeMessage, config, sesOptions, dependencies.sesClient);
 }
 
 module.exports = {

@@ -49,6 +49,9 @@ Production workflow capabilities also require:
 - `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, and a verified
   `SYSTEM_EMAIL_ADDRESS`; add `SES_SESSION_TOKEN` only for temporary SES
   credentials;
+- `SES_AP_CONFIGURATION_SET` and `SES_EVENT_TOPIC_ARN` from the environment's
+  SES AP delivery event stack to record final delivery, delay, bounce, and
+  complaint state;
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` for PWA push;
 - `INSPECTION_FALLBACK_EMAIL` or `SYSTEM_EMAIL_ADDRESS` for inspection routing.
 
@@ -145,7 +148,9 @@ response.
 - Confirm assignment completion is protected from edit/delete and appears in
   history.
 - Confirm AP email acceptance says queued; use a controlled failure to confirm
-  failed delivery is recorded without losing the invoice or inspection.
+  failed delivery is recorded without losing the invoice or inspection. Confirm
+  a successful SES event advances the invoice to delivered and the event DLQ is
+  empty.
 - Enable notifications on one Production test device and confirm an assignment
   lifecycle push and an in-app notification.
 - Confirm Picor reports `managed` / `afterlight_staff` before creating its first
