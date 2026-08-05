@@ -13,7 +13,10 @@ function storedWorkspaces() {
   return [localStorage.getItem("accountScope") || "organization"];
 }
 
-export default function WorkspaceSwitcher({ className = "beta-back-link" }) {
+export default function WorkspaceSwitcher({
+  className = "beta-back-link",
+  showActionLabel = false,
+}) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -25,6 +28,7 @@ export default function WorkspaceSwitcher({ className = "beta-back-link" }) {
 
   const target = current === "afterlight_resource" ? "organization" : "afterlight_resource";
   const label = target === "afterlight_resource" ? "Resource Portal" : "Organization Workspace";
+  const buttonLabel = showActionLabel ? `Switch to ${label}` : label;
 
   async function switchWorkspace() {
     setBusy(true);
@@ -43,7 +47,7 @@ export default function WorkspaceSwitcher({ className = "beta-back-link" }) {
   return (
     <span className="beta-workspace-switcher">
       <button type="button" className={className} disabled={busy} onClick={switchWorkspace}>
-        {busy ? "Switching..." : label}
+        {busy ? "Switching..." : buttonLabel}
       </button>
       {error && <small className="error" role="alert">{error}</small>}
     </span>

@@ -1,6 +1,7 @@
 import React from "react";
 import { MILEAGE_TRACKING_ENABLED } from "../../featureFlags";
 import { canAccessExternalConnections } from "../../services/externalConnectionsAccess";
+import WorkspaceSwitcher from "../WorkspaceSwitcher";
 import ThemeToggle from "./ThemeToggle";
 
 function NavButton({ active, children, onClick, badge = 0 }) {
@@ -70,6 +71,11 @@ export default function DashboardNavigation({
         <nav>
           <p className="beta-nav-label">Workspace</p>
           <NavButton active={activeRoute === "dashboard"} badge={notificationBadges.dashboard} onClick={() => go(dashboardRoute)}>Dashboard</NavButton>
+          {open && (
+            <div className="beta-mobile-workspace-switcher">
+              <WorkspaceSwitcher className="beta-nav-item" showActionLabel />
+            </div>
+          )}
           {externalConnectionsAllowed && (
             <NavButton active={activeRoute === "external-connections"} onClick={() => go("/external-connections")}>External Connections</NavButton>
           )}

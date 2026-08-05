@@ -134,6 +134,7 @@
 
 .beta-nav-item:hover { background: var(--beta-soft-blue); color: var(--beta-blue-dark); box-shadow: none; }
 .beta-nav-item.active { background: var(--beta-blue); color: #fff; }
+.beta-mobile-workspace-switcher { display: none; }
 .beta-nav-danger { margin-top: 14px; color: var(--beta-danger); font-size: 14px; }
 .beta-nav-danger:hover { background: var(--beta-danger-bg); box-shadow: none; }
 
@@ -1837,6 +1838,8 @@
     background: var(--beta-surface);
   }
   .beta-mobile-topbar strong { font-size: 18px; }
+  .beta-mobile-workspace-switcher { display: block; }
+  .beta-mobile-workspace-switcher .beta-workspace-switcher { display: flex; width: 100%; }
   .beta-dashboard-main { padding: 24px 18px 50px; }
   .beta-dashboard-main > .beta-page-header { display: none; }
   .beta-page-header { padding-bottom: 18px; }
