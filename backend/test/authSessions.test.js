@@ -7,6 +7,7 @@ const {
   cookieSettings,
   authResponse,
   createRefreshSession,
+  updateRefreshSessionMfa,
 } = require("../services/authSessions");
 
 function userFixture() {
@@ -100,4 +101,43 @@ test("new refresh sessions use a hashed token and a 90-day absolute expiry", asy
   assert.ok(saved.expiresAt.getTime() - startedAt >= expectedMs - 1000);
   assert.ok(saved.expiresAt.getTime() - startedAt <= expectedMs + 1000);
   assert.equal(cookie.settings.httpOnly, true);
+});
+
+test("step-up verification renews MFA freshness on the active refresh session", async () => {
+  let operation;
+  const now = new Date("2026-08-04T18:00:00.000Z");
+  const mfaAuthenticatedAt = new Date("2026-08-04T17:59:58.000Z");
+  const result = await updateRefreshSessionMfa({
+    refreshToken: "active-refresh-token",
+    userId: userFixture()._id,
+    tokenVersion: 3,
+    mfaAuthenticatedAt,
+    now,
+    model: {
+      findOneAndUpdate: async (filter, update, options) => {
+        operation = { filter, update, options };
+        return { _id: "session-1", ...update.$set };
+      },
+    },
+  });
+
+  assert.equal(operation.filter.tokenHash, hashToken("active-refresh-token"));
+  assert.equal(operation.filter.userId, userFixture()._id);
+  assert.equal(operation.filter.tokenVersion, 3);
+  assert.equal(operation.filter.revokedAt, null);
+  assert.deepEqual(operation.filter.expiresAt, { $gt: now });
+  assert.deepEqual(operation.update, { $set: { mfaAuthenticatedAt, lastUsedAt: now } });
+  assert.deepEqual(operation.options, { new: true });
+  assert.equal(result.mfaAuthenticatedAt, mfaAuthenticatedAt);
+});
+
+test("MFA freshness cannot be renewed without a refresh cookie", async () => {
+  const result = await updateRefreshSessionMfa({
+    refreshToken: "",
+    userId: userFixture()._id,
+    tokenVersion: 3,
+    mfaAuthenticatedAt: new Date(),
+    model: { findOneAndUpdate: async () => { throw new Error("should not run"); } },
+  });
+  assert.equal(result, null);
 });

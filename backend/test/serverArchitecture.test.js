@@ -26,6 +26,8 @@ test("authentication router preserves public session and recovery paths", () => 
     { path: "/auth/mfa/enrollment/start", methods: ["post"] },
     { path: "/auth/mfa/enrollment/confirm", methods: ["post"] },
     { path: "/auth/mfa/verify", methods: ["post"] },
+    { path: "/auth/mfa/step-up/challenge", methods: ["post"] },
+    { path: "/auth/mfa/step-up/verify", methods: ["post"] },
     { path: "/auth/okta/challenge", methods: ["post"] },
     { path: "/auth/okta", methods: ["post"] },
     { path: "/auth/refresh", methods: ["post"] },

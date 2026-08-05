@@ -44,6 +44,12 @@ Enrollment displays a QR code and manual setup key. The user must verify a six-d
 then save ten one-time recovery codes. Recovery codes are stored only as hashes. TOTP
 secrets are encrypted with AES-256-GCM. A used time-step code cannot be replayed.
 
+Opening an organization through the platform Admin View requires MFA completed within
+the previous 15 minutes. When that window has elapsed, the dashboard starts an authenticated
+step-up challenge, renews the MFA timestamp on both the access token and active refresh
+session, and retries the pending organization request. TOTP is preferred when enabled;
+Okta is used only when it is the configured enforcement provider.
+
 The legacy Okta button is hidden unless `REACT_APP_OKTA_LOGIN_ENABLED=true` is explicitly
 set on the frontend. Okta backend enforcement remains controlled separately by
 `OKTA_ENFORCEMENT_ENABLED`.

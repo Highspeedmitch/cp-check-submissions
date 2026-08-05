@@ -22,6 +22,7 @@ const {
   clearRefreshCookie,
   authResponse,
   createRefreshSession,
+  updateRefreshSessionMfa,
   revokeRefreshToken,
   revokeUserSessions,
 } = require("../services/authSessions");
@@ -365,6 +366,142 @@ router.post("/auth/mfa/verify", mfaLimiter, requireTrustedSessionOrigin, async (
     return res.status(500).json({ message: "Unable to verify MFA." });
   }
 });
+
+router.post(
+  "/auth/mfa/step-up/challenge",
+  mfaLimiter,
+  requireTrustedSessionOrigin,
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const user = await User.findOne({
+        _id: req.user.userId,
+        accountStatus: { $ne: "inactive" },
+      }).populate("organizationId");
+      if (!user?.organizationId) {
+        return res.status(403).json({ message: "This account is unavailable." });
+      }
+      if (requiresTotp(user, user.organizationId)) {
+        if (!user.mfa?.totpEnabled) {
+          return res.status(409).json({
+            code: "MFA_ENROLLMENT_REQUIRED",
+            message: "Authenticator setup is required. Sign out and sign in again to continue.",
+          });
+        }
+        const challengeToken = randomChallengeToken();
+        await MfaChallenge.create({
+          userId: user._id,
+          organizationId: user.organizationId._id,
+          tokenHash: hashChallengeToken(challengeToken),
+          purpose: "step_up",
+          expiresAt: new Date(Date.now() + CHALLENGE_LIFETIME_MS),
+        });
+        return res.json({
+          code: "MFA_REQUIRED",
+          provider: "totp",
+          message: "Enter the six-digit code from your authenticator app.",
+          challengeToken,
+          expiresInSeconds: Math.floor(CHALLENGE_LIFETIME_MS / 1000),
+        });
+      }
+      if (requiresOkta(user, user.organizationId)) {
+        return res.json({
+          code: "OKTA_REQUIRED",
+          provider: "okta",
+          message: "Continue with Okta to confirm your identity.",
+        });
+      }
+      return res.status(503).json({
+        code: "STEP_UP_UNAVAILABLE",
+        message: "Identity confirmation is not configured. Sign out and sign in again to continue.",
+      });
+    } catch (error) {
+      console.error("MFA step-up challenge error:", error.message);
+      return res.status(500).json({ message: "Unable to start identity confirmation." });
+    }
+  }
+);
+
+router.post(
+  "/auth/mfa/step-up/verify",
+  mfaLimiter,
+  requireTrustedSessionOrigin,
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const challenge = await activeMfaChallenge(
+        String(req.body.challengeToken || ""),
+        "step_up"
+      );
+      if (!challenge || String(challenge.userId) !== String(req.user.userId)) {
+        return res.status(401).json({ message: "Identity confirmation expired. Try again." });
+      }
+      const user = await User.findOne({
+        _id: challenge.userId,
+        accountStatus: { $ne: "inactive" },
+      }).select("+mfa.totpSecretEncrypted").populate("organizationId");
+      if (
+        !user?.organizationId
+        || !user.mfa?.totpEnabled
+        || !requiresTotp(user, user.organizationId)
+      ) {
+        return res.status(403).json({ message: "Authenticator verification is not available for this account." });
+      }
+      const verification = verifyTotp({
+        encryptedSecret: user.mfa.totpSecretEncrypted,
+        code: req.body.code,
+        lastUsedCounter: user.mfa.lastUsedCounter,
+      });
+      if (!verification.valid) {
+        challenge.attempts += 1;
+        await challenge.save();
+        return res.status(401).json({ message: "Invalid authenticator code." });
+      }
+      const mfaAuthenticatedAt = new Date();
+      const userUpdate = await User.updateOne(
+        {
+          _id: user._id,
+          $or: [
+            { "mfa.lastUsedCounter": null },
+            { "mfa.lastUsedCounter": { $lt: verification.counter } },
+          ],
+        },
+        { $set: {
+          "mfa.lastVerifiedAt": mfaAuthenticatedAt,
+          "mfa.lastUsedCounter": verification.counter,
+        } }
+      );
+      if (!userUpdate.modifiedCount) {
+        return res.status(401).json({ message: "That MFA code was already used." });
+      }
+      const consumed = await MfaChallenge.findOneAndUpdate(
+        { _id: challenge._id, consumedAt: null },
+        { $set: { consumedAt: mfaAuthenticatedAt } },
+        { new: true }
+      );
+      if (!consumed) {
+        return res.status(401).json({ message: "Identity confirmation was already completed." });
+      }
+      const refreshSession = await updateRefreshSessionMfa({
+        refreshToken: req.cookies[REFRESH_COOKIE],
+        userId: user._id,
+        tokenVersion: user.tokenVersion,
+        mfaAuthenticatedAt,
+      });
+      if (!refreshSession) {
+        return res.status(401).json({ message: "Session expired. Sign in again to continue." });
+      }
+      const workspace = await workspaceAuthentication(user, req.user.accountScope);
+      return res.json({
+        message: "Identity confirmed.",
+        ...authResponse(user, getJwtSecret(), { mfaAuthenticatedAt, ...workspace }),
+      });
+    } catch (error) {
+      console.error("MFA step-up verification error:", error.message);
+      return res.status(500).json({ message: "Unable to confirm your identity." });
+    }
+  }
+);
 
 router.post("/auth/okta/challenge", loginLimiter, requireTrustedSessionOrigin, (req, res) => {
   if (!oktaConfig().configured) {

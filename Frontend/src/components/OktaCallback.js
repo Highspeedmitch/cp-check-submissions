@@ -10,7 +10,9 @@ export default function OktaCallback({ setUser }) {
     completeOktaLogin()
       .then(({ data, returnTo }) => {
         setUser(true);
-        if (data.platformRole === "platform_admin") navigate("/platform", { replace: true });
+        if (data.platformRole === "platform_admin") {
+          navigate(returnTo.startsWith("/platform") ? returnTo : "/platform", { replace: true });
+        }
         else if (data.role === "client") navigate("/client/dashboard", { replace: true });
         else navigate(returnTo || "/dashboard", { replace: true });
       })
