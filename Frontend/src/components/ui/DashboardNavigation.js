@@ -98,6 +98,7 @@ export default function DashboardNavigation({
           {isAdmin && (
             <>
               <p className="beta-nav-label">Admin tools</p>
+              <NavButton active={activeRoute === "onboarding"} onClick={() => go("/onboarding")}>Setup Guide</NavButton>
               <NavButton onClick={onAddProperty}>Add Property</NavButton>
               {orgType === "COM" && <NavButton onClick={() => go("/admin/users")}>Users</NavButton>}
               {orgType === "COM" && <NavButton onClick={() => go("/organization-form-settings")}>Form Template</NavButton>}

@@ -31,6 +31,10 @@ function normalizeOrganizationSetup(input = {}) {
     reportingTimezone,
     serviceModel,
     fulfillmentPolicy: { defaultSource, version: 1 },
+    onboarding: {
+      status: "invited",
+      initiatedAt: new Date(),
+    },
   };
 }
 

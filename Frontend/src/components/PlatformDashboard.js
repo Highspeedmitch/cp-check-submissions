@@ -10,6 +10,9 @@ import ThemeToggle from "./ui/ThemeToggle";
 import PlatformResources from "./PlatformResources";
 import PlatformServiceBilling from "./PlatformServiceBilling";
 import PlatformServiceModelChanges from "./PlatformServiceModelChanges";
+import OrganizationOnboardingWizard, {
+  ORGANIZATION_TYPES,
+} from "./platform/OrganizationOnboardingWizard";
 import {
   NOTIFICATION_SECTIONS,
   useMarkNotificationsRead,
@@ -18,49 +21,6 @@ import {
 
 const PENDING_ADMIN_VIEW_STEP_UP = "afterlightPendingAdminViewStepUp";
 const PENDING_ADMIN_VIEW_LIFETIME_MS = 10 * 60 * 1000;
-
-const EMPTY_ORGANIZATION = {
-  name: "",
-  orgType: "COM",
-  serviceModel: "managed",
-  defaultFulfillmentSource: "afterlight_staff",
-  reportingTimezone: "America/Phoenix",
-  initialAdminEmail: "",
-};
-
-const ORGANIZATION_TYPES = {
-  COM: "Commercial",
-  RES: "Residential",
-  LTR: "Long-term rental",
-  STR: "Short-term rental",
-};
-
-const SERVICE_MODELS = {
-  platform: "Full-stack SaaS",
-  managed: "Managed service",
-  hybrid: "Hybrid",
-};
-
-const SERVICE_MODEL_DEFAULTS = {
-  platform: "customer_employee",
-  managed: "afterlight_staff",
-  hybrid: "customer_employee",
-};
-
-const FULFILLMENT_SOURCES = {
-  customer_employee: "Customer employee",
-  customer_contractor: "Customer contractor",
-  afterlight_staff: "Afterlight staff",
-  afterlight_contractor: "Afterlight contractor",
-};
-
-const TIMEZONES = [
-  "America/Phoenix",
-  "America/Los_Angeles",
-  "America/Denver",
-  "America/Chicago",
-  "America/New_York",
-];
 
 function PlatformNavigation({ open, activeView, notificationBadges, onClose, onView, onNewOrganization, onHelp, onLogout }) {
   const go = (view) => {
@@ -101,69 +61,6 @@ function PlatformNavigation({ open, activeView, notificationBadges, onClose, onV
         </div>
       </aside>
     </>
-  );
-}
-
-function NewOrganizationDialog({ open, busy, error, onClose, onCreate }) {
-  const [draft, setDraft] = useState(EMPTY_ORGANIZATION);
-
-  useEffect(() => {
-    if (open) setDraft(EMPTY_ORGANIZATION);
-  }, [open]);
-  if (!open) return null;
-
-  const update = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  return (
-    <div className="beta-dialog-overlay" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
-      <form className="beta-dialog platform-new-org-dialog" role="dialog" aria-modal="true" aria-labelledby="new-org-title"
-        onSubmit={(event) => { event.preventDefault(); onCreate(draft); }}>
-        <div className="beta-dialog-header">
-          <div><span className="beta-eyebrow">Platform setup</span><h2 id="new-org-title">New Organization</h2></div>
-          <button type="button" className="beta-dialog-close" onClick={onClose} disabled={busy} aria-label="Close dialog">×</button>
-        </div>
-        <p className="beta-dialog-copy">Create the workspace and send its first organization administrator a secure invitation.</p>
-        <div className="beta-form-grid">
-          <label className="beta-form-field full">Organization name
-            <input value={draft.name} maxLength="120" autoComplete="organization" onChange={(event) => update("name", event.target.value)} required autoFocus />
-          </label>
-          <label className="beta-form-field full">Initial administrator email
-            <input type="email" value={draft.initialAdminEmail} autoComplete="email" onChange={(event) => update("initialAdminEmail", event.target.value)} required />
-          </label>
-          <label className="beta-form-field">Organization type
-            <select value={draft.orgType} onChange={(event) => update("orgType", event.target.value)}>
-              {Object.entries(ORGANIZATION_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label className="beta-form-field">Service model
-            <select value={draft.serviceModel} onChange={(event) => {
-              const serviceModel = event.target.value;
-              setDraft((current) => ({
-                ...current,
-                serviceModel,
-                defaultFulfillmentSource: SERVICE_MODEL_DEFAULTS[serviceModel],
-              }));
-            }}>
-              {Object.entries(SERVICE_MODELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label className="beta-form-field">Default fulfillment
-            <select value={draft.defaultFulfillmentSource} onChange={(event) => update("defaultFulfillmentSource", event.target.value)}>
-              {Object.entries(FULFILLMENT_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label className="beta-form-field">Reporting timezone
-            <select value={draft.reportingTimezone} onChange={(event) => update("reportingTimezone", event.target.value)}>
-              {TIMEZONES.map((timezone) => <option key={timezone} value={timezone}>{timezone.replace("_", " ")}</option>)}
-            </select>
-          </label>
-        </div>
-        {error && <p className="beta-dialog-error" role="alert">{error}</p>}
-        <div className="beta-dialog-actions">
-          <button type="button" className="beta-button secondary" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="beta-button" disabled={busy}>{busy ? "Creating..." : "Create Organization"}</button>
-        </div>
-      </form>
-    </div>
   );
 }
 
@@ -248,6 +145,12 @@ function OrganizationCard({ organization, busy, onEnter, onResendAdminInvite }) 
           <button type="button" className="beta-text-button" disabled={Boolean(busy)} onClick={() => onResendAdminInvite(organization)}>
             {busy === `invite-${organization.organizationId}` ? "Sending..." : "Resend invitation"}
           </button>
+        </div>
+      )}
+      {organization.onboarding && !organization.pendingAdminInvitation && (
+        <div className={`platform-org-onboarding${organization.onboarding.status === "completed" ? " complete" : ""}`}>
+          <span>{organization.onboarding.status === "completed" ? "Onboarding completed" : "Administrator onboarding in progress"}</span>
+          <small>{organization.onboarding.requiredComplete} of {organization.onboarding.requiredTotal} required setup items complete</small>
         </div>
       )}
       <button className="beta-button secondary" type="button" disabled={Boolean(busy)} onClick={() => onEnter(organization)}>
@@ -411,7 +314,7 @@ export default function PlatformDashboard() {
   }, [attemptOrganizationAccess, report, searchParams, setSearchParams]);
 
   async function createOrganization(draft) {
-    if (busy) return;
+    if (busy) return false;
     setBusy("create-organization");
     setOrganizationError("");
     try {
@@ -422,8 +325,10 @@ export default function PlatformDashboard() {
         ? `${created.name} was created and its administrator invitation was sent to ${created.initialAdminEmail}.`
         : `${created.name} was created, but its administrator invitation could not be delivered. Support can resend the pending invitation.`);
       selectView("overview");
+      return true;
     } catch (requestError) {
       setOrganizationError(requestError.message);
+      return false;
     } finally {
       setBusy("");
     }
@@ -530,7 +435,7 @@ export default function PlatformDashboard() {
           </>
         )}
       </div>
-      <NewOrganizationDialog open={newOrganizationOpen} busy={busy === "create-organization"} error={organizationError}
+      <OrganizationOnboardingWizard open={newOrganizationOpen} busy={busy === "create-organization"} error={organizationError}
         onClose={() => !busy && setNewOrganizationOpen(false)} onCreate={createOrganization} />
       <StepUpAuthenticationDialog
         request={stepUpRequest}

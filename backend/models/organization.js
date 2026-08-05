@@ -106,6 +106,17 @@ const PropertySchema = new mongoose.Schema({
   },
 });
 
+const OrganizationOnboardingSchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: ["invited", "in_progress", "completed"],
+    default: "invited",
+  },
+  initiatedAt: { type: Date, default: Date.now },
+  administratorAcceptedAt: { type: Date, default: null },
+  completedAt: { type: Date, default: null },
+}, { _id: false });
+
 const OrganizationSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   workspaceType: {
@@ -148,6 +159,10 @@ const OrganizationSchema = new mongoose.Schema({
   reportingTimezone: {
     type: String,
     default: "America/Phoenix",
+  },
+  onboarding: {
+    type: OrganizationOnboardingSchema,
+    default: undefined,
   },
   security: {
     requireMfaForAllUsers: { type: Boolean, default: false },

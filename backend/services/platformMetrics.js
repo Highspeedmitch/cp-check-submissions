@@ -26,6 +26,8 @@ async function getPlatformOrganizationMetrics({
       $project: {
         name: 1,
         orgType: 1,
+        onboarding: 1,
+        security: 1,
         propertyCount: { $size: { $ifNull: ["$properties", []] } },
       },
     }, { $sort: { name: 1 } }]),
@@ -78,6 +80,16 @@ async function getPlatformOrganizationMetrics({
       pendingBidCount: bidCounts.get(id) || 0,
       pendingInvoiceCount: invoiceCounts.get(id) || 0,
       pendingAdminInvitation: adminInvitations.get(id) || null,
+      onboarding: organization.onboarding ? {
+        status: organization.onboarding.status || "invited",
+        initiatedAt: organization.onboarding.initiatedAt || null,
+        administratorAcceptedAt: organization.onboarding.administratorAcceptedAt || null,
+        completedAt: organization.onboarding.completedAt || null,
+        requiredComplete: 1
+          + (organization.security?.adminActionPasskeyHash ? 1 : 0)
+          + (organization.propertyCount > 0 ? 1 : 0),
+        requiredTotal: 3,
+      } : null,
     };
   });
 

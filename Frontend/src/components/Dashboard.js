@@ -1,6 +1,6 @@
 // Dashboard.js
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Geolocation } from '@capacitor/geolocation';
 import { format } from "date-fns";
 import { logoutSession } from "../services/session";
@@ -37,6 +37,7 @@ function openNativeMaps(lat, lng) {
 
 function Dashboard({ setUser }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // 🚗 Mileage states
   const [mileageTracking, setMileageTracking] = useState(false);
@@ -146,6 +147,12 @@ const handleRegionFilter = async () => {
   const [addPropertyGrant, setAddPropertyGrant] = useState("");
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
   const [propertyActionMessage, setPropertyActionMessage] = useState("");
+
+  useEffect(() => {
+    if (role !== "admin" || searchParams.get("onboarding") !== "add-property") return;
+    setPasskeyPromptVisible(true);
+    setSearchParams({}, { replace: true });
+  }, [role, searchParams, setSearchParams]);
 
   // ----------- "Remove Property" Admin Flow -----------
   // We have a single modal for removing property + passkey.

@@ -5,12 +5,13 @@ const {
   caseInsensitiveExact,
 } = require("../services/organizationProvisioning");
 
-test("organization setup normalizes platform input", () => {
-  assert.deepEqual(normalizeOrganizationSetup({
+test("organization setup normalizes platform input and starts guided onboarding", () => {
+  const setup = normalizeOrganizationSetup({
     name: "  Example   Commercial  ",
     orgType: "com",
     reportingTimezone: "America/Phoenix",
-  }), {
+  });
+  assert.deepEqual({ ...setup, onboarding: { ...setup.onboarding, initiatedAt: "timestamp" } }, {
     name: "Example Commercial",
     orgType: "COM",
     reportingTimezone: "America/Phoenix",
@@ -19,7 +20,12 @@ test("organization setup normalizes platform input", () => {
       defaultSource: "afterlight_staff",
       version: 1,
     },
+    onboarding: {
+      status: "invited",
+      initiatedAt: "timestamp",
+    },
   });
+  assert.equal(setup.onboarding.initiatedAt instanceof Date, true);
 });
 
 test("organization setup rejects unsupported types and timezones", () => {

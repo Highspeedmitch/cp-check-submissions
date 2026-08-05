@@ -37,7 +37,7 @@ function token() {
   return `header.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`;
 }
 
-function renderDashboard(role) {
+function renderDashboard(role, initialEntry = "/dashboard") {
   localStorage.setItem("token", token());
   localStorage.setItem("role", role);
   localStorage.setItem("orgType", "COM");
@@ -45,11 +45,18 @@ function renderDashboard(role) {
   localStorage.setItem("userId", "user-1");
   localStorage.setItem("organizationId", "org-1");
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Dashboard setUser={jest.fn()} />
     </MemoryRouter>
   );
 }
+
+test("the Setup Guide deep link opens protected property setup", async () => {
+  renderDashboard("admin", "/dashboard?onboarding=add-property");
+
+  expect(await screen.findByRole("dialog", { name: "Add a new property" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Organization passkey")).toBeInTheDocument();
+});
 
 beforeEach(() => {
   localStorage.clear();

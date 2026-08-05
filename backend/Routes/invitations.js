@@ -120,6 +120,12 @@ router.post("/accept", async (req, res) => {
         await organization.save({ session });
       }
 
+      if (invitation.role === "admin" && organization.onboarding) {
+        organization.onboarding.status = "in_progress";
+        organization.onboarding.administratorAcceptedAt = new Date();
+        await organization.save({ session });
+      }
+
       invitation.status = "accepted";
       invitation.acceptedAt = new Date();
       invitation.acceptedBy = createdUser._id;
