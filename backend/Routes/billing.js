@@ -26,6 +26,7 @@ const { resolveBillingAddress } = require("../services/propertyAddresses");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const { sendSystemEmail } = require("../services/systemEmail");
 const { sendApprovedInvoiceToAp } = require("../services/apDelivery");
+const { apDeliveryFailure } = require("../services/apDeliveryErrors");
 const { normalizeEmailAddress } = require("../services/propertyEmails");
 const {
   assignedPropertyManagers,
@@ -859,12 +860,13 @@ router.post("/:id/approve", async (req, res) => {
     }
     res.json({ ...invoice.toObject(), warning: deliveryResult.warning });
   } catch (error) {
+    const failure = apDeliveryFailure(error);
     if (invoice) {
       invoice.status = "failed";
       invoice.delivery.status = "failed";
       invoice.delivery.failedAt = new Date();
-      invoice.delivery.error = error.message || "AP delivery failed.";
-      invoice.delivery.errorCode = String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR");
+      invoice.delivery.error = failure.userMessage;
+      invoice.delivery.errorCode = failure.errorCode;
       invoice.statusHistory.push({ status: "failed", changedBy: req.user.userId });
       await invoice.save().catch(() => {});
       notifyApDeliveryState(invoice, "failed").catch((notificationError) => {
@@ -880,15 +882,12 @@ router.post("/:id/approve", async (req, res) => {
       provider: invoice?.delivery?.provider || "ses",
       providerMessageId: invoice?.delivery?.providerMessageId || "",
       attemptCount: invoice?.delivery?.attemptCount || 0,
-      errorCode: String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR"),
-      errorMessage: String(error.message || "AP delivery failed.").slice(0, 500),
+      errorCode: failure.errorCode,
+      providerRequestId: failure.providerRequestId,
+      httpStatusCode: failure.httpStatusCode,
+      retryable: failure.retryable,
     }));
-    const configurationError = /no AP email configured|valid AP email address/i.test(error.message || "");
-    res.status(configurationError ? 400 : 502).json({
-      error: configurationError
-        ? error.message
-        : "The invoice was approved, but delivery to AP failed. You can retry from Billing.",
-    });
+    res.status(failure.status).json({ error: failure.userMessage });
   }
 });
 

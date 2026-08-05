@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
 import { NOTIFICATION_SECTIONS, useMarkNotificationsRead } from "../services/notificationCenter";
 import { api } from "../services/api";
+import { displayedApDeliveryError } from "../services/apDeliveryErrors";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 
 function dollars(cents) {
@@ -397,7 +398,7 @@ export default function Billing() {
                   <td>
                     <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice)}</span>
                     {invoice.review?.declineReason && <><br/><small>{invoice.review.declineReason}</small></>}
-                    {invoice.delivery?.error && <><br/><small>{invoice.delivery.error}</small></>}
+                    {displayedApDeliveryError(invoice) && <><br/><small>{displayedApDeliveryError(invoice)}</small></>}
                     {invoice.delivery?.providerMessageId && <><br/><small>Provider ref: {invoice.delivery.providerMessageId}</small></>}
                   </td>
                   <td>{invoice.propertySnapshot.apMethod || "download"}<br/><small>{invoiceRoutingLabel(invoice)}</small></td>
@@ -428,7 +429,7 @@ export default function Billing() {
                 <div><dt>Billing route</dt><dd>{invoiceRoutingLabel(invoice)}</dd></div>
                 {isOversight && <div><dt>{isAfterlightServiceInvoice(invoice) ? "Inspection performed by" : "Submitter"}</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
                 {invoice.review?.declineReason && <div><dt>Decline reason</dt><dd>{invoice.review.declineReason}</dd></div>}
-                {invoice.delivery?.error && <div><dt>Delivery error</dt><dd>{invoice.delivery.error}</dd></div>}
+                {displayedApDeliveryError(invoice) && <div><dt>Delivery error</dt><dd>{displayedApDeliveryError(invoice)}</dd></div>}
                 {invoice.delivery?.providerMessageId && <div><dt>Delivery provider reference</dt><dd>{invoice.delivery.providerMessageId}</dd></div>}
                 {invoice.archivedAt && <div><dt>Archived</dt><dd>{new Date(invoice.archivedAt).toLocaleDateString()}</dd></div>}
               </dl>
