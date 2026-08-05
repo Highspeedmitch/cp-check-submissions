@@ -70,30 +70,39 @@ async function createInvitation({
   UserModel = User,
   sendEmail = sendSystemEmail,
   now = new Date(),
+  allowOrganizationAdmin = false,
+  deliver = true,
+  session,
 }) {
   const normalizedEmail = normalizeInvitationEmail(email);
-  const existingUser = await UserModel.findOne({ email: normalizedEmail })
-    .select("_id organizationId organizationArchivedAt").lean();
+  let existingUserQuery = UserModel.findOne({ email: normalizedEmail })
+    .select("_id organizationId organizationArchivedAt");
+  if (session && typeof existingUserQuery.session === "function") {
+    existingUserQuery = existingUserQuery.session(session);
+  }
+  const existingUser = await existingUserQuery.lean();
   if (existingUser?.organizationArchivedAt
     && String(existingUser.organizationId) === String(organization._id)) {
     throw new Error("An archived user already exists for that email address. Restore the archived user instead.");
   }
   if (existingUser) throw new Error("That email address already belongs to an Afterlight account.");
-  if (role === "admin" && inviterScope !== "platform") {
+  if (role === "admin" && inviterScope !== "platform" && !allowOrganizationAdmin) {
     throw new Error("Administrator invitations must be issued by a platform administrator.");
   }
   if (role !== "admin" && !ORGANIZATION_INVITE_ROLES.has(role)) {
     throw new Error("Select a valid invitation role.");
   }
 
-  await InvitationModel.updateMany({
+  let revokeQuery = InvitationModel.updateMany({
     organizationId: organization._id,
     email: normalizedEmail,
     status: { $in: ["pending", "expired"] },
   }, { $set: { status: "revoked", revokedAt: now } });
+  if (session && typeof revokeQuery.session === "function") revokeQuery = revokeQuery.session(session);
+  await revokeQuery;
 
   const token = invitationToken();
-  const invitation = await InvitationModel.create({
+  const record = {
     organizationId: organization._id,
     email: normalizedEmail,
     role,
@@ -104,15 +113,21 @@ async function createInvitation({
     accountScope,
     expiresAt: new Date(now.getTime() + INVITATION_LIFETIME_MS),
     lastSentAt: now,
-  });
-  let delivered = true;
-  try {
-    await deliverInvitation({ invitation, organization, token, sendEmail });
-  } catch (error) {
-    delivered = false;
-    console.error("Invitation email delivery error:", error.message);
+  };
+  const invitation = session
+    ? (await InvitationModel.create([record], { session }))[0]
+    : await InvitationModel.create(record);
+  let deliveredStatus = null;
+  if (deliver) {
+    deliveredStatus = true;
+    try {
+      await deliverInvitation({ invitation, organization, token, sendEmail });
+    } catch (error) {
+      deliveredStatus = false;
+      console.error("Invitation email delivery error:", error.message);
+    }
   }
-  return { invitation, delivered };
+  return { invitation, delivered: deliveredStatus, token };
 }
 
 async function resendInvitation({ invitation, organization, sendEmail = sendSystemEmail, now = new Date() }) {

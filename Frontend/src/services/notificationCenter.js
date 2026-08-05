@@ -34,6 +34,7 @@ export const NOTIFICATION_SECTIONS = {
     "service_model_information_supplied",
     "service_model_change_approved",
     "service_model_change_denied",
+    "administrator_license_requested",
   ],
   platformBilling: [
     "invoice_ap_delivery_queued",

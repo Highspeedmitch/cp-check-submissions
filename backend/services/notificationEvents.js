@@ -190,6 +190,16 @@ function serviceModelChangeEvent(request, organizationName, status) {
   };
 }
 
+function administratorLicenseRequested(request, organizationName, adminSeats) {
+  return {
+    type: "administrator_license_requested",
+    title: "Administrator license increase requested",
+    body: `${organizationName} requested additional administrator seats after reaching ${adminSeats.allocated}/${adminSeats.limit}.`,
+    route: "/platform?view=organizations",
+    entityId: request._id,
+  };
+}
+
 function bidRequestSubmitted(request) {
   return {
     type: "bid_request_submitted",
@@ -234,6 +244,7 @@ module.exports = {
   invoiceReviewChanged,
   invoiceStatusChanged,
   serviceModelChangeEvent,
+  administratorLicenseRequested,
   bidRequestSubmitted,
   bidRequestReceived,
   bidRequestStatusChanged,

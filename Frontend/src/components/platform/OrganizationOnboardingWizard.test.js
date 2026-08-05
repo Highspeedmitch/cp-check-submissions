@@ -20,17 +20,20 @@ test("guides platform administrators through a reviewed organization launch", as
   expect(screen.getByRole("heading", { name: "Service delivery" })).toBeInTheDocument();
 
   fireEvent.click(screen.getByLabelText(/Hybrid/));
+  fireEvent.change(screen.getByRole("combobox", { name: /License tier/i }), { target: { value: "tier_2" } });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.change(screen.getByLabelText("Administrator email"), { target: { value: "ADMIN@EXAMPLE.COM" } });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
   expect(screen.getByText("Example Management")).toBeInTheDocument();
   expect(screen.getByText(/Hybrid · Customer employee/)).toBeInTheDocument();
+  expect(screen.getByText(/Tier 2.*3 administrators/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Launch Organization" }));
 
   await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
     name: "Example Management",
     serviceModel: "hybrid",
+    licenseTier: "tier_2",
     defaultFulfillmentSource: "customer_employee",
     initialAdminEmail: "admin@example.com",
   })));

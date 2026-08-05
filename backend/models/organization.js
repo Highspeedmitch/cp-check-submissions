@@ -117,6 +117,24 @@ const OrganizationOnboardingSchema = new mongoose.Schema({
   completedAt: { type: Date, default: null },
 }, { _id: false });
 
+const OrganizationLicenseSchema = new mongoose.Schema({
+  tier: {
+    type: String,
+    enum: ["tier_1", "tier_2", "tier_3", null],
+    default: null,
+  },
+  adminLimit: { type: Number, min: 2, default: null },
+  userLimit: { type: Number, min: 1, default: null },
+  propertyLimit: { type: Number, min: 1, default: null },
+  adminSeatVersion: { type: Number, min: 0, default: 0 },
+  updatedAt: { type: Date, default: null },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+}, { _id: false });
+
 const OrganizationSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   workspaceType: {
@@ -135,6 +153,10 @@ const OrganizationSchema = new mongoose.Schema({
     type: String,
     enum: ["platform", "managed", "hybrid"],
     default: "managed",
+  },
+  license: {
+    type: OrganizationLicenseSchema,
+    default: undefined,
   },
   fulfillmentPolicy: {
     defaultSource: {

@@ -1276,6 +1276,7 @@
 .platform-service-model-options strong { color: var(--beta-ink); font-size: 13px; }
 .platform-service-model-options small { color: var(--beta-muted); font-size: 11px; line-height: 1.4; }
 .platform-onboarding-default-source { display: grid; max-width: 420px; }
+.platform-onboarding-license-tier { display: grid; max-width: 520px; margin-bottom: 18px; }
 .platform-onboarding-handoff { margin-top: 20px; padding: 16px 18px; border-radius: 10px; background: var(--beta-subtle); }
 .platform-onboarding-handoff strong { color: var(--beta-ink); }
 .platform-onboarding-handoff ol { margin: 10px 0 0; padding-left: 20px; color: var(--beta-muted); font-size: 13px; line-height: 1.55; }
@@ -1331,6 +1332,22 @@
   text-align: center;
 }
 .beta-invitation-panel { margin-bottom: 20px; }
+.beta-admin-seat-panel { margin-bottom: 20px; }
+.beta-admin-seat-panel .beta-section-heading { align-items: center; }
+.beta-admin-seat-meter { display: grid; gap: 9px; margin-top: 18px; }
+.beta-admin-seat-meter > div { display: flex; align-items: baseline; gap: 8px; }
+.beta-admin-seat-meter strong { color: var(--beta-ink); font-size: 22px; }
+.beta-admin-seat-meter span, .beta-admin-seat-unmetered { color: var(--beta-muted); }
+.beta-admin-seat-meter progress { width: 100%; height: 10px; overflow: hidden; border: 0; border-radius: 999px; background: var(--beta-border); accent-color: var(--beta-blue); }
+.beta-admin-seat-meter progress::-webkit-progress-bar { border-radius: 999px; background: var(--beta-border); }
+.beta-admin-seat-meter progress::-webkit-progress-value { border-radius: 999px; background: var(--beta-blue); }
+.beta-admin-seat-meter progress::-moz-progress-bar { border-radius: 999px; background: var(--beta-blue); }
+.beta-admin-seat-unmetered { margin: 14px 0 0; }
+.beta-admin-seat-directory { display: grid; gap: 0; margin-top: 18px; border-top: 1px solid var(--beta-border); }
+.beta-admin-seat-person { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--beta-border); }
+.beta-admin-seat-person > div:first-child { display: grid; gap: 3px; min-width: 0; }
+.beta-admin-seat-person small { color: var(--beta-muted); }
+.beta-admin-seat-person .beta-card-actions { margin: 0; }
 .beta-invitation-panel .beta-section-heading { align-items: center; }
 .beta-invitation-form { display: grid; gap: 16px; margin: 18px 0; padding: 18px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); }
 .beta-invitation-form > .beta-button { width: fit-content; margin: 0; }
@@ -1759,6 +1776,11 @@
   .beta-invitation-row { align-items: flex-start; flex-direction: column; }
   .beta-invitation-row .beta-card-actions { width: 100%; }
   .beta-invitation-row .beta-card-actions .beta-button { flex: 1 1 120px; }
+  .beta-admin-seat-panel .beta-section-heading { align-items: stretch; flex-direction: column; }
+  .beta-admin-seat-panel .beta-section-heading > .beta-button { width: 100%; }
+  .beta-admin-seat-person { align-items: flex-start; flex-direction: column; }
+  .beta-admin-seat-person .beta-card-actions { width: 100%; }
+  .beta-admin-seat-person .beta-card-actions .beta-button { flex: 1 1 120px; }
   .beta-invite-summary div { grid-template-columns: 90px minmax(0, 1fr); }
   .platform-metric-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .platform-metric-board div { border-right: 1px solid var(--beta-border); border-bottom: 1px solid var(--beta-border); }

@@ -6,6 +6,7 @@ export const EMPTY_ORGANIZATION = {
   name: "",
   orgType: "COM",
   serviceModel: "managed",
+  licenseTier: "tier_1",
   defaultFulfillmentSource: "afterlight_staff",
   reportingTimezone: "America/Phoenix",
   initialAdminEmail: "",
@@ -37,6 +38,12 @@ export const SERVICE_MODEL_DEFAULTS = {
   platform: "customer_employee",
   managed: "afterlight_staff",
   hybrid: "customer_employee",
+};
+
+export const LICENSE_TIERS = {
+  tier_1: { label: "Tier 1", limits: "2 administrators, 5 users, 10 properties" },
+  tier_2: { label: "Tier 2", limits: "3 administrators, 20 users, 50 properties" },
+  tier_3: { label: "Tier 3", limits: "5 administrators, 50 users, 250 properties" },
 };
 
 export const FULFILLMENT_SOURCES = {
@@ -75,6 +82,7 @@ function validateStep(stepIndex, draft) {
   }
   if (stepIndex === 1) {
     if (!SERVICE_MODELS[draft.serviceModel]) return "Select a service model.";
+    if (draft.serviceModel !== "managed" && !LICENSE_TIERS[draft.licenseTier]) return "Select a license tier.";
     if (!FULFILLMENT_SOURCES[draft.defaultFulfillmentSource]) return "Select a default fulfillment source.";
   }
   if (stepIndex === 2 && !/^\S+@\S+\.\S+$/.test(draft.initialAdminEmail.trim())) {
@@ -214,6 +222,16 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
                   </label>
                 ))}
               </fieldset>
+              {draft.serviceModel !== "managed" && (
+                <label className="beta-form-field platform-onboarding-license-tier">License tier
+                  <select value={draft.licenseTier} onChange={(event) => update("licenseTier", event.target.value)}>
+                    {Object.entries(LICENSE_TIERS).map(([value, tier]) => (
+                      <option key={value} value={value}>{tier.label} - {tier.limits}</option>
+                    ))}
+                  </select>
+                  <small className="beta-field-help">Administrator invitations, users, and properties are enforced against these contracted limits.</small>
+                </label>
+              )}
               <label className="beta-form-field platform-onboarding-default-source">Default fulfillment
                 <select value={draft.defaultFulfillmentSource} onChange={(event) => update("defaultFulfillmentSource", event.target.value)}>
                   {Object.entries(FULFILLMENT_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -247,6 +265,7 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
                 <div><dt>Organization</dt><dd>{draft.name}</dd><button type="button" onClick={() => goToStep(0)}>Edit</button></div>
                 <div><dt>Type and timezone</dt><dd>{ORGANIZATION_TYPES[draft.orgType]} · {draft.reportingTimezone.replaceAll("_", " ")}</dd><button type="button" onClick={() => goToStep(0)}>Edit</button></div>
                 <div><dt>Service model</dt><dd>{SERVICE_MODELS[draft.serviceModel].label} · {FULFILLMENT_SOURCES[draft.defaultFulfillmentSource]}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>
+                {draft.serviceModel !== "managed" && <div><dt>License tier</dt><dd>{LICENSE_TIERS[draft.licenseTier].label} · {LICENSE_TIERS[draft.licenseTier].limits}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>}
                 <div><dt>Administrator</dt><dd>{draft.initialAdminEmail}</dd><button type="button" onClick={() => goToStep(2)}>Edit</button></div>
               </dl>
               <p className="beta-dialog-note">The launch is audited. The workspace remains intact if invitation delivery fails, and the invitation can be resent from its organization card.</p>

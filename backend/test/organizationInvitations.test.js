@@ -75,6 +75,27 @@ test("organization administrators cannot issue administrator invitations", async
   }), /platform administrator/);
 });
 
+test("a licensed organization flow can explicitly create an administrator invitation without delivering inside its transaction", async () => {
+  let created;
+  const result = await createInvitation({
+    organization: { _id: "org-1", name: "Example" },
+    email: "admin@example.com",
+    role: "admin",
+    invitedBy: "user-1",
+    inviterScope: "organization",
+    allowOrganizationAdmin: true,
+    deliver: false,
+    UserModel: { findOne: () => ({ select: () => ({ lean: async () => null }) }) },
+    InvitationModel: {
+      updateMany: async () => {},
+      create: async (record) => { created = record; return record; },
+    },
+  });
+  assert.equal(created.role, "admin");
+  assert.equal(result.delivered, null);
+  assert.ok(result.token);
+});
+
 test("resending an expired invitation rotates its token and reactivates it", async () => {
   let saved = false;
   let deliveredText = "";

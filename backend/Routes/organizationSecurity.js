@@ -192,7 +192,7 @@ router.post("/totp/reset", verificationLimiter, async (req, res) => {
 
 router.post("/grants", verificationLimiter, async (req, res) => {
   const purpose = String(req.body.purpose || "");
-  if (!["add_property", "remove_property", "update_fulfillment_policy"].includes(purpose)) {
+  if (!["add_property", "remove_property", "update_fulfillment_policy", "invite_admin"].includes(purpose)) {
     return res.status(400).json({ error: "Invalid administrative action." });
   }
   const organization = await Organization.findById(req.user.organizationId);

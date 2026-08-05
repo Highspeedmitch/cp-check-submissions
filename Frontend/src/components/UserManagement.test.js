@@ -28,6 +28,24 @@ const currentDirectory = {
   }],
   properties,
   invitations: [],
+  administrators: [{
+    _id: "admin-1",
+    username: "Current Administrator",
+    email: "admin@example.com",
+    role: "admin",
+    accountStatus: "active",
+  }],
+  adminInvitations: [],
+  adminSeats: {
+    limit: 2,
+    active: 1,
+    pending: 0,
+    allocated: 1,
+    remaining: 1,
+    unmetered: false,
+    overLimit: false,
+    planLabel: "Full Stack SaaS Tier 1",
+  },
 };
 const archivedDirectory = {
   users: [{
@@ -43,6 +61,9 @@ const archivedDirectory = {
   }],
   properties,
   invitations: [],
+  administrators: [],
+  adminInvitations: [],
+  adminSeats: null,
 };
 
 beforeEach(() => {
@@ -98,4 +119,48 @@ test("archiving a current user requires a recorded reason", async () => {
     "/api/admin-users/user-1/archive",
     { reason: "No longer with the organization" }
   ));
+});
+
+test("administrator seat meter invites a second Tier 1 administrator through a scoped passkey grant", async () => {
+  api.post.mockImplementation(async (path) => {
+    if (path === "/api/organization-security/grants") return { grant: "admin-grant" };
+    if (path === "/api/admin-users/admin-invitations") return { message: "Administrator invitation sent." };
+    return { message: "Operation completed." };
+  });
+  renderManagement();
+
+  expect(await screen.findByText("1/2")).toBeInTheDocument();
+  expect(screen.getByRole("progressbar", { name: "1 of 2 administrator seats allocated" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Invite Administrator" }));
+  fireEvent.change(screen.getByRole("textbox", { name: /Administrator email addresses/i }), {
+    target: { value: "second.admin@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText(/Administrative action passkey/i), {
+    target: { value: "organization-passkey" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Send administrator invitation" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/organization-security/grants",
+    { purpose: "invite_admin", passkey: "organization-passkey" }
+  ));
+  expect(api.post).toHaveBeenCalledWith(
+    "/api/admin-users/admin-invitations",
+    { emails: ["second.admin@example.com"], adminActionGrant: "admin-grant" }
+  );
+});
+
+test("a full administrator meter offers the license request path", async () => {
+  api.get.mockResolvedValue({
+    ...currentDirectory,
+    adminSeats: { ...currentDirectory.adminSeats, active: 2, allocated: 2, remaining: 0 },
+  });
+  renderManagement();
+  expect(await screen.findByText("2/2")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Request Additional License" }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/admin-users/admin-license-requests",
+    {}
+  ));
+  expect(screen.queryByRole("button", { name: "Invite Administrator" })).not.toBeInTheDocument();
 });

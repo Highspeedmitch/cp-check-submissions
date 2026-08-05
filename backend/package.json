@@ -8,7 +8,8 @@
     "grant-platform-admin": "node scripts/grantPlatformAdmin.js",
     "configure-production-organizations": "node scripts/configureProductionOrganizations.js",
     "provision-dev-platform-admin": "node scripts/provisionDevPlatformAdmin.js",
-    "provision-dev-owner-resource": "node scripts/provisionDevOwnerResource.js"
+    "provision-dev-owner-resource": "node scripts/provisionDevOwnerResource.js",
+    "backfill-dev-licenses": "node scripts/backfillOrganizationLicenses.js"
   },
   "keywords": [],
   "author": "",

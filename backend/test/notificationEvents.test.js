@@ -14,6 +14,7 @@ const {
   invoiceReviewChanged,
   invoiceStatusChanged,
   serviceModelChangeEvent,
+  administratorLicenseRequested,
   bidRequestSubmitted,
   bidRequestReceived,
   bidRequestStatusChanged,
@@ -93,6 +94,17 @@ test("service model workflow events link each recipient to the correct workspace
   assert.equal(serviceModelChangeEvent(request, "Example Org", "information_requested").route, "/service-delivery");
   assert.equal(serviceModelChangeEvent(request, "Example Org", "approved").type, "service_model_change_approved");
   assert.equal(serviceModelChangeEvent(request, "Example Org", "denied").type, "service_model_change_denied");
+});
+
+test("administrator license requests alert platform administrators", () => {
+  const event = administratorLicenseRequested(
+    { _id: "audit-1" },
+    "Example Org",
+    { allocated: 3, limit: 3 }
+  );
+  assert.equal(event.type, "administrator_license_requested");
+  assert.equal(event.route, "/platform?view=organizations");
+  assert.match(event.body, /3\/3/);
 });
 
 test("initial bid messages distinguish sender confirmation from admin receipt", () => {

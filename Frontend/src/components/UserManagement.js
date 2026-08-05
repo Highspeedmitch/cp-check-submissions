@@ -3,10 +3,18 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 import { api } from "../services/api";
+import AdminInvitationDialog from "./admin/AdminInvitationDialog";
 
 export default function UserManagement() {
   const navigate = useNavigate();
-  const [data, setData] = useState({ users: [], properties: [], invitations: [] });
+  const [data, setData] = useState({
+    users: [],
+    properties: [],
+    invitations: [],
+    administrators: [],
+    adminInvitations: [],
+    adminSeats: null,
+  });
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState(null);
   const [propertyIds, setPropertyIds] = useState([]);
@@ -20,6 +28,7 @@ export default function UserManagement() {
   const [userSearch, setUserSearch] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
+  const [adminInviteOpen, setAdminInviteOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -203,6 +212,46 @@ export default function UserManagement() {
     }
   }
 
+  async function inviteAdministrators({ emails, passkey }) {
+    if (busyAction) return;
+    setBusyAction("invite-admin");
+    setMessage("");
+    setError("");
+    try {
+      const verification = await api.post("/api/organization-security/grants", {
+        purpose: "invite_admin",
+        passkey,
+      });
+      const result = await api.post("/api/admin-users/admin-invitations", {
+        emails,
+        adminActionGrant: verification.grant,
+      });
+      setMessage(result.message || "Administrator invitation sent.");
+      setAdminInviteOpen(false);
+      await load();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function requestAdditionalAdminLicense() {
+    if (busyAction || !window.confirm("Request additional administrator licensing from Afterlight?")) return;
+    setBusyAction("request-admin-license");
+    setMessage("");
+    setError("");
+    try {
+      const result = await api.post("/api/admin-users/admin-license-requests", {});
+      setMessage(result.message || "Additional administrator licensing requested.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   return (
     <div className="beta-page">
     <main className="beta-page-shell">
@@ -215,6 +264,65 @@ export default function UserManagement() {
       />
       {message && <p className="beta-alert success" role="status">{message}</p>}
       {error && <p className="beta-alert error" role="alert">{error}</p>}
+
+      {directory === "current" && data.adminSeats && (
+        <section className="beta-panel beta-admin-seat-panel" aria-labelledby="administrator-seats-title">
+          <div className="beta-section-heading">
+            <div>
+              <p className="beta-eyebrow">{data.adminSeats.planLabel}</p>
+              <h2 id="administrator-seats-title">Administrator seats</h2>
+              <p>{data.adminSeats.active} active administrator{data.adminSeats.active === 1 ? "" : "s"} · {data.adminSeats.pending} invitation{data.adminSeats.pending === 1 ? "" : "s"} pending</p>
+            </div>
+            {(data.adminSeats.unmetered || data.adminSeats.remaining > 0) ? (
+              <button className="beta-button compact" type="button" onClick={() => setAdminInviteOpen(true)}>
+                Invite Administrator
+              </button>
+            ) : (
+              <button className="beta-button secondary compact" type="button"
+                disabled={Boolean(busyAction)} onClick={requestAdditionalAdminLicense}>
+                {busyAction === "request-admin-license" ? "Requesting..." : "Request Additional License"}
+              </button>
+            )}
+          </div>
+          {data.adminSeats.unmetered ? (
+            <p className="beta-admin-seat-unmetered">Administrator seats are not metered under this managed-service agreement.</p>
+          ) : (
+            <div className="beta-admin-seat-meter">
+              <div><strong>{data.adminSeats.allocated}/{data.adminSeats.limit}</strong><span>administrator seats allocated</span></div>
+              <progress max={data.adminSeats.limit} value={Math.min(data.adminSeats.allocated, data.adminSeats.limit)}
+                aria-label={`${data.adminSeats.allocated} of ${data.adminSeats.limit} administrator seats allocated`} />
+              {data.adminSeats.overLimit && <small className="beta-text-danger">This organization is over its licensed administrator limit.</small>}
+            </div>
+          )}
+          {(data.administrators.length > 0 || data.adminInvitations.length > 0) && (
+            <div className="beta-admin-seat-directory">
+              {data.administrators.map((administrator) => (
+                <div key={administrator._id} className="beta-admin-seat-person">
+                  <div><strong>{administrator.username || administrator.email}</strong><small>{administrator.email}</small></div>
+                  <span className={`beta-status ${administrator.accountStatus === "inactive" ? "declined" : "success"}`}>{administrator.accountStatus || "active"}</span>
+                </div>
+              ))}
+              {data.adminInvitations.map((invitation) => (
+                <div key={invitation._id} className="beta-admin-seat-person">
+                  <div><strong>{invitation.email}</strong><small>Administrator invitation · {invitation.status}</small></div>
+                  <div className="beta-card-actions">
+                    {invitation.status === "pending" && (
+                      <button className="beta-button secondary compact" type="button" disabled={Boolean(busyAction)}
+                        onClick={() => resendInvitation(invitation._id)}>
+                        {busyAction === `resend-${invitation._id}` ? "Sending…" : "Resend"}
+                      </button>
+                    )}
+                    <button className="beta-button danger compact" type="button" disabled={Boolean(busyAction)}
+                      onClick={() => revokeInvitation(invitation._id)}>
+                      {busyAction === `revoke-${invitation._id}` ? "Revoking…" : "Revoke"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {directory === "current" && <section className="beta-panel beta-invitation-panel">
         <div className="beta-section-heading">
@@ -390,6 +498,9 @@ export default function UserManagement() {
         </section>
       </div>
     </main>
+    {adminInviteOpen && data.adminSeats && (
+      <AdminInvitationDialog adminSeats={data.adminSeats} onClose={() => setAdminInviteOpen(false)} onSubmit={inviteAdministrators} />
+    )}
     </div>
   );
 }
