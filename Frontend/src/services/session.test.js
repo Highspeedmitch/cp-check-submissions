@@ -4,6 +4,7 @@ import {
   clearAuthentication,
   restoreSession,
   refreshAccessToken,
+  isExpiredAuthResponse,
 } from "./session";
 
 function tokenWithExpiration(exp) {
@@ -124,4 +125,25 @@ test("a tab reuses a token refreshed by another tab instead of rotating twice", 
   expect(request).toHaveBeenCalledWith("afterlight-session-refresh", expect.any(Function));
   expect(nativeFetch).not.toHaveBeenCalled();
   delete navigator.locks;
+});
+
+test("a workspace cookie error does not invalidate a still-valid access token", async () => {
+  const response = new Response(JSON.stringify({
+    code: "SESSION_REFRESH_UNAVAILABLE",
+    message: "Your secure session is unavailable on this device.",
+  }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  await expect(isExpiredAuthResponse(response)).resolves.toBe(false);
+});
+
+test("an ordinary unauthorized response still triggers session refresh", async () => {
+  const response = new Response(JSON.stringify({ message: "Session expired." }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  await expect(isExpiredAuthResponse(response)).resolves.toBe(true);
 });

@@ -52,3 +52,24 @@ test("stays hidden for a single-workspace account", () => {
   render(<MemoryRouter><WorkspaceSwitcher /></MemoryRouter>);
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
+
+test("keeps the current workspace when the refresh cookie is unavailable", async () => {
+  localStorage.setItem("token", "still-valid-token");
+  localStorage.setItem("accountScope", "organization");
+  localStorage.setItem("availableWorkspaces", JSON.stringify([
+    "organization",
+    "afterlight_resource",
+  ]));
+  api.post.mockRejectedValue(new Error(
+    "Your secure session is unavailable on this device. Reload the page and try again."
+  ));
+
+  render(<MemoryRouter><WorkspaceSwitcher /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("button", { name: "Resource Portal" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Your secure session is unavailable on this device. Reload the page and try again."
+  );
+  expect(localStorage.getItem("token")).toBe("still-valid-token");
+  expect(localStorage.getItem("accountScope")).toBe("organization");
+});

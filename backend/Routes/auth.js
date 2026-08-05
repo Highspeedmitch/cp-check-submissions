@@ -627,7 +627,10 @@ router.post("/auth/refresh", requireTrustedSessionOrigin, async (req, res) => {
 router.post("/auth/workspace", requireTrustedSessionOrigin, authenticateToken, async (req, res) => {
   const refreshToken = req.cookies[REFRESH_COOKIE];
   if (!refreshToken) {
-    return res.status(401).json({ message: "No active session. Sign in again before switching workspaces." });
+    return res.status(401).json({
+      code: "SESSION_REFRESH_UNAVAILABLE",
+      message: "Your secure session is unavailable on this device. Reload the page and try again.",
+    });
   }
   try {
     const user = await User.findById(req.user.userId).populate("organizationId");
