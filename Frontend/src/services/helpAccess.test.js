@@ -11,22 +11,35 @@ test("filters help articles by exact role and organization type", () => {
   expect(visibleHelpArticles({ role: "user", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "complete-and-submit-an-inspection",
     "connect-my-calendar",
+    "enable-notifications",
+    "authenticator-verification",
   ]);
   expect(visibleHelpArticles({ role: "user", orgType: "STR" }).map(({ slug }) => slug)).toEqual([
     "complete-and-submit-an-inspection",
     "connect-my-calendar",
+    "enable-notifications",
+    "authenticator-verification",
   ]);
   expect(visibleHelpArticles({ role: "property_manager", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "review-an-invoice",
     "review-property-submissions",
     "create-a-scheduler-assignment",
+    "enable-notifications",
+    "authenticator-verification",
   ]);
   expect(visibleHelpArticles({ role: "admin", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "review-property-submissions",
     "create-a-scheduler-assignment",
     "request-a-service-model-change",
+    "enable-notifications",
+    "manage-organization-users",
+    "configure-property-delivery",
+    "authenticator-verification",
   ]);
-  expect(visibleHelpArticles({ role: "client", orgType: "STR" })).toEqual([]);
+  expect(visibleHelpArticles({ role: "client", orgType: "STR" }).map(({ slug }) => slug)).toEqual([
+    "enable-notifications",
+    "authenticator-verification",
+  ]);
   expect(visibleHelpArticles({
     role: "contractor",
     orgType: "COM",
@@ -37,6 +50,8 @@ test("filters help articles by exact role and organization type", () => {
     "use-the-resource-portal",
     "complete-a-resource-assignment",
     "understand-resource-earnings",
+    "enable-notifications",
+    "authenticator-verification",
   ]);
 });
 
@@ -53,6 +68,8 @@ test("owner and employee resources receive non-payable guidance instead of earni
     "use-the-resource-portal",
     "complete-a-resource-assignment",
     "afterlight-owner-employee-resource-work",
+    "enable-notifications",
+    "authenticator-verification",
   ]);
   expect(slugs).not.toContain("understand-resource-earnings");
 });
@@ -73,6 +90,8 @@ test("a dual-workspace submitter is treated as a contractor inside the Resource 
     "use-the-resource-portal",
     "complete-a-resource-assignment",
     "understand-resource-earnings",
+    "enable-notifications",
+    "authenticator-verification",
   ]);
 });
 
@@ -89,6 +108,7 @@ test("platform guidance is isolated from organization and assumed-access help", 
     "manage-resources-and-payables",
     "configure-gusto-contractor-payments",
     "review-service-model-change-requests",
+    "create-and-access-an-organization",
   ]);
   expect(visibleHelpArticles({ role: "admin", orgType: "COM", accountScope: "organization" })
     .some(({ slug }) => slug === "process-afterlight-service-invoices")).toBe(false);

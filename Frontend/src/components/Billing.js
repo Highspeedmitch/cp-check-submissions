@@ -59,7 +59,9 @@ export default function Billing() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyActions, setBusyActions] = useState({});
-  const helpSlug = !isOversight && invoices.some((invoice) => invoice.status === "declined")
+  const helpSlug = role === "admin"
+    ? "configure-property-delivery"
+    : !isOversight && invoices.some((invoice) => invoice.status === "declined")
     ? "revise-a-declined-invoice"
     : isPropertyManager
       ? "review-an-invoice"

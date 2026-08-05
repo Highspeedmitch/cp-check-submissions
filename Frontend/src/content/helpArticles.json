@@ -211,5 +211,66 @@
     "file": "platform-review-service-model-changes.md",
     "estimatedTime": "3-8 min",
     "keywords": ["approve", "contract", "deny", "fulfillment", "hybrid", "managed service", "platform admin", "request", "service model"]
+  },
+  {
+    "slug": "enable-notifications",
+    "title": "Enable and troubleshoot notifications",
+    "summary": "Enable browser or device push alerts, understand workflow notifications, and resolve common permission problems.",
+    "category": "Getting started",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "accountScopes": ["organization", "afterlight_resource"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "enable-notifications.md",
+    "estimatedTime": "2-4 min",
+    "keywords": ["alert", "android", "browser", "iphone", "notification", "permission", "push", "retry", "web app"]
+  },
+  {
+    "slug": "manage-organization-users",
+    "title": "Manage organization users and access",
+    "summary": "Invite and edit organization users, manage property access, and safely archive or restore retained records.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM"],
+    "file": "manage-organization-users.md",
+    "estimatedTime": "4-8 min",
+    "keywords": ["access", "archive", "directory", "invitation", "property assignment", "restore", "role", "user"]
+  },
+  {
+    "slug": "configure-property-delivery",
+    "title": "Configure property delivery and inspection recipients",
+    "summary": "Set property fulfillment, customer billing, AP delivery, and automatic or additional inspection recipients.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "configure-property-delivery.md",
+    "estimatedTime": "5-10 min",
+    "keywords": ["accounts payable", "ap email", "billing", "fulfillment", "manager", "property", "recipient", "suggested amount"]
+  },
+  {
+    "slug": "create-and-access-an-organization",
+    "title": "Create and securely access an organization",
+    "summary": "Create a customer workspace, invite its first administrator, and open an audited Admin View with fresh identity confirmation.",
+    "category": "Platform operations",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "platformRoles": ["platform_admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "platform-create-access-organization.md",
+    "estimatedTime": "4-8 min",
+    "keywords": ["admin view", "assume", "authentication", "create organization", "invitation", "managed service", "mfa", "platform admin", "step-up"]
+  },
+  {
+    "slug": "authenticator-verification",
+    "title": "Set up and recover authenticator verification",
+    "summary": "Enroll an authenticator, save recovery codes, verify sign-in, and recover or reset multi-factor access safely.",
+    "category": "Account security",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "accountScopes": ["organization", "afterlight_resource"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "authenticator-verification.md",
+    "estimatedTime": "3-6 min",
+    "keywords": ["authenticator", "code", "enrollment", "mfa", "multi-factor", "recovery", "security", "sign in", "totp"]
   }
 ]

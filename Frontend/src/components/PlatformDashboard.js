@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { storeAuthentication, logoutSession } from "../services/session";
 import { beginOktaLogin, oktaConfigured } from "../services/okta";
 import PageHeader from "./ui/PageHeader";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import ProspectAssessments from "./ProspectAssessments";
 import ThemeToggle from "./ui/ThemeToggle";
 import PlatformResources from "./PlatformResources";
@@ -275,6 +276,15 @@ export default function PlatformDashboard() {
   const [organizationError, setOrganizationError] = useState("");
   const [stepUpRequest, setStepUpRequest] = useState(null);
   const notificationBadges = useNotificationBadges(true);
+  const helpSlug = activeView === "billing"
+    ? "process-afterlight-service-invoices"
+    : activeView === "resources"
+      ? "manage-resources-and-payables"
+      : activeView === "service-models"
+        ? "review-service-model-change-requests"
+        : activeView === "overview"
+          ? "create-and-access-an-organization"
+          : "";
   const activeNotificationTypes = activeView === "billing"
     ? NOTIFICATION_SECTIONS.platformBilling
     : activeView === "resources"
@@ -492,7 +502,8 @@ export default function PlatformDashboard() {
         </div>
         <PageHeader eyebrow="Platform administration"
           title={activeView === "overview" ? "Organization Overview" : activeView === "billing" ? "Service Billing" : activeView === "resources" ? "Resources & Payables" : activeView === "service-models" ? "Service Model Requests" : "Complimentary Reports"}
-          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization contract-change requests." : "Create and manage standalone property opportunity reports."} />
+          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization contract-change requests." : "Create and manage standalone property opportunity reports."}
+          actions={<ContextualHelpLink slug={helpSlug} />} />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}
 

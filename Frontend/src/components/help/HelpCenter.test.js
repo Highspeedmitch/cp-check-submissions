@@ -21,6 +21,8 @@ test("shows inspection help without contractor billing to a commercial employee"
   expect(screen.queryByRole("heading", { name: "Prepare and send an invoice for approval" })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Review, approve, or decline an invoice" })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Create and manage a scheduler assignment" })).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Enable and troubleshoot notifications" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up and recover authenticator verification" })).toBeInTheDocument();
 });
 test("omits commercial billing help for a short-term-rental submitter", () => {
   renderHelpCenter("contractor", "STR");
@@ -64,6 +66,9 @@ test("shows the platform operations guide to a platform administrator", () => {
   expect(screen.getByRole("heading", {
     name: "Process Afterlight service invoices",
   })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Create and securely access an organization",
+  })).toBeInTheDocument();
   expect(screen.queryByRole("heading", {
     name: "Create and manage a scheduler assignment",
   })).not.toBeInTheDocument();
@@ -75,4 +80,10 @@ test("hides platform service billing guidance from organization administrators",
   expect(screen.queryByRole("heading", {
     name: "Process Afterlight service invoices",
   })).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Manage organization users and access",
+  })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Configure property delivery and inspection recipients",
+  })).toBeInTheDocument();
 });

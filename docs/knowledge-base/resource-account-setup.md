@@ -34,7 +34,7 @@ Invitation links expire and can be used only once. If the page says that the lin
 
 After a successful sign-in, a resource-only account opens the **Afterlight Resource Network** portal automatically.
 
-If you already use an organization workspace, sign out and back in after Afterlight adds Resource Network access. Select **Resource Portal** from the dashboard header to enter the contractor workspace. Select **Organization Workspace** in the Resource Portal when you need to return. Both workspaces use the same email and password.
+If you already use an organization workspace, sign out and back in after Afterlight adds Resource Network access. Select **Resource Portal** from the dashboard header on a larger screen or from the mobile navigation menu to enter the resource workspace. Select **Organization Workspace** in the Resource Portal when you need to return. Both workspaces use the same email and password.
 
 ## Complete resource activation
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import { api } from "../services/api";
 
 export default function UserManagement() {
@@ -210,6 +211,7 @@ export default function UserManagement() {
         eyebrow="Organization administration"
         title="User Management"
         subtitle="Manage roles, account access, and property assignments"
+        actions={<ContextualHelpLink slug="manage-organization-users" />}
       />
       {message && <p className="beta-alert success" role="status">{message}</p>}
       {error && <p className="beta-alert error" role="alert">{error}</p>}

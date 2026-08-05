@@ -6,7 +6,7 @@
 
 The Resource Portal is your home for Afterlight assignments and, for 1099 contractors, earnings. Resource assignments provide only the customer-property access needed for the scheduled work; they do not make you a member of that customer organization.
 
-If your login also belongs to an organization workspace, select **Resource Portal** from the organization dashboard to enter this portal. Select **Organization Workspace** at the top of the Resource Portal to return. Switching changes the active workspace, not your identity, password, deployments, or saved work.
+If your login also belongs to an organization workspace, select **Resource Portal** from the dashboard header on a larger screen or **Switch to Resource Portal** from the mobile navigation menu. Select **Organization Workspace** at the top of the Resource Portal to return. Switching changes the active workspace, not your identity, password, deployments, or saved work.
 
 ## Read the portal summary
 

@@ -28,23 +28,23 @@ Approval takes effect immediately for future assignments. Afterlight:
 - clears all property-level fulfillment overrides;
 - increments the fulfillment policy version;
 - records platform and fulfillment audit events; and
-- emails the requesting administrator.
+- alerts the requesting administrator in Afterlight and by push or email when available.
 
 Existing assignments and invoices keep their saved fulfillment and billing routing.
 
 ### Request more information
 
-Enter a specific question in **Platform response**, then select **Request more information**. The requester receives an email and can respond from the organization's **Service Delivery** page. When they respond, the request returns to pending review and active platform administrators receive another email containing the latest update.
+Enter a specific question in **Platform response**, then select **Request more information**. The requester receives an in-app alert and optional push or email, then responds from the organization's **Service Delivery** page. When they respond, the request returns to pending review and active platform administrators are alerted again.
 
 ### Deny
 
-Enter the reason in **Platform response**, then select **Deny**. No organization policy is changed. The requester receives the decision and response by email.
+Enter the reason in **Platform response**, then select **Deny**. No organization policy is changed. The requester receives the decision and response in Afterlight and by push or email when available.
 
 ## Notification behavior
 
-In DEV, system email is sent from `dev@afterlightinspections.com`. New and updated organization requests are sent to every active Afterlight user whose platform role is **platform administrator**. Decisions are sent to the organization administrator who opened the request.
+New requests and information supplied by an organization alert active platform administrators. Information requests, approvals, and denials alert the organization administrator who opened the request. Afterlight uses the shared in-app and optional push path and also attempts workflow email when configured.
 
-If delivery fails, the error is recorded on the request without discarding the in-app workflow. Review the Platform Administration queue rather than relying on email alone.
+If push or email delivery fails, the error does not discard the in-app workflow. Review the Platform Administration queue rather than relying on an external notification alone.
 
 ## Review safeguards
 
