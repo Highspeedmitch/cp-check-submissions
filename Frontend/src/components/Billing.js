@@ -31,6 +31,13 @@ function statusLabel(invoice) {
   return labels[invoice.status] || invoice.status;
 }
 
+function statusClass(invoice) {
+  if (invoice.status === "submitted" && invoice.delivery?.status === "delivered") {
+    return "success";
+  }
+  return invoice.status;
+}
+
 function invoiceRoutingLabel(invoice) {
   const routing = invoice.fulfillmentSnapshot?.invoiceRouting;
   if (routing === "afterlight_service_billing") return "Afterlight service";
@@ -396,7 +403,7 @@ export default function Billing() {
                       : <strong>{dollars(invoice.amountCents)}</strong>}
                   </td>
                   <td>
-                    <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice)}</span>
+                    <span className={`beta-status ${statusClass(invoice)}`}>{statusLabel(invoice)}</span>
                     {invoice.review?.declineReason && <><br/><small>{invoice.review.declineReason}</small></>}
                     {displayedApDeliveryError(invoice) && <><br/><small>{displayedApDeliveryError(invoice)}</small></>}
                     {invoice.delivery?.providerMessageId && <><br/><small>Provider ref: {invoice.delivery.providerMessageId}</small></>}
@@ -420,7 +427,7 @@ export default function Billing() {
                 </div>
                 <div className="beta-invoice-total">
                   <strong>{dollars(invoice.amountCents)}</strong>
-                  <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice)}</span>
+                  <span className={`beta-status ${statusClass(invoice)}`}>{statusLabel(invoice)}</span>
                 </div>
               </div>
               <dl className="beta-detail-list">
