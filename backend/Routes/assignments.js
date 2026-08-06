@@ -7,7 +7,10 @@ const FulfillmentAudit = require("../models/fulfillmentAudit");
 const { managedProperties } = require("../services/propertyAccess");
 const { sendUserNotification } = require("../services/notifications");
 const { assignmentChanged } = require("../services/notificationEvents");
-const { resolveAssignmentFulfillment } = require("../services/fulfillmentPolicy");
+const {
+  resolveAssignmentFulfillment,
+  serviceModelAllowsAfterlightResources,
+} = require("../services/fulfillmentPolicy");
 const {
   resolveAssignmentAssignee,
   deployedSchedulerResources,
@@ -39,6 +42,14 @@ function tenantAssignmentResult(assignment) {
   const value = typeof assignment?.toObject === "function"
     ? assignment.toObject()
     : { ...assignment };
+  const populatedAssignee = value.userId && typeof value.userId === "object"
+    && (value.userId.email || value.userId.username || value.userId.displayName)
+    ? value.userId
+    : null;
+  if (populatedAssignee) {
+    value.assignee = publicUser(populatedAssignee);
+    value.userId = populatedAssignee._id;
+  }
   delete value.compensationSnapshot;
   return value;
 }
@@ -216,7 +227,11 @@ function createAssignmentHandlers({
         query.userId = req.user.userId;
       }
 
-      const assignments = await AssignmentModel.find(query).sort({ startDate: 1 });
+      let assignmentsQuery = AssignmentModel.find(query).sort({ startDate: 1 });
+      if (typeof assignmentsQuery.populate === "function") {
+        assignmentsQuery = assignmentsQuery.populate("userId", "email username displayName");
+      }
+      const assignments = await assignmentsQuery;
       if (!assignments.length) {
         console.warn(
           "No assignments found for organization:",
@@ -239,14 +254,22 @@ function createAssignmentHandlers({
       const roleFilter = req.query.roles === "all"
         ? ["user", "contractor", "cleaner"]
         : ["user"];
-      const users = await UserModel.find({
-        organizationId: req.user.organizationId,
-        role: { $in: roleFilter },
-        accountStatus: { $ne: "inactive" },
-        organizationArchivedAt: null,
-      }).select("_id email role");
+      const [users, organization] = await Promise.all([
+        UserModel.find({
+          organizationId: req.user.organizationId,
+          role: { $in: roleFilter },
+          accountStatus: { $ne: "inactive" },
+          organizationArchivedAt: null,
+        }).select("_id email role"),
+        OrganizationModel.findById(req.user.organizationId),
+      ]);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
       const resources = req.query.roles === "all"
-        ? await schedulerResources({ organizationId: req.user.organizationId })
+        && serviceModelAllowsAfterlightResources(organization)
+        ? await schedulerResources({
+            organizationId: req.user.organizationId,
+            serviceModel: organization.serviceModel,
+          })
         : [];
 
       return res.json([...users, ...resources]);
@@ -435,7 +458,8 @@ function createAssignmentHandlers({
           .some((managed) => String(managed._id) === String(property._id))) {
           return res.status(403).json({ error: "You do not manage this property." });
         }
-        const fulfillment = Object.prototype.hasOwnProperty.call(req.body, "fulfillmentSource")
+        const hasFulfillmentOverride = Object.prototype.hasOwnProperty.call(req.body, "fulfillmentSource");
+        const fulfillment = hasFulfillmentOverride
           ? resolveAssignmentFulfillment({
               organization,
               property,
@@ -444,25 +468,50 @@ function createAssignmentHandlers({
             })
           : existing.fulfillment;
         changes.fulfillment = fulfillment;
-        const assignee = await resolveAssignee({
-          fulfillment,
-          userId: changes.userId || existing.userId,
-          organizationId: req.user.organizationId,
-          property,
-          startDate: changes.startDate || existing.startDate,
-          UserModel,
-        });
-        changes.userId = assignee.userId;
-        changes.resourceProfileId = assignee.resourceProfileId;
-        changes.resourceDeploymentId = assignee.resourceDeploymentId;
-        const retainsAgreedRate = existing.resourceProfileId
-          && String(existing.resourceProfileId) === String(assignee.resourceProfileId)
-          && !Object.prototype.hasOwnProperty.call(req.body, "userId")
-          && !Object.prototype.hasOwnProperty.call(req.body, "fulfillmentSource");
-        changes.compensationSnapshot = retainsAgreedRate
-          ? existing.compensationSnapshot
-          : assignee.compensationSnapshot;
-        if (Object.prototype.hasOwnProperty.call(req.body, "fulfillmentSource")) {
+        const existingAfterlightAssignment = ["afterlight_staff", "afterlight_contractor"]
+          .includes(existing.fulfillment?.source);
+        const sameAssignee = String(changes.userId || existing.userId) === String(existing.userId);
+        const sameProperty = propertyName === existing.propertyName;
+        const preservesExistingSaasAssignment = existingAfterlightAssignment
+          && !serviceModelAllowsAfterlightResources(organization)
+          && !hasFulfillmentOverride
+          && sameAssignee
+          && sameProperty;
+        if (preservesExistingSaasAssignment) {
+          changes.userId = existing.userId;
+          changes.resourceProfileId = existing.resourceProfileId;
+          changes.resourceDeploymentId = existing.resourceDeploymentId;
+          changes.compensationSnapshot = existing.compensationSnapshot;
+        } else {
+          if (existingAfterlightAssignment
+            && !serviceModelAllowsAfterlightResources(organization)
+            && !hasFulfillmentOverride) {
+            const error = new Error(
+              "Select customer fulfillment before changing the assignee or property on this retained Afterlight assignment."
+            );
+            error.status = 400;
+            throw error;
+          }
+          const assignee = await resolveAssignee({
+            fulfillment,
+            userId: changes.userId || existing.userId,
+            organizationId: req.user.organizationId,
+            property,
+            startDate: changes.startDate || existing.startDate,
+            UserModel,
+          });
+          changes.userId = assignee.userId;
+          changes.resourceProfileId = assignee.resourceProfileId;
+          changes.resourceDeploymentId = assignee.resourceDeploymentId;
+          const retainsAgreedRate = existing.resourceProfileId
+            && String(existing.resourceProfileId) === String(assignee.resourceProfileId)
+            && !Object.prototype.hasOwnProperty.call(req.body, "userId")
+            && !hasFulfillmentOverride;
+          changes.compensationSnapshot = retainsAgreedRate
+            ? existing.compensationSnapshot
+            : assignee.compensationSnapshot;
+        }
+        if (hasFulfillmentOverride) {
           await FulfillmentAuditModel.create({
             organizationId: req.user.organizationId,
             actorUserId: req.user.userId,

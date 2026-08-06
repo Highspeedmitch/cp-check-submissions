@@ -1,11 +1,24 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import { api } from "../services/api";
+import AdminInvitationDialog from "./admin/AdminInvitationDialog";
+import LicenseIncreaseRequestDialog from "./admin/LicenseIncreaseRequestDialog";
+import ConfirmationDialog from "./ui/ConfirmationDialog";
 
 export default function UserManagement() {
   const navigate = useNavigate();
-  const [data, setData] = useState({ users: [], properties: [], invitations: [] });
+  const [data, setData] = useState({
+    users: [],
+    properties: [],
+    invitations: [],
+    administrators: [],
+    adminInvitations: [],
+    adminSeats: null,
+    license: null,
+    licenseOptions: null,
+  });
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState(null);
   const [propertyIds, setPropertyIds] = useState([]);
@@ -19,6 +32,9 @@ export default function UserManagement() {
   const [userSearch, setUserSearch] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
+  const [adminInviteOpen, setAdminInviteOpen] = useState(false);
+  const [licenseRequestOpen, setLicenseRequestOpen] = useState(false);
+  const [revokeInvitationTarget, setRevokeInvitationTarget] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -187,7 +203,7 @@ export default function UserManagement() {
   }
 
   async function revokeInvitation(invitationId) {
-    if (busyAction || !window.confirm("Revoke this invitation? Its current link will stop working.")) return;
+    if (busyAction) return;
     setBusyAction(`revoke-${invitationId}`);
     setMessage("");
     setError("");
@@ -197,6 +213,51 @@ export default function UserManagement() {
       await load();
     } catch (err) {
       setError(err.message);
+      throw err;
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function inviteAdministrators({ emails, passkey }) {
+    if (busyAction) return;
+    setBusyAction("invite-admin");
+    setMessage("");
+    setError("");
+    try {
+      const verification = await api.post("/api/organization-security/grants", {
+        purpose: "invite_admin",
+        passkey,
+      });
+      const result = await api.post("/api/admin-users/admin-invitations", {
+        emails,
+        adminActionGrant: verification.grant,
+      });
+      setMessage(result.message || "Administrator invitation sent.");
+      setAdminInviteOpen(false);
+      await load();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function requestAdditionalAdminLicense(payload) {
+    if (busyAction) return;
+    setBusyAction("request-admin-license");
+    setMessage("");
+    setError("");
+    try {
+      const result = await api.post("/api/service-model-changes", payload);
+      setMessage(result.emailDelivered === false
+        ? "License increase requested. It is available for platform review, but the notification email could not be delivered."
+        : "License increase requested. Afterlight platform administration was notified.");
+      setLicenseRequestOpen(false);
+    } catch (err) {
+      setError(err.message);
+      throw err;
     } finally {
       setBusyAction("");
     }
@@ -210,9 +271,69 @@ export default function UserManagement() {
         eyebrow="Organization administration"
         title="User Management"
         subtitle="Manage roles, account access, and property assignments"
+        actions={<ContextualHelpLink slug="manage-organization-users" />}
       />
       {message && <p className="beta-alert success" role="status">{message}</p>}
       {error && <p className="beta-alert error" role="alert">{error}</p>}
+
+      {directory === "current" && data.adminSeats && (
+        <section className="beta-panel beta-admin-seat-panel" aria-labelledby="administrator-seats-title">
+          <div className="beta-section-heading">
+            <div>
+              <p className="beta-eyebrow">{data.adminSeats.planLabel}</p>
+              <h2 id="administrator-seats-title">Administrator seats</h2>
+              <p>{data.adminSeats.active} active administrator{data.adminSeats.active === 1 ? "" : "s"} · {data.adminSeats.pending} invitation{data.adminSeats.pending === 1 ? "" : "s"} pending</p>
+            </div>
+            {(data.adminSeats.unmetered || data.adminSeats.remaining > 0) ? (
+              <button className="beta-button compact" type="button" onClick={() => setAdminInviteOpen(true)}>
+                Invite Administrator
+              </button>
+            ) : (
+              <button className="beta-button secondary compact" type="button"
+                disabled={Boolean(busyAction)} onClick={() => setLicenseRequestOpen(true)}>
+                Request Additional License
+              </button>
+            )}
+          </div>
+          {data.adminSeats.unmetered ? (
+            <p className="beta-admin-seat-unmetered">Administrator seats are not metered under this managed-service agreement.</p>
+          ) : (
+            <div className="beta-admin-seat-meter">
+              <div><strong>{data.adminSeats.allocated}/{data.adminSeats.limit}</strong><span>administrator seats allocated</span></div>
+              <progress max={data.adminSeats.limit} value={Math.min(data.adminSeats.allocated, data.adminSeats.limit)}
+                aria-label={`${data.adminSeats.allocated} of ${data.adminSeats.limit} administrator seats allocated`} />
+              {data.adminSeats.overLimit && <small className="beta-text-danger">This organization is over its licensed administrator limit.</small>}
+            </div>
+          )}
+          {(data.administrators.length > 0 || data.adminInvitations.length > 0) && (
+            <div className="beta-admin-seat-directory">
+              {data.administrators.map((administrator) => (
+                <div key={administrator._id} className="beta-admin-seat-person">
+                  <div><strong>{administrator.username || administrator.email}</strong><small>{administrator.email}</small></div>
+                  <span className={`beta-status ${administrator.accountStatus === "inactive" ? "declined" : "success"}`}>{administrator.accountStatus || "active"}</span>
+                </div>
+              ))}
+              {data.adminInvitations.map((invitation) => (
+                <div key={invitation._id} className="beta-admin-seat-person">
+                  <div><strong>{invitation.email}</strong><small>Administrator invitation · {invitation.status}</small></div>
+                  <div className="beta-card-actions">
+                    {invitation.status === "pending" && (
+                      <button className="beta-button secondary compact" type="button" disabled={Boolean(busyAction)}
+                        onClick={() => resendInvitation(invitation._id)}>
+                        {busyAction === `resend-${invitation._id}` ? "Sending…" : "Resend"}
+                      </button>
+                    )}
+                    <button className="beta-button danger compact" type="button" disabled={Boolean(busyAction)}
+                      onClick={() => setRevokeInvitationTarget(invitation)}>
+                      {busyAction === `revoke-${invitation._id}` ? "Revoking…" : "Revoke"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {directory === "current" && <section className="beta-panel beta-invitation-panel">
         <div className="beta-section-heading">
@@ -266,7 +387,7 @@ export default function UserManagement() {
                       {busyAction === `resend-${invitation._id}` ? "Sending..." : "Resend"}
                     </button>
                   )}
-                  <button className="beta-button danger compact" type="button" disabled={Boolean(busyAction)} onClick={() => revokeInvitation(invitation._id)}>
+                  <button className="beta-button danger compact" type="button" disabled={Boolean(busyAction)} onClick={() => setRevokeInvitationTarget(invitation)}>
                     {busyAction === `revoke-${invitation._id}` ? "Revoking..." : "Revoke"}
                   </button>
                 </div>
@@ -388,6 +509,28 @@ export default function UserManagement() {
         </section>
       </div>
     </main>
+    {adminInviteOpen && data.adminSeats && (
+      <AdminInvitationDialog adminSeats={data.adminSeats} onClose={() => setAdminInviteOpen(false)} onSubmit={inviteAdministrators} />
+    )}
+    {licenseRequestOpen && data.license && data.licenseOptions && (
+      <LicenseIncreaseRequestDialog
+        license={data.license}
+        options={data.licenseOptions}
+        onClose={() => setLicenseRequestOpen(false)}
+        onSubmit={requestAdditionalAdminLicense}
+      />
+    )}
+    {revokeInvitationTarget && (
+      <ConfirmationDialog
+        eyebrow="Invitation security"
+        title="Revoke this invitation?"
+        description={`The invitation for ${revokeInvitationTarget.email} will stop working immediately and its reserved seat will be released.`}
+        confirmLabel="Revoke invitation"
+        danger
+        onClose={() => setRevokeInvitationTarget(null)}
+        onConfirm={() => revokeInvitation(revokeInvitationTarget._id)}
+      />
+    )}
     </div>
   );
 }

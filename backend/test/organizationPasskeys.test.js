@@ -58,6 +58,24 @@ test("incorrect organization passkeys do not create grants", async () => {
   assert.equal(token, null);
 });
 
+test("administrator invitations never fall back to deployment-wide property passkeys", async () => {
+  const previous = process.env.ADD_PROPERTY_PASSKEY;
+  process.env.ADD_PROPERTY_PASSKEY = "legacy-platform-passkey";
+  try {
+    const token = await issueGrant({
+      organization: { _id: "org-1", security: {} },
+      userId: "admin-1",
+      purpose: "invite_admin",
+      passkey: "legacy-platform-passkey",
+      GrantModel: { async create() { assert.fail("a grant must not be created"); } },
+    });
+    assert.equal(token, null);
+  } finally {
+    if (previous === undefined) delete process.env.ADD_PROPERTY_PASSKEY;
+    else process.env.ADD_PROPERTY_PASSKEY = previous;
+  }
+});
+
 test("grant consumption is tenant, user, purpose, version, and one-time scoped", async () => {
   let query;
   let update;

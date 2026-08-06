@@ -1,0 +1,374 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Afterlight SES AP invoice delivery events for one application environment.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - production
+    Description: Application environment receiving SES delivery events.
+  ApiBaseUrl:
+    Type: String
+    Default: https://afterlight-api-dev.onrender.com
+    AllowedPattern: '^https://[A-Za-z0-9.-]+(?::[0-9]+)?$'
+    ConstraintDescription: Enter an HTTPS API origin without a trailing slash or path.
+    Description: Public Afterlight API origin that receives signed SNS notifications.
+  ConfigurationSetName:
+    Type: String
+    Default: afterlight-ap-invoice-dev
+    AllowedPattern: '^[A-Za-z0-9_-]{1,64}$'
+    Description: SES configuration set applied only to AP invoice email.
+  EnableWebhookSubscription:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Enable after the API has the topic ARN and configuration set environment values.
+
+Conditions:
+  CreateWebhookSubscription: !Equals [!Ref EnableWebhookSubscription, "true"]
+
+Resources:
+  ApDeliveryEventKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub "Afterlight ${Environment} SES AP delivery event encryption"
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowAccountAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: AllowSesEventPublishing
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/${ConfigurationSetName}"
+          - Sid: AllowSnsEncryption
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+                kms:EncryptionContext:aws:sns:topicArn: !Sub "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-events"
+          - Sid: AllowSnsToEncryptDeadLetterMessages
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+          - Sid: AllowCloudWatchAlarmPublishing
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+                kms:EncryptionContext:aws:sns:topicArn: !Sub "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-alarms"
+              ArnLike:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-*"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: afterlight
+
+  ApDeliveryEventKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${AWS::StackName}-events"
+      TargetKeyId: !Ref ApDeliveryEventKey
+
+  ApDeliveryEventTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-events"
+      DisplayName: Afterlight AP delivery events
+      KmsMasterKeyId: !Ref ApDeliveryEventKey
+      SignatureVersion: "2"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: afterlight
+
+  ApDeliveryEventTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref ApDeliveryEventTopic
+      PolicyDocument:
+        Id: !Sub "${AWS::StackName}-event-topic-policy"
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowAccountManagement
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action:
+              - sns:AddPermission
+              - sns:DeleteTopic
+              - sns:GetDataProtectionPolicy
+              - sns:GetTopicAttributes
+              - sns:ListSubscriptionsByTopic
+              - sns:ListTagsForResource
+              - sns:Publish
+              - sns:PutDataProtectionPolicy
+              - sns:RemovePermission
+              - sns:SetTopicAttributes
+              - sns:Subscribe
+            Resource: !Ref ApDeliveryEventTopic
+          - Sid: AllowSesConfigurationSetPublishing
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref ApDeliveryEventTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/${ConfigurationSetName}"
+          - Sid: DenyUnencryptedTransport
+            Effect: Deny
+            Principal: "*"
+            Action: sns:Publish
+            Resource: !Ref ApDeliveryEventTopic
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  ApDeliveryEventDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MessageRetentionPeriod: 1209600
+      KmsMasterKeyId: !Ref ApDeliveryEventKey
+      KmsDataKeyReusePeriodSeconds: 300
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: afterlight
+
+  ApDeliveryEventDeadLetterQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref ApDeliveryEventDeadLetterQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowOnlyApDeliveryTopicRedrive
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt ApDeliveryEventDeadLetterQueue.Arn
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                aws:SourceArn: !Ref ApDeliveryEventTopic
+          - Sid: DenyUnencryptedTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "sqs:*"
+            Resource: !GetAtt ApDeliveryEventDeadLetterQueue.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  OperationalAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-alarms"
+      DisplayName: Afterlight AP delivery alarms
+      KmsMasterKeyId: !Ref ApDeliveryEventKey
+      SignatureVersion: "2"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: afterlight
+
+  OperationalAlarmTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref OperationalAlarmTopic
+      PolicyDocument:
+        Id: !Sub "${AWS::StackName}-alarm-topic-policy"
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowAccountManagement
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action:
+              - sns:AddPermission
+              - sns:DeleteTopic
+              - sns:GetDataProtectionPolicy
+              - sns:GetTopicAttributes
+              - sns:ListSubscriptionsByTopic
+              - sns:ListTagsForResource
+              - sns:Publish
+              - sns:PutDataProtectionPolicy
+              - sns:RemovePermission
+              - sns:SetTopicAttributes
+              - sns:Subscribe
+            Resource: !Ref OperationalAlarmTopic
+          - Sid: AllowCloudWatchAlarmPublishing
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref OperationalAlarmTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-*"
+          - Sid: DenyUnencryptedTransport
+            Effect: Deny
+            Principal: "*"
+            Action: sns:Publish
+            Resource: !Ref OperationalAlarmTopic
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  ApDeliveryWebhookSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: CreateWebhookSubscription
+    DependsOn: ApDeliveryEventDeadLetterQueuePolicy
+    Properties:
+      TopicArn: !Ref ApDeliveryEventTopic
+      Protocol: https
+      Endpoint: !Sub "${ApiBaseUrl}/api/integrations/ses-events"
+      RawMessageDelivery: false
+      DeliveryPolicy:
+        healthyRetryPolicy:
+          minDelayTarget: 1
+          maxDelayTarget: 60
+          numRetries: 50
+          numNoDelayRetries: 3
+          numMinDelayRetries: 2
+          numMaxDelayRetries: 35
+          backoffFunction: exponential
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ApDeliveryEventDeadLetterQueue.Arn
+
+  ApInvoiceConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Ref ConfigurationSetName
+
+  ApInvoiceEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    DependsOn: ApDeliveryEventTopicPolicy
+    Properties:
+      ConfigurationSetName: !Ref ApInvoiceConfigurationSet
+      EventDestination:
+        Name: ap-invoice-delivery-events
+        Enabled: true
+        MatchingEventTypes:
+          - DELIVERY
+          - DELIVERY_DELAY
+          - BOUNCE
+          - COMPLAINT
+          - REJECT
+          - RENDERING_FAILURE
+        SnsDestination:
+          TopicARN: !Ref ApDeliveryEventTopic
+
+  DeadLetterQueueDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-dead-letter-queue-depth"
+      AlarmDescription: !Sub "Afterlight ${Environment} SES delivery events are waiting in the dead-letter queue"
+      AlarmActions:
+        - !Ref OperationalAlarmTopic
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ApDeliveryEventDeadLetterQueue.QueueName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  SnsDeliveryFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-sns-delivery-failures"
+      AlarmDescription: !Sub "Afterlight ${Environment} SNS webhook delivery failures detected"
+      AlarmActions:
+        - !Ref OperationalAlarmTopic
+      Namespace: AWS/SNS
+      MetricName: NumberOfNotificationsFailed
+      Dimensions:
+        - Name: TopicName
+          Value: !GetAtt ApDeliveryEventTopic.TopicName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  SesConfigurationSetName:
+    Description: Set this as SES_AP_CONFIGURATION_SET on the matching Render API service.
+    Value: !Ref ApInvoiceConfigurationSet
+  SnsTopicArn:
+    Description: Set this as SES_EVENT_TOPIC_ARN on the matching Render API service.
+    Value: !Ref ApDeliveryEventTopic
+  WebhookEndpoint:
+    Description: Signed SNS webhook endpoint.
+    Value: !Sub "${ApiBaseUrl}/api/integrations/ses-events"
+  WebhookSubscriptionArn:
+    Condition: CreateWebhookSubscription
+    Description: Confirmed SNS HTTPS subscription ARN.
+    Value: !Ref ApDeliveryWebhookSubscription
+  DeadLetterQueueUrl:
+    Description: Queue holding SES events that SNS could not deliver to the API.
+    Value: !Ref ApDeliveryEventDeadLetterQueue
+  OperationalAlarmTopicArn:
+    Description: Subscribe an operations destination to this topic for CloudWatch alarm notifications.
+    Value: !Ref OperationalAlarmTopic

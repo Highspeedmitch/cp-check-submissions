@@ -2,6 +2,17 @@ const jwt = require("jsonwebtoken");
 
 const ASSUMED_ACCESS_LIFETIME = "30m";
 const ASSUMED_ACCESS_MS = 30 * 60 * 1000;
+const STEP_UP_AUTHENTICATION_MS = 15 * 60 * 1000;
+const AUTHENTICATION_CLOCK_SKEW_MS = 60 * 1000;
+
+function hasRecentStepUpAuthentication(authenticatedAt, now = Date.now()) {
+  const authenticationTime = new Date(authenticatedAt || 0).getTime();
+  return Boolean(
+    authenticationTime
+    && authenticationTime <= now + AUTHENTICATION_CLOCK_SKEW_MS
+    && now - authenticationTime <= STEP_UP_AUTHENTICATION_MS
+  );
+}
 
 function assumedAccessPayload({ user, organization, platformSessionId }) {
   return {
@@ -38,6 +49,8 @@ function createAssumedAccessResponse({ user, organization, platformSessionId, se
 module.exports = {
   ASSUMED_ACCESS_LIFETIME,
   ASSUMED_ACCESS_MS,
+  STEP_UP_AUTHENTICATION_MS,
+  hasRecentStepUpAuthentication,
   assumedAccessPayload,
   createAssumedAccessResponse,
 };

@@ -47,6 +47,20 @@ Activation is blocked until the resource has a linked Afterlight user. Contracto
 
 An active deployment makes the resource selectable; it does not create an assignment. An organization administrator or property manager chooses **Afterlight contractor** for a 1099 resource or **Afterlight staff** for an employee or owner, then assigns the person to a date and property within the deployment scope.
 
+## Edit a deployment
+
+Use deployment editing to change where a resource can be scheduled in the future:
+
+1. Find the deployment in the table below **Deploy a Resource**.
+2. Select **Edit**.
+3. In **Edit Resource Deployment**, review the organization, eligible properties, and contractor pay override when applicable.
+4. Select a different managed or hybrid organization when the resource must move, or change the property scope within the current organization.
+5. Select **Save Changes**.
+
+Changing deployment scope affects future scheduling only. Existing assignments, completed inspections, earnings, and audit history remain linked to the original deployment context. Moving a resource to another organization does not move those historical records.
+
+Use **Pause** for a temporary stop and **Reactivate** when the same deployment should become eligible again. An empty eligible-property selection means all properties in that organization; it does not mean no properties.
+
 ## Approve completed earnings
 
 Only completed **Afterlight contractor** work creates a **Pending approval** earning in Afterlight. Employee and owner work never creates a contractor earning or Gusto payment.
@@ -70,7 +84,7 @@ For commercial work fulfilled by Afterlight, the related customer invoice is pre
 
 If Gusto rejects or changes a payment, leave the Afterlight batch unmarked and resolve the discrepancy before reconciliation.
 
-## Pause or remove access
+## Pause or suspend access
 
 - Pause or end a deployment to stop future scheduling for that organization or property scope.
 - Set availability to **Unavailable** for a temporary worker-level scheduling pause.
@@ -78,10 +92,25 @@ If Gusto rejects or changes a payment, leave the Afterlight batch unmarked and r
 
 These controls do not erase completed assignments, earnings, payout history, or audit records.
 
+## Archive and restore a resource
+
+Archive a resource only when the person should leave the current Resource Network directory:
+
+1. Reassign or cancel every scheduled assignment for that resource. Afterlight refuses archival while scheduled work remains.
+2. Find the resource under **Current resources** and select **Edit details**.
+3. Select **Archive Resource**, enter a specific reason, and confirm.
+
+Archiving sets the profile to suspended and unavailable, pauses its active deployments, revokes current Resource Portal sessions, and moves the profile to the archived directory. Historical assignments, completed inspections, contractor earnings, payout batches, and deployment records remain intact.
+
+To restore a record, select **Find archived resource**, open **View details**, review its archive reason and retained history, then select **Restore Resource**. A linked resource returns as **Suspended** and **Unavailable**. Review the profile, Gusto state, and deployment scope before deliberately reactivating it. Former deployments are not automatically reactivated.
+
 ## Troubleshooting
 
 - **The workspace switcher is missing:** Confirm that the email matches the existing user exactly, the resource profile is linked to that user, and the profile is not suspended. Ask the user to sign out and back in.
 - **The resource is missing from the Scheduler:** Confirm that the profile and deployment are active, the selected date is within the deployment period, and the selected property is in scope.
+- **A deployment update affects the wrong organization:** Cancel the edit before saving, reopen the intended deployment, and confirm the organization and property scope. Historical assignments will not move with a corrected deployment.
 - **Activation is refused:** Link the Afterlight identity. For contractors, also complete Gusto onboarding before setting the Afterlight status to Active.
+- **Archiving is refused:** Reassign or cancel every scheduled assignment for the resource, then try again.
+- **A restored resource is still unavailable:** This is the safe default. Review and activate the resource, then reactivate or replace the appropriate deployment.
 - **An earning is missing:** Confirm that the inspection was opened from the assigned Resource Portal card and successfully completed.
 - **A payout cannot be batched:** Every selected earning must be approved, and each contractor must have completed Gusto onboarding and a matching email.

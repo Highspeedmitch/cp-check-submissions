@@ -6,7 +6,7 @@
 
 The Resource Portal is your home for Afterlight assignments and, for 1099 contractors, earnings. Resource assignments provide only the customer-property access needed for the scheduled work; they do not make you a member of that customer organization.
 
-If your login also belongs to an organization workspace, select **Resource Portal** from the organization dashboard to enter this portal. Select **Organization Workspace** at the top of the Resource Portal to return. Switching changes the active workspace, not your identity, password, deployments, or saved work.
+If your login also belongs to an organization workspace, select **Resource Portal** from the dashboard header on a larger screen or **Switch to Resource Portal** from the mobile navigation menu. Select **Organization Workspace** at the top of the Resource Portal to return. Switching changes the active workspace, not your identity, password, deployments, or saved work.
 
 ## Read the portal summary
 
@@ -56,5 +56,15 @@ Try these checks before contacting support:
 4. Confirm the expected assignment date with your Afterlight contact or the assigning property manager.
 
 Only active, property-eligible deployments can be scheduled. You cannot add a customer organization, property, or assignment yourself.
+
+## If workspace switching is unavailable on this device
+
+If switching displays **Your secure session is unavailable on this device**, Afterlight keeps you in the current workspace and preserves the current access token.
+
+1. Reload the page once and try the workspace switch again.
+2. Confirm that the browser allows secure cookies for Afterlight.
+3. If the message remains, sign out and sign in again before switching workspaces.
+
+Do not continue through a separate registration flow. Workspace switching uses the same Afterlight identity and does not require a second account.
 
 [Back to the knowledge base](README.md)

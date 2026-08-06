@@ -14,7 +14,6 @@ const {
 } = require("../services/notifications");
 const {
   afterlightServiceInvoicePaid,
-  invoiceApDeliveryChanged,
   invoiceSubmitted,
   invoiceSubmittedForPropertyManager,
   invoiceReviewChanged,
@@ -27,7 +26,12 @@ const { resolveBillingAddress } = require("../services/propertyAddresses");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const { sendSystemEmail } = require("../services/systemEmail");
 const { sendApprovedInvoiceToAp } = require("../services/apDelivery");
+const { apDeliveryFailure } = require("../services/apDeliveryErrors");
 const { normalizeEmailAddress } = require("../services/propertyEmails");
+const {
+  assignedPropertyManagers,
+  notifyApDeliveryState,
+} = require("../services/apDeliveryNotifications");
 const {
   isAfterlightServiceInvoice,
   afterlightServiceInvoiceScope,
@@ -218,27 +222,6 @@ function validId(value) {
   return !value || mongoose.Types.ObjectId.isValid(value);
 }
 
-async function assignedPropertyManagers(invoice, organizationId) {
-  const organization = await Organization.findById(organizationId)
-    .select("properties._id properties.propertyManagers")
-    .lean();
-  const property = (organization?.properties || []).find(
-    (item) => item._id.toString() === invoice.propertyId.toString()
-  );
-  const assignedIds = [...new Set(
-    (property?.propertyManagers || []).map((id) => id.toString())
-  )];
-  if (!assignedIds.length) return [];
-
-  return User.find({
-    _id: { $in: assignedIds },
-    organizationId,
-    role: "property_manager",
-    accountStatus: { $ne: "inactive" },
-    organizationArchivedAt: null,
-  }).select("_id username email").lean();
-}
-
 async function notifyPropertyManagersOfSubmittedInvoice(invoice, organizationId, managers) {
   const activePropertyManagers = managers
     || await assignedPropertyManagers(invoice, organizationId);
@@ -248,27 +231,6 @@ async function notifyPropertyManagersOfSubmittedInvoice(invoice, organizationId,
     sendUserNotification({
       organizationId,
       userId: manager._id,
-      ...event,
-    })
-  ));
-}
-
-async function notifyApDeliveryState(invoice, status) {
-  const organizationId = invoice.organizationId;
-  const event = invoiceApDeliveryChanged(invoice, status);
-  if (isAfterlightServiceInvoice(invoice)) {
-    return notifyPlatformAdministrators({
-      event,
-      contextOrganizationId: organizationId,
-    });
-  }
-  const managers = await assignedPropertyManagers(invoice, organizationId);
-  const recipientIds = new Set(managers.map((manager) => String(manager._id)));
-  if (invoice.submitterId) recipientIds.add(String(invoice.submitterId));
-  return Promise.allSettled([...recipientIds].map((userId) =>
-    sendUserNotification({
-      organizationId,
-      userId,
       ...event,
     })
   ));
@@ -898,12 +860,13 @@ router.post("/:id/approve", async (req, res) => {
     }
     res.json({ ...invoice.toObject(), warning: deliveryResult.warning });
   } catch (error) {
+    const failure = apDeliveryFailure(error);
     if (invoice) {
       invoice.status = "failed";
       invoice.delivery.status = "failed";
       invoice.delivery.failedAt = new Date();
-      invoice.delivery.error = error.message || "AP delivery failed.";
-      invoice.delivery.errorCode = String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR");
+      invoice.delivery.error = failure.userMessage;
+      invoice.delivery.errorCode = failure.errorCode;
       invoice.statusHistory.push({ status: "failed", changedBy: req.user.userId });
       await invoice.save().catch(() => {});
       notifyApDeliveryState(invoice, "failed").catch((notificationError) => {
@@ -919,15 +882,12 @@ router.post("/:id/approve", async (req, res) => {
       provider: invoice?.delivery?.provider || "ses",
       providerMessageId: invoice?.delivery?.providerMessageId || "",
       attemptCount: invoice?.delivery?.attemptCount || 0,
-      errorCode: String(error.code || error.name || "UNKNOWN_DELIVERY_ERROR"),
-      errorMessage: String(error.message || "AP delivery failed.").slice(0, 500),
+      errorCode: failure.errorCode,
+      providerRequestId: failure.providerRequestId,
+      httpStatusCode: failure.httpStatusCode,
+      retryable: failure.retryable,
     }));
-    const configurationError = /no AP email configured|valid AP email address/i.test(error.message || "");
-    res.status(configurationError ? 400 : 502).json({
-      error: configurationError
-        ? error.message
-        : "The invoice was approved, but delivery to AP failed. You can retry from Billing.",
-    });
+    res.status(failure.status).json({ error: failure.userMessage });
   }
 });
 

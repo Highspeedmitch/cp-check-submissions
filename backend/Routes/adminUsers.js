@@ -25,6 +25,16 @@ const {
   expireInvitations,
 } = require("../services/organizationInvitations");
 const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails");
+const {
+  LICENSE_TIERS,
+  TIER_LIMITS,
+  HYBRID_PORTFOLIO_MINIMUMS,
+  resolveLicenseEntitlements,
+  summarizeAdminSeats,
+} = require("../services/licenseEntitlements");
+const { createLicensedAdminInvitations } = require("../services/licensedAdminInvitations");
+const { notifyPlatformAdministrators } = require("../services/notifications");
+const { administratorLicenseRequested } = require("../services/notificationEvents");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "client", "contractor", "cleaner"];
@@ -51,17 +61,30 @@ router.get("/", async (req, res) => {
       { role: { $regex: escaped, $options: "i" } },
     ];
   }
-  const [organization, users, invitations] = await Promise.all([
+  const [organization, users, invitations, administrators, adminInvitations] = await Promise.all([
     Organization.findById(req.user.organizationId).lean(),
     User.find(userQuery)
       .select("username email role accountStatus tokenVersion organizationArchivedAt organizationArchivedBy organizationArchiveReason")
       .sort({ username: 1 }).lean(),
     OrganizationInvitation.find({
       organizationId: req.user.organizationId,
+      role: { $ne: "admin" },
       status: { $in: ["pending", "expired"] },
     }).select("email role propertyIds status expiresAt lastSentAt createdAt")
       .sort({ createdAt: -1 }).lean(),
+    User.find({
+      organizationId: req.user.organizationId,
+      role: "admin",
+      organizationArchivedAt: null,
+    }).select("username email role accountStatus createdAt").sort({ username: 1 }).lean(),
+    OrganizationInvitation.find({
+      organizationId: req.user.organizationId,
+      role: "admin",
+      status: { $in: ["pending", "expired"] },
+    }).select("email role status expiresAt lastSentAt createdAt invitedBy")
+      .sort({ createdAt: -1 }).lean(),
   ]);
+  if (!organization) return res.status(404).json({ error: "Organization not found." });
   const usersWithStats = directory === "archived"
     ? await Promise.all(users.map(async (user) => {
         const [submissionCount, assignmentCount] = await Promise.all([
@@ -74,6 +97,15 @@ router.get("/", async (req, res) => {
   res.json({
     users: usersWithStats,
     invitations,
+    administrators,
+    adminInvitations,
+    adminSeats: summarizeAdminSeats({ organization, administrators, invitations: adminInvitations }),
+    license: resolveLicenseEntitlements(organization),
+    licenseOptions: {
+      tiers: LICENSE_TIERS,
+      tierLimits: TIER_LIMITS,
+      hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
+    },
     properties: organization.properties.map((property) => ({
       _id: property._id,
       name: property.name,
@@ -81,6 +113,119 @@ router.get("/", async (req, res) => {
       clientOwners: property.clientOwners || [],
     })),
   });
+});
+
+router.post("/admin-invitations", async (req, res) => {
+  if (req.user.assumedOrganization) {
+    return res.status(403).json({ error: "Administrator invitations cannot be issued through assumed access." });
+  }
+  try {
+    const result = await createLicensedAdminInvitations({
+      organizationId: req.user.organizationId,
+      invitedBy: req.user.userId,
+      emails: req.body.emails || req.body.email,
+      adminActionGrant: req.body.adminActionGrant,
+      ipAddress: req.ip || "",
+      userAgent: req.get("user-agent") || "",
+    });
+    return res.status(201).json({
+      ...result,
+      message: result.delivered
+        ? `${result.invitations.length === 1 ? "Administrator invitation" : "Administrator invitations"} sent.`
+        : "The administrator seat was reserved, but one or more emails could not be delivered. Resend from the pending list.",
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ error: "A pending invitation already exists for that email address." });
+    }
+    if (error.status) {
+      return res.status(error.status).json({
+        error: error.message,
+        ...(error.code ? { code: error.code } : {}),
+        ...(error.adminSeats ? { adminSeats: error.adminSeats } : {}),
+      });
+    }
+    if (/valid invitation|already belongs|archived user/i.test(error.message || "")) {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("Administrator invitation creation error:", error.message);
+    return res.status(500).json({ error: "Unable to create the administrator invitation." });
+  }
+});
+
+router.post("/admin-license-requests", async (req, res) => {
+  if (req.user.assumedOrganization) {
+    return res.status(403).json({ error: "License requests cannot be issued through assumed access." });
+  }
+  try {
+    await expireInvitations({ organizationId: req.user.organizationId });
+    const duplicateWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [organization, administrators, adminInvitations, recentRequest] = await Promise.all([
+      Organization.findById(req.user.organizationId).lean(),
+      User.find({
+        organizationId: req.user.organizationId,
+        role: "admin",
+        organizationArchivedAt: null,
+      }).select("role accountStatus organizationArchivedAt").lean(),
+      OrganizationInvitation.find({
+        organizationId: req.user.organizationId,
+        role: "admin",
+        status: "pending",
+      }).select("role status expiresAt").lean(),
+      PlatformAudit.findOne({
+        action: "organization_admin_license_requested",
+        targetOrganizationId: req.user.organizationId,
+        createdAt: { $gte: duplicateWindowStart },
+      }).select("_id createdAt").lean(),
+    ]);
+    if (!organization) return res.status(404).json({ error: "Organization not found." });
+    const adminSeats = summarizeAdminSeats({ organization, administrators, invitations: adminInvitations });
+    if (adminSeats.unmetered) {
+      return res.status(400).json({ error: "Managed-service administrator seats are not metered." });
+    }
+    if (adminSeats.remaining > 0) {
+      return res.status(409).json({ error: "This organization still has an available administrator seat." });
+    }
+    if (recentRequest) {
+      return res.status(409).json({
+        code: "ADMIN_LICENSE_REQUEST_EXISTS",
+        error: "An administrator license request was already submitted in the last 24 hours.",
+      });
+    }
+
+    const request = await PlatformAudit.create({
+      actorUserId: req.user.userId,
+      action: "organization_admin_license_requested",
+      targetOrganizationId: organization._id,
+      metadata: {
+        licenseTier: adminSeats.tier,
+        adminSeatLimit: adminSeats.limit,
+        adminSeatsAllocated: adminSeats.allocated,
+      },
+      ipAddress: req.ip || "",
+      userAgent: req.get("user-agent") || "",
+    });
+    let platformNotified = true;
+    try {
+      await notifyPlatformAdministrators({
+        event: administratorLicenseRequested(request, organization.name, adminSeats),
+        contextOrganizationId: organization._id,
+      });
+    } catch (notificationError) {
+      platformNotified = false;
+      console.error("Administrator license request notification error:", notificationError.message);
+    }
+    return res.status(201).json({
+      requestId: request._id,
+      platformNotified,
+      message: platformNotified
+        ? "Additional administrator licensing requested. Afterlight platform administration was notified."
+        : "Additional administrator licensing requested and recorded for platform review.",
+    });
+  } catch (error) {
+    console.error("Administrator license request error:", error.message);
+    return res.status(500).json({ error: "Unable to request additional administrator licensing." });
+  }
 });
 
 function archivalError(res, error, fallback) {
@@ -199,6 +344,12 @@ router.post("/invitations/:invitationId/resend", async (req, res) => {
       }).select("+tokenHash"),
     ]);
     if (!organization || !invitation) return res.status(404).json({ error: "Pending or expired invitation not found." });
+    if (invitation.role === "admin" && invitation.status === "expired") {
+      return res.status(409).json({
+        code: "ADMIN_INVITATION_EXPIRED",
+        error: "Revoke this expired administrator invitation and issue a new passkey-authorized invitation.",
+      });
+    }
     await resendInvitation({ invitation, organization });
     await PlatformAudit.create({
       actorUserId: req.user.userId,

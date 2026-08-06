@@ -3,15 +3,22 @@ const Organization = require("../models/organization");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
 const {
   SERVICE_MODELS,
-  FULFILLMENT_SOURCES,
   SERVICE_MODEL_DEFAULTS,
   SOURCE_POLICIES,
   validateServiceModel,
-  validateFulfillmentSource,
+  validateFulfillmentSourceForServiceModel,
+  fulfillmentSourcesForServiceModel,
   organizationDefaultSource,
   propertyDefaultSource,
 } = require("../services/fulfillmentPolicy");
 const { consumeGrant } = require("../services/organizationPasskeys");
+const {
+  LICENSE_TIERS,
+  METERED_SERVICE_MODELS,
+  TIER_LIMITS,
+  HYBRID_PORTFOLIO_MINIMUMS,
+  resolveLicenseEntitlements,
+} = require("../services/licenseEntitlements");
 
 const router = express.Router();
 
@@ -37,6 +44,7 @@ function requestAuditDetails(req) {
 
 function serializeSettings(organization) {
   const organizationSource = organizationDefaultSource(organization);
+  const entitlements = resolveLicenseEntitlements(organization);
   return {
     organization: {
       id: organization._id,
@@ -45,6 +53,14 @@ function serializeSettings(organization) {
       defaultSource: organizationSource,
       policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
       updatedAt: organization.fulfillmentPolicy?.updatedAt || null,
+      license: {
+        tier: entitlements.tier,
+        adminLimit: entitlements.adminLimit,
+        userLimit: entitlements.userLimit,
+        propertyLimit: entitlements.propertyLimit,
+        afterlightPortfolioMinimumPercent: entitlements.afterlightPortfolioMinimumPercent,
+        planLabel: entitlements.label,
+      },
     },
     properties: (organization.properties || []).map((property) => ({
       id: property._id,
@@ -56,9 +72,13 @@ function serializeSettings(organization) {
     })),
     options: {
       serviceModels: SERVICE_MODELS,
-      fulfillmentSources: FULFILLMENT_SOURCES,
+      fulfillmentSources: fulfillmentSourcesForServiceModel(organization),
       serviceModelDefaults: SERVICE_MODEL_DEFAULTS,
       sourcePolicies: SOURCE_POLICIES,
+      licenseTiers: LICENSE_TIERS,
+      tierLimits: TIER_LIMITS,
+      hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
+      meteredServiceModels: [...METERED_SERVICE_MODELS],
     },
   };
 }
@@ -97,8 +117,9 @@ function createFulfillmentHandlers({
         });
       }
       const serviceModel = previousValue.serviceModel;
-      const defaultSource = validateFulfillmentSource(
-        req.body.defaultSource ?? previousValue.defaultSource
+      const defaultSource = validateFulfillmentSourceForServiceModel(
+        req.body.defaultSource ?? previousValue.defaultSource,
+        organization
       );
       const changed = defaultSource !== previousValue.defaultSource;
       if (!changed) return res.json(serializeSettings(organization));
@@ -161,7 +182,9 @@ router.put("/properties/:propertyId", requireOrganizationAdmin, async (req, res)
 
     const previousSource = property.fulfillmentPolicy?.defaultSource || null;
     const requested = req.body.defaultSource;
-    const nextSource = requested === null || requested === "" ? null : validateFulfillmentSource(requested);
+    const nextSource = requested === null || requested === ""
+      ? null
+      : validateFulfillmentSourceForServiceModel(requested, organization);
     if (nextSource === previousSource) return res.json(serializeSettings(organization));
 
     property.fulfillmentPolicy = {
@@ -206,3 +229,4 @@ router.get("/audit", requireOrganizationAdmin, async (req, res) => {
 
 module.exports = router;
 module.exports.createFulfillmentHandlers = createFulfillmentHandlers;
+module.exports.serializeSettings = serializeSettings;

@@ -96,6 +96,7 @@ const InvoiceSchema = new mongoose.Schema({
     },
     provider: { type: String, default: "" },
     providerMessageId: { type: String, default: "" },
+    providerMessageIds: { type: [String], default: [] },
     attemptCount: { type: Number, min: 0, default: 0 },
     lastAttemptAt: { type: Date, default: null },
     acceptedAt: { type: Date, default: null },
@@ -105,6 +106,10 @@ const InvoiceSchema = new mongoose.Schema({
     confirmationNumber: String,
     error: String,
     errorCode: { type: String, default: "" },
+    lastEventAt: { type: Date, default: null },
+    lastEventType: { type: String, default: "" },
+    lastEventMessageId: { type: String, default: "" },
+    lastEventRank: { type: Number, min: 0, default: 0 },
   },
   statusHistory: [{
     status: String,
@@ -118,5 +123,6 @@ const InvoiceSchema = new mongoose.Schema({
 InvoiceSchema.index({ organizationId: 1, submitterId: 1, status: 1, createdAt: -1 });
 InvoiceSchema.index({ organizationId: 1, archivedAt: 1, createdAt: -1 });
 InvoiceSchema.index({ billingOwner: 1, status: 1, createdAt: -1 });
+InvoiceSchema.index({ "delivery.provider": 1, "delivery.providerMessageId": 1 });
 
 module.exports = mongoose.model("Invoice", InvoiceSchema);

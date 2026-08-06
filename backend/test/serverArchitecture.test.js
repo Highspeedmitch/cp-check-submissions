@@ -26,6 +26,8 @@ test("authentication router preserves public session and recovery paths", () => 
     { path: "/auth/mfa/enrollment/start", methods: ["post"] },
     { path: "/auth/mfa/enrollment/confirm", methods: ["post"] },
     { path: "/auth/mfa/verify", methods: ["post"] },
+    { path: "/auth/mfa/step-up/challenge", methods: ["post"] },
+    { path: "/auth/mfa/step-up/verify", methods: ["post"] },
     { path: "/auth/okta/challenge", methods: ["post"] },
     { path: "/auth/okta", methods: ["post"] },
     { path: "/auth/refresh", methods: ["post"] },
@@ -76,16 +78,12 @@ test("client and AzRoots routes rely on centralized authentication", () => {
   }
 });
 
-test("payment administration uses the consolidated summary routes", () => {
-  assert.deepEqual(routeInventory(require("../Routes/admin")), [
-    { path: "/users", methods: ["get"] },
-    { path: "/payment-summary/:userId", methods: ["get"] },
-    { path: "/process-payment", methods: ["post"] },
-  ]);
-  assert.deepEqual(routeInventory(require("../Routes/mileageTracking")), [
-    { path: "/start", methods: ["post"] },
-    { path: "/update", methods: ["post"] },
-  ]);
+test("retired mileage and manual payment endpoints are not mounted", () => {
+  const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.doesNotMatch(
+    appSource,
+    /\/api\/mileage|mileageTracking|\/admin\/process-payment|Routes\/admin["']/
+  );
 });
 
 test("billing router exposes the platform-owned service invoice lifecycle", () => {

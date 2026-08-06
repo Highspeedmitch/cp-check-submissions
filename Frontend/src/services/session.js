@@ -155,14 +155,15 @@ export async function logoutSession() {
   }
 }
 
-async function isExpiredAuthResponse(response) {
-  if (response.status === 401) return true;
-  if (response.status !== 403) return false;
+export async function isExpiredAuthResponse(response) {
+  if (response.status !== 401 && response.status !== 403) return false;
   try {
     const body = await response.clone().json();
+    if (body.code === "SESSION_REFRESH_UNAVAILABLE") return false;
+    if (response.status === 401) return true;
     return /invalid token|session expired/i.test(body.message || body.error || "");
   } catch (error) {
-    return false;
+    return response.status === 401;
   }
 }
 

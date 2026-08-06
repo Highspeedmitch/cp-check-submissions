@@ -11,7 +11,6 @@
         "@capacitor/android": "^7.0.1",
         "@capacitor/cli": "^7.0.1",
         "@capacitor/core": "^7.0.1",
-        "@capacitor/geolocation": "^7.0.0",
         "@capacitor/ios": "^7.0.1",
         "@okta/okta-auth-js": "^8.0.1",
         "@testing-library/jest-dom": "^5.17.0",

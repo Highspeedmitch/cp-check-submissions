@@ -1,9 +1,12 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Organization = require("../models/organization");
 const User = require("../models/user");
+const OrganizationInvitation = require("../models/organizationInvitation");
 const ServiceModelChangeRequest = require("../models/serviceModelChangeRequest");
 const PlatformAudit = require("../models/platformAudit");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
+const ResourceDeployment = require("../models/resourceDeployment");
 const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const {
   SERVICE_MODEL_DEFAULTS,
@@ -18,10 +21,18 @@ const {
   notifyPlatformAdministrators,
   sendUserNotification,
 } = require("../services/notifications");
-const { serviceModelChangeEvent } = require("../services/notificationEvents");
+const { servicePlanChangeEvent } = require("../services/notificationEvents");
+const {
+  LICENSE_TIERS,
+  METERED_SERVICE_MODELS,
+  defaultStoredLicense,
+  resolveLicenseEntitlements,
+} = require("../services/licenseEntitlements");
 
 const router = express.Router();
 const ACTIVE_STATUSES = ["pending_review", "information_requested"];
+const CHANGE_TYPES = new Set(["service_model", "license_tier", "custom_capacity"]);
+const MAX_CUSTOM_ADMIN_LIMIT = 1000;
 
 function requireOrganizationAdmin(req, res, next) {
   if (req.user?.role !== "admin" || req.user?.assumedOrganization) {
@@ -56,6 +67,112 @@ function proposedDate(value) {
   return date;
 }
 
+function changeType(value) {
+  const normalized = String(value || "service_model").trim();
+  if (!CHANGE_TYPES.has(normalized)) {
+    const error = new Error("Select a valid contract change type.");
+    error.status = 400;
+    throw error;
+  }
+  return normalized;
+}
+
+function licenseTier(value, { required = false } = {}) {
+  const normalized = value == null || value === "" ? null : String(value).trim();
+  if (required && !normalized) {
+    const error = new Error("Select a requested license tier.");
+    error.status = 400;
+    throw error;
+  }
+  if (normalized && !LICENSE_TIERS.includes(normalized)) {
+    const error = new Error("Select a valid license tier.");
+    error.status = 400;
+    throw error;
+  }
+  return normalized;
+}
+
+function customAdminLimit(value, currentLimit, { status = 400 } = {}) {
+  const requestedLimit = Number(value);
+  if (!Number.isInteger(requestedLimit) || requestedLimit <= Number(currentLimit || 0)) {
+    const error = new Error(`Requested administrator capacity must be a whole number greater than ${currentLimit}.`);
+    error.status = status;
+    throw error;
+  }
+  if (requestedLimit > MAX_CUSTOM_ADMIN_LIMIT) {
+    const error = new Error(`Requested administrator capacity cannot exceed ${MAX_CUSTOM_ADMIN_LIMIT}.`);
+    error.status = status;
+    throw error;
+  }
+  return requestedLimit;
+}
+
+function tierLabel(value) {
+  return value ? `Tier ${String(value).slice(-1)}` : "Unmetered";
+}
+
+function storedLicense(organization, serviceModel, tier, updatedBy, updatedAt) {
+  const previousVersion = Number(organization.license?.adminSeatVersion || 0);
+  return {
+    ...defaultStoredLicense(serviceModel, tier),
+    adminSeatVersion: previousVersion,
+    updatedBy,
+    updatedAt,
+  };
+}
+
+async function capacitySnapshot({ organization, UserModel, InvitationModel, now }) {
+  const organizationAccountScope = {
+    $or: [{ accountScope: "organization" }, { accountScope: { $exists: false } }],
+  };
+  const invitationAccountScope = { accountScope: { $ne: "afterlight_resource" } };
+  const [activeAdministratorCount, activeUserCount, pendingAdministratorCount, pendingUserCount] = await Promise.all([
+    UserModel.countDocuments({
+      organizationId: organization._id,
+      role: "admin",
+      accountStatus: { $ne: "inactive" },
+      organizationArchivedAt: null,
+      ...organizationAccountScope,
+    }),
+    UserModel.countDocuments({
+      organizationId: organization._id,
+      role: { $ne: "admin" },
+      accountStatus: { $ne: "inactive" },
+      organizationArchivedAt: null,
+      ...organizationAccountScope,
+    }),
+    InvitationModel.countDocuments({
+      organizationId: organization._id,
+      role: "admin",
+      status: "pending",
+      expiresAt: { $gt: now },
+      ...invitationAccountScope,
+    }),
+    InvitationModel.countDocuments({
+      organizationId: organization._id,
+      role: { $ne: "admin" },
+      status: "pending",
+      expiresAt: { $gt: now },
+      ...invitationAccountScope,
+    }),
+  ]);
+  return {
+    activeAdministratorCount,
+    pendingAdministratorCount,
+    activeUserCount,
+    pendingUserCount,
+  };
+}
+
+function auditAction(request, status) {
+  const prefix = request.changeType === "license_tier"
+    ? "license_tier_change"
+    : request.changeType === "custom_capacity"
+      ? "custom_capacity_change"
+      : "service_model_change";
+  return `${prefix}_${status}`;
+}
+
 function requestResult(request) {
   const value = typeof request.toObject === "function" ? request.toObject() : request;
   const populatedOrganization = value.organizationId?.name;
@@ -68,8 +185,11 @@ function requestResult(request) {
     requestedBy: populatedRequester
       ? { _id: value.requestedBy._id, email: value.requestedBy.email, username: value.requestedBy.username }
       : { _id: value.requestedBy },
+    changeType: value.changeType || "service_model",
     currentServiceModel: value.currentServiceModel,
     requestedServiceModel: value.requestedServiceModel,
+    currentLicenseTier: value.currentLicenseTier || null,
+    requestedLicenseTier: value.requestedLicenseTier || null,
     reason: value.reason,
     proposedEffectiveDate: value.proposedEffectiveDate,
     status: value.status,
@@ -108,24 +228,56 @@ function auditDetails(req) {
   };
 }
 
+async function mongoTransaction(operation) {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      result = await operation(session);
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+function saveDocument(document, session) {
+  return session ? document.save({ session }) : document.save();
+}
+
+async function createDocument(Model, value, session) {
+  if (!session) return Model.create(value);
+  const [created] = await Model.create([value], { session });
+  return created;
+}
+
+function updateMany(Model, query, update, session) {
+  return session
+    ? Model.updateMany(query, update, { session })
+    : Model.updateMany(query, update);
+}
+
 function createServiceModelChangeHandlers({
   RequestModel = ServiceModelChangeRequest,
   OrganizationModel = Organization,
   UserModel = User,
+  InvitationModel = OrganizationInvitation,
   PlatformAuditModel = PlatformAudit,
   FulfillmentAuditModel = FulfillmentAudit,
+  ResourceDeploymentModel = ResourceDeployment,
   sendPlatformEmail = deliverPlatformRequestEmail,
   sendRequesterEmail = deliverRequesterDecisionEmail,
   notifyPlatform = notifyPlatformAdministrators,
   notifyUser = sendUserNotification,
   now = () => new Date(),
+  runServiceModelTransaction = mongoTransaction,
 } = {}) {
   async function createRequest(req, res) {
     try {
       if (req.user?.role !== "admin" || req.user?.assumedOrganization) {
         return res.status(403).json({ error: "Organization administrator access required." });
       }
-      const requestedServiceModel = validateServiceModel(req.body.requestedServiceModel);
+      const requestedChangeType = changeType(req.body.changeType);
       const reason = boundedText(req.body.reason, "Business reason");
       const [organization, requester, existing] = await Promise.all([
         OrganizationModel.findById(req.user.organizationId),
@@ -136,18 +288,70 @@ function createServiceModelChangeHandlers({
         }),
       ]);
       if (!organization || !requester) return res.status(404).json({ error: "Organization administrator not found." });
-      if (existing) return res.status(409).json({ error: "This organization already has an active service model request." });
+      if (existing) return res.status(409).json({ error: "This organization already has an active contract change request." });
       const currentServiceModel = organization.serviceModel || "managed";
-      if (requestedServiceModel === currentServiceModel) {
-        return res.status(400).json({ error: "Select a service model different from the current contract." });
+      const currentEntitlements = resolveLicenseEntitlements(organization);
+      const currentLicenseTier = currentEntitlements.tier;
+      let requestedServiceModel = currentServiceModel;
+      let requestedLicenseTier = currentLicenseTier;
+      let requestedAdminLimit = null;
+
+      if (requestedChangeType === "license_tier") {
+        if (!METERED_SERVICE_MODELS.has(currentServiceModel)) {
+          return res.status(400).json({ error: "License tier increases are available only for SaaS and Hybrid organizations." });
+        }
+        requestedLicenseTier = licenseTier(req.body.requestedLicenseTier, { required: true });
+        if (LICENSE_TIERS.indexOf(requestedLicenseTier) <= LICENSE_TIERS.indexOf(currentLicenseTier)) {
+          return res.status(400).json({ error: `Select a tier higher than the current ${tierLabel(currentLicenseTier)} plan.` });
+        }
+      } else if (requestedChangeType === "custom_capacity") {
+        if (!METERED_SERVICE_MODELS.has(currentServiceModel) || currentLicenseTier !== "tier_3") {
+          return res.status(400).json({ error: "Custom administrator capacity is available only for Tier 3 SaaS and Hybrid organizations." });
+        }
+        requestedAdminLimit = customAdminLimit(req.body.requestedAdminLimit, currentEntitlements.adminLimit);
+      } else {
+        requestedServiceModel = validateServiceModel(req.body.requestedServiceModel);
+        if (requestedServiceModel === currentServiceModel) {
+          return res.status(400).json({ error: "Select a service model different from the current contract." });
+        }
+        requestedLicenseTier = METERED_SERVICE_MODELS.has(requestedServiceModel)
+          ? licenseTier(req.body.requestedLicenseTier, { required: true })
+          : null;
       }
+
       const requestedAt = now();
       const properties = organization.properties || [];
+      let requestedEntitlements = resolveLicenseEntitlements({
+        serviceModel: requestedServiceModel,
+        license: { tier: requestedLicenseTier },
+      });
+      if (requestedChangeType === "custom_capacity") {
+        requestedEntitlements = {
+          ...currentEntitlements,
+          adminLimit: requestedAdminLimit,
+        };
+      } else if (requestedChangeType === "license_tier") {
+        requestedEntitlements = {
+          ...requestedEntitlements,
+          adminLimit: Math.max(currentEntitlements.adminLimit || 0, requestedEntitlements.adminLimit || 0),
+          userLimit: Math.max(currentEntitlements.userLimit || 0, requestedEntitlements.userLimit || 0),
+          propertyLimit: Math.max(currentEntitlements.propertyLimit || 0, requestedEntitlements.propertyLimit || 0),
+        };
+      }
+      const usage = await capacitySnapshot({
+        organization,
+        UserModel,
+        InvitationModel,
+        now: requestedAt,
+      });
       const request = await RequestModel.create({
         organizationId: organization._id,
         requestedBy: requester._id,
+        changeType: requestedChangeType,
         currentServiceModel,
         requestedServiceModel,
+        currentLicenseTier,
+        requestedLicenseTier,
         reason,
         proposedEffectiveDate: proposedDate(req.body.proposedEffectiveDate),
         organizationSnapshot: {
@@ -155,6 +359,15 @@ function createServiceModelChangeHandlers({
           propertyOverrideCount: properties.filter((property) => property.fulfillmentPolicy?.defaultSource).length,
           defaultFulfillmentSource: organizationDefaultSource(organization),
           policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
+          currentAdminLimit: currentEntitlements.adminLimit,
+          currentUserLimit: currentEntitlements.userLimit,
+          currentPropertyLimit: currentEntitlements.propertyLimit,
+          requestedAdminLimit: requestedEntitlements.adminLimit,
+          requestedUserLimit: requestedEntitlements.userLimit,
+          requestedPropertyLimit: requestedEntitlements.propertyLimit,
+          currentAfterlightPortfolioMinimumPercent: currentEntitlements.afterlightPortfolioMinimumPercent,
+          requestedAfterlightPortfolioMinimumPercent: requestedEntitlements.afterlightPortfolioMinimumPercent,
+          ...usage,
         },
         messages: [{
           actorUserId: requester._id,
@@ -165,12 +378,16 @@ function createServiceModelChangeHandlers({
       });
       await PlatformAuditModel.create({
         ...auditDetails(req),
-        action: "service_model_change_requested",
+        action: auditAction(request, "requested"),
         targetOrganizationId: organization._id,
         metadata: {
           requestId: request._id,
+          changeType: requestedChangeType,
           currentServiceModel,
           requestedServiceModel,
+          currentLicenseTier,
+          requestedLicenseTier,
+          requestedAdminLimit: requestedEntitlements.adminLimit,
           proposedEffectiveDate: request.proposedEffectiveDate,
         },
       });
@@ -182,19 +399,19 @@ function createServiceModelChangeHandlers({
       } catch (error) {
         emailDelivered = false;
         request.notification.platformEmailError = String(error.message || "Email delivery failed.").slice(0, 500);
-        console.error("Service model request email error:", error.message);
+        console.error("Service plan request email error:", error.message);
       }
       await request.save();
       notifyPlatform({
-        event: serviceModelChangeEvent(request, organization.name, "requested"),
+        event: servicePlanChangeEvent(request, organization.name, "requested"),
         contextOrganizationId: organization._id,
       }).catch((notificationError) => {
-        console.error("Service model request notification error:", notificationError);
+        console.error("Service plan request notification error:", notificationError);
       });
       return res.status(201).json({ ...requestResult(request), emailDelivered });
     } catch (error) {
       return res.status(error.status || 500).json({
-        error: error.status ? error.message : "Unable to submit the service model request.",
+        error: error.status ? error.message : "Unable to submit the contract change request.",
       });
     }
   }
@@ -239,15 +456,15 @@ function createServiceModelChangeHandlers({
       await request.save();
       await PlatformAuditModel.create({
         ...auditDetails(req),
-        action: "service_model_change_information_supplied",
+        action: auditAction(request, "information_supplied"),
         targetOrganizationId: organization._id,
-        metadata: { requestId: request._id },
+        metadata: { requestId: request._id, changeType: request.changeType || "service_model" },
       });
       notifyPlatform({
-        event: serviceModelChangeEvent(request, organization.name, "information_supplied"),
+        event: servicePlanChangeEvent(request, organization.name, "information_supplied"),
         contextOrganizationId: organization._id,
       }).catch((notificationError) => {
-        console.error("Service model information notification error:", notificationError);
+        console.error("Service plan information notification error:", notificationError);
       });
       return res.json({ ...requestResult(request), emailDelivered });
     } catch (error) {
@@ -271,7 +488,7 @@ function createServiceModelChangeHandlers({
         _id: req.params.id,
         status: { $in: ACTIVE_STATUSES },
       });
-      if (!request) return res.status(404).json({ error: "Active service model request not found." });
+      if (!request) return res.status(404).json({ error: "Active contract change request not found." });
       const [organization, requester] = await Promise.all([
         OrganizationModel.findById(request.organizationId),
         UserModel.findById(request.requestedBy).select("email username"),
@@ -279,6 +496,10 @@ function createServiceModelChangeHandlers({
       if (!organization || !requester) return res.status(404).json({ error: "Request organization or requester not found." });
       if ((organization.serviceModel || "managed") !== request.currentServiceModel) {
         return res.status(409).json({ error: "The organization service model changed after this request was submitted." });
+      }
+      const currentEntitlements = resolveLicenseEntitlements(organization);
+      if (request.currentLicenseTier != null && currentEntitlements.tier !== request.currentLicenseTier) {
+        return res.status(409).json({ error: "The organization license tier changed after this request was submitted." });
       }
       const reviewedAt = now();
       request.platformResponse = response;
@@ -290,51 +511,152 @@ function createServiceModelChangeHandlers({
         message: response || "Approved and applied by Afterlight.",
         createdAt: reviewedAt,
       });
+      let appliedEntitlements = null;
+      let endedResourceDeploymentCount = 0;
+      let requestAppliedInTransaction = false;
 
       if (action === "approve") {
-        const previousValue = {
-          serviceModel: organization.serviceModel || "managed",
-          defaultSource: organizationDefaultSource(organization),
-          policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
-        };
-        const clearedPropertyOverrides = (organization.properties || [])
-          .filter((property) => property.fulfillmentPolicy?.defaultSource).length;
-        for (const property of organization.properties || []) {
-          property.fulfillmentPolicy = {
-            defaultSource: null,
-            updatedBy: req.user.userId,
-            updatedAt: reviewedAt,
+        if (request.changeType === "custom_capacity") {
+          if (!METERED_SERVICE_MODELS.has(organization.serviceModel || "managed") || currentEntitlements.tier !== "tier_3") {
+            return res.status(409).json({ error: "This organization is no longer on a Tier 3 tiered service plan." });
+          }
+          const approvedAdminLimit = customAdminLimit(
+            request.organizationSnapshot?.requestedAdminLimit,
+            currentEntitlements.adminLimit,
+            { status: 409 }
+          );
+          const nextLicense = storedLicense(
+            organization,
+            organization.serviceModel,
+            currentEntitlements.tier,
+            req.user.userId,
+            reviewedAt
+          );
+          nextLicense.adminLimit = approvedAdminLimit;
+          nextLicense.userLimit = Math.max(currentEntitlements.userLimit || 0, nextLicense.userLimit || 0);
+          nextLicense.propertyLimit = Math.max(currentEntitlements.propertyLimit || 0, nextLicense.propertyLimit || 0);
+          organization.license = nextLicense;
+          await organization.save();
+          appliedEntitlements = resolveLicenseEntitlements(organization);
+        } else if ((request.changeType || "service_model") === "license_tier") {
+          if (!METERED_SERVICE_MODELS.has(organization.serviceModel || "managed")) {
+            return res.status(409).json({ error: "This organization no longer uses a tiered service model." });
+          }
+          const approvedTier = licenseTier(request.requestedLicenseTier, { required: true });
+          if (LICENSE_TIERS.indexOf(approvedTier) <= LICENSE_TIERS.indexOf(currentEntitlements.tier)) {
+            return res.status(409).json({ error: "The requested tier is no longer higher than the organization's current tier." });
+          }
+          const nextLicense = storedLicense(
+            organization,
+            organization.serviceModel,
+            approvedTier,
+            req.user.userId,
+            reviewedAt
+          );
+          nextLicense.adminLimit = Math.max(currentEntitlements.adminLimit || 0, nextLicense.adminLimit || 0);
+          nextLicense.userLimit = Math.max(currentEntitlements.userLimit || 0, nextLicense.userLimit || 0);
+          nextLicense.propertyLimit = Math.max(currentEntitlements.propertyLimit || 0, nextLicense.propertyLimit || 0);
+          organization.license = nextLicense;
+          await organization.save();
+          appliedEntitlements = resolveLicenseEntitlements(organization);
+        } else {
+          const targetTier = METERED_SERVICE_MODELS.has(request.requestedServiceModel)
+            ? licenseTier(request.requestedLicenseTier, { required: true })
+            : null;
+          const previousValue = {
+            serviceModel: organization.serviceModel || "managed",
+            licenseTier: currentEntitlements.tier,
+            adminLimit: currentEntitlements.adminLimit,
+            userLimit: currentEntitlements.userLimit,
+            propertyLimit: currentEntitlements.propertyLimit,
+            defaultSource: organizationDefaultSource(organization),
+            policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
           };
+          const clearedPropertyOverrides = (organization.properties || [])
+            .filter((property) => property.fulfillmentPolicy?.defaultSource).length;
+          const transition = await runServiceModelTransaction(async (session) => {
+            for (const property of organization.properties || []) {
+              property.fulfillmentPolicy = {
+                defaultSource: null,
+                updatedBy: req.user.userId,
+                updatedAt: reviewedAt,
+              };
+            }
+            organization.serviceModel = request.requestedServiceModel;
+            organization.license = storedLicense(
+              organization,
+              request.requestedServiceModel,
+              targetTier,
+              req.user.userId,
+              reviewedAt
+            );
+            organization.fulfillmentPolicy = {
+              defaultSource: SERVICE_MODEL_DEFAULTS[request.requestedServiceModel],
+              version: previousValue.policyVersion + 1,
+              updatedBy: req.user.userId,
+              updatedAt: reviewedAt,
+            };
+            await saveDocument(organization, session);
+
+            let endedDeployments = { modifiedCount: 0 };
+            if (request.requestedServiceModel === "platform") {
+              endedDeployments = await updateMany(
+                ResourceDeploymentModel,
+                {
+                  organizationId: organization._id,
+                  status: { $in: ["active", "paused"] },
+                },
+                {
+                  $set: {
+                    status: "ended",
+                    endsAt: reviewedAt,
+                    updatedBy: req.user.userId,
+                  },
+                },
+                session
+              );
+            }
+            const endedCount = Number(
+              endedDeployments.modifiedCount ?? endedDeployments.nModified ?? 0
+            );
+            const nextEntitlements = resolveLicenseEntitlements(organization);
+            await createDocument(FulfillmentAuditModel, {
+              organizationId: organization._id,
+              ...auditDetails(req),
+              entityType: "organization",
+              entityId: organization._id.toString(),
+              action: "service_model_change_approved",
+              previousValue,
+              nextValue: {
+                serviceModel: organization.serviceModel,
+                licenseTier: nextEntitlements.tier,
+                adminLimit: nextEntitlements.adminLimit,
+                userLimit: nextEntitlements.userLimit,
+                propertyLimit: nextEntitlements.propertyLimit,
+                defaultSource: organization.fulfillmentPolicy.defaultSource,
+                policyVersion: organization.fulfillmentPolicy.version,
+              },
+              reason: response,
+              metadata: {
+                requestId: request._id,
+                clearedPropertyOverrides,
+                endedResourceDeploymentCount: endedCount,
+                appliesTo: "future_assignments_only",
+              },
+            }, session);
+            request.status = "approved";
+            request.appliedAt = reviewedAt;
+            await saveDocument(request, session);
+            return { nextEntitlements, endedResourceDeploymentCount: endedCount };
+          });
+          appliedEntitlements = transition.nextEntitlements;
+          endedResourceDeploymentCount = transition.endedResourceDeploymentCount;
+          requestAppliedInTransaction = true;
         }
-        organization.serviceModel = request.requestedServiceModel;
-        organization.fulfillmentPolicy = {
-          defaultSource: SERVICE_MODEL_DEFAULTS[request.requestedServiceModel],
-          version: previousValue.policyVersion + 1,
-          updatedBy: req.user.userId,
-          updatedAt: reviewedAt,
-        };
-        await organization.save();
-        request.status = "approved";
-        request.appliedAt = reviewedAt;
-        await FulfillmentAuditModel.create({
-          organizationId: organization._id,
-          ...auditDetails(req),
-          entityType: "organization",
-          entityId: organization._id.toString(),
-          action: "service_model_change_approved",
-          previousValue,
-          nextValue: {
-            serviceModel: organization.serviceModel,
-            defaultSource: organization.fulfillmentPolicy.defaultSource,
-            policyVersion: organization.fulfillmentPolicy.version,
-          },
-          reason: response,
-          metadata: {
-            requestId: request._id,
-            clearedPropertyOverrides,
-            appliesTo: "future_assignments_only",
-          },
-        });
+        if (!requestAppliedInTransaction) {
+          request.status = "approved";
+          request.appliedAt = reviewedAt;
+        }
       } else if (action === "deny") {
         request.status = "denied";
       } else {
@@ -349,30 +671,50 @@ function createServiceModelChangeHandlers({
       } catch (error) {
         emailDelivered = false;
         request.notification.requesterEmailError = String(error.message || "Email delivery failed.").slice(0, 500);
-        console.error("Service model decision email error:", error.message);
+        console.error("Service plan decision email error:", error.message);
       }
       await request.save();
       await PlatformAuditModel.create({
         ...auditDetails(req),
-        action: `service_model_change_${request.status}`,
+        action: auditAction(request, request.status),
         targetOrganizationId: organization._id,
         metadata: {
           requestId: request._id,
+          changeType: request.changeType || "service_model",
           currentServiceModel: request.currentServiceModel,
           requestedServiceModel: request.requestedServiceModel,
+          currentLicenseTier: request.currentLicenseTier || null,
+          requestedLicenseTier: request.requestedLicenseTier || null,
+          currentLimits: {
+            admin: request.organizationSnapshot?.currentAdminLimit ?? null,
+            users: request.organizationSnapshot?.currentUserLimit ?? null,
+            properties: request.organizationSnapshot?.currentPropertyLimit ?? null,
+          },
+          requestedLimits: {
+            admin: appliedEntitlements?.adminLimit ?? request.organizationSnapshot?.requestedAdminLimit ?? null,
+            users: appliedEntitlements?.userLimit ?? request.organizationSnapshot?.requestedUserLimit ?? null,
+            properties: appliedEntitlements?.propertyLimit ?? request.organizationSnapshot?.requestedPropertyLimit ?? null,
+          },
+          currentAfterlightPortfolioMinimumPercent:
+            request.organizationSnapshot?.currentAfterlightPortfolioMinimumPercent ?? null,
+          requestedAfterlightPortfolioMinimumPercent:
+            appliedEntitlements?.afterlightPortfolioMinimumPercent
+              ?? request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent
+              ?? null,
+          endedResourceDeploymentCount,
         },
       });
       notifyUser({
         organizationId: organization._id,
         userId: requester._id,
-        ...serviceModelChangeEvent(request, organization.name, request.status),
+        ...servicePlanChangeEvent(request, organization.name, request.status),
       }).catch((notificationError) => {
-        console.error("Service model decision notification error:", notificationError);
+        console.error("Service plan decision notification error:", notificationError);
       });
       return res.json({ ...requestResult(request), emailDelivered });
     } catch (error) {
       return res.status(error.status || 500).json({
-        error: error.status ? error.message : "Unable to review the service model request.",
+        error: error.status ? error.message : "Unable to review the contract change request.",
       });
     }
   }
@@ -391,7 +733,7 @@ router.get("/", requireOrganizationAdmin, async (req, res) => {
     );
     return res.json(requests.map(requestResult));
   } catch (error) {
-    return res.status(500).json({ error: "Unable to load service model requests." });
+    return res.status(500).json({ error: "Unable to load contract change requests." });
   }
 });
 
@@ -407,7 +749,7 @@ router.get("/platform", requirePlatformAdmin, async (_req, res) => {
     );
     return res.json(requests.map(requestResult));
   } catch (error) {
-    return res.status(500).json({ error: "Unable to load platform service model requests." });
+    return res.status(500).json({ error: "Unable to load platform contract change requests." });
   }
 });
 

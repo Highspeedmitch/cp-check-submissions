@@ -20,6 +20,19 @@ async function sendApprovedInvoiceToAp(
   invoice.delivery.error = "";
   invoice.delivery.errorCode = "";
   invoice.delivery.failedAt = null;
+  invoice.delivery.lastEventAt = null;
+  invoice.delivery.lastEventType = "";
+  invoice.delivery.lastEventMessageId = "";
+  invoice.delivery.lastEventRank = 0;
+
+  const previousProviderMessageId = String(invoice.delivery.providerMessageId || "").trim();
+  if (previousProviderMessageId) {
+    invoice.delivery.providerMessageIds = [...new Set([
+      ...(invoice.delivery.providerMessageIds || []),
+      previousProviderMessageId,
+    ])];
+  }
+  invoice.delivery.providerMessageId = "";
 
   if (method === "email") {
     invoice.delivery.status = "sending";
@@ -52,6 +65,13 @@ async function sendApprovedInvoiceToAp(
         content: file.Body,
         contentType: "application/pdf",
       }],
+      ses: {
+        configurationSetName: process.env.SES_AP_CONFIGURATION_SET || "",
+        tags: [
+          { Name: "message_type", Value: "ap_invoice" },
+          { Name: "invoice_id", Value: String(invoice._id) },
+        ],
+      },
     });
     if (!result?.accepted) {
       const error = new Error("The AP email provider did not accept the message.");

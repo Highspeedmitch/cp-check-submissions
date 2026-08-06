@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
 import { NOTIFICATION_SECTIONS, useMarkNotificationsRead } from "../services/notificationCenter";
 import { api } from "../services/api";
+import { displayedApDeliveryError } from "../services/apDeliveryErrors";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 
 function dollars(cents) {
@@ -28,6 +29,13 @@ function statusLabel(invoice) {
     return "Delivered to AP";
   }
   return labels[invoice.status] || invoice.status;
+}
+
+function statusClass(invoice) {
+  if (invoice.status === "submitted" && invoice.delivery?.status === "delivered") {
+    return "success";
+  }
+  return invoice.status;
 }
 
 function invoiceRoutingLabel(invoice) {
@@ -59,7 +67,9 @@ export default function Billing() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyActions, setBusyActions] = useState({});
-  const helpSlug = !isOversight && invoices.some((invoice) => invoice.status === "declined")
+  const helpSlug = role === "admin"
+    ? "configure-property-delivery"
+    : !isOversight && invoices.some((invoice) => invoice.status === "declined")
     ? "revise-a-declined-invoice"
     : isPropertyManager
       ? "review-an-invoice"
@@ -393,9 +403,9 @@ export default function Billing() {
                       : <strong>{dollars(invoice.amountCents)}</strong>}
                   </td>
                   <td>
-                    <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice)}</span>
+                    <span className={`beta-status ${statusClass(invoice)}`}>{statusLabel(invoice)}</span>
                     {invoice.review?.declineReason && <><br/><small>{invoice.review.declineReason}</small></>}
-                    {invoice.delivery?.error && <><br/><small>{invoice.delivery.error}</small></>}
+                    {displayedApDeliveryError(invoice) && <><br/><small>{displayedApDeliveryError(invoice)}</small></>}
                     {invoice.delivery?.providerMessageId && <><br/><small>Provider ref: {invoice.delivery.providerMessageId}</small></>}
                   </td>
                   <td>{invoice.propertySnapshot.apMethod || "download"}<br/><small>{invoiceRoutingLabel(invoice)}</small></td>
@@ -417,7 +427,7 @@ export default function Billing() {
                 </div>
                 <div className="beta-invoice-total">
                   <strong>{dollars(invoice.amountCents)}</strong>
-                  <span className={`beta-status ${invoice.status}`}>{statusLabel(invoice)}</span>
+                  <span className={`beta-status ${statusClass(invoice)}`}>{statusLabel(invoice)}</span>
                 </div>
               </div>
               <dl className="beta-detail-list">
@@ -426,7 +436,7 @@ export default function Billing() {
                 <div><dt>Billing route</dt><dd>{invoiceRoutingLabel(invoice)}</dd></div>
                 {isOversight && <div><dt>{isAfterlightServiceInvoice(invoice) ? "Inspection performed by" : "Submitter"}</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
                 {invoice.review?.declineReason && <div><dt>Decline reason</dt><dd>{invoice.review.declineReason}</dd></div>}
-                {invoice.delivery?.error && <div><dt>Delivery error</dt><dd>{invoice.delivery.error}</dd></div>}
+                {displayedApDeliveryError(invoice) && <div><dt>Delivery error</dt><dd>{displayedApDeliveryError(invoice)}</dd></div>}
                 {invoice.delivery?.providerMessageId && <div><dt>Delivery provider reference</dt><dd>{invoice.delivery.providerMessageId}</dd></div>}
                 {invoice.archivedAt && <div><dt>Archived</dt><dd>{new Date(invoice.archivedAt).toLocaleDateString()}</dd></div>}
               </dl>

@@ -22,11 +22,15 @@ function invoice(overrides = {}) {
 
 test("records SES acceptance without claiming final mailbox delivery", async () => {
   const record = invoice();
+  let mailOptions;
   const result = await sendApprovedInvoiceToAp(record, "", {
     storage: {
       getObject: () => ({ promise: async () => ({ Body: Buffer.from("invoice") }) }),
     },
-    sendEmail: async () => ({ accepted: true, provider: "ses", messageId: "ses-message-id" }),
+    sendEmail: async (options) => {
+      mailOptions = options;
+      return { accepted: true, provider: "ses", messageId: "ses-message-id" };
+    },
     now: () => new Date("2026-08-04T15:00:00Z"),
   });
 
@@ -37,6 +41,28 @@ test("records SES acceptance without claiming final mailbox delivery", async () 
   assert.equal(record.delivery.providerMessageId, "ses-message-id");
   assert.equal(record.delivery.attemptCount, 1);
   assert.equal(record.delivery.deliveredAt, undefined);
+  assert.equal(mailOptions.ses.tags.find((tag) => tag.Name === "invoice_id").Value, "invoice-1");
+});
+
+test("moves an earlier SES message ID into attempt history before retrying", async () => {
+  const record = invoice({
+    delivery: {
+      provider: "ses",
+      providerMessageId: "old-ses-message-id",
+      providerMessageIds: [],
+      status: "failed",
+    },
+  });
+  await sendApprovedInvoiceToAp(record, "", {
+    storage: {
+      getObject: () => ({ promise: async () => ({ Body: Buffer.from("invoice") }) }),
+    },
+    sendEmail: async () => ({ accepted: true, provider: "ses", messageId: "new-ses-message-id" }),
+  });
+
+  assert.deepEqual(record.delivery.providerMessageIds, ["old-ses-message-id"]);
+  assert.equal(record.delivery.providerMessageId, "new-ses-message-id");
+  assert.equal(record.delivery.lastEventMessageId, "");
 });
 
 test("retains attempt metadata when the provider rejects the message", async () => {

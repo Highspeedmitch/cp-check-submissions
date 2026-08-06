@@ -3,7 +3,6 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { apiLimiter, calendarFeedLimiter } = require("./middleware/rateLimits");
 const authenticateToken = require("./middleware/authenticateToken");
-const requireAdmin = require("./middleware/requireAdmin");
 const requireCurrentOrganizationPresence = require("./middleware/requireCurrentOrganizationPresence");
 const { getAllowedFrontendOrigins } = require("./utils/frontendUrls");
 const mongoose = require("mongoose");
@@ -25,6 +24,12 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
     allowedHeaders: "Content-Type,Authorization",
     credentials: true,
   }));
+  app.use(
+    "/api/integrations/ses-events",
+    apiLimiter,
+    express.text({ type: ["application/json", "text/plain"], limit: "256kb" }),
+    require("./Routes/sesEvents")
+  );
   app.use("/api", apiLimiter);
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "2mb", extended: true }));
@@ -36,13 +41,12 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
     require("./Routes/calendarFeed").publicRouter
   );
 
-  app.use("/admin", authenticateToken, requireCurrentOrganizationPresence, requireAdmin, require("./Routes/admin"));
-  app.use("/api/mileage", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/mileageTracking"));
   app.use("/api/properties", authenticateToken, require("./Routes/properties"));
   app.use("/api/profits", require("./Routes/profits"));
   app.use("/api/billing", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/billing"));
   app.use("/api/admin-users", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/adminUsers"));
   app.use("/api/organization-security", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/organizationSecurity"));
+  app.use("/api/onboarding", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/onboarding"));
   app.use("/api/fulfillment", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/fulfillment"));
   app.use("/api/service-model-changes", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/serviceModelChanges"));
   app.use("/api/bid-requests", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/bidRequests"));

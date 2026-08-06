@@ -106,6 +106,35 @@ const PropertySchema = new mongoose.Schema({
   },
 });
 
+const OrganizationOnboardingSchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: ["invited", "in_progress", "completed"],
+    default: "invited",
+  },
+  initiatedAt: { type: Date, default: Date.now },
+  administratorAcceptedAt: { type: Date, default: null },
+  completedAt: { type: Date, default: null },
+}, { _id: false });
+
+const OrganizationLicenseSchema = new mongoose.Schema({
+  tier: {
+    type: String,
+    enum: ["tier_1", "tier_2", "tier_3", null],
+    default: null,
+  },
+  adminLimit: { type: Number, min: 2, default: null },
+  userLimit: { type: Number, min: 1, default: null },
+  propertyLimit: { type: Number, min: 1, default: null },
+  adminSeatVersion: { type: Number, min: 0, default: 0 },
+  updatedAt: { type: Date, default: null },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+}, { _id: false });
+
 const OrganizationSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   workspaceType: {
@@ -124,6 +153,10 @@ const OrganizationSchema = new mongoose.Schema({
     type: String,
     enum: ["platform", "managed", "hybrid"],
     default: "managed",
+  },
+  license: {
+    type: OrganizationLicenseSchema,
+    default: undefined,
   },
   fulfillmentPolicy: {
     defaultSource: {
@@ -148,6 +181,10 @@ const OrganizationSchema = new mongoose.Schema({
   reportingTimezone: {
     type: String,
     default: "America/Phoenix",
+  },
+  onboarding: {
+    type: OrganizationOnboardingSchema,
+    default: undefined,
   },
   security: {
     requireMfaForAllUsers: { type: Boolean, default: false },

@@ -102,6 +102,28 @@ async function revokeUserSessions(userId, model = RefreshSession) {
   );
 }
 
+async function updateRefreshSessionMfa({
+  refreshToken,
+  userId,
+  tokenVersion,
+  mfaAuthenticatedAt,
+  model = RefreshSession,
+  now = new Date(),
+}) {
+  if (!refreshToken) return null;
+  return model.findOneAndUpdate(
+    {
+      userId,
+      tokenHash: hashToken(refreshToken),
+      tokenVersion: tokenVersion || 0,
+      revokedAt: null,
+      expiresAt: { $gt: now },
+    },
+    { $set: { mfaAuthenticatedAt, lastUsedAt: now } },
+    { new: true }
+  );
+}
+
 module.exports = {
   ACCESS_TOKEN_LIFETIME,
   REFRESH_SESSION_DAYS,
@@ -111,6 +133,7 @@ module.exports = {
   clearRefreshCookie,
   authResponse,
   createRefreshSession,
+  updateRefreshSessionMfa,
   revokeRefreshToken,
   revokeUserSessions,
 };

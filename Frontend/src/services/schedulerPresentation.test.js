@@ -1,6 +1,8 @@
 import {
   propertySuggestedAmount,
   schedulerAssigneeLabel,
+  schedulerFulfillmentSources,
+  showAfterlightQueue,
 } from "./schedulerPresentation";
 
 test("Afterlight contractor labels never expose internal compensation", () => {
@@ -19,4 +21,21 @@ test("Afterlight contractor labels never expose internal compensation", () => {
 test("property suggested amounts use the client billing setting", () => {
   expect(propertySuggestedAmount({ defaultInspectionAmountCents: 15000 })).toBe("$150.00");
   expect(propertySuggestedAmount({ defaultInspectionAmountCents: null })).toBe("Not configured");
+});
+
+test("the scheduler uses server-provided service-model fulfillment choices", () => {
+  expect(schedulerFulfillmentSources({
+    options: { fulfillmentSources: ["customer_employee", "customer_contractor"] },
+  })).toEqual(["customer_employee", "customer_contractor"]);
+  expect(schedulerFulfillmentSources(null)).toEqual([
+    "customer_employee",
+    "customer_contractor",
+  ]);
+});
+
+test("SaaS hides an empty Afterlight queue but retains existing Afterlight work", () => {
+  expect(showAfterlightQueue("platform", 0)).toBe(false);
+  expect(showAfterlightQueue(undefined, 0)).toBe(false);
+  expect(showAfterlightQueue("platform", 1)).toBe(true);
+  expect(showAfterlightQueue("hybrid", 0)).toBe(true);
 });

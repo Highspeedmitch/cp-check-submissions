@@ -277,6 +277,40 @@ test("assignment fulfillment overrides are snapshotted and audited", async () =>
   assert.equal(auditEntry.reason, "Customer team has coverage");
 });
 
+test("SaaS organizations cannot create Afterlight assignments through a crafted request", async () => {
+  let assigneeResolutionAttempted = false;
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: {
+      async findById() {
+        return {
+          serviceModel: "platform",
+          fulfillmentPolicy: { defaultSource: "customer_employee", version: 6 },
+          properties: [{ _id: "property-1", name: "Broadway Center" }],
+        };
+      },
+    },
+    resolveAssignee: async () => {
+      assigneeResolutionAttempted = true;
+      throw new Error("should not resolve");
+    },
+  });
+  const res = response();
+
+  await handlers.createAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    body: {
+      propertyName: "Broadway Center",
+      userId: "afterlight-user-1",
+      startDate: "2026-08-15",
+      fulfillmentSource: "afterlight_staff",
+    },
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /Managed Service and Hybrid/i);
+  assert.equal(assigneeResolutionAttempted, false);
+});
+
 test("Afterlight contractor assignments retain deployment and immutable compensation links", async () => {
   let savedAssignment;
   let notification;
@@ -542,8 +576,12 @@ test("ordinary users cannot access assignment history", async () => {
 
 test("scheduler user lookup retains organization and role filters", async () => {
   let userQuery;
+  let schedulerRequest;
   const users = [{ _id: "user-1", role: "user" }];
   const handlers = createAssignmentHandlers({
+    OrganizationModel: {
+      async findById() { return { serviceModel: "hybrid" }; },
+    },
     UserModel: {
       find(query) {
         userQuery = query;
@@ -555,7 +593,10 @@ test("scheduler user lookup retains organization and role filters", async () => 
         };
       },
     },
-    schedulerResources: async () => [],
+    schedulerResources: async (details) => {
+      schedulerRequest = details;
+      return [];
+    },
   });
   const res = response();
 
@@ -569,6 +610,92 @@ test("scheduler user lookup retains organization and role filters", async () => 
   assert.deepEqual(userQuery.role, {
     $in: ["user", "contractor", "cleaner"],
   });
+  assert.equal(schedulerRequest.serviceModel, "hybrid");
+});
+
+test("SaaS scheduler lookup returns tenant workers without querying Afterlight deployments", async () => {
+  let schedulerLookupAttempted = false;
+  const users = [{ _id: "user-1", role: "contractor" }];
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: {
+      async findById() { return { serviceModel: "platform" }; },
+    },
+    UserModel: {
+      find() {
+        return { async select() { return users; } };
+      },
+    },
+    schedulerResources: async () => {
+      schedulerLookupAttempted = true;
+      return [{ _id: "afterlight-user-1" }];
+    },
+  });
+  const res = response();
+
+  await handlers.listSchedulerUsers({
+    user: { role: "admin", organizationId: "org-1" },
+    query: { roles: "all" },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, users);
+  assert.equal(schedulerLookupAttempted, false);
+});
+
+test("retained Afterlight assignments can be rescheduled after a SaaS transition", async () => {
+  let assigneeResolutionAttempted = false;
+  let savedChanges;
+  const existing = {
+    _id: "assignment-1",
+    organizationId: "org-1",
+    propertyName: "Broadway Center",
+    userId: "afterlight-user-1",
+    startDate: new Date("2026-08-10T00:00:00.000Z"),
+    endDate: new Date("2026-08-10T00:00:00.000Z"),
+    fulfillment: { source: "afterlight_staff", queue: "afterlight_coverage" },
+    resourceProfileId: "resource-1",
+    resourceDeploymentId: "deployment-1",
+    compensationSnapshot: undefined,
+  };
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: {
+      async findById() {
+        return {
+          serviceModel: "platform",
+          properties: [{ _id: "property-1", name: "Broadway Center" }],
+        };
+      },
+    },
+    AssignmentModel: {
+      async findOne() { return existing; },
+      async findOneAndUpdate(_query, update) {
+        savedChanges = update.$set;
+        return { ...existing, ...update.$set };
+      },
+    },
+    resolveAssignee: async () => {
+      assigneeResolutionAttempted = true;
+      throw new Error("should not resolve a retained deployment");
+    },
+    notifyUser: async () => {},
+  });
+  const res = response();
+
+  await handlers.updateAssignment({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    params: { id: "assignment-1" },
+    body: {
+      startDate: "2026-08-20",
+      endDate: "2026-08-20",
+    },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(assigneeResolutionAttempted, false);
+  assert.equal(savedChanges.userId, "afterlight-user-1");
+  assert.equal(savedChanges.resourceProfileId, "resource-1");
+  assert.equal(savedChanges.resourceDeploymentId, "deployment-1");
+  assert.equal(savedChanges.fulfillment.source, "afterlight_staff");
 });
 
 test("assignment updates remain scoped to the authenticated organization", async () => {

@@ -24,6 +24,7 @@ const { authResponse } = require("../services/authSessions");
 const {
   ASSUMED_ACCESS_MS,
   createAssumedAccessResponse,
+  hasRecentStepUpAuthentication,
 } = require("../services/platformAccess");
 const { getPlatformOrganizationMetrics } = require("../services/platformMetrics");
 const { getJwtSecret } = require("../config/security");
@@ -298,11 +299,10 @@ router.delete("/prospect-assessments/:id", authenticateToken, requirePlatformAdm
 
 router.post("/organizations/:organizationId/assume", authenticateToken, requirePlatformAdmin, async (req, res) => {
   try {
-    const mfaTime = new Date(req.user.mfaAuthenticatedAt || 0).getTime();
-    if (!mfaTime || Date.now() - mfaTime > 15 * 60 * 1000) {
+    if (!hasRecentStepUpAuthentication(req.user.mfaAuthenticatedAt)) {
       return res.status(428).json({
-        code: "OKTA_REAUTH_REQUIRED",
-        error: "Reauthenticate with Okta before entering an organization.",
+        code: "STEP_UP_REQUIRED",
+        error: "Confirm your identity to open Admin View.",
       });
     }
     const reason = String(req.body.reason || "").trim();

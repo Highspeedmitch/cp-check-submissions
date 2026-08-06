@@ -1,54 +1,73 @@
-# Review service model change requests
+# Review service plan change requests
 
-Platform administrators review organization requests to move between Full-stack SaaS, Managed service, and Hybrid delivery. Organization administrators cannot apply these contract changes themselves.
+Platform administrators review organization requests to change a service model, increase a SaaS or Hybrid license tier, or add custom Tier 3 administrator capacity. Organization administrators cannot apply these contract changes themselves.
 
 ## Open the review queue
 
 1. Sign in to **Platform Administration**.
-2. Select **Service Model Requests**.
+2. Select **Service Plan Requests**.
 3. Open an active request and review:
+   - whether it is a service-model, tier-increase, or custom-capacity request;
    - the organization and requesting administrator;
-   - current and requested service models;
-   - requested effective date;
-   - business reason and conversation history;
-   - property count, existing property overrides, current fulfillment default, and policy version.
+   - current and requested plan;
+   - requested effective date and business reason;
+   - administrator, user, and property capacity before and after approval;
+   - current allocated users and administrators; and
+   - conversation history and notification warnings.
 
 The request email links back to Platform Administration, but the in-app queue is the system of record.
 
-## Choose a review action
+## Approve a service-model request
 
-### Approve and apply
+Use **Approve and apply** only after confirming the contract, pricing, operational capacity, requested tier, and timing.
 
-Use **Approve and apply** only after the contract, pricing, operational capacity, and requested timing are confirmed. A response note is optional but recommended.
-
-Approval takes effect immediately for future assignments. Afterlight:
+Approval takes effect immediately. Afterlight:
 
 - changes the organization's service model;
-- selects that model's standard fulfillment default;
-- clears all property-level fulfillment overrides;
+- applies the explicitly requested tier for SaaS or Hybrid, or clears tier limits for Managed service;
+- selects the service model's standard fulfillment default;
+- clears property-level fulfillment overrides;
 - increments the fulfillment policy version;
+- when moving to SaaS, ends every active or paused Afterlight resource deployment for the organization;
 - records platform and fulfillment audit events; and
-- emails the requesting administrator.
+- alerts the requesting administrator.
 
-Existing assignments and invoices keep their saved fulfillment and billing routing.
+Existing assignments and invoices keep their saved fulfillment and billing routing. An ended deployment removes the resource from the organization's future staffing choices; it does not remove the resource from an assignment created before the transition. Moving back to Hybrid or Managed service does not automatically reactivate prior deployments. A platform administrator must deploy the appropriate resources again.
 
-### Request more information
+## Approve a tier-increase request
 
-Enter a specific question in **Platform response**, then select **Request more information**. The requester receives an email and can respond from the organization's **Service Delivery** page. When they respond, the request returns to pending review and active platform administrators receive another email containing the latest update.
+Confirm that the organization is still on the service model and tier recorded when the request was submitted. Approval immediately applies the requested standard tier and its administrator, user, and property limits.
 
-### Deny
+A tier approval does not change fulfillment policy, property overrides, existing assignments, or invoices. Existing organization-specific capacity overrides that exceed the new tier standard are retained so an upgrade cannot reduce capacity. The approval records the previous and applied tier and capacity in the platform audit trail and alerts the requester.
 
-Enter the reason in **Platform response**, then select **Deny**. No organization policy is changed. The requester receives the decision and response by email.
+## Approve a custom administrator-capacity request
 
-## Notification behavior
+Confirm that the organization is still on Tier 3 and that the requested administrator-seat limit remains greater than its current limit. Approval changes only the administrator-seat limit. It retains the service model, Tier 3 designation, user and property limits, fulfillment policy, property overrides, assignments, and invoices.
 
-In DEV, system email is sent from `dev@afterlightinspections.com`. New and updated organization requests are sent to every active Afterlight user whose platform role is **platform administrator**. Decisions are sent to the organization administrator who opened the request.
+The approval and applied capacity are recorded in the platform audit trail, and the requesting administrator is alerted.
 
-If delivery fails, the error is recorded on the request without discarding the in-app workflow. Review the Platform Administration queue rather than relying on email alone.
+## Request more information
+
+Enter a specific question in **Platform response**, then select **Request more information**. The requester responds from the organization's **Service Delivery** page. Their response returns the request to pending review and alerts active platform administrators.
+
+## Deny
+
+Enter the reason in **Platform response**, then select **Deny**. No organization policy or license is changed. The requester receives the decision and response in Afterlight and by push or email when available.
 
 ## Review safeguards
 
-- A request cannot be approved if the organization's service model changed after the request was submitted.
-- Only one active request is allowed per organization.
+- Only one active service-plan request is allowed per organization.
+- A request cannot be approved if the organization's service model or source tier changed after submission.
+- Tier increases are accepted only for SaaS and Hybrid and must target a higher standard tier.
+- Custom administrator capacity is accepted only for Tier 3 SaaS and Hybrid organizations and must be greater than the current administrator limit.
+- Service-model changes into SaaS or Hybrid require an explicit tier.
+- SaaS permits only customer employees and customer-managed contractors for new assignments. Server-side validation rejects Afterlight fulfillment even if a stale client attempts to submit it.
 - Denial and information requests require a written platform response.
-- Direct organization-admin service model updates are rejected by the API even if the administrator has a valid organization passkey.
+- Direct organization-admin service-model, tier, and custom-capacity changes remain rejected by the API.
+- Proposed effective dates are planning requests; approval currently applies immediately.
+
+## Notification behavior
+
+New requests and information supplied by an organization alert active platform administrators. Information requests, approvals, and denials alert the organization administrator who opened the request. If push or email delivery fails, the error does not discard the in-app workflow.
+
+[Back to the knowledge base](README.md)

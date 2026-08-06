@@ -9,7 +9,7 @@ const MfaChallengeSchema = new mongoose.Schema({
     index: true,
   },
   tokenHash: { type: String, required: true, unique: true },
-  purpose: { type: String, enum: ["login", "enrollment"], required: true },
+  purpose: { type: String, enum: ["login", "enrollment", "step_up"], required: true },
   pendingSecretEncrypted: { type: String, default: "", select: false },
   attempts: { type: Number, default: 0 },
   expiresAt: { type: Date, required: true },

@@ -3,12 +3,6 @@ import { MemoryRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 import { api } from "../services/api";
 
-jest.mock("@capacitor/geolocation", () => ({
-  Geolocation: {
-    watchPosition: jest.fn(),
-    clearWatch: jest.fn(),
-  },
-}));
 jest.mock("../services/api", () => ({
   api: {
     get: jest.fn(),
@@ -37,7 +31,7 @@ function token() {
   return `header.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`;
 }
 
-function renderDashboard(role) {
+function renderDashboard(role, initialEntry = "/dashboard") {
   localStorage.setItem("token", token());
   localStorage.setItem("role", role);
   localStorage.setItem("orgType", "COM");
@@ -45,11 +39,18 @@ function renderDashboard(role) {
   localStorage.setItem("userId", "user-1");
   localStorage.setItem("organizationId", "org-1");
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Dashboard setUser={jest.fn()} />
     </MemoryRouter>
   );
 }
+
+test("the Setup Guide deep link opens protected property setup", async () => {
+  renderDashboard("admin", "/dashboard?onboarding=add-property");
+
+  expect(await screen.findByRole("dialog", { name: "Add a new property" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Organization passkey")).toBeInTheDocument();
+});
 
 beforeEach(() => {
   localStorage.clear();
@@ -172,6 +173,7 @@ test("valid admin passkey opens the reducer-backed add property form", async () 
     : []);
   renderDashboard("admin");
 
+  fireEvent.click(await screen.findByRole("button", { name: "Admin tools" }));
   fireEvent.click(await screen.findByRole("button", { name: "Add Property" }));
   fireEvent.change(screen.getByLabelText("Organization passkey"), {
     target: { value: "test-passkey" },

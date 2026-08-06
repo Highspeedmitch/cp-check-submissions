@@ -79,7 +79,6 @@ export default function ResourceDashboard({ setUser }) {
         accountScope="afterlight_resource"
         navigate={navigate}
         onLogout={logout}
-        showMileageTracking={false}
         notificationBadges={{
           ...notificationBadges,
           dashboard: notificationBadges.dashboard + notificationBadges.resources,

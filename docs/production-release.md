@@ -49,6 +49,9 @@ Production workflow capabilities also require:
 - `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, and a verified
   `SYSTEM_EMAIL_ADDRESS`; add `SES_SESSION_TOKEN` only for temporary SES
   credentials;
+- `SES_AP_CONFIGURATION_SET` and `SES_EVENT_TOPIC_ARN` from the environment's
+  SES AP delivery event stack to record final delivery, delay, bounce, and
+  complaint state;
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` for PWA push;
 - `INSPECTION_FALLBACK_EMAIL` or `SYSTEM_EMAIL_ADDRESS` for inspection routing.
 
@@ -112,28 +115,129 @@ The apply operation is idempotent and creates both fulfillment and platform
 audit records when it changes Picor. It records that fulfillment changes affect
 future assignments only. Remove the confirmation variable after use.
 
-## 5. Promotion order
+## 5. Retire historical organization access
+
+AzRoots, HSLD, and Breezykeyzy are retained historical organizations in
+`backend/config/productionOrganizationLicenses.js`. Their organizations,
+properties, users, assignments, submissions, reports, invoices, and audit
+records remain in Production, but their organization memberships must be
+archived before the license manifest can be applied.
+
+Preview the exact membership and blocker inventory:
+
+```powershell
+npm run retire-production-historical-access
+```
+
+The command is dry-run-only unless `--apply` is supplied. It blocks the entire
+operation if any target organization is missing or has a scheduled assignment,
+uploading/queued/processing inspection job, pending/accepting invitation,
+active/paused resource deployment, pending bid request, or invoice requiring
+attention. Review every listed email, role, account scope, and account status.
+
+To apply the reviewed retirement, set all three write guards:
+
+```powershell
+$env:NODE_ENV = "production"
+$env:CONFIRM_PRODUCTION_HISTORICAL_RETIREMENT = "I_UNDERSTAND_THIS_RETIRES_PRODUCTION_ORGANIZATION_ACCESS"
+$env:PRODUCTION_HISTORICAL_RETIREMENT_VERSION = "2026-08-06-historical-access-retirement-v1"
+npm run retire-production-historical-access -- --apply
+```
+
+The apply operation rebuilds the inventory inside a MongoDB transaction. It
+archives every organization membership, including administrators, increments
+the access-token version, revokes refresh sessions, and writes user and platform
+audits. It preserves account status, platform role, Afterlight resource scope,
+property assignments, and all historical business data. Re-running it is
+idempotent. Remove both confirmation variables after use.
+
+## 6. Configure Production licenses
+
+The source-controlled license manifest is
+`backend/config/productionOrganizationLicenses.js`. Configuration version
+`2026-08-06-production-license-dispositions-v1` explicitly assigns Picor to
+Managed Service with unmetered administrator, user, and property capacity. It
+also records AzRoots, HSLD, and Breezykeyzy as retained historical
+organizations rather than licensed customer tenants.
+
+The configurator inventories every customer organization before writing. It
+excludes the Afterlight workforce organization and Afterlight resource
+accounts, counts unexpired pending invitations as allocated seats, and blocks
+when:
+
+- a manifest organization is missing;
+- a customer organization is not in the manifest;
+- an organization's saved service model differs from the manifest; or
+- a metered organization exceeds its proposed capacity; or
+- a historical organization still has an active organization user, an
+  unexpired pending invitation, or an active/paused resource deployment.
+
+Historical retention does not delete an organization, property, submission,
+invoice, or other business record. It also does not automatically archive a
+user or end a resource deployment. Clear those live-access blockers through a
+separately reviewed retirement action, then rerun the license dry run.
+
+Run the Production organization configurator in section 4 first so Picor's
+service model is confirmed as `managed`. Complete section 5 and confirm every
+historical organization is retired. Then preview the license plan:
+
+```powershell
+npm run configure-production-licenses
+```
+
+The dry run prints each organization's current administrator, user, and
+property allocation and performs no writes. Review the complete output. Do not
+apply if the command reports a blocked organization.
+
+To apply the reviewed manifest, set all three write guards and pass `--apply`:
+
+```powershell
+$env:NODE_ENV = "production"
+$env:CONFIRM_PRODUCTION_LICENSE_CONFIGURATION = "I_UNDERSTAND_THIS_CHANGES_PRODUCTION_LICENSES"
+$env:PRODUCTION_LICENSE_CONFIGURATION_VERSION = "2026-08-06-production-license-dispositions-v1"
+npm run configure-production-licenses -- --apply
+```
+
+The apply operation rebuilds the inventory inside a MongoDB transaction,
+preserves the administrator-seat version, writes only changed license records,
+and creates a platform audit record. Re-running it is idempotent. Remove both
+confirmation variables after use.
+
+The current release hard-enforces administrator seats. User and property
+limits are stored and displayed but are not yet enforced on creation. Afterlight
+resource accounts do not consume organization user capacity.
+
+## 7. Promotion order
 
 1. Record the tested SHA and open a release PR from `develop` to `main`.
    Require passing backend tests, frontend tests, and frontend build.
 2. Tag the approved merge so every deployed service can be traced to one SHA.
 3. Take or verify the MongoDB backup and record the rollback release SHA.
-4. Deploy the API web service and inspection worker from the same release SHA.
+4. Confirm or temporarily disable automatic Production deployment from `main`
+   so merging cannot start an uncoordinated release.
+5. Deploy the API web service and inspection worker from the same release SHA.
    Keep the in-web worker enabled until a separate background worker is healthy;
    then set `RUN_INSPECTION_WORKER=false` on the web service.
-5. Confirm `/health`, startup index work, worker polling, S3 access, and SES
+6. Confirm `/health`, startup index work, worker polling, S3 access, and SES
    configuration before continuing.
-6. Run the Production organization configurator in dry-run mode. Apply only
+7. Run the Production organization configurator in dry-run mode. Apply only
    after the Picor plan is reviewed.
-7. Deploy the frontend from the same release SHA.
-8. Complete the smoke tests below before announcing the release.
+8. Run the historical-access retirement dry run. Review the exact memberships
+   and blocker counts, apply the reviewed retirement, then rerun it to confirm
+   all three organizations report `already retired`.
+9. Run the Production license configurator in dry-run mode and confirm all three
+   historical organizations report `historical retained`. Apply the reviewed
+   manifest. Picor is Managed Service and therefore remains unmetered while its
+   explicit record is being established.
+10. Deploy the frontend from the same release SHA.
+11. Complete the smoke tests below before announcing the release.
 
 Deploying the backend first is intentional. Its submission-history endpoint
 continues returning the original unpaginated array to cached PWA clients that do
 not send a `page` parameter, while the new frontend receives the paginated
 response.
 
-## 6. Production smoke tests
+## 8. Production smoke tests
 
 - Sign in as the Production platform administrator and an organization user.
 - Confirm dashboard, property list, assignment calendar, assignment history,
@@ -145,14 +249,22 @@ response.
 - Confirm assignment completion is protected from edit/delete and appears in
   history.
 - Confirm AP email acceptance says queued; use a controlled failure to confirm
-  failed delivery is recorded without losing the invoice or inspection.
+  failed delivery is recorded without losing the invoice or inspection. Confirm
+  a successful SES event advances the invoice to delivered and the event DLQ is
+  empty.
 - Enable notifications on one Production test device and confirm an assignment
   lifecycle push and an in-app notification.
 - Confirm Picor reports `managed` / `afterlight_staff` before creating its first
   new Production assignment.
+- Confirm Picor reports Managed Service and unmetered administrator capacity in
+  User Management. Confirm Afterlight resources do not appear in its customer
+  seat allocation.
+- Confirm AzRoots, HSLD, and Breezykeyzy remain visible to the platform with
+  their historical properties and zero active organization users. Confirm one
+  retired organization identity cannot enter its organization workspace.
 - Confirm public registration remains disabled.
 
-## 7. Rollback
+## 9. Rollback
 
 If frontend smoke tests fail, restore the previous frontend release while
 leaving the backward-compatible API in place. If the API or worker fails,
@@ -164,3 +276,13 @@ valid Production activity created after release.
 Do not reverse Picor's configured service model automatically during an
 application rollback. It is audited Production data and should be changed only
 through a separately reviewed configuration action.
+
+Do not delete or automatically reverse an applied Production license record
+during an application rollback. It is additive, audited business data that the
+prior application version safely ignores. Correct an erroneous license through
+a separately reviewed manifest revision.
+
+Do not automatically restore retired historical organization memberships during
+an application rollback. The organization and business records were never
+deleted. Restoring access requires a separately reviewed operation and new
+authentication sessions.

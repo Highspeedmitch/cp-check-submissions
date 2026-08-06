@@ -92,6 +92,10 @@ test("sends MIME email with attachments through Amazon SES", async () => {
         content: Buffer.from("attachment"),
         contentType: "text/plain",
       }],
+      ses: {
+        configurationSetName: "afterlight-ap-invoice-dev",
+        tags: [{ Name: "message_type", Value: "ap_invoice" }],
+      },
     }, { sesClient });
 
     assert.equal(result.provider, "ses");
@@ -99,6 +103,8 @@ test("sends MIME email with attachments through Amazon SES", async () => {
     assert.equal(result.accepted, true);
     assert.equal(result.messageId, "ses-message-id");
     assert.equal(request.Source, "notifications@afterlightinspections.com");
+    assert.equal(request.ConfigurationSetName, "afterlight-ap-invoice-dev");
+    assert.deepEqual(request.Tags, [{ Name: "message_type", Value: "ap_invoice" }]);
     const mime = request.RawMessage.Data.toString("utf8");
     assert.match(
       mime,

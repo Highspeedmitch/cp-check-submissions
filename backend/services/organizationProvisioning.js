@@ -4,12 +4,16 @@ const {
   validateServiceModel,
   validateFulfillmentSource,
 } = require("./fulfillmentPolicy");
+const { LICENSE_TIERS, defaultStoredLicense } = require("./licenseEntitlements");
 
 function normalizeOrganizationSetup(input = {}) {
   const name = String(input.name || "").trim().replace(/\s+/g, " ");
   const orgType = String(input.orgType || "").trim().toUpperCase();
   const reportingTimezone = String(input.reportingTimezone || "America/Phoenix").trim();
   const serviceModel = validateServiceModel(String(input.serviceModel || "managed").trim());
+  const licenseTier = serviceModel === "managed"
+    ? null
+    : String(input.licenseTier || "tier_1").trim();
   const defaultSource = validateFulfillmentSource(
     String(input.defaultFulfillmentSource || SERVICE_MODEL_DEFAULTS[serviceModel]).trim()
   );
@@ -19,6 +23,9 @@ function normalizeOrganizationSetup(input = {}) {
   }
   if (!ORGANIZATION_TYPES.has(orgType)) {
     throw new Error("Select a valid organization type.");
+  }
+  if (licenseTier && !LICENSE_TIERS.includes(licenseTier)) {
+    throw new Error("Select a valid license tier.");
   }
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: reportingTimezone }).format();
@@ -30,7 +37,12 @@ function normalizeOrganizationSetup(input = {}) {
     orgType,
     reportingTimezone,
     serviceModel,
+    license: defaultStoredLicense(serviceModel, licenseTier),
     fulfillmentPolicy: { defaultSource, version: 1 },
+    onboarding: {
+      status: "invited",
+      initiatedAt: new Date(),
+    },
   };
 }
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import { api } from "../services/api";
 import { logoutSession } from "../services/session";
 
@@ -156,6 +157,7 @@ function OrganizationSecurity() {
           eyebrow="Organization settings"
           title="Security"
           subtitle="Manage sign-in protection, account recovery, and sensitive administrative access."
+          actions={<ContextualHelpLink slug="authenticator-verification" />}
         />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}

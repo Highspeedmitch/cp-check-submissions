@@ -5,6 +5,9 @@ const FULFILLMENT_SOURCES = [
   "afterlight_staff",
   "afterlight_contractor",
 ];
+const CUSTOMER_FULFILLMENT_SOURCES = ["customer_employee", "customer_contractor"];
+const AFTERLIGHT_FULFILLMENT_SOURCES = ["afterlight_staff", "afterlight_contractor"];
+const AFTERLIGHT_RESOURCE_SERVICE_MODELS = new Set(["managed", "hybrid"]);
 
 const SERVICE_MODEL_DEFAULTS = {
   platform: "customer_employee",
@@ -35,6 +38,34 @@ function validateFulfillmentSource(value) {
   return value;
 }
 
+function normalizedServiceModel(organizationOrServiceModel) {
+  const value = typeof organizationOrServiceModel === "string"
+    ? organizationOrServiceModel
+    : organizationOrServiceModel?.serviceModel;
+  return SERVICE_MODELS.includes(value) ? value : "managed";
+}
+
+function serviceModelAllowsAfterlightResources(organizationOrServiceModel) {
+  return AFTERLIGHT_RESOURCE_SERVICE_MODELS.has(normalizedServiceModel(organizationOrServiceModel));
+}
+
+function fulfillmentSourcesForServiceModel(organizationOrServiceModel) {
+  return serviceModelAllowsAfterlightResources(organizationOrServiceModel)
+    ? [...FULFILLMENT_SOURCES]
+    : [...CUSTOMER_FULFILLMENT_SOURCES];
+}
+
+function validateFulfillmentSourceForServiceModel(value, organizationOrServiceModel) {
+  const source = validateFulfillmentSource(value);
+  if (AFTERLIGHT_FULFILLMENT_SOURCES.includes(source)
+    && !serviceModelAllowsAfterlightResources(organizationOrServiceModel)) {
+    throw validationError(
+      "Afterlight fulfillment is available only to Managed Service and Hybrid organizations."
+    );
+  }
+  return source;
+}
+
 function organizationDefaultSource(organization) {
   const explicit = organization?.fulfillmentPolicy?.defaultSource;
   if (FULFILLMENT_SOURCES.includes(explicit)) return explicit;
@@ -60,7 +91,10 @@ function resolveAssignmentFulfillment({ organization, property, requestedSource,
   const hasPropertyOverride = FULFILLMENT_SOURCES.includes(property?.fulfillmentPolicy?.defaultSource);
   const inheritedSource = propertyDefaultSource(organization, property);
   const hasAssignmentOverride = requestedSource !== undefined && requestedSource !== null && requestedSource !== "";
-  const source = hasAssignmentOverride ? validateFulfillmentSource(requestedSource) : inheritedSource;
+  const source = validateFulfillmentSourceForServiceModel(
+    hasAssignmentOverride ? requestedSource : inheritedSource,
+    organization
+  );
 
   return {
     ...policyForSource(source),
@@ -104,10 +138,15 @@ function legacyFulfillmentSnapshot() {
 module.exports = {
   SERVICE_MODELS,
   FULFILLMENT_SOURCES,
+  CUSTOMER_FULFILLMENT_SOURCES,
+  AFTERLIGHT_FULFILLMENT_SOURCES,
   SERVICE_MODEL_DEFAULTS,
   SOURCE_POLICIES,
   validateServiceModel,
   validateFulfillmentSource,
+  validateFulfillmentSourceForServiceModel,
+  fulfillmentSourcesForServiceModel,
+  serviceModelAllowsAfterlightResources,
   organizationDefaultSource,
   propertyDefaultSource,
   policyForSource,

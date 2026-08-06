@@ -12,6 +12,10 @@ async function passkeyMatches(organization, passkey, purpose) {
   const hash = organization.security?.adminActionPasskeyHash;
   if (hash) return bcrypt.compare(passkey, hash);
 
+  // Administrator invitations require the organization's configured passkey.
+  // The legacy deployment-wide property passkeys must never authorize this action.
+  if (purpose === "invite_admin") return false;
+
   const legacy = purpose === "remove_property"
     ? process.env.REMOVE_PROPERTY_PASSKEY
     : process.env.ADD_PROPERTY_PASSKEY;
@@ -47,6 +51,7 @@ async function consumeGrant({
   purpose,
   token,
   GrantModel = AdminActionGrant,
+  session,
 }) {
   if (!token) return false;
   const grant = await GrantModel.findOneAndUpdate({
@@ -57,7 +62,7 @@ async function consumeGrant({
     passkeyVersion: organization.security?.adminActionPasskeyVersion || 0,
     consumedAt: null,
     expiresAt: { $gt: new Date() },
-  }, { $set: { consumedAt: new Date() } }, { new: true });
+  }, { $set: { consumedAt: new Date() } }, { new: true, ...(session ? { session } : {}) });
   return Boolean(grant);
 }
 

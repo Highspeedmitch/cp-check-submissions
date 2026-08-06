@@ -476,18 +476,18 @@ export default function PlatformResources() {
         })}</tbody></table></div>}
       </section>
 
-      <section className="beta-panel">
+      <section className="beta-panel platform-contractor-earnings-panel">
         <div className="beta-section-heading"><div><p className="beta-eyebrow">Independent payable ledger</p><h2>Contractor Earnings</h2><p>Approve completed work, then group approved earnings for Gusto.</p></div></div>
-        {data.earnings.length ? <div className="beta-table-wrap"><table className="beta-data-table">
+        {data.earnings.length ? <div className="beta-table-wrap"><table className="beta-data-table platform-contractor-earnings-table">
           <thead><tr><th>Select</th><th>Resource</th><th>Organization</th><th>Earned</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>{data.earnings.map((earning) => <tr key={earning._id}>
-            <td><input aria-label={`Select earning for ${earning.resourceProfileId?.displayName || "resource"}`} type="checkbox" disabled={earning.status !== "approved"} checked={selectedEarnings.includes(earning._id)} onChange={(event) => setSelectedEarnings((current) => event.target.checked ? [...current, earning._id] : current.filter((value) => value !== earning._id))} /></td>
-            <td>{earning.resourceProfileId?.displayName}</td>
-            <td>{earning.organizationId?.name}</td>
-            <td>{new Date(earning.earnedAt).toLocaleDateString()}</td>
-            <td>{money(earning.grossAmountCents + (earning.reimbursementCents || 0), earning.currency)}</td>
-            <td>{earning.status.replaceAll("_", " ")}</td>
-            <td><div className="beta-card-actions">
+            <td data-label="Select"><input aria-label={`Select earning for ${earning.resourceProfileId?.displayName || "resource"}`} type="checkbox" disabled={earning.status !== "approved"} checked={selectedEarnings.includes(earning._id)} onChange={(event) => setSelectedEarnings((current) => event.target.checked ? [...current, earning._id] : current.filter((value) => value !== earning._id))} /></td>
+            <td data-label="Resource">{earning.resourceProfileId?.displayName}</td>
+            <td data-label="Organization">{earning.organizationId?.name}</td>
+            <td data-label="Earned">{new Date(earning.earnedAt).toLocaleDateString()}</td>
+            <td data-label="Amount">{money(earning.grossAmountCents + (earning.reimbursementCents || 0), earning.currency)}</td>
+            <td data-label="Status">{earning.status.replaceAll("_", " ")}</td>
+            <td data-label="Action"><div className="beta-card-actions">
               {earning.status === "pending_approval" && <button type="button" className="beta-text-button" onClick={() => run(`earning-${earning._id}`, () => api.post(`/api/platform-resources/earnings/${earning._id}/approve`, {}), "Earning approved.")}>Approve</button>}
               {["pending_approval", "approved"].includes(earning.status) && <button type="button" className="beta-text-button" onClick={() => { const reason = window.prompt("Why should this earning be voided?"); if (reason?.trim()) run(`earning-${earning._id}`, () => api.post(`/api/platform-resources/earnings/${earning._id}/void`, { reason: reason.trim() }), "Earning voided."); }}>Void</button>}
             </div></td>

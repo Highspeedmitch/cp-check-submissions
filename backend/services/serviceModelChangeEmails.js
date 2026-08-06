@@ -8,6 +8,44 @@ const MODEL_LABELS = {
   hybrid: "Hybrid",
 };
 
+const TIER_LABELS = {
+  tier_1: "Tier 1",
+  tier_2: "Tier 2",
+  tier_3: "Tier 3",
+};
+
+function requestLabel(request) {
+  if (request.changeType === "license_tier") return "license tier increase";
+  if (request.changeType === "custom_capacity") return "custom administrator capacity increase";
+  return "service model change";
+}
+
+function requestTitle(request) {
+  if (request.changeType === "license_tier") return "License tier increase";
+  if (request.changeType === "custom_capacity") return "Administrator capacity increase";
+  return "Service model change";
+}
+
+function currentPlanLabel(request) {
+  const model = MODEL_LABELS[request.currentServiceModel] || request.currentServiceModel;
+  const plan = request.currentLicenseTier ? `${model} ${TIER_LABELS[request.currentLicenseTier]}` : model;
+  return request.changeType === "custom_capacity"
+    ? `${plan} (${request.organizationSnapshot?.currentAdminLimit} administrator seats)`
+    : plan;
+}
+
+function requestedPlanLabel(request) {
+  const model = MODEL_LABELS[request.requestedServiceModel] || request.requestedServiceModel;
+  const plan = request.requestedLicenseTier ? `${model} ${TIER_LABELS[request.requestedLicenseTier]}` : model;
+  return request.changeType === "custom_capacity"
+    ? `${plan} (${request.organizationSnapshot?.requestedAdminLimit} administrator seats)`
+    : plan;
+}
+
+function percentageLabel(value) {
+  return value == null ? "None" : `${value}%`;
+}
+
 function dateLabel(value) {
   return value ? new Date(value).toLocaleDateString("en-US", { timeZone: "UTC" }) : "Not specified";
 }
@@ -38,14 +76,20 @@ async function deliverPlatformRequestEmail({
     : "";
   await sendEmail({
     to: recipients,
-    subject: `Service model change requested: ${organization.name}`,
+    subject: `${requestTitle(request)} requested: ${organization.name}`,
     text: [
-      `${requester.email} requested a service model change for ${organization.name}.`,
+      `${requester.email} requested a ${requestLabel(request)} for ${organization.name}.`,
       "",
-      `Current model: ${MODEL_LABELS[request.currentServiceModel]}`,
-      `Requested model: ${MODEL_LABELS[request.requestedServiceModel]}`,
+      `Current plan: ${currentPlanLabel(request)}`,
+      `Requested plan: ${requestedPlanLabel(request)}`,
       `Proposed effective date: ${dateLabel(request.proposedEffectiveDate)}`,
       `Properties: ${request.organizationSnapshot.propertyCount}`,
+      `Customer users: ${(request.organizationSnapshot.activeUserCount || 0) + (request.organizationSnapshot.pendingUserCount || 0)}`,
+      `Organization administrators: ${(request.organizationSnapshot.activeAdministratorCount || 0) + (request.organizationSnapshot.pendingAdministratorCount || 0)}`,
+      request.organizationSnapshot.currentAfterlightPortfolioMinimumPercent != null
+        || request.organizationSnapshot.requestedAfterlightPortfolioMinimumPercent != null
+        ? `Afterlight portfolio minimum: ${percentageLabel(request.organizationSnapshot.currentAfterlightPortfolioMinimumPercent)} -> ${percentageLabel(request.organizationSnapshot.requestedAfterlightPortfolioMinimumPercent)}`
+        : null,
       `Property fulfillment overrides: ${request.organizationSnapshot.propertyOverrideCount}`,
       `Current default fulfillment: ${request.organizationSnapshot.defaultFulfillmentSource}`,
       `Policy version: ${request.organizationSnapshot.policyVersion}`,
@@ -69,9 +113,9 @@ async function deliverRequesterDecisionEmail({ request, organization, requester,
   }[request.status] || request.status;
   await sendEmail({
     to: requester.email,
-    subject: `Service model request ${statusCopy}: ${organization.name}`,
+    subject: `${requestTitle(request)} request ${statusCopy}: ${organization.name}`,
     text: [
-      `Your request to change ${organization.name} from ${MODEL_LABELS[request.currentServiceModel]} to ${MODEL_LABELS[request.requestedServiceModel]} was ${statusCopy}.`,
+      `Your request to change ${organization.name} from ${currentPlanLabel(request)} to ${requestedPlanLabel(request)} was ${statusCopy}.`,
       request.platformResponse ? "" : null,
       request.platformResponse ? `Platform response: ${request.platformResponse}` : null,
       "",
@@ -84,6 +128,7 @@ async function deliverRequesterDecisionEmail({ request, organization, requester,
 
 module.exports = {
   MODEL_LABELS,
+  TIER_LABELS,
   deliverPlatformRequestEmail,
   deliverRequesterDecisionEmail,
   platformAdminEmails,

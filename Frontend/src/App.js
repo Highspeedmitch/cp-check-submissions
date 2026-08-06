@@ -20,6 +20,7 @@ const FormPage = lazy(() => import("./components/FormPage"));
 const PropertyFormSettings = lazy(() => import("./components/PropertyFormSettings"));
 const OrganizationFormSettings = lazy(() => import("./components/OrganizationFormSettings"));
 const OrganizationSecurity = lazy(() => import("./components/OrganizationSecurity"));
+const OrganizationOnboarding = lazy(() => import("./components/OrganizationOnboarding"));
 const ServiceDeliverySettings = lazy(() => import("./components/ServiceDeliverySettings"));
 const Register = lazy(() => import("./components/Register"));
 const InviteRegistration = lazy(() => import("./components/InviteRegistration"));
@@ -33,7 +34,6 @@ const LongTermRental = lazy(() => import("./components/LongTermRental"));
 const ShortTermRental = lazy(() => import("./components/ShortTermRental"));
 const AccessInstructions = lazy(() => import("./components/AccessInstructions"));
 const AZRaccessinstructions = lazy(() => import("./components/AZRaccessinstructions"));
-const Payments = lazy(() => import("./components/Payments"));
 const ProfitUpload = lazy(() => import("./components/ProfitUpload"));
 const EditPropertyWrapper = lazy(() => import("./components/EditPropertyWrapper"));
 const Billing = lazy(() => import("./components/Billing"));
@@ -275,6 +275,11 @@ function App() {
           ? <OrganizationSecurity />
           : <Navigate to="/" />
       } />
+      <Route path="/onboarding" element={
+        user && role === "admin"
+          ? <OrganizationOnboarding />
+          : <Navigate to="/" />
+      } />
       <Route path="/service-delivery" element={
         user && role === "admin"
           ? <ServiceDeliverySettings />
@@ -287,8 +292,6 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={user && ["admin", "property_manager"].includes(role) ? <SchedulerWrapper /> : <Navigate to="/" />} />
-      {/* Payments Page - Only Admins */}
-      <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
       <Route path="/billing" element={
         <BillingRoute user={user} role={role} accountScope={accountScope} />
       } />
