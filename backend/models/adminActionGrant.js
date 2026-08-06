@@ -6,7 +6,7 @@ const AdminActionGrantSchema = new mongoose.Schema({
   tokenHash: { type: String, required: true, unique: true },
   purpose: {
     type: String,
-    enum: ["add_property", "remove_property", "update_fulfillment_policy", "invite_admin"],
+    enum: ["add_property", "remove_property", "update_fulfillment_policy", "invite_admin", "bulk_onboarding"],
     required: true,
   },
   passkeyVersion: { type: Number, required: true },

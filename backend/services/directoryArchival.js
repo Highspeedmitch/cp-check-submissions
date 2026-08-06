@@ -1,11 +1,14 @@
 const Assignment = require("../models/assignment");
 const Organization = require("../models/organization");
 const PlatformAudit = require("../models/platformAudit");
+const OrganizationInvitation = require("../models/organizationInvitation");
 const ResourceDeployment = require("../models/resourceDeployment");
 const ResourceProfile = require("../models/resourceProfile");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
 const { revokeUserSessions } = require("./authSessions");
+const { withSession } = require("./licenseCapacity");
+const { reserveLicensedCapacity } = require("./licensedCapacityOperations");
 
 function operationError(message, status, code, details = {}) {
   const error = new Error(message);
@@ -103,8 +106,11 @@ async function restoreOrganizationUser({
   actorUserId,
   now = new Date(),
   UserModel = User,
+  OrganizationModel = Organization,
+  InvitationModel = OrganizationInvitation,
   UserAuditModel = UserAudit,
   revokeSessions = revokeUserSessions,
+  reserveCapacity = reserveLicensedCapacity,
 }) {
   const user = await UserModel.findOne({
     _id: userId,
@@ -113,6 +119,48 @@ async function restoreOrganizationUser({
     organizationArchivedAt: { $ne: null },
   });
   if (!user) throw operationError("Archived organization user not found.", 404, "USER_NOT_FOUND");
+  if (user.accountStatus !== "inactive") {
+    const result = await reserveCapacity({
+      organizationId,
+      dimension: "users",
+      additional: 1,
+      actorUserId,
+      now,
+      OrganizationModel,
+      capacityOptions: { UserModel, InvitationModel },
+      work: async ({ session }) => {
+        const currentUser = await withSession(UserModel.findOne({
+          _id: userId,
+          organizationId,
+          role: { $ne: "admin" },
+          organizationArchivedAt: { $ne: null },
+        }), session);
+        if (!currentUser) throw operationError("Archived organization user not found.", 404, "USER_NOT_FOUND");
+        const archivedAt = currentUser.organizationArchivedAt;
+        const archiveReasonValue = currentUser.organizationArchiveReason;
+        currentUser.organizationArchivedAt = null;
+        currentUser.organizationArchivedBy = null;
+        currentUser.organizationArchiveReason = "";
+        currentUser.tokenVersion = (currentUser.tokenVersion || 0) + 1;
+        await currentUser.save({ session });
+        await UserAuditModel.create([{
+          organizationId,
+          targetUserId: currentUser._id,
+          changedBy: actorUserId,
+          action: "user_restored",
+          changes: {
+            previousArchivedAt: archivedAt,
+            previousArchiveReason: archiveReasonValue,
+            restoredAt: now,
+            accountStatus: currentUser.accountStatus,
+          },
+        }], { session });
+        return currentUser;
+      },
+    });
+    await revokeSessions(result.value._id);
+    return { user: result.value };
+  }
   const archivedAt = user.organizationArchivedAt;
   const archiveReasonValue = user.organizationArchiveReason;
   user.organizationArchivedAt = null;

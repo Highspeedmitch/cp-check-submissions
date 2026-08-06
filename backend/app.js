@@ -6,6 +6,7 @@ const authenticateToken = require("./middleware/authenticateToken");
 const requireCurrentOrganizationPresence = require("./middleware/requireCurrentOrganizationPresence");
 const { getAllowedFrontendOrigins } = require("./utils/frontendUrls");
 const mongoose = require("mongoose");
+const { setupBackendErrorHandler } = require("./monitoring");
 
 function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}) {
   const app = express();
@@ -45,6 +46,7 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
   app.use("/api/profits", require("./Routes/profits"));
   app.use("/api/billing", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/billing"));
   app.use("/api/admin-users", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/adminUsers"));
+  app.use("/api/bulk-onboarding", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/bulkOnboarding"));
   app.use("/api/organization-security", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/organizationSecurity"));
   app.use("/api/onboarding", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/onboarding"));
   app.use("/api/fulfillment", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/fulfillment"));
@@ -70,6 +72,13 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
   app.use("/api/admin", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/propertyAdministration"));
   app.use("/api/access-instructions", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/accessInstructions"));
   app.use("/api", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/organizationDirectory"));
+
+  setupBackendErrorHandler(app);
+  app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+    console.error("Unhandled API error:", error);
+    return res.status(500).json({ error: "An unexpected server error occurred." });
+  });
 
   return app;
 }

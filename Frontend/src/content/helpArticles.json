@@ -296,5 +296,17 @@
     "file": "authenticator-verification.md",
     "estimatedTime": "3-6 min",
     "keywords": ["authenticator", "code", "enrollment", "mfa", "multi-factor", "recovery", "security", "sign in", "totp"]
+  },
+  {
+    "slug": "bulk-onboard-users-properties",
+    "title": "Bulk onboard users and properties with CSV",
+    "summary": "Download a template, validate licensed capacity, and complete an all-or-nothing user or property CSV import.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "bulk-onboard-users-properties.md",
+    "estimatedTime": "4-10 min",
+    "keywords": ["bulk", "capacity", "csv", "import", "invitation", "license", "onboarding", "properties", "template", "users"]
   }
 ]

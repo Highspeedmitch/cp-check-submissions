@@ -7,6 +7,7 @@ function storedLicenseSnapshot(organization = {}) {
     userLimit: organization.license?.userLimit ?? null,
     propertyLimit: organization.license?.propertyLimit ?? null,
     adminSeatVersion: Number(organization.license?.adminSeatVersion || 0),
+    capacityVersion: Number(organization.license?.capacityVersion || 0),
   };
 }
 
@@ -19,6 +20,7 @@ function desiredStoredLicense(organization = {}) {
     userLimit: resolved.userLimit,
     propertyLimit: resolved.propertyLimit,
     adminSeatVersion: Number(organization.license?.adminSeatVersion || defaults.adminSeatVersion),
+    capacityVersion: Number(organization.license?.capacityVersion || defaults.capacityVersion),
   };
 }
 

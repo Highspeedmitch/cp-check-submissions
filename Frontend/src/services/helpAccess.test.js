@@ -37,6 +37,7 @@ test("filters help articles by exact role and organization type", () => {
     "manage-administrator-seats",
     "configure-property-delivery",
     "authenticator-verification",
+    "bulk-onboard-users-properties",
   ]);
   expect(visibleHelpArticles({ role: "client", orgType: "STR" }).map(({ slug }) => slug)).toEqual([
     "enable-notifications",

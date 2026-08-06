@@ -22,6 +22,7 @@ test("organization setup normalizes platform input and starts guided onboarding"
       userLimit: null,
       propertyLimit: null,
       adminSeatVersion: 0,
+      capacityVersion: 0,
     },
     fulfillmentPolicy: {
       defaultSource: "afterlight_staff",
@@ -58,6 +59,7 @@ test("organization setup stores the selected Tier 2 SaaS limits", () => {
     userLimit: 20,
     propertyLimit: 50,
     adminSeatVersion: 0,
+    capacityVersion: 0,
   });
   assert.throws(() => normalizeOrganizationSetup({
     name: "Invalid Tier",

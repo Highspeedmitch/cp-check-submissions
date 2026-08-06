@@ -467,6 +467,14 @@
 .beta-detail-list dd { margin: 0; text-align: right; }
 .beta-empty-state { padding: 32px; border: 1px dashed var(--beta-border); border-radius: var(--beta-radius); color: var(--beta-muted); text-align: center; }
 
+.beta-bulk-type-picker { display: flex; flex-wrap: wrap; gap: 10px; }
+.beta-bulk-file-input { max-width: 560px; }
+.beta-bulk-file-input input { width: 100%; }
+.beta-bulk-preview-table td:nth-child(2) { display: grid; gap: 4px; }
+.beta-bulk-preview-table small { color: var(--beta-muted); }
+.beta-bulk-row-errors { margin: 0; padding-left: 18px; color: var(--beta-danger); }
+.beta-bulk-row-errors li + li { margin-top: 4px; }
+
 /* Help Center */
 .beta-help-link {
   display: inline-flex;

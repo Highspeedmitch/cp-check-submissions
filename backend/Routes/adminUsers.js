@@ -20,7 +20,6 @@ const {
 } = require("../services/directoryArchival");
 const {
   ORGANIZATION_INVITE_ROLES,
-  createInvitation,
   resendInvitation,
   expireInvitations,
 } = require("../services/organizationInvitations");
@@ -33,6 +32,9 @@ const {
   summarizeAdminSeats,
 } = require("../services/licenseEntitlements");
 const { createLicensedAdminInvitations } = require("../services/licensedAdminInvitations");
+const { createLicensedOrganizationInvitation } = require("../services/licensedOrganizationInvitations");
+const { currentLicenseCapacity } = require("../services/licenseCapacity");
+const { licensedCapacityErrorBody } = require("../services/licensedCapacityOperations");
 const { notifyPlatformAdministrators } = require("../services/notifications");
 const { administratorLicenseRequested } = require("../services/notificationEvents");
 
@@ -85,6 +87,7 @@ router.get("/", async (req, res) => {
       .sort({ createdAt: -1 }).lean(),
   ]);
   if (!organization) return res.status(404).json({ error: "Organization not found." });
+  const capacity = await currentLicenseCapacity({ organization });
   const usersWithStats = directory === "archived"
     ? await Promise.all(users.map(async (user) => {
         const [submissionCount, assignmentCount] = await Promise.all([
@@ -100,6 +103,7 @@ router.get("/", async (req, res) => {
     administrators,
     adminInvitations,
     adminSeats: summarizeAdminSeats({ organization, administrators, invitations: adminInvitations }),
+    capacity,
     license: resolveLicenseEntitlements(organization),
     licenseOptions: {
       tiers: LICENSE_TIERS,
@@ -233,6 +237,7 @@ function archivalError(res, error, fallback) {
     error: error.status ? error.message : fallback,
     ...(error.code ? { code: error.code } : {}),
     ...(error.scheduledAssignments ? { scheduledAssignments: error.scheduledAssignments } : {}),
+    ...(error.capacity ? { capacity: error.capacity } : {}),
   });
 }
 
@@ -277,32 +282,16 @@ router.post("/:userId/restore", async (req, res) => {
 
 router.post("/invitations", async (req, res) => {
   try {
-    const organization = await Organization.findById(req.user.organizationId);
-    if (!organization) return res.status(404).json({ error: "Organization not found." });
     const role = String(req.body.role || "");
     if (!ORGANIZATION_INVITE_ROLES.has(role)) {
       return res.status(400).json({ error: "Select a valid invitation role." });
     }
-    const validPropertyIds = new Set(organization.properties.map((property) => String(property._id)));
-    const propertyIds = ["property_manager", "client"].includes(role)
-      ? [...new Set((req.body.propertyIds || []).map(String))]
-      : [];
-    if (propertyIds.some((id) => !validPropertyIds.has(id))) {
-      return res.status(400).json({ error: "One or more selected properties are outside this organization." });
-    }
-    const result = await createInvitation({
-      organization,
+    const result = await createLicensedOrganizationInvitation({
+      organizationId: req.user.organizationId,
       email: req.body.email,
       role,
-      propertyIds,
+      propertyIds: req.body.propertyIds || [],
       invitedBy: req.user.userId,
-      inviterScope: "organization",
-    });
-    await PlatformAudit.create({
-      actorUserId: req.user.userId,
-      action: "organization_invitation_created",
-      targetOrganizationId: organization._id,
-      metadata: { invitationId: result.invitation._id, email: result.invitation.email, role },
       ipAddress: req.ip || "",
       userAgent: req.get("user-agent") || "",
     });
@@ -317,6 +306,7 @@ router.post("/invitations", async (req, res) => {
         lastSentAt: result.invitation.lastSentAt,
       },
       delivered: result.delivered,
+      capacity: result.capacity,
       message: result.delivered
         ? "Invitation sent."
         : "Invitation created, but email delivery failed. You can resend it from the pending list.",
@@ -324,6 +314,9 @@ router.post("/invitations", async (req, res) => {
   } catch (error) {
     if (error?.code === 11000) {
       return res.status(409).json({ error: "A pending invitation already exists for that email address." });
+    }
+    if (error.status) {
+      return res.status(error.status).json(licensedCapacityErrorBody(error, "Unable to create the invitation."));
     }
     if (/valid invitation|already belongs|archived user|Administrator invitations/i.test(error.message || "")) {
       return res.status(400).json({ error: error.message });
@@ -425,50 +418,75 @@ router.put("/:userId", async (req, res) => {
       role: user.role,
       accountStatus: user.accountStatus,
     };
-    organization.properties.forEach((property) => {
-      property.propertyManagers = (property.propertyManagers || [])
-        .filter((id) => id.toString() !== user._id.toString());
-      property.clientOwners = (property.clientOwners || [])
-        .filter((id) => id.toString() !== user._id.toString());
-      if (assignedIds.has(property._id.toString())) {
-        const assignmentField = role === "client" ? "clientOwners" : "propertyManagers";
-        property[assignmentField].push(user._id);
-        if (role === "property_manager") {
-          property.emails = withoutAutomaticPropertyEmails(property.emails, [email]);
+    const additionalSeats = user.accountStatus === "inactive" && normalizedAccountStatus !== "inactive" ? 1 : 0;
+    const result = await reserveLicensedCapacity({
+      organizationId: req.user.organizationId,
+      dimension: "users",
+      additional: additionalSeats,
+      actorUserId: req.user.userId,
+      work: async ({ organization: currentOrganization, session }) => {
+        const currentUser = await User.findOne({
+          _id: user._id,
+          organizationId: req.user.organizationId,
+          role: { $ne: "admin" },
+          organizationArchivedAt: null,
+        }).session(session);
+        if (!currentUser) {
+          const notFound = new Error("Editable user not found.");
+          notFound.status = 404;
+          notFound.code = "USER_NOT_FOUND";
+          throw notFound;
         }
-      }
-    });
-    user.username = username.trim();
-    user.email = email.trim().toLowerCase();
-    user.role = role;
-    user.accountStatus = normalizedAccountStatus;
-    user.tokenVersion = (user.tokenVersion || 0) + 1;
-
-    await Promise.all([
-      organization.save(),
-      user.save(),
-      revokeUserSessions(user._id),
-      UserAudit.create({
-        organizationId: req.user.organizationId,
-        targetUserId: user._id,
-        changedBy: req.user.userId,
-        action: "user_updated",
-        changes: {
-          before,
-          after: {
-            username: user.username,
-            email: user.email,
-            role,
-            accountStatus: normalizedAccountStatus,
+        currentOrganization.properties.forEach((property) => {
+          property.propertyManagers = (property.propertyManagers || [])
+            .filter((id) => id.toString() !== currentUser._id.toString());
+          property.clientOwners = (property.clientOwners || [])
+            .filter((id) => id.toString() !== currentUser._id.toString());
+          if (assignedIds.has(property._id.toString())) {
+            const assignmentField = role === "client" ? "clientOwners" : "propertyManagers";
+            property[assignmentField].push(currentUser._id);
+            if (role === "property_manager") {
+              property.emails = withoutAutomaticPropertyEmails(property.emails, [email]);
+            }
+          }
+        });
+        currentUser.username = username.trim();
+        currentUser.email = email.trim().toLowerCase();
+        currentUser.role = role;
+        currentUser.accountStatus = normalizedAccountStatus;
+        currentUser.tokenVersion = (currentUser.tokenVersion || 0) + 1;
+        await currentUser.save({ session });
+        await UserAudit.create([{
+          organizationId: req.user.organizationId,
+          targetUserId: currentUser._id,
+          changedBy: req.user.userId,
+          action: "user_updated",
+          changes: {
+            before,
+            after: {
+              username: currentUser.username,
+              email: currentUser.email,
+              role,
+              accountStatus: normalizedAccountStatus,
+            },
+            propertyIds: [...assignedIds],
           },
-          propertyIds: [...assignedIds],
-        },
-      }),
-    ]);
-    res.json({ success: true, user });
+        }], { session });
+        return currentUser;
+      },
+    });
+    await revokeUserSessions(result.value._id);
+    res.json({
+      success: true,
+      user: result.value,
+      capacity: await currentLicenseCapacity({ organization: result.organization }),
+    });
   } catch (error) {
     console.error("User management update error:", error);
-    res.status(500).json({ error: "Unable to update user." });
+    if (error?.code === 11000) {
+      return res.status(409).json({ error: "That email is already in use." });
+    }
+    res.status(error.status || 500).json(licensedCapacityErrorBody(error, "Unable to update user."));
   }
 });
 

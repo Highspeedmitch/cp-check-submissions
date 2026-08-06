@@ -4,6 +4,7 @@ const {
   METERED_SERVICE_MODELS,
   defaultStoredLicense,
 } = require("./licenseEntitlements");
+const { capacitySnapshot: licensedCapacitySnapshot } = require("./licenseCapacity");
 const { validateServiceModel } = require("./fulfillmentPolicy");
 
 function normalizedName(value) {
@@ -67,6 +68,7 @@ function normalizeProductionLicenseConfiguration(input = {}) {
       userLimit: configuredLimit(input.userLimit, defaults.userLimit, `${name} user limit`),
       propertyLimit: configuredLimit(input.propertyLimit, defaults.propertyLimit, `${name} property limit`),
       adminSeatVersion: 0,
+      capacityVersion: 0,
     },
   };
 }
@@ -78,6 +80,7 @@ function storedLicenseSnapshot(organization = {}) {
     userLimit: organization.license?.userLimit ?? null,
     propertyLimit: organization.license?.propertyLimit ?? null,
     adminSeatVersion: Number(organization.license?.adminSeatVersion || 0),
+    capacityVersion: Number(organization.license?.capacityVersion || 0),
   };
 }
 
@@ -96,45 +99,8 @@ async function capacitySnapshot({
   now,
   session,
 }) {
-  const organizationAccountScope = {
-    $or: [{ accountScope: "organization" }, { accountScope: { $exists: false } }],
-  };
-  const invitationAccountScope = { accountScope: { $ne: "afterlight_resource" } };
-  const [
-    activeAdministrators,
-    activeUsers,
-    pendingAdministrators,
-    pendingUsers,
-    activeResourceDeployments,
-  ] = await Promise.all([
-    resolveQuery(UserModel.countDocuments({
-      organizationId: organization._id,
-      role: "admin",
-      accountStatus: { $ne: "inactive" },
-      organizationArchivedAt: null,
-      ...organizationAccountScope,
-    }), session),
-    resolveQuery(UserModel.countDocuments({
-      organizationId: organization._id,
-      role: { $ne: "admin" },
-      accountStatus: { $ne: "inactive" },
-      organizationArchivedAt: null,
-      ...organizationAccountScope,
-    }), session),
-    resolveQuery(InvitationModel.countDocuments({
-      organizationId: organization._id,
-      role: "admin",
-      status: "pending",
-      expiresAt: { $gt: now },
-      ...invitationAccountScope,
-    }), session),
-    resolveQuery(InvitationModel.countDocuments({
-      organizationId: organization._id,
-      role: { $ne: "admin" },
-      status: "pending",
-      expiresAt: { $gt: now },
-      ...invitationAccountScope,
-    }), session),
+  const [licensedCapacity, activeResourceDeployments] = await Promise.all([
+    licensedCapacitySnapshot({ organization, UserModel, InvitationModel, now, session }),
     resolveQuery(ResourceDeploymentModel.countDocuments({
       organizationId: organization._id,
       status: { $in: ["active", "paused"] },
@@ -142,13 +108,7 @@ async function capacitySnapshot({
   ]);
 
   return {
-    activeAdministrators,
-    pendingAdministrators,
-    allocatedAdministrators: activeAdministrators + pendingAdministrators,
-    activeUsers,
-    pendingUsers,
-    allocatedUsers: activeUsers + pendingUsers,
-    properties: Array.isArray(organization.properties) ? organization.properties.length : 0,
+    ...licensedCapacity,
     activeResourceDeployments,
   };
 }
@@ -172,6 +132,7 @@ function buildProductionLicensePlan(organization, configuration, capacity) {
   const next = {
     ...configuration.license,
     adminSeatVersion: previous.adminSeatVersion,
+    capacityVersion: previous.capacityVersion,
   };
   const capacityExceeded = overCapacity(capacity, next);
   const hasCapacityProblem = Object.values(capacityExceeded).some(Boolean);

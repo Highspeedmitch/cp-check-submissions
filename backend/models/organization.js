@@ -127,6 +127,7 @@ const OrganizationLicenseSchema = new mongoose.Schema({
   userLimit: { type: Number, min: 1, default: null },
   propertyLimit: { type: Number, min: 1, default: null },
   adminSeatVersion: { type: Number, min: 0, default: 0 },
+  capacityVersion: { type: Number, min: 0, default: 0 },
   updatedAt: { type: Date, default: null },
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,

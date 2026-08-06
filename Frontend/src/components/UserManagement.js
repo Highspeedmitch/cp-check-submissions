@@ -16,6 +16,7 @@ export default function UserManagement() {
     administrators: [],
     adminInvitations: [],
     adminSeats: null,
+    capacity: null,
     license: null,
     licenseOptions: null,
   });
@@ -337,11 +338,33 @@ export default function UserManagement() {
 
       {directory === "current" && <section className="beta-panel beta-invitation-panel">
         <div className="beta-section-heading">
-          <div><h2>Invitations</h2><p>Invite users with their organization and role already assigned.</p></div>
-          <button className="beta-button compact" type="button" onClick={() => setInviteOpen((open) => !open)}>
-            {inviteOpen ? "Close" : "Invite User"}
-          </button>
+          <div>
+            <h2>Invitations</h2>
+            <p>Invite users with their organization and role already assigned.</p>
+            {data.capacity?.users && (
+              <small>
+                {data.capacity.users.unmetered
+                  ? "User seats are not metered for this organization."
+                  : `${data.capacity.users.allocated}/${data.capacity.users.limit} user seats allocated`}
+              </small>
+            )}
+          </div>
+          <div className="beta-card-actions">
+            <button className="beta-button secondary compact" type="button"
+              onClick={() => navigate("/admin/bulk-onboarding")}>Bulk Onboarding</button>
+            <button className="beta-button compact" type="button"
+              disabled={data.capacity?.users?.remaining === 0}
+              onClick={() => setInviteOpen((open) => !open)}>
+              {inviteOpen ? "Close" : "Invite User"}
+            </button>
+          </div>
         </div>
+        {data.capacity?.users?.remaining === 0 && (
+          <p className="beta-alert notice">
+            All licensed user seats are allocated. Revoke an unused invitation, archive an inactive user,
+            or request a higher tier from Service Delivery.
+          </p>
+        )}
         {inviteOpen && (
           <form className="beta-invitation-form" onSubmit={sendInvitation}>
             <div className="beta-form-grid">

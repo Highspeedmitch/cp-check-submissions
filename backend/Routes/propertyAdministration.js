@@ -4,6 +4,11 @@ const User = require("../models/user");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
 const { canAccessProperty } = require("../services/propertyAccess");
 const { consumeGrant } = require("../services/organizationPasskeys");
+const { currentLicenseCapacity } = require("../services/licenseCapacity");
+const {
+  licensedCapacityErrorBody,
+  reserveLicensedCapacity,
+} = require("../services/licensedCapacityOperations");
 const { normalizePropertyEmails } = require("../services/propertyEmails");
 const {
   validateFulfillmentSource,
@@ -20,14 +25,6 @@ router.post("/add-property", async (req, res) => {
     const organization = await Organization.findById(req.user.organizationId);
     if (!organization) {
       return res.status(404).json({ error: "Organization not found" });
-    }
-    if (!await consumeGrant({
-      organization,
-      userId: req.user.userId,
-      purpose: "add_property",
-      token: req.body.adminActionGrant,
-    })) {
-      return res.status(403).json({ error: "Administrative verification expired or is invalid." });
     }
     const {
       name, lat, lng, emails, region, accessInstructions, customFields,
@@ -64,78 +61,101 @@ router.post("/add-property", async (req, res) => {
         });
       }
     }
-    organization.properties.push({
-      name,
-      lat,
-      lng,
-      emails: normalizePropertyEmails(emails || [], {
-        automaticEmails: assignedPropertyManager ? [assignedPropertyManager.email] : [],
-      }),
-      propertyManagers: assignedPropertyManager ? [assignedPropertyManager._id] : [],
-      fulfillmentPolicy: {
-        defaultSource: fulfillmentOverride,
-        updatedBy: fulfillmentOverride ? req.user.userId : null,
-        updatedAt: fulfillmentOverride ? new Date() : null,
+    const transactionResult = await reserveLicensedCapacity({
+      organizationId: organization._id,
+      dimension: "properties",
+      additional: 1,
+      actorUserId: req.user.userId,
+      work: async ({ organization: currentOrganization, session }) => {
+        if (!await consumeGrant({
+          organization: currentOrganization,
+          userId: req.user.userId,
+          purpose: "add_property",
+          token: req.body.adminActionGrant,
+          session,
+        })) {
+          const grantError = new Error("Administrative verification expired or is invalid.");
+          grantError.status = 403;
+          grantError.code = "ADMIN_GRANT_INVALID";
+          throw grantError;
+        }
+        currentOrganization.properties.push({
+          name,
+          lat,
+          lng,
+          emails: normalizePropertyEmails(emails || [], {
+            automaticEmails: assignedPropertyManager ? [assignedPropertyManager.email] : [],
+          }),
+          propertyManagers: assignedPropertyManager ? [assignedPropertyManager._id] : [],
+          fulfillmentPolicy: {
+            defaultSource: fulfillmentOverride,
+            updatedBy: fulfillmentOverride ? req.user.userId : null,
+            updatedAt: fulfillmentOverride ? new Date() : null,
+          },
+          region,
+          ...(isCOM && {
+            propertyCode: propertyCode.trim(),
+            physicalAddress: physicalAddress.trim(),
+            billingAddress: billingAddress.trim(),
+            defaultInspectionAmountCents: Number.isInteger(defaultInspectionAmountCents)
+              ? defaultInspectionAmountCents
+              : null,
+            apMethod: apMethod || "download",
+            apEmail: apEmail || "",
+            apPortal: apPortal || "",
+            billingInstructions: billingInstructions || "",
+            purchaseOrder: purchaseOrder || "",
+          }),
+          orgType: currentOrganization.orgType,
+          ...(isSTR && {
+            accessInstructions: accessInstructions || "No instructions provided.",
+            maintenanceInfo: maintenanceInfo || "",
+            generalInfo: generalInfo || "",
+            customFields: Array.isArray(customFields) ? customFields : [],
+          }),
+        });
+        const createdProperty = currentOrganization.properties[currentOrganization.properties.length - 1];
+        if (fulfillmentOverride && createdProperty) {
+          await FulfillmentAudit.create([{
+            organizationId: currentOrganization._id,
+            actorUserId: req.user.userId,
+            entityType: "property",
+            entityId: createdProperty._id.toString(),
+            action: "property_fulfillment_override_created",
+            previousValue: { defaultSource: null },
+            nextValue: {
+              defaultSource: fulfillmentOverride,
+              resolvedSource: propertyDefaultSource(currentOrganization, createdProperty),
+            },
+            metadata: {
+              propertyName: createdProperty.name,
+              createdDuringPropertySetup: true,
+              appliesTo: "future_assignments_only",
+            },
+            ipAddress: req.ip || "",
+            userAgent: typeof req.get === "function" ? req.get("user-agent") || "" : "",
+          }], { session });
+        }
+        return createdProperty;
       },
-      region,
-      ...(isCOM && {
-        propertyCode: propertyCode.trim(),
-        physicalAddress: physicalAddress.trim(),
-        billingAddress: billingAddress.trim(),
-        defaultInspectionAmountCents: Number.isInteger(defaultInspectionAmountCents)
-          ? defaultInspectionAmountCents
-          : null,
-        apMethod: apMethod || "download",
-        apEmail: apEmail || "",
-        apPortal: apPortal || "",
-        billingInstructions: billingInstructions || "",
-        purchaseOrder: purchaseOrder || "",
-      }),
-      orgType: organization.orgType,
-      ...(isSTR && {
-        accessInstructions: accessInstructions || "No instructions provided.",
-        maintenanceInfo: maintenanceInfo || "",
-        generalInfo: generalInfo || "",
-        customFields: Array.isArray(customFields) ? customFields : [],
-      }),
     });
-    const savedProperty = organization.properties[organization.properties.length - 1];
-    await organization.save();
-    if (fulfillmentOverride && savedProperty) {
-      await FulfillmentAudit.create({
-        organizationId: organization._id,
-        actorUserId: req.user.userId,
-        entityType: "property",
-        entityId: savedProperty._id.toString(),
-        action: "property_fulfillment_override_created",
-        previousValue: { defaultSource: null },
-        nextValue: {
-          defaultSource: fulfillmentOverride,
-          resolvedSource: propertyDefaultSource(organization, savedProperty),
-        },
-        metadata: {
-          propertyName: savedProperty.name,
-          createdDuringPropertySetup: true,
-          appliesTo: "future_assignments_only",
-        },
-        ipAddress: req.ip || "",
-        userAgent: typeof req.get === "function" ? req.get("user-agent") || "" : "",
-      });
-    }
+    const currentOrganization = transactionResult.organization;
+    const savedProperty = transactionResult.value;
     return res.json({
       success: true,
       message: "Property added successfully",
       propertyName: savedProperty ? savedProperty.name : null,
       fulfillmentSource: savedProperty
-        ? propertyDefaultSource(organization, savedProperty)
+        ? propertyDefaultSource(currentOrganization, savedProperty)
         : null,
       fulfillmentInherited: !fulfillmentOverride,
+      capacity: await currentLicenseCapacity({ organization: currentOrganization }),
     });
   } catch (error) {
     console.error("Error adding property:", error);
-    return res.status(error.status || 500).json({
-      error: error.status ? error.message : "Server error adding property",
-    });
+    return res.status(error.status || 500).json(
+      licensedCapacityErrorBody(error, "Server error adding property")
+    );
   }
 });
 

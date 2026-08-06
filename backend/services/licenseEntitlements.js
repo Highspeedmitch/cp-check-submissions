@@ -68,6 +68,7 @@ function defaultStoredLicense(serviceModel, tier) {
     userLimit: entitlements.userLimit,
     propertyLimit: entitlements.propertyLimit,
     adminSeatVersion: 0,
+    capacityVersion: 0,
   };
 }
 

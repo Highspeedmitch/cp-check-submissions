@@ -15,6 +15,7 @@ test("license backfill assigns Tier 1 defaults to existing SaaS organizations", 
     userLimit: 5,
     propertyLimit: 10,
     adminSeatVersion: 0,
+    capacityVersion: 0,
   });
 });
 

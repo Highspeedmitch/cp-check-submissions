@@ -28,6 +28,7 @@ const {
   defaultStoredLicense,
   resolveLicenseEntitlements,
 } = require("../services/licenseEntitlements");
+const { capacitySnapshot: licensedCapacitySnapshot } = require("../services/licenseCapacity");
 
 const router = express.Router();
 const ACTIVE_STATUSES = ["pending_review", "information_requested"];
@@ -113,54 +114,23 @@ function tierLabel(value) {
 
 function storedLicense(organization, serviceModel, tier, updatedBy, updatedAt) {
   const previousVersion = Number(organization.license?.adminSeatVersion || 0);
+  const previousCapacityVersion = Number(organization.license?.capacityVersion || 0);
   return {
     ...defaultStoredLicense(serviceModel, tier),
     adminSeatVersion: previousVersion,
+    capacityVersion: previousCapacityVersion,
     updatedBy,
     updatedAt,
   };
 }
 
 async function capacitySnapshot({ organization, UserModel, InvitationModel, now }) {
-  const organizationAccountScope = {
-    $or: [{ accountScope: "organization" }, { accountScope: { $exists: false } }],
-  };
-  const invitationAccountScope = { accountScope: { $ne: "afterlight_resource" } };
-  const [activeAdministratorCount, activeUserCount, pendingAdministratorCount, pendingUserCount] = await Promise.all([
-    UserModel.countDocuments({
-      organizationId: organization._id,
-      role: "admin",
-      accountStatus: { $ne: "inactive" },
-      organizationArchivedAt: null,
-      ...organizationAccountScope,
-    }),
-    UserModel.countDocuments({
-      organizationId: organization._id,
-      role: { $ne: "admin" },
-      accountStatus: { $ne: "inactive" },
-      organizationArchivedAt: null,
-      ...organizationAccountScope,
-    }),
-    InvitationModel.countDocuments({
-      organizationId: organization._id,
-      role: "admin",
-      status: "pending",
-      expiresAt: { $gt: now },
-      ...invitationAccountScope,
-    }),
-    InvitationModel.countDocuments({
-      organizationId: organization._id,
-      role: { $ne: "admin" },
-      status: "pending",
-      expiresAt: { $gt: now },
-      ...invitationAccountScope,
-    }),
-  ]);
+  const snapshot = await licensedCapacitySnapshot({ organization, UserModel, InvitationModel, now });
   return {
-    activeAdministratorCount,
-    pendingAdministratorCount,
-    activeUserCount,
-    pendingUserCount,
+    activeAdministratorCount: snapshot.activeAdministrators,
+    pendingAdministratorCount: snapshot.pendingAdministrators,
+    activeUserCount: snapshot.activeUsers,
+    pendingUserCount: snapshot.pendingUsers,
   };
 }
 
