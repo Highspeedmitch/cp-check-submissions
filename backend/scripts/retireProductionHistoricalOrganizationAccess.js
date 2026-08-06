@@ -61,6 +61,7 @@ function summarizePlan(plan) {
   const membershipLabel = plan.members.length === 1 ? "membership" : "memberships";
   return [
     `${plan.name}: ready to retire ${plan.members.length} organization ${membershipLabel}`,
+    `  past-due scheduled assignments to cancel: ${plan.staleScheduledAssignments || 0}`,
     `  retained properties: ${plan.propertyCount}`,
     ...plan.members.map((member) => (
       `  ${member.email} | ${member.role} | ${member.accountScope} | ${member.accountStatus}`

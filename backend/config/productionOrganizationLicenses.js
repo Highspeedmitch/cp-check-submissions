@@ -1,5 +1,5 @@
 const CONFIGURATION_VERSION = "2026-08-06-production-license-dispositions-v1";
-const HISTORICAL_ACCESS_RETIREMENT_VERSION = "2026-08-06-historical-access-retirement-v1";
+const HISTORICAL_ACCESS_RETIREMENT_VERSION = "2026-08-06-historical-access-retirement-v2";
 
 const organizations = Object.freeze([
   Object.freeze({

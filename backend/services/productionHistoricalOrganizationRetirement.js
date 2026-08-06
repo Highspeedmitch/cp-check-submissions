@@ -39,6 +39,7 @@ async function buildOrganizationRetirementPlan({
   const [
     members,
     scheduledAssignments,
+    staleScheduledAssignments,
     activeInspectionJobs,
     pendingInvitations,
     activeResourceDeployments,
@@ -49,6 +50,12 @@ async function buildOrganizationRetirementPlan({
     resolveQuery(AssignmentModel.countDocuments({
       organizationId: organization._id,
       status: "scheduled",
+      endDate: { $gte: now },
+    }), session),
+    resolveQuery(AssignmentModel.countDocuments({
+      organizationId: organization._id,
+      status: "scheduled",
+      endDate: { $lt: now },
     }), session),
     resolveQuery(InspectionJobModel.countDocuments({
       organizationId: organization._id,
@@ -89,7 +96,7 @@ async function buildOrganizationRetirementPlan({
     organizationId: organization._id,
     status: blocked
       ? "blocked"
-      : members.length
+      : members.length || staleScheduledAssignments
         ? "ready"
         : "already_retired",
     propertyCount: Array.isArray(organization.properties) ? organization.properties.length : 0,
@@ -101,6 +108,7 @@ async function buildOrganizationRetirementPlan({
       accountStatus: member.accountStatus || "active",
       tokenVersion: Number(member.tokenVersion || 0),
     })),
+    staleScheduledAssignments,
     blockers,
   };
 }
@@ -248,6 +256,34 @@ async function retireProductionHistoricalOrganizationAccess({
       const members = await findMembers(UserModel, organization._id, session);
       const userAudits = [];
 
+      let canceledStaleAssignments = 0;
+      if (plan.staleScheduledAssignments) {
+        const assignmentUpdate = await AssignmentModel.updateMany(
+          {
+            organizationId: organization._id,
+            status: "scheduled",
+            endDate: { $lt: retiredAt },
+          },
+          {
+            $set: {
+              status: "canceled",
+              canceledAt: retiredAt,
+              canceledBy: actorUserId,
+            },
+            $inc: { calendarSequence: 1 },
+          },
+          session ? { session } : undefined
+        );
+        canceledStaleAssignments = Number(
+          assignmentUpdate?.matchedCount ?? assignmentUpdate?.n ?? 0
+        );
+        if (canceledStaleAssignments !== plan.staleScheduledAssignments) {
+          const error = new Error(`Scheduled assignment state changed during retirement for ${plan.name}.`);
+          error.code = "PRODUCTION_HISTORICAL_RETIREMENT_RACE";
+          throw error;
+        }
+      }
+
       for (const member of members) {
         const snapshot = memberById.get(String(member._id));
         if (!snapshot) {
@@ -292,6 +328,7 @@ async function retireProductionHistoricalOrganizationAccess({
           reason: HISTORICAL_ARCHIVE_REASON,
           retiredAt,
           retiredMembershipCount: members.length,
+          canceledStaleAssignmentCount: canceledStaleAssignments,
           retainedPropertyCount: plan.propertyCount,
           members: plan.members.map((member) => ({
             userId: member.userId,

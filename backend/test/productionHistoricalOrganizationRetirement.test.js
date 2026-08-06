@@ -48,6 +48,7 @@ function member(overrides = {}) {
 function fixture({ organizations, membersByOrganization = {}, blockersByOrganization = {} }) {
   const queries = {
     assignments: [],
+    assignmentUpdates: [],
     inspectionJobs: [],
     invitations: [],
     deployments: [],
@@ -67,7 +68,20 @@ function fixture({ organizations, membersByOrganization = {}, blockersByOrganiza
       find: (query) => (membersByOrganization[String(query.organizationId)] || [])
         .filter((value) => value.organizationArchivedAt === null),
     },
-    AssignmentModel: countModel("assignments", "scheduledAssignments"),
+    AssignmentModel: {
+      countDocuments: (query) => {
+        queries.assignments.push(query);
+        const blockers = blockersByOrganization[String(query.organizationId)] || {};
+        return query.endDate?.$lt
+          ? blockers.staleScheduledAssignments || 0
+          : blockers.scheduledAssignments || 0;
+      },
+      updateMany: async (query, update, options) => {
+        queries.assignmentUpdates.push({ query, update, options });
+        const count = blockersByOrganization[String(query.organizationId)]?.staleScheduledAssignments || 0;
+        return { matchedCount: count, modifiedCount: count };
+      },
+    },
     InspectionJobModel: countModel("inspectionJobs", "activeInspectionJobs"),
     InvitationModel: countModel("invitations", "pendingInvitations"),
     ResourceDeploymentModel: countModel("deployments", "activeResourceDeployments"),
@@ -92,7 +106,7 @@ function dependencies(value) {
 test("historical access retirement targets only the three reviewed legacy organizations", () => {
   assert.equal(
     manifest.historicalAccessRetirementVersion,
-    "2026-08-06-historical-access-retirement-v1"
+    "2026-08-06-historical-access-retirement-v2"
   );
   assert.deepEqual(
     historicalConfigurations(manifest.organizations).map((entry) => entry.name),
@@ -132,6 +146,7 @@ test("dry run inventories memberships and all workflow blockers without changing
   assert.equal(azAdmin.organizationArchivedAt, null);
   assert.equal(azAdmin.saved().count, 0);
   assert.deepEqual(value.queries.assignments[0].status, "scheduled");
+  assert.deepEqual(value.queries.assignments[0].endDate, { $gte: value.queries.assignments[1].endDate.$lt });
   assert.deepEqual(value.queries.inspectionJobs[0].status.$in, ["uploading", "queued", "processing"]);
   assert.deepEqual(value.queries.invitations[0].status.$in, ["pending", "accepting"]);
   assert.deepEqual(value.queries.deployments[0].status.$in, ["active", "paused"]);
@@ -162,6 +177,57 @@ test("any active workflow blocks the complete retirement before writes", async (
   }), /AzRoots \(blocked\)/);
   assert.equal(user.organizationArchivedAt, null);
   assert.equal(user.saved().count, 0);
+});
+
+test("past-due scheduled assignments are reconciled without blocking historical retirement", async () => {
+  const legacy = organization("AzRoots", "org-az");
+  const user = member({ _id: "az-user" });
+  const value = fixture({
+    organizations: [legacy],
+    membersByOrganization: { "org-az": [user] },
+    blockersByOrganization: {
+      "org-az": { staleScheduledAssignments: 2 },
+    },
+  });
+  const session = { id: "retirement-session" };
+  const retiredAt = new Date("2026-08-06T15:00:00.000Z");
+  const platformAudits = [];
+
+  const plans = await retireProductionHistoricalOrganizationAccess({
+    configurations: [{ name: "AzRoots", disposition: "historical" }],
+    retirementVersion: manifest.historicalAccessRetirementVersion,
+    actorUserId: "platform-admin",
+    apply: true,
+    ...dependencies(value),
+    RefreshSessionModel: { updateMany: async () => ({ modifiedCount: 0 }) },
+    UserAuditModel: { create: async () => [] },
+    PlatformAuditModel: {
+      create: async (records, options) => platformAudits.push({ records, options }),
+    },
+    now: () => retiredAt,
+    transactionRunner: async (operation) => operation(session),
+  });
+
+  assert.equal(plans[0].status, "ready");
+  assert.equal(plans[0].staleScheduledAssignments, 2);
+  assert.equal(value.queries.assignmentUpdates.length, 1);
+  assert.deepEqual(value.queries.assignmentUpdates[0], {
+    query: {
+      organizationId: "org-az",
+      status: "scheduled",
+      endDate: { $lt: retiredAt },
+    },
+    update: {
+      $set: {
+        status: "canceled",
+        canceledAt: retiredAt,
+        canceledBy: "platform-admin",
+      },
+      $inc: { calendarSequence: 1 },
+    },
+    options: { session },
+  });
+  assert.equal(platformAudits[0].records[0].metadata.canceledStaleAssignmentCount, 2);
 });
 
 test("apply archives administrator and user organization memberships while retaining their identities", async () => {
@@ -226,6 +292,7 @@ test("apply archives administrator and user organization memberships while retai
   assert.equal(userAudits[0].records[0].changes.preservedPropertyAssignments, true);
   assert.equal(platformAudits[0].records[0].action, "production_historical_organization_access_retired");
   assert.equal(platformAudits[0].records[0].metadata.retiredMembershipCount, 2);
+  assert.equal(platformAudits[0].records[0].metadata.canceledStaleAssignmentCount, 0);
   assert.equal(platformAudits[0].records[0].metadata.retainedPropertyCount, 5);
   assert.equal(platformAudits[0].records[0].metadata.retirementVersion, manifest.historicalAccessRetirementVersion);
 });
@@ -308,8 +375,10 @@ test("retirement summaries show members and blockers without exposing credential
       accountScope: "organization",
       accountStatus: "active",
     }],
+    staleScheduledAssignments: 2,
   });
   assert.match(ready, /ready to retire 1 organization membership/);
+  assert.match(ready, /past-due scheduled assignments to cancel: 2/);
   assert.match(ready, /admin@example.com \| admin/);
 
   const blocked = summarizePlan({
