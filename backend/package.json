@@ -7,6 +7,8 @@
     "worker:inspections": "node inspectionWorker.js",
     "grant-platform-admin": "node scripts/grantPlatformAdmin.js",
     "configure-production-organizations": "node scripts/configureProductionOrganizations.js",
+    "configure-production-licenses": "node scripts/configureProductionOrganizationLicenses.js",
+    "retire-production-historical-access": "node scripts/retireProductionHistoricalOrganizationAccess.js",
     "provision-dev-platform-admin": "node scripts/provisionDevPlatformAdmin.js",
     "provision-dev-owner-resource": "node scripts/provisionDevOwnerResource.js",
     "backfill-dev-licenses": "node scripts/backfillOrganizationLicenses.js"
