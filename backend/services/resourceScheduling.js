@@ -1,6 +1,7 @@
 const User = require("../models/user");
 const ResourceProfile = require("../models/resourceProfile");
 const ResourceDeployment = require("../models/resourceDeployment");
+const { serviceModelAllowsAfterlightResources } = require("./fulfillmentPolicy");
 
 function validationError(message) {
   const error = new Error(message);
@@ -97,10 +98,12 @@ async function resolveAssignmentAssignee({
 
 async function deployedSchedulerResources({
   organizationId,
+  serviceModel,
   now = new Date(),
   ResourceProfileModel = ResourceProfile,
   ResourceDeploymentModel = ResourceDeployment,
 }) {
+  if (!serviceModelAllowsAfterlightResources(serviceModel)) return [];
   const deployments = await ResourceDeploymentModel.find({
     organizationId,
     status: "active",

@@ -1,10 +1,12 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const OrganizationInvitation = require("../models/organizationInvitation");
 const ServiceModelChangeRequest = require("../models/serviceModelChangeRequest");
 const PlatformAudit = require("../models/platformAudit");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
+const ResourceDeployment = require("../models/resourceDeployment");
 const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const {
   SERVICE_MODEL_DEFAULTS,
@@ -226,6 +228,35 @@ function auditDetails(req) {
   };
 }
 
+async function mongoTransaction(operation) {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      result = await operation(session);
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+function saveDocument(document, session) {
+  return session ? document.save({ session }) : document.save();
+}
+
+async function createDocument(Model, value, session) {
+  if (!session) return Model.create(value);
+  const [created] = await Model.create([value], { session });
+  return created;
+}
+
+function updateMany(Model, query, update, session) {
+  return session
+    ? Model.updateMany(query, update, { session })
+    : Model.updateMany(query, update);
+}
+
 function createServiceModelChangeHandlers({
   RequestModel = ServiceModelChangeRequest,
   OrganizationModel = Organization,
@@ -233,11 +264,13 @@ function createServiceModelChangeHandlers({
   InvitationModel = OrganizationInvitation,
   PlatformAuditModel = PlatformAudit,
   FulfillmentAuditModel = FulfillmentAudit,
+  ResourceDeploymentModel = ResourceDeployment,
   sendPlatformEmail = deliverPlatformRequestEmail,
   sendRequesterEmail = deliverRequesterDecisionEmail,
   notifyPlatform = notifyPlatformAdministrators,
   notifyUser = sendUserNotification,
   now = () => new Date(),
+  runServiceModelTransaction = mongoTransaction,
 } = {}) {
   async function createRequest(req, res) {
     try {
@@ -479,6 +512,8 @@ function createServiceModelChangeHandlers({
         createdAt: reviewedAt,
       });
       let appliedEntitlements = null;
+      let endedResourceDeploymentCount = 0;
+      let requestAppliedInTransaction = false;
 
       if (action === "approve") {
         if (request.changeType === "custom_capacity") {
@@ -539,56 +574,89 @@ function createServiceModelChangeHandlers({
           };
           const clearedPropertyOverrides = (organization.properties || [])
             .filter((property) => property.fulfillmentPolicy?.defaultSource).length;
-          for (const property of organization.properties || []) {
-            property.fulfillmentPolicy = {
-              defaultSource: null,
+          const transition = await runServiceModelTransaction(async (session) => {
+            for (const property of organization.properties || []) {
+              property.fulfillmentPolicy = {
+                defaultSource: null,
+                updatedBy: req.user.userId,
+                updatedAt: reviewedAt,
+              };
+            }
+            organization.serviceModel = request.requestedServiceModel;
+            organization.license = storedLicense(
+              organization,
+              request.requestedServiceModel,
+              targetTier,
+              req.user.userId,
+              reviewedAt
+            );
+            organization.fulfillmentPolicy = {
+              defaultSource: SERVICE_MODEL_DEFAULTS[request.requestedServiceModel],
+              version: previousValue.policyVersion + 1,
               updatedBy: req.user.userId,
               updatedAt: reviewedAt,
             };
-          }
-          organization.serviceModel = request.requestedServiceModel;
-          organization.license = storedLicense(
-            organization,
-            request.requestedServiceModel,
-            targetTier,
-            req.user.userId,
-            reviewedAt
-          );
-          organization.fulfillmentPolicy = {
-            defaultSource: SERVICE_MODEL_DEFAULTS[request.requestedServiceModel],
-            version: previousValue.policyVersion + 1,
-            updatedBy: req.user.userId,
-            updatedAt: reviewedAt,
-          };
-          await organization.save();
-          const nextEntitlements = resolveLicenseEntitlements(organization);
-          appliedEntitlements = nextEntitlements;
-          await FulfillmentAuditModel.create({
-            organizationId: organization._id,
-            ...auditDetails(req),
-            entityType: "organization",
-            entityId: organization._id.toString(),
-            action: "service_model_change_approved",
-            previousValue,
-            nextValue: {
-              serviceModel: organization.serviceModel,
-              licenseTier: nextEntitlements.tier,
-              adminLimit: nextEntitlements.adminLimit,
-              userLimit: nextEntitlements.userLimit,
-              propertyLimit: nextEntitlements.propertyLimit,
-              defaultSource: organization.fulfillmentPolicy.defaultSource,
-              policyVersion: organization.fulfillmentPolicy.version,
-            },
-            reason: response,
-            metadata: {
-              requestId: request._id,
-              clearedPropertyOverrides,
-              appliesTo: "future_assignments_only",
-            },
+            await saveDocument(organization, session);
+
+            let endedDeployments = { modifiedCount: 0 };
+            if (request.requestedServiceModel === "platform") {
+              endedDeployments = await updateMany(
+                ResourceDeploymentModel,
+                {
+                  organizationId: organization._id,
+                  status: { $in: ["active", "paused"] },
+                },
+                {
+                  $set: {
+                    status: "ended",
+                    endsAt: reviewedAt,
+                    updatedBy: req.user.userId,
+                  },
+                },
+                session
+              );
+            }
+            const endedCount = Number(
+              endedDeployments.modifiedCount ?? endedDeployments.nModified ?? 0
+            );
+            const nextEntitlements = resolveLicenseEntitlements(organization);
+            await createDocument(FulfillmentAuditModel, {
+              organizationId: organization._id,
+              ...auditDetails(req),
+              entityType: "organization",
+              entityId: organization._id.toString(),
+              action: "service_model_change_approved",
+              previousValue,
+              nextValue: {
+                serviceModel: organization.serviceModel,
+                licenseTier: nextEntitlements.tier,
+                adminLimit: nextEntitlements.adminLimit,
+                userLimit: nextEntitlements.userLimit,
+                propertyLimit: nextEntitlements.propertyLimit,
+                defaultSource: organization.fulfillmentPolicy.defaultSource,
+                policyVersion: organization.fulfillmentPolicy.version,
+              },
+              reason: response,
+              metadata: {
+                requestId: request._id,
+                clearedPropertyOverrides,
+                endedResourceDeploymentCount: endedCount,
+                appliesTo: "future_assignments_only",
+              },
+            }, session);
+            request.status = "approved";
+            request.appliedAt = reviewedAt;
+            await saveDocument(request, session);
+            return { nextEntitlements, endedResourceDeploymentCount: endedCount };
           });
+          appliedEntitlements = transition.nextEntitlements;
+          endedResourceDeploymentCount = transition.endedResourceDeploymentCount;
+          requestAppliedInTransaction = true;
         }
-        request.status = "approved";
-        request.appliedAt = reviewedAt;
+        if (!requestAppliedInTransaction) {
+          request.status = "approved";
+          request.appliedAt = reviewedAt;
+        }
       } else if (action === "deny") {
         request.status = "denied";
       } else {
@@ -633,6 +701,7 @@ function createServiceModelChangeHandlers({
             appliedEntitlements?.afterlightPortfolioMinimumPercent
               ?? request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent
               ?? null,
+          endedResourceDeploymentCount,
         },
       });
       notifyUser({

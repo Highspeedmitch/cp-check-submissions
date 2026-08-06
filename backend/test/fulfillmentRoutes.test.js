@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createFulfillmentHandlers } = require("../Routes/fulfillment");
+const { createFulfillmentHandlers, serializeSettings } = require("../Routes/fulfillment");
 
 function response() {
   return {
@@ -116,4 +116,36 @@ test("saving an unchanged organization policy remains a harmless no-op", async (
   assert.equal(res.statusCode, 200);
   assert.equal(org.saveCount, 0);
   assert.equal(res.body.organization.policyVersion, 2);
+});
+
+test("serialized SaaS settings omit Afterlight fulfillment choices", () => {
+  const org = organization();
+  org.serviceModel = "platform";
+  org.fulfillmentPolicy.defaultSource = "customer_employee";
+
+  assert.deepEqual(serializeSettings(org).options.fulfillmentSources, [
+    "customer_employee",
+    "customer_contractor",
+  ]);
+});
+
+test("SaaS administrators cannot set an Afterlight fulfillment default", async () => {
+  const org = organization();
+  org.serviceModel = "platform";
+  org.fulfillmentPolicy.defaultSource = "customer_employee";
+  const handlers = createFulfillmentHandlers({
+    OrganizationModel: { async findById() { return org; } },
+    consumeAdminGrant: async () => assert.fail("an invalid source must fail before consuming a grant"),
+  });
+  const res = response();
+
+  await handlers.updateOrganization(request({
+    serviceModel: "platform",
+    defaultSource: "afterlight_staff",
+    adminActionGrant: "one-time-grant",
+  }), res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /Managed Service and Hybrid/i);
+  assert.equal(org.saveCount, 0);
 });

@@ -13,6 +13,8 @@ import ContextualHelpLink from "./help/ContextualHelpLink";
 import {
   propertySuggestedAmount,
   schedulerAssigneeLabel,
+  schedulerFulfillmentSources,
+  showAfterlightQueue,
 } from "../services/schedulerPresentation";
 import AssignmentHistoryDialog from "./scheduler/AssignmentHistoryDialog";
 
@@ -116,8 +118,9 @@ function Scheduler() {
     || savedEditingSource
     || selectedProperty?.fulfillment?.resolvedSource
     || fulfillmentSettings?.organization?.defaultSource
-    || "afterlight_staff";
-  const effectivePolicy = SOURCE_POLICIES[effectiveFulfillmentSource] || SOURCE_POLICIES.afterlight_staff;
+    || "customer_employee";
+  const effectivePolicy = SOURCE_POLICIES[effectiveFulfillmentSource] || SOURCE_POLICIES.customer_employee;
+  const availableFulfillmentSources = schedulerFulfillmentSources(fulfillmentSettings);
   const eligibleUsers = users.filter((user) => {
     const isAfterlightResource = user.accountScope === "afterlight_resource";
     if (!["afterlight_staff", "afterlight_contractor"].includes(effectiveFulfillmentSource)) {
@@ -129,6 +132,18 @@ function Scheduler() {
     if (!selectedProperty || !(user.propertyIds || []).length) return true;
     return user.propertyIds.map(String).includes(String(selectedProperty._id));
   });
+  const retainedEditingAssignee = editingAssignment
+    && newAssignment.userId
+    && !eligibleUsers.some((user) => String(user._id) === String(newAssignment.userId))
+    ? {
+        _id: newAssignment.userId,
+        label: editingAssignment.assignee?.email
+          || editingAssignment.assignee?.name
+          || (["afterlight_staff", "afterlight_contractor"].includes(savedEditingSource)
+            ? "Previously assigned Afterlight resource"
+            : "Previously assigned user"),
+      }
+    : null;
 
   // Handle form submission (New or Editing)
   const handleSaveAssignment = async (e) => {
@@ -298,7 +313,10 @@ const events = assignments.map((assignment) => {
   
     // Find user email by ID
     const assignedUser = users.find(user => user._id === assignment.userId);
-    const assignedUserEmail = assignedUser ? assignedUser.email : "Unknown User";
+    const assignedUserEmail = assignedUser?.email
+      || assignment.assignee?.email
+      || assignment.assignee?.name
+      || "Unknown User";
   
     return {
       _id: assignment._id,
@@ -310,6 +328,7 @@ const events = assignments.map((assignment) => {
       userId: assignment.userId,
       oneTimeCheckRequest: assignment.oneTimeCheckRequest || "",
       fulfillment: assignment.fulfillment || null,
+      assignee: assignment.assignee || null,
       allDay: true, // This flag tells react-big-calendar to treat this as an all-day event
     };
   });
@@ -319,6 +338,8 @@ const events = assignments.map((assignment) => {
     || "afterlight_coverage";
   const customerAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "customer_assigned");
   const afterlightAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "afterlight_coverage");
+  const serviceModel = fulfillmentSettings?.organization?.serviceModel;
+  const hasAfterlightQueue = showAfterlightQueue(serviceModel, afterlightAssignments.length);
   
 
   return (
@@ -340,11 +361,15 @@ const events = assignments.map((assignment) => {
           <strong>{customerAssignments.length}</strong>
           <small>Customer employees and contractors</small>
         </div>
-        <div className="beta-fulfillment-queue afterlight">
-          <span>Afterlight Coverage</span>
-          <strong>{afterlightAssignments.length}</strong>
-          <small>Afterlight staff and contractor coverage</small>
-        </div>
+        {hasAfterlightQueue && (
+          <div className="beta-fulfillment-queue afterlight">
+            <span>{serviceModel === "platform" ? "Retained Afterlight Work" : "Afterlight Coverage"}</span>
+            <strong>{afterlightAssignments.length}</strong>
+            <small>{serviceModel === "platform"
+              ? "Assignments created before the SaaS transition"
+              : "Afterlight staff and contractor coverage"}</small>
+          </div>
+        )}
       </section>
 
       {/* Form Section */}
@@ -368,6 +393,11 @@ const events = assignments.map((assignment) => {
     required
   >
     <option value="">Select User</option>
+    {retainedEditingAssignee && (
+      <option value={retainedEditingAssignee._id}>
+        {retainedEditingAssignee.label} (existing assignment)
+      </option>
+    )}
     {eligibleUsers.map((user) => (
       <option key={user._id} value={user._id}>
         {schedulerAssigneeLabel(user)}
@@ -385,8 +415,8 @@ const events = assignments.map((assignment) => {
         ? `Keep saved choice (${FULFILLMENT_LABELS[savedEditingSource] || FULFILLMENT_LABELS[effectiveFulfillmentSource]})`
         : `Use property default (${FULFILLMENT_LABELS[effectiveFulfillmentSource]})`}
     </option>
-    {Object.entries(FULFILLMENT_LABELS).filter(([value]) => value !== "legacy").map(([value, label]) => (
-      <option key={value} value={value}>{label}</option>
+    {availableFulfillmentSources.map((value) => (
+      <option key={value} value={value}>{FULFILLMENT_LABELS[value]}</option>
     ))}
   </select>
 

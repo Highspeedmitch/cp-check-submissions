@@ -13,7 +13,7 @@ Use Scheduler to assign property work to an eligible organization user or deploy
 From the Dashboard navigation, open **Scheduler**, then use the numbered areas in the illustration:
 
 1. Choose the **Property** and review its **Suggested client amount**. This is the property's customer billing setting, not an Afterlight contractor's compensation.
-2. Confirm the **Fulfillment** source. Choose **Afterlight contractor** for a deployed 1099 resource or **Afterlight staff** for a deployed Afterlight employee or owner.
+2. Confirm the **Fulfillment** source. SaaS organizations can choose customer employees or customer-managed contractors. Hybrid and Managed Service organizations can also choose **Afterlight contractor** for a deployed 1099 resource or **Afterlight staff** for a deployed Afterlight employee or owner.
 3. Choose the **User** who will complete the work. The list updates for the selected property and fulfillment source. Customer users and property managers never see a resource's default or deployment-specific contractor pay rate.
 4. Set the required **Start Date**. Leave **End Date (optional)** blank when the work must be completed on that same date. Enter an end date only when the assignee may complete the work during a date range. Avoid dates that overlap another assignment for the same property.
 5. In **One-Time Additional Check Request**, enter only instructions for this assignment. Be concise and do not place passwords, alarm codes, or other secrets here.
@@ -31,6 +31,8 @@ Some organizations also display an **Event Type** field with options such as **Q
 3. To remove it from future work, select **Cancel Assignment** and confirm the prompt. Cancellation retains an audit record and notifies the assignee.
 
 You can also drag an assignment to new dates in the calendar. Open it afterward to verify the start and end dates.
+
+If an organization moves from Hybrid or Managed Service to SaaS, previously scheduled Afterlight assignments remain available for completion, rescheduling, or cancellation. The assigned resource is retained only on that existing work. To change its property or assignee, first change fulfillment to a customer source and select an eligible organization user.
 
 ## Review completed and canceled work
 
@@ -50,6 +52,7 @@ Organization administrators see history across their organization. Property mana
 - **The user is missing:** Only active, eligible users in the organization appear. Check the user’s account and role.
 - **An Afterlight contractor is missing:** Confirm that **Afterlight contractor** is the selected fulfillment source and that the resource has an active deployment for the selected property and date.
 - **An Afterlight employee or owner is missing:** Confirm that **Afterlight staff** is selected and that the resource relationship and deployment are active for the selected property and date.
+- **No Afterlight fulfillment choices appear:** SaaS plans use only customer employees and customer-managed contractors. Existing Afterlight work may still appear as retained work when it was scheduled before a service-model transition.
 - **The assignment overlaps:** Choose different dates or edit the existing assignment for that property.
 - **The assignment is created but the user did not receive a push:** Ask them to sign in and check **My Assignments** or the Resource Portal.
 - **The suggested client amount is not configured:** Ask an organization administrator to save the property's Suggested amount under commercial Billing settings.

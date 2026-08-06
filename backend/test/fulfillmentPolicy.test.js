@@ -6,12 +6,47 @@ const {
   resolveAssignmentFulfillment,
   resolveDirectSubmissionFulfillment,
   legacyFulfillmentSnapshot,
+  fulfillmentSourcesForServiceModel,
+  serviceModelAllowsAfterlightResources,
 } = require("../services/fulfillmentPolicy");
 
 test("service models provide safe fulfillment defaults", () => {
   assert.equal(organizationDefaultSource({ serviceModel: "platform" }), "customer_employee");
   assert.equal(organizationDefaultSource({ serviceModel: "managed" }), "afterlight_staff");
   assert.equal(organizationDefaultSource({ serviceModel: "hybrid" }), "customer_employee");
+});
+
+test("SaaS organizations expose only customer-controlled fulfillment", () => {
+  assert.deepEqual(fulfillmentSourcesForServiceModel("platform"), [
+    "customer_employee",
+    "customer_contractor",
+  ]);
+  assert.equal(serviceModelAllowsAfterlightResources("platform"), false);
+  assert.equal(serviceModelAllowsAfterlightResources("hybrid"), true);
+  assert.equal(serviceModelAllowsAfterlightResources("managed"), true);
+});
+
+test("SaaS assignment overrides cannot request Afterlight fulfillment", () => {
+  assert.throws(() => resolveAssignmentFulfillment({
+    organization: {
+      serviceModel: "platform",
+      fulfillmentPolicy: { defaultSource: "customer_employee", version: 5 },
+    },
+    property: { fulfillmentPolicy: { defaultSource: null } },
+    requestedSource: "afterlight_staff",
+    actorUserId: "admin-1",
+  }), /only to Managed Service and Hybrid/i);
+});
+
+test("stale SaaS property overrides cannot route new work to Afterlight", () => {
+  assert.throws(() => resolveAssignmentFulfillment({
+    organization: {
+      serviceModel: "platform",
+      fulfillmentPolicy: { defaultSource: "customer_employee", version: 5 },
+    },
+    property: { fulfillmentPolicy: { defaultSource: "afterlight_contractor" } },
+    actorUserId: "admin-1",
+  }), /only to Managed Service and Hybrid/i);
 });
 
 test("property defaults override the organization without changing policy history", () => {

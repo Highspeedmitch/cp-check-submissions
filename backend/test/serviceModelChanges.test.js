@@ -163,6 +163,8 @@ test("platform approval applies the model to future work and clears property ove
   };
   let fulfillmentAudit;
   let platformAudit;
+  let deploymentQuery;
+  let deploymentUpdate;
   let requesterEmail;
   let requesterNotification;
   const handlers = createServiceModelChangeHandlers({
@@ -170,11 +172,19 @@ test("platform approval applies the model to future work and clears property ove
     OrganizationModel: { async findById() { return org; } },
     UserModel: { findById() { return userQuery(requester); } },
     FulfillmentAuditModel: { async create(entry) { fulfillmentAudit = entry; } },
+    ResourceDeploymentModel: {
+      async updateMany(query, update) {
+        deploymentQuery = query;
+        deploymentUpdate = update;
+        return { modifiedCount: 2 };
+      },
+    },
     PlatformAuditModel: { async create(entry) { platformAudit = entry; } },
     sendRequesterEmail: async (details) => { requesterEmail = details; },
     notifyPlatform: async () => {},
     notifyUser: async (details) => { requesterNotification = details; },
     now: () => new Date("2026-08-04T12:00:00.000Z"),
+    runServiceModelTransaction: async (operation) => operation(null),
   });
   const res = response();
 
@@ -193,7 +203,20 @@ test("platform approval applies the model to future work and clears property ove
   assert.equal(request.appliedAt.toISOString(), "2026-08-04T12:00:00.000Z");
   assert.equal(fulfillmentAudit.action, "service_model_change_approved");
   assert.equal(fulfillmentAudit.metadata.clearedPropertyOverrides, 1);
+  assert.equal(fulfillmentAudit.metadata.endedResourceDeploymentCount, 2);
+  assert.deepEqual(deploymentQuery, {
+    organizationId: "org-1",
+    status: { $in: ["active", "paused"] },
+  });
+  assert.deepEqual(deploymentUpdate, {
+    $set: {
+      status: "ended",
+      endsAt: new Date("2026-08-04T12:00:00.000Z"),
+      updatedBy: "platform-1",
+    },
+  });
   assert.equal(platformAudit.action, "service_model_change_approved");
+  assert.equal(platformAudit.metadata.endedResourceDeploymentCount, 2);
   assert.equal(requesterEmail.request, request);
   assert.equal(requesterNotification.type, "service_model_change_approved");
   assert.equal(requesterNotification.route, "/service-delivery");

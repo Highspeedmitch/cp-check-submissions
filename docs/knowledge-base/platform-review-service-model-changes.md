@@ -28,10 +28,11 @@ Approval takes effect immediately. Afterlight:
 - selects the service model's standard fulfillment default;
 - clears property-level fulfillment overrides;
 - increments the fulfillment policy version;
+- when moving to SaaS, ends every active or paused Afterlight resource deployment for the organization;
 - records platform and fulfillment audit events; and
 - alerts the requesting administrator.
 
-Existing assignments and invoices keep their saved fulfillment and billing routing.
+Existing assignments and invoices keep their saved fulfillment and billing routing. An ended deployment removes the resource from the organization's future staffing choices; it does not remove the resource from an assignment created before the transition. Moving back to Hybrid or Managed service does not automatically reactivate prior deployments. A platform administrator must deploy the appropriate resources again.
 
 ## Approve a tier-increase request
 
@@ -60,6 +61,7 @@ Enter the reason in **Platform response**, then select **Deny**. No organization
 - Tier increases are accepted only for SaaS and Hybrid and must target a higher standard tier.
 - Custom administrator capacity is accepted only for Tier 3 SaaS and Hybrid organizations and must be greater than the current administrator limit.
 - Service-model changes into SaaS or Hybrid require an explicit tier.
+- SaaS permits only customer employees and customer-managed contractors for new assignments. Server-side validation rejects Afterlight fulfillment even if a stale client attempts to submit it.
 - Denial and information requests require a written platform response.
 - Direct organization-admin service-model, tier, and custom-capacity changes remain rejected by the API.
 - Proposed effective dates are planning requests; approval currently applies immediately.

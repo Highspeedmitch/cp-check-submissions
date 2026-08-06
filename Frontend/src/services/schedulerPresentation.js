@@ -20,3 +20,14 @@ export function propertySuggestedAmount(property) {
     currency: "USD",
   }).format(property.defaultInspectionAmountCents / 100);
 }
+
+export function schedulerFulfillmentSources(settings) {
+  const configured = settings?.options?.fulfillmentSources;
+  return Array.isArray(configured)
+    ? configured
+    : ["customer_employee", "customer_contractor"];
+}
+
+export function showAfterlightQueue(serviceModel, assignmentCount) {
+  return ["managed", "hybrid"].includes(serviceModel) || Number(assignmentCount) > 0;
+}
