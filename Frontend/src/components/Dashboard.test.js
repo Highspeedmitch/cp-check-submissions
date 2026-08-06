@@ -3,12 +3,6 @@ import { MemoryRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 import { api } from "../services/api";
 
-jest.mock("@capacitor/geolocation", () => ({
-  Geolocation: {
-    watchPosition: jest.fn(),
-    clearWatch: jest.fn(),
-  },
-}));
 jest.mock("../services/api", () => ({
   api: {
     get: jest.fn(),

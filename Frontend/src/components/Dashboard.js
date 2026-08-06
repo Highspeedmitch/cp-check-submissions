@@ -1,7 +1,6 @@
 // Dashboard.js
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Geolocation } from '@capacitor/geolocation';
 import { format } from "date-fns";
 import { logoutSession } from "../services/session";
 import DashboardNavigation from "./ui/DashboardNavigation";
@@ -38,13 +37,6 @@ function openNativeMaps(lat, lng) {
 function Dashboard({ setUser }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // 🚗 Mileage states
-  const [mileageTracking, setMileageTracking] = useState(false);
-  const [mileageCount, setMileageCount] = useState(null);
-  const [lastLocation, setLastLocation] = useState(null);
-  const organizationId = localStorage.getItem("organizationId");
-  const userId = localStorage.getItem("userId");
 
   //search queries
   const [searchQuery, setSearchQuery] = useState("");
@@ -494,120 +486,6 @@ useEffect(() => {
     if (prop.orgType === "RES") formRoute = "/residential-form";
     navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
   }
-  async function startMileageTracking() {
-    if (!userId) {
-      console.error("⚠️ No userId found in localStorage. Cannot track mileage.");
-      return;
-    }
-
-    // We only call this if there's no existing doc, or
-    // we just want to ensure a doc exists in DB
-    try {
-      const res = await fetch(
-        apiUrl("/api/mileage/start"),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            userId,          // CHANGED: include userId
-            organizationId   // optional if your route requires it
-          })
-        }
-      );
-      const data = await res.json();
-      if (!data.success) setError(data.error || "Could not start mileage tracking.");
-    } catch (error) {
-      console.error("Error starting mileage tracking:", error);
-    }
-  }
-  // ======================
-  // 9) Mileage Tracking
-  // ======================
-  function handleMileageToggle() {
-    // If toggling from OFF to ON, call start
-    if (!mileageTracking) {
-      startMileageTracking();
-    }
-    setMileageTracking(!mileageTracking);
-  }
- 
-  useEffect(() => {
-    let watchId;
-    if (mileageTracking) {
-      // Use Capacitor Geolocation's watchPosition for continuous tracking
-      watchId = Geolocation.watchPosition(
-        { enableHighAccuracy: true, background: true, maximumAge: 10000, timeout: 10000 },
-        (position, err) => {
-          if (err) {
-            console.error("GPS error:", err);
-            return;
-          }
-          if (position) {
-            const { latitude, longitude } = position.coords;
-            if (lastLocation) {
-              const distance = calculateDistance(
-                lastLocation.latitude,
-                lastLocation.longitude,
-                latitude,
-                longitude
-              );
-              if (distance > 0.05) {
-                setMileageCount((prev) =>
-                  prev !== null ? prev + distance : distance
-                );
-                fetch(
-                  apiUrl("/api/mileage/update"),
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                      userId,
-                      miles: distance
-                    })
-                  }
-                ).catch((err) =>
-                  console.error("Mileage update error:", err)
-                );
-              }
-            }
-            setLastLocation({ latitude, longitude });
-          }
-        }
-      );
-    }
-    return () => {
-      if (watchId !== undefined) {
-        Geolocation.clearWatch({ id: watchId });
-      }
-    };
-  }, [mileageTracking, lastLocation, token, userId]);
-
-  // Helper to calculate distance
-  function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 3958.8; // miles
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
-
-  // On mount, reset states
-  useEffect(() => {
-    setMileageTracking(false);
-    setMileageCount(null);
-  }, []);
-
   // ======================
   // RENDER
   // ======================
@@ -643,9 +521,6 @@ useEffect(() => {
           setRemovePasskey("");
           setPropertyToRemove("");
         }}
-        mileageTracking={mileageTracking}
-        mileageCount={mileageCount}
-        onMileageToggle={handleMileageToggle}
         onLogout={handleLogout}
         canAccessBilling={canAccessBilling}
         notificationBadges={notificationBadges}

@@ -1,5 +1,4 @@
 import React from "react";
-import { MILEAGE_TRACKING_ENABLED } from "../../featureFlags";
 import { canAccessExternalConnections } from "../../services/externalConnectionsAccess";
 import WorkspaceSwitcher from "../WorkspaceSwitcher";
 import ThemeToggle from "./ThemeToggle";
@@ -34,15 +33,11 @@ export default function DashboardNavigation({
   onRegionFilter,
   onAddProperty,
   onRemoveProperty,
-  mileageTracking,
-  mileageCount,
-  onMileageToggle,
   onLogout,
   canAccessBilling = false,
   notificationBadges = {},
   accountScope = "organization",
   activeRoute = "dashboard",
-  showMileageTracking = true,
 }) {
   const isAdmin = role === "admin";
   const isManager = role === "property_manager";
@@ -104,7 +99,6 @@ export default function DashboardNavigation({
               {orgType === "COM" && <NavButton onClick={() => go("/organization-form-settings")}>Form Template</NavButton>}
               <NavButton badge={notificationBadges.serviceModels} onClick={() => go("/service-delivery")}>Service Delivery</NavButton>
               <NavButton onClick={() => go("/organization-security")}>Security</NavButton>
-              {orgType !== "COM" && <NavButton onClick={() => go("/payments")}>Payments</NavButton>}
               <button type="button" className="beta-nav-danger" onClick={onRemoveProperty}>
                 Remove Property
               </button>
@@ -146,13 +140,6 @@ export default function DashboardNavigation({
         )}
 
         <div className="beta-sidebar-footer">
-          {showMileageTracking && MILEAGE_TRACKING_ENABLED && role !== "admin" && (
-            <label className="beta-setting-row">
-              <span>Mileage tracking</span>
-              <input type="checkbox" checked={mileageTracking} onChange={onMileageToggle} />
-              {mileageTracking && <small>{mileageCount ? mileageCount.toFixed(1) : "0"} mi</small>}
-            </label>
-          )}
           <ThemeToggle />
           <button type="button" className="beta-text-button beta-logout-link" onClick={onLogout}>Log out</button>
         </div>

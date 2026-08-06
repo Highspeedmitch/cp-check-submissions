@@ -36,7 +36,6 @@ export default function ExternalConnections({ setUser }) {
         activeRoute="external-connections"
         navigate={navigate}
         onLogout={logout}
-        showMileageTracking={false}
       />
       <main className="beta-dashboard-main">
         <div className="beta-mobile-topbar">

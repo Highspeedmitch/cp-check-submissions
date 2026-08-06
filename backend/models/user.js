@@ -37,8 +37,6 @@ const UserSchema = new mongoose.Schema({
   },
   organizationArchiveReason: { type: String, default: "", trim: true, maxlength: 500 },
   tokenVersion: { type: Number, default: 0 },
-  lastPaidDate: { type: Date, default: null },
-  paymentStatus: { type: String, enum: ["Awaiting Payment", "Paid"], default: "Awaiting Payment" },
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },
 });

@@ -3,7 +3,6 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { apiLimiter, calendarFeedLimiter } = require("./middleware/rateLimits");
 const authenticateToken = require("./middleware/authenticateToken");
-const requireAdmin = require("./middleware/requireAdmin");
 const requireCurrentOrganizationPresence = require("./middleware/requireCurrentOrganizationPresence");
 const { getAllowedFrontendOrigins } = require("./utils/frontendUrls");
 const mongoose = require("mongoose");
@@ -42,8 +41,6 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
     require("./Routes/calendarFeed").publicRouter
   );
 
-  app.use("/admin", authenticateToken, requireCurrentOrganizationPresence, requireAdmin, require("./Routes/admin"));
-  app.use("/api/mileage", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/mileageTracking"));
   app.use("/api/properties", authenticateToken, require("./Routes/properties"));
   app.use("/api/profits", require("./Routes/profits"));
   app.use("/api/billing", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/billing"));

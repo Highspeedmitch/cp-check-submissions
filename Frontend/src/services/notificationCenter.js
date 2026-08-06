@@ -15,7 +15,6 @@ export const NOTIFICATION_SECTIONS = {
     "invoice_submitted_for_review",
     "invoice_review_changed",
     "invoice_status_changed",
-    "payment_processed",
     "invoice_ap_delivery_queued",
     "invoice_ap_delivery_failed",
   ],

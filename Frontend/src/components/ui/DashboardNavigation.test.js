@@ -10,7 +10,6 @@ const defaults = {
   navigate: jest.fn(),
   onLogout: jest.fn(),
   regions: [],
-  showMileageTracking: false,
 };
 
 beforeEach(() => {

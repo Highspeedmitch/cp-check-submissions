@@ -34,7 +34,6 @@ const LongTermRental = lazy(() => import("./components/LongTermRental"));
 const ShortTermRental = lazy(() => import("./components/ShortTermRental"));
 const AccessInstructions = lazy(() => import("./components/AccessInstructions"));
 const AZRaccessinstructions = lazy(() => import("./components/AZRaccessinstructions"));
-const Payments = lazy(() => import("./components/Payments"));
 const ProfitUpload = lazy(() => import("./components/ProfitUpload"));
 const EditPropertyWrapper = lazy(() => import("./components/EditPropertyWrapper"));
 const Billing = lazy(() => import("./components/Billing"));
@@ -293,8 +292,6 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/scheduler" element={user && ["admin", "property_manager"].includes(role) ? <SchedulerWrapper /> : <Navigate to="/" />} />
-      {/* Payments Page - Only Admins */}
-      <Route path="/payments" element={user && role === "admin" ? <Payments /> : <Navigate to="/" />} />
       <Route path="/billing" element={
         <BillingRoute user={user} role={role} accountScope={accountScope} />
       } />

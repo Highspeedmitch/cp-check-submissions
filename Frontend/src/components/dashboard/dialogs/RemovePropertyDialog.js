@@ -31,11 +31,11 @@ function RemovePropertyDialog({
             onChange={(event) => onPasskeyChange(event.target.value)}
           />
         </label>
-        <div style={{ marginTop: "10px" }}>
-          <button onClick={onConfirm} className="payments-button" disabled={busy}>
+        <div className="beta-dialog-actions">
+          <button type="button" onClick={onConfirm} className="beta-button danger" disabled={busy}>
             {busy ? "Removing…" : "Confirm Removal"}
           </button>
-          <button onClick={onClose} className="payments-button" disabled={busy}>
+          <button type="button" onClick={onClose} className="beta-button secondary" disabled={busy}>
             Cancel
           </button>
         </div>
