@@ -45,11 +45,12 @@ function renderDashboard(role, initialEntry = "/dashboard") {
   );
 }
 
-test("the Setup Guide deep link opens protected property setup", async () => {
+test("the Setup Guide deep link opens the property addition choices", async () => {
   renderDashboard("admin", "/dashboard?onboarding=add-property");
 
-  expect(await screen.findByRole("dialog", { name: "Add a new property" })).toBeInTheDocument();
-  expect(screen.getByLabelText("Organization passkey")).toBeInTheDocument();
+  expect(await screen.findByRole("dialog", { name: "How would you like to add properties?" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Single property/ })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Bulk load/ })).toBeInTheDocument();
 });
 
 beforeEach(() => {
@@ -174,7 +175,8 @@ test("valid admin passkey opens the reducer-backed add property form", async () 
   renderDashboard("admin");
 
   fireEvent.click(await screen.findByRole("button", { name: "Admin tools" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Add Property" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Add Properties" }));
+  fireEvent.click(screen.getByRole("button", { name: /Single property/ }));
   fireEvent.change(screen.getByLabelText("Organization passkey"), {
     target: { value: "test-passkey" },
   });

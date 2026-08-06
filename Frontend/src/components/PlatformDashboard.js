@@ -43,7 +43,7 @@ function PlatformNavigation({ open, activeView, notificationBadges, onClose, onV
         </div>
         <nav>
           <p className="beta-nav-label">Platform</p>
-          <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}>Overview</button>
+          <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}><span>Overview</span>{notificationBadges.platformOrganizations > 0 && <span className="beta-nav-badge">{notificationBadges.platformOrganizations > 9 ? "9+" : notificationBadges.platformOrganizations}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "billing" ? " active" : ""}`} onClick={() => go("billing")}><span>Service Billing</span>{notificationBadges.platformBilling > 0 && <span className="beta-nav-badge">{notificationBadges.platformBilling > 9 ? "9+" : notificationBadges.platformBilling}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}><span>Resources &amp; Payables</span>{notificationBadges.resources > 0 && <span className="beta-nav-badge">{notificationBadges.resources > 9 ? "9+" : notificationBadges.resources}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "service-models" ? " active" : ""}`} onClick={() => go("service-models")}><span>Service Plan Requests</span>{notificationBadges.serviceModels > 0 && <span className="beta-nav-badge">{notificationBadges.serviceModels > 9 ? "9+" : notificationBadges.serviceModels}</span>}</button>
@@ -194,7 +194,9 @@ export default function PlatformDashboard() {
       ? NOTIFICATION_SECTIONS.resources
       : activeView === "service-models"
         ? NOTIFICATION_SECTIONS.serviceModels
-        : [];
+        : activeView === "overview"
+          ? NOTIFICATION_SECTIONS.platformOrganizations
+          : [];
   useMarkNotificationsRead(activeNotificationTypes);
 
   const selectView = useCallback((view) => {

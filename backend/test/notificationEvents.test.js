@@ -15,6 +15,7 @@ const {
   invoiceStatusChanged,
   serviceModelChangeEvent,
   administratorLicenseRequested,
+  bulkOnboardingAssistanceRequested,
   bidRequestSubmitted,
   bidRequestReceived,
   bidRequestStatusChanged,
@@ -121,8 +122,20 @@ test("administrator license requests alert platform administrators", () => {
     { allocated: 3, limit: 3 }
   );
   assert.equal(event.type, "administrator_license_requested");
-  assert.equal(event.route, "/platform?view=organizations");
+  assert.equal(event.route, "/platform?view=overview");
   assert.match(event.body, /3\/3/);
+});
+
+test("bulk onboarding assistance alerts platform administrators without CSV contents", () => {
+  const event = bulkOnboardingAssistanceRequested(
+    { _id: "audit-2" },
+    "Example Org",
+    { type: "properties", estimatedRows: 42 }
+  );
+  assert.equal(event.type, "bulk_onboarding_assistance_requested");
+  assert.equal(event.route, "/platform?view=overview");
+  assert.match(event.body, /42 properties/);
+  assert.doesNotMatch(event.body, /csv|email/i);
 });
 
 test("initial bid messages distinguish sender confirmation from admin receipt", () => {

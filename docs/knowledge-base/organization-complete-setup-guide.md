@@ -8,7 +8,7 @@ Use **Setup Guide** to finish the required security and operating configuration 
 
 1. Accept the secure administrator invitation and finish creating your account.
 2. Sign in to the organization workspace.
-3. Open **Setup Guide** from the Dashboard navigation.
+3. Open **Setup Guide** from the Dashboard navigation while guided onboarding is still in progress.
 
 The progress panel shows how many required items are complete. Return to the guide after making a change and it will recalculate progress from the current workspace.
 
@@ -34,7 +34,7 @@ Administrator sign-in also requires authenticator verification. See [Set up and 
 
 ### Add the first property
 
-Select **Add a property**, enter the organization passkey when prompted, and complete the property configuration. Confirm the property name, physical location, billing details, fulfillment method, and inspection recipients before saving.
+Select **Add a property**, choose **Single property**, enter the organization passkey when prompted, and complete the property configuration. Confirm the property name, physical location, billing details, fulfillment method, and inspection recipients before saving. You can instead choose **Bulk load** when the first portfolio is ready in the supported CSV format.
 
 The property item becomes complete when at least one property exists in the workspace.
 
@@ -49,7 +49,7 @@ Recommended items remain visible after onboarding so the Setup Guide can continu
 
 ## Complete onboarding
 
-When all required items show **Complete**, select **Complete Onboarding**. Afterlight records the completion and keeps the guide available for future reviews.
+When all required items show **Complete**, select **Complete Onboarding**. Afterlight records the completion, removes **Setup Guide** from the Admin tools navigation, and makes **Review Setup Guide** available from the Help Center header for future readiness reviews.
 
 Existing organizations that were established before guided onboarding see **Workspace Readiness** instead. They can review the same live checks but do not receive a new onboarding-completion action.
 

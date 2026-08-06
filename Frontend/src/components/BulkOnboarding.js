@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import PageHeader from "./ui/PageHeader";
 
@@ -78,9 +78,103 @@ function CommitDialog({ type, busy, onClose, onCommit }) {
   );
 }
 
+function AssistanceRequestDialog({ type, suggestedRows, onClose, onSubmit }) {
+  const [estimatedRows, setEstimatedRows] = useState(suggestedRows || "");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const reasonRef = useRef(null);
+  const submittingRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    reasonRef.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !submittingRef.current) onCloseRef.current();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, []);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (submittingRef.current || reason.trim().length < 10) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setError("");
+    try {
+      await onSubmit({
+        type,
+        estimatedRows: estimatedRows === "" ? null : Number(estimatedRows),
+        reason: reason.trim(),
+      });
+    } catch (requestError) {
+      setError(requestError.message || "Unable to request onboarding assistance.");
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="beta-dialog-overlay" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !submittingRef.current) onClose();
+    }}>
+      <form className="beta-dialog" role="dialog" aria-modal="true"
+        aria-labelledby="onboarding-assistance-title" onSubmit={submit}>
+        <div className="beta-dialog-header">
+          <div>
+            <span className="beta-eyebrow">Coordinated onboarding</span>
+            <h2 id="onboarding-assistance-title">Request onboarding assistance</h2>
+          </div>
+          <button type="button" className="beta-dialog-close" aria-label="Close assistance request"
+            onClick={onClose} disabled={submitting}>×</button>
+        </div>
+        <p className="beta-dialog-copy">
+          Ask Afterlight to help prepare or coordinate this {type} import. The CSV itself is not attached to this request.
+        </p>
+        <label className="beta-field" htmlFor="onboarding-assistance-rows">
+          <span>Approximate number of records (optional)</span>
+          <input id="onboarding-assistance-rows" type="number" min="1" max="10000" step="1"
+            value={estimatedRows} disabled={submitting}
+            onChange={(event) => { setEstimatedRows(event.target.value); setError(""); }} />
+        </label>
+        <label className="beta-field" htmlFor="onboarding-assistance-reason">
+          <span>What assistance do you need?</span>
+          <textarea ref={reasonRef} id="onboarding-assistance-reason" rows="4" minLength="10" maxLength="2000"
+            value={reason} disabled={submitting} required
+            placeholder="Describe the portfolio change, desired timing, and help needed. Do not include passwords or personal data."
+            onChange={(event) => { setReason(event.target.value); setError(""); }} />
+        </label>
+        <p className="beta-dialog-note">
+          This request does not reserve or expand licensed capacity. Every eventual import remains subject to the same capacity check and final passkey verification.
+        </p>
+        {error && <p className="beta-dialog-error" role="alert">{error}</p>}
+        <div className="beta-dialog-actions">
+          <button type="button" className="beta-button secondary" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button type="submit" className="beta-button" disabled={submitting || reason.trim().length < 10}>
+            {submitting ? "Submitting…" : "Submit request"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function BulkOnboarding() {
   const navigate = useNavigate();
-  const [type, setType] = useState("users");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [type, setType] = useState(() => (
+    searchParams.get("type") === "properties" ? "properties" : "users"
+  ));
   const [csv, setCsv] = useState("");
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState(null);
@@ -88,9 +182,11 @@ export default function BulkOnboarding() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [assistanceOpen, setAssistanceOpen] = useState(false);
 
   function resetForType(nextType) {
     setType(nextType);
+    setSearchParams({ type: nextType }, { replace: true });
     setCsv("");
     setFileName("");
     setPreview(null);
@@ -164,6 +260,13 @@ export default function BulkOnboarding() {
     }
   }
 
+  async function requestAssistance(details) {
+    const result = await api.post("/api/bulk-onboarding/assistance-requests", details);
+    setMessage(result.message);
+    setError("");
+    setAssistanceOpen(false);
+  }
+
   return (
     <div className="beta-page beta-bulk-onboarding-page">
       <main className="beta-page-shell">
@@ -225,6 +328,13 @@ export default function BulkOnboarding() {
               </div>
             </div>
             <CapacitySummary preview={preview} />
+            {preview.capacityError && (
+              <div className="beta-card-actions">
+                <button type="button" className="beta-button secondary" onClick={() => navigate("/service-delivery")}>
+                  Review license options
+                </button>
+              </div>
+            )}
             <div className="beta-table-wrap">
               <table className="beta-data-table beta-bulk-preview-table">
                 <thead>
@@ -256,12 +366,29 @@ export default function BulkOnboarding() {
             </div>
           </section>
         )}
+
+        <section className="beta-panel beta-bulk-assistance">
+          <div className="beta-section-heading">
+            <div>
+              <h2>Need help with a larger onboarding event?</h2>
+              <p>Request help with CSV preparation or a coordinated import. Afterlight receives the request details, not your CSV.</p>
+            </div>
+            <button type="button" className="beta-button secondary" onClick={() => setAssistanceOpen(true)}>
+              Request Onboarding Assistance
+            </button>
+          </div>
+          <small>Assistance does not bypass your organization’s license limits or final administrative passkey verification.</small>
+        </section>
       </main>
       {confirmOpen && (
         <CommitDialog type={type} busy={busy} onClose={() => setConfirmOpen(false)} onCommit={commitImport} />
+      )}
+      {assistanceOpen && (
+        <AssistanceRequestDialog type={type} suggestedRows={preview?.rowCount}
+          onClose={() => setAssistanceOpen(false)} onSubmit={requestAssistance} />
       )}
     </div>
   );
 }
 
-export { TEMPLATES, downloadTemplate };
+export { AssistanceRequestDialog, TEMPLATES, downloadTemplate };

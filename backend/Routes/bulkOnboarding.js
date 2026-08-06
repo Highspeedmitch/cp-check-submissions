@@ -5,6 +5,7 @@ const {
   previewBulkOnboarding,
 } = require("../services/bulkOnboarding");
 const { licensedCapacityErrorBody } = require("../services/licensedCapacityOperations");
+const { requestBulkOnboardingAssistance } = require("../services/bulkOnboardingAssistance");
 
 const router = express.Router();
 
@@ -55,6 +56,28 @@ router.post("/commit", async (req, res) => {
       ...licensedCapacityErrorBody(error, "Unable to complete this import."),
       ...(error.preview ? { preview: error.preview } : {}),
     });
+  }
+});
+
+router.post("/assistance-requests", async (req, res) => {
+  try {
+    const result = await requestBulkOnboardingAssistance({
+      organizationId: req.user.organizationId,
+      actorUserId: req.user.userId,
+      input: req.body,
+      ipAddress: req.ip || "",
+      userAgent: req.get("user-agent") || "",
+    });
+    return res.status(201).json(result);
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({
+        error: error.message,
+        ...(error.code ? { code: error.code } : {}),
+      });
+    }
+    console.error("Bulk onboarding assistance request error:", error.message);
+    return res.status(500).json({ error: "Unable to request onboarding assistance." });
   }
 });
 

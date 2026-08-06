@@ -474,6 +474,13 @@
 .beta-bulk-preview-table small { color: var(--beta-muted); }
 .beta-bulk-row-errors { margin: 0; padding-left: 18px; color: var(--beta-danger); }
 .beta-bulk-row-errors li + li { margin-top: 4px; }
+.beta-property-addition-dialog { max-width: 680px; }
+.beta-property-addition-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.beta-property-addition-option { display: grid; gap: 6px; min-height: 118px; padding: 18px; border: 1px solid var(--beta-border); border-radius: 12px; color: var(--beta-ink); background: var(--beta-subtle); text-align: left; cursor: pointer; }
+.beta-property-addition-option:hover, .beta-property-addition-option:focus-visible { border-color: var(--beta-blue); outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--beta-blue) 22%, transparent); }
+.beta-property-addition-option strong { font-size: 1rem; }
+.beta-property-addition-option span { color: var(--beta-muted); line-height: 1.45; }
+@media (max-width: 600px) { .beta-property-addition-options { grid-template-columns: 1fr; } }
 
 /* Help Center */
 .beta-help-link {

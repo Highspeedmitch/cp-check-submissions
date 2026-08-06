@@ -21,12 +21,14 @@ jest.mock("../services/notificationCenter", () => ({
     platformBilling: [],
     resources: [],
     serviceModels: [],
+    platformOrganizations: [],
   },
   useMarkNotificationsRead: jest.fn(),
   useNotificationBadges: () => ({
     platformBilling: 0,
     resources: 0,
     serviceModels: 0,
+    platformOrganizations: 0,
   }),
 }));
 jest.mock("./ProspectAssessments", () => () => <div>Prospects view</div>);

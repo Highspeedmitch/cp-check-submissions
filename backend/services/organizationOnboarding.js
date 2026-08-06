@@ -4,13 +4,25 @@ function step(id, title, description, complete, action, optional = false) {
   return { id, title, description, complete: Boolean(complete), action, optional };
 }
 
+function serializeOrganizationOnboardingStatus(organization) {
+  const guided = Boolean(organization?.onboarding);
+  return {
+    guided,
+    status: guided
+      ? organization.onboarding.status || "invited"
+      : "established",
+    completedAt: organization?.onboarding?.completedAt || null,
+  };
+}
+
 function serializeOrganizationOnboarding({
   organization,
   activeUserCount = 0,
   pendingInvitationCount = 0,
   completedSubmissionCount = 0,
 } = {}) {
-  const guided = Boolean(organization?.onboarding);
+  const onboardingStatus = serializeOrganizationOnboardingStatus(organization);
+  const { guided, status } = onboardingStatus;
   const properties = organization?.properties || [];
   const securityConfigured = Boolean(organization?.security?.adminActionPasskeyHash);
   const teamConfigured = activeUserCount > 1 || pendingInvitationCount > 0;
@@ -55,11 +67,6 @@ function serializeOrganizationOnboarding({
   ];
   const requiredSteps = steps.filter((item) => REQUIRED_STEP_IDS.has(item.id));
   const requiredComplete = requiredSteps.filter((item) => item.complete).length;
-  const savedStatus = organization?.onboarding?.status;
-  const status = guided
-    ? savedStatus || "invited"
-    : "established";
-
   return {
     guided,
     status,
@@ -86,4 +93,8 @@ function serializeOrganizationOnboarding({
   };
 }
 
-module.exports = { REQUIRED_STEP_IDS, serializeOrganizationOnboarding };
+module.exports = {
+  REQUIRED_STEP_IDS,
+  serializeOrganizationOnboarding,
+  serializeOrganizationOnboardingStatus,
+};

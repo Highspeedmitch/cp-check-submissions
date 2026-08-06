@@ -14,10 +14,17 @@ Afterlight resource accounts are managed separately and should not appear in a c
 
 ## Download a template
 
-1. Open **Admin tools** in the dashboard navigation.
-2. Select **Bulk Onboarding**.
-3. Choose **Users** or **Properties**.
-4. Select **Download users template** or **Download properties template**.
+For users:
+
+1. Open **Admin tools > Users**.
+2. Select **Import Users**.
+
+For properties:
+
+1. Open **Admin tools > Add Properties**.
+2. Select **Bulk load**.
+
+The bulk onboarding page opens with the relevant import type selected. You can switch between **Users** and **Properties**, then select the matching template download.
 
 Keep the template header names unchanged.
 
@@ -55,11 +62,17 @@ User imports create invitation emails rather than immediate accounts. Pending in
 
 The import is all-or-nothing. If a row, directory record, or available capacity changes after preview, Afterlight stops the import without creating a partial batch.
 
+## Request onboarding assistance
+
+Select **Request Onboarding Assistance** when you need help preparing a file or coordinating a larger portfolio event. Enter an approximate record count and operational context, but do not include passwords or personal data.
+
+The request sends its summary and a current capacity snapshot to Afterlight platform administration. It does not attach the CSV, reserve capacity, change the license, or create records. Any eventual import still requires adequate licensed capacity and final organization-passkey verification.
+
 ## Common validation messages
 
 **Not enough licensed capacity**
 
-The requested rows would exceed the current user or property limit. Reduce the file size or request a license increase before importing.
+The requested rows would exceed the current user or property limit. Reduce the file size or select **Review license options** before importing. An assistance request does not expand capacity.
 
 **Email already belongs to an account or invitation**
 

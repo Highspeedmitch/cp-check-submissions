@@ -89,4 +89,41 @@ test("does not allow a capacity-blocked preview to continue", async () => {
 
   expect(await screen.findByText(/not have enough licensed user seats/i)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Continue to verification" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Review license options" })).toBeInTheDocument();
+});
+
+test("uses the contextual property entry point to preset the import type", () => {
+  render(<MemoryRouter initialEntries={["/admin/bulk-onboarding?type=properties"]}><BulkOnboarding /></MemoryRouter>);
+
+  expect(screen.getByRole("button", { name: "Properties" })).not.toHaveClass("secondary");
+  expect(screen.getByRole("button", { name: "Users" })).toHaveClass("secondary");
+  expect(screen.getByRole("button", { name: "Download properties template" })).toBeInTheDocument();
+});
+
+test("submits an assistance request without attaching CSV data", async () => {
+  api.post.mockResolvedValue({
+    requestId: "request-1",
+    message: "Onboarding assistance requested. Afterlight platform administration was notified.",
+  });
+  render(<MemoryRouter initialEntries={["/admin/bulk-onboarding?type=users"]}><BulkOnboarding /></MemoryRouter>);
+
+  fireEvent.click(screen.getByRole("button", { name: "Request Onboarding Assistance" }));
+  fireEvent.change(screen.getByLabelText("Approximate number of records (optional)"), {
+    target: { value: "42" },
+  });
+  fireEvent.change(screen.getByLabelText("What assistance do you need?"), {
+    target: { value: "Help us prepare for a newly acquired portfolio." },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/bulk-onboarding/assistance-requests",
+    {
+      type: "users",
+      estimatedRows: 42,
+      reason: "Help us prepare for a newly acquired portfolio.",
+    }
+  ));
+  expect(api.post.mock.calls[0][1]).not.toHaveProperty("csv");
+  expect(await screen.findByText(/platform administration was notified/i)).toBeInTheDocument();
 });

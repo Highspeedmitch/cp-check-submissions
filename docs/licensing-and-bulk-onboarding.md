@@ -32,7 +32,10 @@ Public self-registration is retired so it cannot bypass invitation reservations 
 
 ## CSV onboarding workflow
 
-Organization administrators can open **Admin tools > Bulk Onboarding**.
+Organization administrators open the same bulk workflow contextually:
+
+- **Admin tools > Users > Import Users** for invitation imports;
+- **Admin tools > Add Properties > Bulk load** for property imports.
 
 The workflow is:
 
@@ -68,3 +71,5 @@ Administrator rows are rejected and must use the dedicated administrator invitat
 | inspection_recipient_emails | No | Separate addresses with a vertical bar |
 
 If the organization, directory, pending invitations, or capacity changes between preview and commit, the transaction stops without creating partial records.
+
+An administrator can also submit a bulk-onboarding assistance request. The request creates a platform audit record with the import type, estimated count, operational reason, and current capacity snapshot, then notifies platform administrators. The request never includes the CSV and cannot reserve capacity, change licensing, or bypass the passkey-protected commit.

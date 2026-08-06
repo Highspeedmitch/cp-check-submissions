@@ -12,6 +12,7 @@ import InspectionLauncherDialog from "./dashboard/dialogs/InspectionLauncherDial
 import RemovePropertyDialog from "./dashboard/dialogs/RemovePropertyDialog";
 import AdminVerificationDialog from "./dashboard/dialogs/AdminVerificationDialog";
 import PropertyRecipientsDialog from "./dashboard/dialogs/PropertyRecipientsDialog";
+import PropertyAdditionChoiceDialog from "./dashboard/dialogs/PropertyAdditionChoiceDialog";
 import AddPropertyForm from "./dashboard/AddPropertyForm";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
@@ -135,6 +136,7 @@ const handleRegionFilter = async () => {
   }, [adminOrgType, token]);
 
   // ----------- "Add Property" Admin Flow -----------
+  const [propertyAdditionChoiceVisible, setPropertyAdditionChoiceVisible] = useState(false);
   const [passkeyPromptVisible, setPasskeyPromptVisible] = useState(false);
   const [addPropertyGrant, setAddPropertyGrant] = useState("");
   const [addPropertyFormVisible, setAddPropertyFormVisible] = useState(false);
@@ -142,7 +144,7 @@ const handleRegionFilter = async () => {
 
   useEffect(() => {
     if (role !== "admin" || searchParams.get("onboarding") !== "add-property") return;
-    setPasskeyPromptVisible(true);
+    setPropertyAdditionChoiceVisible(true);
     setSearchParams({}, { replace: true });
   }, [role, searchParams, setSearchParams]);
 
@@ -511,7 +513,7 @@ useEffect(() => {
         onRegionFilter={handleRegionFilter}
         onAddProperty={() => {
           setSidebarCollapsed(false);
-          setPasskeyPromptVisible(true);
+          setPropertyAdditionChoiceVisible(true);
           setAddPropertyGrant("");
           setPropertyActionMessage("");
         }}
@@ -639,7 +641,22 @@ useEffect(() => {
           </>
         )}
 
-        {/* Passkey prompt for adding property */}
+        {propertyAdditionChoiceVisible && (
+          <PropertyAdditionChoiceDialog
+            onSingle={() => {
+              setPropertyAdditionChoiceVisible(false);
+              setPasskeyPromptVisible(true);
+              setAddPropertyGrant("");
+            }}
+            onBulk={() => {
+              setPropertyAdditionChoiceVisible(false);
+              navigate("/admin/bulk-onboarding?type=properties");
+            }}
+            onClose={() => setPropertyAdditionChoiceVisible(false)}
+          />
+        )}
+
+        {/* Passkey prompt for adding one property */}
         {passkeyPromptVisible && (
           <AdminVerificationDialog
             onVerify={verifyAddPropertyPasskey}

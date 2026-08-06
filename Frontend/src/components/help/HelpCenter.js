@@ -2,6 +2,10 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageHeader from "../ui/PageHeader";
 import {
+  setupGuideHelpActionVisible,
+  useOrganizationOnboardingStatus,
+} from "../../services/organizationOnboardingStatus";
+import {
   getHelpAudience,
   matchesHelpSearch,
   visibleHelpArticles,
@@ -24,6 +28,11 @@ function dashboardRoute(audience) {
 export default function HelpCenter() {
   const navigate = useNavigate();
   const audience = useMemo(() => getHelpAudience(), []);
+  const onboardingStatus = useOrganizationOnboardingStatus(
+    audience.role === "admin"
+      && audience.accountScope === "organization"
+      && !(audience.platformRole === "platform_admin" && !audience.assumedOrganization)
+  );
   const [query, setQuery] = useState("");
   const visibleArticles = useMemo(() => visibleHelpArticles(audience), [audience]);
   const matchingArticles = useMemo(
@@ -45,6 +54,11 @@ export default function HelpCenter() {
           subtitle={audience.platformRole === "platform_admin" && !audience.assumedOrganization
             ? "Guides for Afterlight platform administration."
             : `Guides selected for your ${ROLE_NAMES[audience.role] || "account"} role.`}
+          actions={setupGuideHelpActionVisible(onboardingStatus) ? (
+            <button type="button" className="beta-button secondary compact" onClick={() => navigate("/onboarding")}>
+              Review Setup Guide
+            </button>
+          ) : null}
         />
 
         <section className="beta-help-hero" aria-labelledby="help-search-heading">

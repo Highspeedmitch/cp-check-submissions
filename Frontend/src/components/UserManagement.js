@@ -351,7 +351,7 @@ export default function UserManagement() {
           </div>
           <div className="beta-card-actions">
             <button className="beta-button secondary compact" type="button"
-              onClick={() => navigate("/admin/bulk-onboarding")}>Bulk Onboarding</button>
+              onClick={() => navigate("/admin/bulk-onboarding?type=users")}>Import Users</button>
             <button className="beta-button compact" type="button"
               disabled={data.capacity?.users?.remaining === 0}
               onClick={() => setInviteOpen((open) => !open)}>
