@@ -56,8 +56,11 @@
 .beta-sidebar {
   position: sticky;
   top: 0;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
-  overflow-y: auto;
+  height: 100dvh;
+  overflow: hidden;
   box-sizing: border-box;
   padding: 28px 20px;
   background: var(--beta-surface);
@@ -66,11 +69,12 @@
 }
 
 .beta-sidebar-brand {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 38px;
-  margin-bottom: 26px;
+  margin-bottom: 10px;
 }
 
 .beta-sidebar-brand strong {
@@ -95,6 +99,65 @@
 
 .beta-drawer-close { display: none; }
 .beta-drawer-scrim { display: none; }
+
+.beta-sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.beta-nav-section + .beta-nav-section { margin-top: 6px; }
+
+.beta-nav-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--beta-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-align: left;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.beta-nav-section-toggle:hover {
+  background: var(--beta-subtle);
+  color: var(--beta-ink);
+  box-shadow: none;
+}
+
+.beta-nav-section-toggle:focus-visible {
+  outline: 2px solid var(--beta-blue);
+  outline-offset: 1px;
+}
+
+.beta-nav-section-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.beta-nav-section-chevron {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .18s ease;
+}
+
+.beta-nav-section-chevron.expanded { transform: rotate(45deg); }
+.beta-nav-section-content[hidden] { display: none; }
 
 .beta-nav-label {
   margin: 24px 10px 8px;
@@ -191,7 +254,13 @@
 
 .beta-text-button:hover { background: transparent; color: var(--beta-blue-dark); box-shadow: none; }
 .beta-logout-link { color: var(--beta-danger); }
-.beta-sidebar-footer { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--beta-border); }
+.beta-sidebar-footer {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--beta-border);
+  background: var(--beta-surface);
+}
 .beta-setting-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; margin: 10px 0; font-size: 13px; }
 .beta-setting-row input { width: 18px; min-height: 18px; }
 .beta-setting-row small { color: var(--beta-muted); }
@@ -1683,6 +1752,24 @@
 .beta-section-heading + .beta-contract-change-option { margin-top: 0; border-top: 0; padding-top: 0; }
 .beta-contract-change-option h3 { margin: 0 0 4px; color: var(--beta-ink); }
 .beta-contract-change-option > div > p { margin: 0; color: var(--beta-muted); }
+.beta-contract-change-form .beta-form-field { min-width: 0; }
+.beta-contract-change-form select,
+.beta-contract-change-form input[type="date"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--beta-border);
+  border-radius: 8px;
+  background: var(--beta-control);
+  color: var(--beta-ink);
+  font: inherit;
+}
+.beta-contract-change-form select { overflow: hidden; text-overflow: ellipsis; }
+.beta-contract-change-date { width: 100%; max-width: 240px; justify-self: start; }
+.beta-tier-request-form { grid-template-columns: minmax(0, 1fr) minmax(190px, 240px); }
 .beta-service-model-history { margin-top: 18px; border-top: 1px solid var(--beta-border); padding-top: 14px; }
 .beta-service-model-history summary,
 .beta-service-change-thread summary { cursor: pointer; color: var(--beta-blue); font-weight: 700; }
@@ -1971,6 +2058,9 @@
     left: 0;
     top: 0;
     width: min(84vw, 320px);
+    height: 100vh;
+    height: 100dvh;
+    padding: max(16px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
     transform: translateX(-105%);
     transition: transform .2s ease;
     box-shadow: 18px 0 50px rgba(0, 0, 0, .18);
@@ -2008,6 +2098,7 @@
   .beta-page-header h1 { font-size: 30px; }
   .beta-assignment-grid, .beta-property-grid, .beta-card-grid, .beta-form-grid,
   .beta-dashboard .property-cards, .beta-security-overview, .beta-security-grid { grid-template-columns: 1fr; }
+  .beta-contract-change-date { max-width: none; }
   .beta-resource-earnings-list > div,
   .beta-resource-payout-list article { grid-template-columns: 1fr; align-items: start; }
   .beta-resource-header-actions { flex-wrap: wrap; justify-content: flex-end; }

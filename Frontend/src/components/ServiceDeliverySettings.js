@@ -351,7 +351,7 @@ export default function ServiceDeliverySettings() {
                       <h3>Change service model</h3>
                       <p>Request a move between Full-stack SaaS, Managed service, and Hybrid delivery.</p>
                     </div>
-                    <form className="beta-form-grid" onSubmit={submitServiceModelRequest}>
+                    <form className="beta-form-grid beta-contract-change-form" onSubmit={submitServiceModelRequest}>
                       <label className="beta-form-field">Requested service model
                         <select required value={requestDraft.requestedServiceModel}
                           onChange={(event) => selectRequestedServiceModel(event.target.value)}>
@@ -369,7 +369,7 @@ export default function ServiceDeliverySettings() {
                           </select>
                         </label>
                       )}
-                      <label className="beta-form-field">Service model requested effective date (optional)
+                      <label className="beta-form-field beta-contract-change-date">Service model requested effective date (optional)
                         <input type="date" value={requestDraft.proposedEffectiveDate}
                           onChange={(event) => setRequestDraft((current) => ({ ...current, proposedEffectiveDate: event.target.value }))} />
                       </label>
@@ -397,7 +397,7 @@ export default function ServiceDeliverySettings() {
                         </p>
                       </div>
                       {availableTierIncreases.length ? (
-                        <form className="beta-form-grid" onSubmit={submitTierRequest}>
+                        <form className="beta-form-grid beta-contract-change-form beta-tier-request-form" onSubmit={submitTierRequest}>
                           <label className="beta-form-field">Requested license tier
                             <select required value={tierRequestDraft.requestedLicenseTier}
                               onChange={(event) => setTierRequestDraft((current) => ({ ...current, requestedLicenseTier: event.target.value }))}>
@@ -406,7 +406,7 @@ export default function ServiceDeliverySettings() {
                               ))}
                             </select>
                           </label>
-                          <label className="beta-form-field">Tier requested effective date (optional)
+                          <label className="beta-form-field beta-contract-change-date">Tier requested effective date (optional)
                             <input type="date" value={tierRequestDraft.proposedEffectiveDate}
                               onChange={(event) => setTierRequestDraft((current) => ({ ...current, proposedEffectiveDate: event.target.value }))} />
                           </label>

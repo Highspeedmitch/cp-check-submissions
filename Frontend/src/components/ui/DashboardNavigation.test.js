@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import DashboardNavigation from "./DashboardNavigation";
 
@@ -68,4 +68,61 @@ test("does not show a workspace switcher in mobile navigation for a single-works
   );
 
   expect(screen.queryByRole("button", { name: /Switch to/ })).not.toBeInTheDocument();
+});
+
+test("lets administrators collapse Workspace and Admin tools independently", () => {
+  render(
+    <MemoryRouter>
+      <DashboardNavigation {...defaults} role="admin" accountScope="organization" />
+    </MemoryRouter>
+  );
+
+  const workspaceToggle = screen.getByRole("button", { name: "Workspace" });
+  const adminToolsToggle = screen.getByRole("button", { name: "Admin tools" });
+  expect(workspaceToggle).toHaveAttribute("aria-expanded", "true");
+  expect(adminToolsToggle).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("button", { name: "Setup Guide" })).not.toBeInTheDocument();
+
+  fireEvent.click(adminToolsToggle);
+  expect(adminToolsToggle).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByRole("button", { name: "Setup Guide" })).toBeInTheDocument();
+  expect(workspaceToggle).toHaveAttribute("aria-expanded", "true");
+
+  fireEvent.click(workspaceToggle);
+  expect(workspaceToggle).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("button", { name: "Dashboard" })).not.toBeInTheDocument();
+  expect(adminToolsToggle).toHaveAttribute("aria-expanded", "true");
+});
+
+test("remembers navigation section preferences on the device", () => {
+  const firstRender = render(
+    <MemoryRouter>
+      <DashboardNavigation {...defaults} role="admin" accountScope="organization" />
+    </MemoryRouter>
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Admin tools" }));
+  firstRender.unmount();
+
+  render(
+    <MemoryRouter>
+      <DashboardNavigation {...defaults} role="admin" accountScope="organization" />
+    </MemoryRouter>
+  );
+
+  expect(screen.getByRole("button", { name: "Admin tools" })).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByRole("button", { name: "Setup Guide" })).toBeInTheDocument();
+});
+
+test("keeps logout outside the independently scrolling navigation content", () => {
+  const { container } = render(
+    <MemoryRouter>
+      <DashboardNavigation {...defaults} role="admin" accountScope="organization" />
+    </MemoryRouter>
+  );
+
+  const logout = screen.getByRole("button", { name: "Log out" });
+  expect(logout.closest(".beta-sidebar-footer")).not.toBeNull();
+  expect(logout.closest(".beta-sidebar-scroll")).toBeNull();
+  expect(container.querySelector(".beta-sidebar-scroll")).not.toBeNull();
 });

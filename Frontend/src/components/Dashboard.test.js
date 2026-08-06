@@ -173,6 +173,7 @@ test("valid admin passkey opens the reducer-backed add property form", async () 
     : []);
   renderDashboard("admin");
 
+  fireEvent.click(await screen.findByRole("button", { name: "Admin tools" }));
   fireEvent.click(await screen.findByRole("button", { name: "Add Property" }));
   fireEvent.change(screen.getByLabelText("Organization passkey"), {
     target: { value: "test-passkey" },

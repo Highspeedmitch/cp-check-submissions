@@ -217,9 +217,12 @@ test("a SaaS administrator can request only a higher license tier", async () => 
 
   expect(await screen.findByRole("heading", { name: "Increase license tier" })).toBeInTheDocument();
   const tierSelect = screen.getByLabelText("Requested license tier");
+  const tierDate = screen.getByLabelText("Tier requested effective date (optional)");
+  expect(tierSelect.closest("form")).toHaveClass("beta-tier-request-form");
+  expect(tierDate.closest("label")).toHaveClass("beta-contract-change-date");
   expect([...tierSelect.options].map(({ value }) => value)).toEqual(["tier_2", "tier_3"]);
   fireEvent.change(tierSelect, { target: { value: "tier_3" } });
-  fireEvent.change(screen.getByLabelText("Tier requested effective date (optional)"), {
+  fireEvent.change(tierDate, {
     target: { value: "2026-10-01" },
   });
   fireEvent.change(screen.getByLabelText("Tier increase business reason and operational context"), {
