@@ -9,7 +9,6 @@ import InspectionDraftPersistence from "./InspectionDraftPersistence";
 import {
   deleteInspectionDraft,
   inspectionDraftKey,
-  saveInspectionDraft,
 } from "../services/inspectionDrafts";
     
 function ShortTermRental() {
@@ -39,6 +38,7 @@ function ShortTermRental() {
   const [accessInstructions, setAccessInstructions] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
+  const [draftWarning, setDraftWarning] = useState("");
   const [orgType, setOrgType] = useState(""); // ✅ Add orgType state
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -157,15 +157,9 @@ function ShortTermRental() {
       }
     }
     setSubmitting(true);
+    setDraftWarning("");
     try {
       const { photos, customFields, ...standardResponses } = formData;
-      await saveInspectionDraft({
-        key: draftKey,
-        responses: draftResponses,
-        photoGroups: photos,
-        assignmentId,
-        metadata: draftMetadata,
-      });
       const responses = {
         ...standardResponses,
         ...Object.fromEntries(Object.entries(customFields).map(([key, value]) => [`custom_${key}`, value])),
@@ -177,6 +171,14 @@ function ShortTermRental() {
         responses,
         photoGroups: photos,
         assignmentId,
+        draft: {
+          key: draftKey,
+          responses: draftResponses,
+          photoGroups: photos,
+          assignmentId,
+          metadata: draftMetadata,
+        },
+        onWarning: ({ message: warning }) => setDraftWarning(warning),
         onProgress: ({ phase, completed, total }) => {
           if (phase === "preparing") setMessage("Preparing photo uploads…");
           if (phase === "uploading") setMessage(`Uploading photo ${completed} of ${total}…`);
@@ -184,7 +186,6 @@ function ShortTermRental() {
           if (phase === "processing") setMessage("Generating report…");
         },
       });
-      if (result.status === "failed") throw new Error(result.error || "Report processing failed.");
       setMessage(result.status === "completed"
         ? "Inspection submitted and report generated successfully."
         : "Inspection uploaded and queued for background processing.");
@@ -202,6 +203,7 @@ function ShortTermRental() {
       <h1>{property} – Short-Term Rental Inspection Checklist</h1>
       <h2>Access Instructions</h2>
       <p>{accessInstructions}</p>
+      {draftWarning && <p className="beta-alert notice" role="status">{draftWarning}</p>}
 
       {!submitted && (
         <div className="return-to-dash">

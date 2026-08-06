@@ -10,7 +10,6 @@ import InspectionDraftPersistence from "./InspectionDraftPersistence";
 import {
   deleteInspectionDraft,
   inspectionDraftKey,
-  saveInspectionDraft,
 } from "../services/inspectionDrafts";
 
 const CONDITION_FIELDS = [
@@ -31,6 +30,7 @@ export default function ResidentialForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [draftWarning, setDraftWarning] = useState("");
   const [progress, setProgress] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
   const draftKey = useMemo(() => inspectionDraftKey("residential", property), [property]);
@@ -43,21 +43,23 @@ export default function ResidentialForm() {
     event.preventDefault();
     setSubmitting(true);
     setError("");
+    setDraftWarning("");
     try {
-      await saveInspectionDraft({
-        key: draftKey,
-        responses,
-        photoGroups: photos,
-        assignmentId,
-        metadata: draftMetadata,
-      });
-      const result = await submitInspectionJob({
+      await submitInspectionJob({
         api,
         property,
         orgType: "RES",
         responses,
         photoGroups: photos,
         assignmentId,
+        draft: {
+          key: draftKey,
+          responses,
+          photoGroups: photos,
+          assignmentId,
+          metadata: draftMetadata,
+        },
+        onWarning: ({ message }) => setDraftWarning(message),
         onProgress: ({ phase, completed, total }) => {
           if (phase === "preparing") setProgress("Preparing photo uploads…");
           if (phase === "uploading") setProgress(`Uploading photo ${completed} of ${total}…`);
@@ -65,7 +67,6 @@ export default function ResidentialForm() {
           if (phase === "processing") setProgress("Generating report…");
         },
       });
-      if (result.status === "failed") throw new Error(result.error || "Report processing failed.");
       await deleteInspectionDraft(draftKey).catch(() => {});
       setSubmitted(true);
     } catch (requestError) {
@@ -83,6 +84,7 @@ export default function ResidentialForm() {
           subtitle="Complete the inspection and attach photographic evidence for any concerns."
           actions={<ContextualHelpLink slug="complete-and-submit-an-inspection" />} />
         {error && <p className="beta-alert error">{error}</p>}
+        {draftWarning && <p className="beta-alert notice" role="status">{draftWarning}</p>}
         {submitting && progress && <p className="beta-alert" role="status">{progress}</p>}
         {!submitted && <InspectionDraftPersistence
           draftKey={draftKey}

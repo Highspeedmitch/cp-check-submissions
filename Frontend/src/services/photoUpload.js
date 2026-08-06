@@ -1,5 +1,51 @@
+import { saveInspectionDraft } from "./inspectionDrafts";
+import { captureFrontendException } from "./monitoring";
+
 const DEFAULT_MAX_DIMENSION = 1600;
 const DEFAULT_QUALITY = 0.82;
+
+export class InspectionSubmissionError extends Error {
+  constructor(message, phase, cause = null, jobId = "") {
+    super(message);
+    this.name = "InspectionSubmissionError";
+    this.phase = phase;
+    this.jobId = jobId;
+    this.cause = cause;
+  }
+}
+
+function submissionContext({ orgType, photoCount, jobId = "" }) {
+  return {
+    tags: {
+      area: "inspection_submission",
+      phase: "unknown",
+    },
+    extra: {
+      orgType: String(orgType || "unknown"),
+      photoCount: Number(photoCount || 0),
+      ...(jobId ? { jobId: String(jobId) } : {}),
+    },
+  };
+}
+
+function recordSubmissionFailure(error, phase, context, level = "error") {
+  captureFrontendException(error, {
+    ...context,
+    tags: { ...context.tags, phase },
+    level,
+  });
+}
+
+function phaseError(error, phase, message, context, jobId = "") {
+  if (error instanceof InspectionSubmissionError) return error;
+  recordSubmissionFailure(error, phase, context);
+  return new InspectionSubmissionError(message, phase, error, jobId);
+}
+
+function preparationMessage(error) {
+  if (Number(error?.status) > 0 && error?.message) return error.message;
+  return "Afterlight could not begin this inspection submission. Check your connection and try again.";
+}
 
 export function scaledDimensions(width, height, maxDimension = DEFAULT_MAX_DIMENSION) {
   if (width <= maxDimension && height <= maxDimension) return { width, height };
@@ -141,37 +187,110 @@ export async function submitInspectionJob({
   responses,
   photoGroups,
   assignmentId = "",
+  draft: offlineDraft = null,
+  saveDraft = saveInspectionDraft,
   onProgress,
+  onWarning,
 }) {
   const photos = flattenPhotoGroups(photoGroups);
+  const context = submissionContext({ orgType, photoCount: photos.length });
   const fingerprint = inspectionDraftIdentity({ property, orgType, assignmentId, responses, photos });
-  const draft = draftIdempotency(property, fingerprint);
+  const uploadDraft = draftIdempotency(property, fingerprint);
   onProgress?.({ phase: "preparing", total: photos.length });
-  const prepared = await api.post("/api/inspection-jobs", {
-    property,
-    orgType,
-    assignmentId: assignmentId || undefined,
-    responses,
-    idempotencyKey: draft.key,
-    photos: photos.map(({ fieldName, file }) => ({ fieldName, fileName: file.name })),
-  });
+
+  if (offlineDraft) {
+    try {
+      await saveDraft(offlineDraft);
+    } catch (error) {
+      recordSubmissionFailure(error, "draft_storage", context, "warning");
+      onWarning?.({
+        phase: "draft_storage",
+        message: "This browser could not update the offline draft. Submission will continue.",
+      });
+    }
+  }
+
+  let prepared;
+  try {
+    prepared = await api.post("/api/inspection-jobs", {
+      property,
+      orgType,
+      assignmentId: assignmentId || undefined,
+      responses,
+      idempotencyKey: uploadDraft.key,
+      photos: photos.map(({ fieldName, file }) => ({ fieldName, fileName: file.name })),
+    });
+  } catch (error) {
+    throw phaseError(error, "api_preparation", preparationMessage(error), context);
+  }
+
+  const jobId = String(prepared.jobId || "");
+  const jobContext = submissionContext({ orgType, photoCount: photos.length, jobId });
 
   if (prepared.status === "uploading") {
     if (prepared.uploads.length !== photos.length) {
-      throw new Error("The server returned an incomplete photo upload plan.");
+      const error = new Error("The server returned an incomplete photo upload plan.");
+      throw phaseError(
+        error,
+        "photo_upload_plan",
+        "Afterlight returned an incomplete photo upload plan. Try submitting the inspection again.",
+        jobContext,
+        jobId
+      );
     }
     for (let index = 0; index < photos.length; index += 1) {
       const optimized = await optimizePhoto(photos[index].file);
-      await uploadToSignedPost(prepared.uploads[index], optimized);
+      try {
+        await uploadToSignedPost(prepared.uploads[index], optimized);
+      } catch (error) {
+        throw phaseError(
+          error,
+          "photo_upload",
+          "A photo could not be uploaded. Check your connection and try again; the inspection form remains open.",
+          jobContext,
+          jobId
+        );
+      }
       onProgress?.({ phase: "uploading", completed: index + 1, total: photos.length });
     }
-    await api.post(`/api/inspection-jobs/${prepared.jobId}/complete-uploads`, {});
+    try {
+      await api.post(`/api/inspection-jobs/${prepared.jobId}/complete-uploads`, {});
+    } catch (error) {
+      throw phaseError(
+        error,
+        "upload_finalization",
+        "The photos uploaded, but Afterlight could not queue the inspection. Try submitting again to safely resume.",
+        jobContext,
+        jobId
+      );
+    }
   }
 
   onProgress?.({ phase: "queued", jobId: prepared.jobId });
-  const result = await waitForInspectionJob(api, prepared.jobId, { onProgress });
-  if (draft.storageKey && ["queued", "processing", "completed", "failed"].includes(result.status)) {
-    window.localStorage.removeItem(draft.storageKey);
+  let result;
+  try {
+    result = await waitForInspectionJob(api, prepared.jobId, { onProgress });
+  } catch (error) {
+    throw phaseError(
+      error,
+      "status_refresh",
+      "The inspection was queued, but its status could not be refreshed. Check the dashboard before submitting again.",
+      jobContext,
+      jobId
+    );
+  }
+  if (result.status === "failed") {
+    const error = new Error(result.error || "Report processing failed.");
+    throw phaseError(
+      error,
+      "report_processing",
+      result.error || "Afterlight could not generate the inspection report.",
+      jobContext,
+      jobId
+    );
+  }
+  if (uploadDraft.storageKey && ["queued", "processing", "completed", "failed"].includes(result.status)) {
+    window.localStorage.removeItem(uploadDraft.storageKey);
   }
   return result;
 }

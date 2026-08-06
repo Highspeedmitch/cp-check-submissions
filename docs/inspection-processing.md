@@ -11,24 +11,28 @@ The retired multipart `/api/submit-form` route is no longer available. All inspe
 
 ## S3 CORS
 
-The inspection bucket must permit browser POSTs from every deployed frontend origin. Replace or extend the origins when production receives its final domain.
+The inspection bucket must permit browser POSTs from every deployed frontend origin. The reviewed rule is versioned in `infra/inspection-bucket-cors.json` and currently includes:
 
-```json
-[
-  {
-    "AllowedOrigins": [
-      "https://afterlightinspections-dev.onrender.com",
-      "http://localhost:3000"
-    ],
-    "AllowedMethods": ["POST"],
-    "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag"],
-    "MaxAgeSeconds": 3600
-  }
-]
-```
+- `https://app.afterlightinspections.com`
+- `https://dev.afterlightinspections.com`
+- the legacy Development Render hostname
+- `http://localhost:3000` for local testing.
+
+Check a bucket without changing it:
+
+    .\scripts\configure-inspection-bucket-cors.ps1 -Bucket <bucket-name>
+
+After reviewing the reported drift, apply and verify the named rule:
+
+    .\scripts\configure-inspection-bucket-cors.ps1 -Bucket <bucket-name> -ExpectedBucketOwner <aws-account-id> -Apply
+
+The script merges the `afterlight-browser-inspection-uploads` rule into the live configuration and preserves unrelated named or unnamed rules. Do not use a bare `put-bucket-cors` command with only the inspection rule because Amazon S3 replaces the bucket's complete CORS configuration.
 
 The backend AWS identity needs `s3:PutObject`, `s3:GetObject`, and `s3:DeleteObject` for the inspection bucket. Add an S3 lifecycle rule that expires incomplete objects under `inspection-uploads/` after two days as a final safeguard against abandoned browser uploads.
+
+## Browser draft resilience
+
+Offline draft storage is best-effort. A browser that blocks IndexedDB or cannot persist a photo blob displays a warning, reports the `draft_storage` phase to configured frontend monitoring, and continues with the inspection API. Submission failures are classified as API preparation, photo upload, upload finalization, status refresh, or report processing so the user does not receive the browser's generic network error.
 
 ## Amazon SES delivery
 

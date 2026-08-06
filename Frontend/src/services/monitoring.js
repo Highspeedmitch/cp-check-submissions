@@ -22,6 +22,17 @@ export function initializeFrontendMonitoring(env = process.env) {
   return true;
 }
 
+export function captureFrontendException(error, context = {}) {
+  if (!initialized) return false;
+  Sentry.withScope((scope) => {
+    if (context.tags) scope.setTags(context.tags);
+    if (context.extra) scope.setExtras(context.extra);
+    if (context.level) scope.setLevel(context.level);
+    Sentry.captureException(error);
+  });
+  return true;
+}
+
 export function MonitoringBoundary({ children }) {
   if (!initialized) return children;
   return (

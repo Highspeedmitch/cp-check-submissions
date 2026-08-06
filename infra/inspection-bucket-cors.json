@@ -1,0 +1,23 @@
+{
+  "CORSRules": [
+    {
+      "ID": "afterlight-browser-inspection-uploads",
+      "AllowedHeaders": [
+        "*"
+      ],
+      "AllowedMethods": [
+        "POST"
+      ],
+      "AllowedOrigins": [
+        "https://app.afterlightinspections.com",
+        "https://dev.afterlightinspections.com",
+        "https://afterlightinspections-dev.onrender.com",
+        "http://localhost:3000"
+      ],
+      "ExposeHeaders": [
+        "ETag"
+      ],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}

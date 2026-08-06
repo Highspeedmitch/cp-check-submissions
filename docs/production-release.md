@@ -82,7 +82,7 @@ If Okta sign-in is enabled, also set `REACT_APP_OKTA_ISSUER`,
 application must allow the Production `/login/callback` redirect URI.
 
 The S3 bucket CORS policy must allow browser `POST` requests from the exact
-Production frontend origin. See [inspection-processing.md](inspection-processing.md).
+Production frontend origin. Verify the versioned inspection upload CORS rule for the configured S3 bucket before smoke testing photo submission. See [inspection-processing.md](inspection-processing.md).
 
 ## 4. Preconfigure Production organizations
 
