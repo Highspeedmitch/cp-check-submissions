@@ -6,6 +6,11 @@ const TIER_LIMITS = Object.freeze({
   tier_2: Object.freeze({ adminLimit: 3, userLimit: 20, propertyLimit: 50 }),
   tier_3: Object.freeze({ adminLimit: 5, userLimit: 50, propertyLimit: 250 }),
 });
+const HYBRID_PORTFOLIO_MINIMUMS = Object.freeze({
+  tier_1: 15,
+  tier_2: 12,
+  tier_3: 10,
+});
 
 function isPositiveInteger(value) {
   return Number.isInteger(value) && value > 0;
@@ -46,6 +51,9 @@ function resolveLicenseEntitlements(organization = {}) {
     adminLimit: managed ? null : configuredAdminLimit || defaults.adminLimit,
     userLimit: managed ? null : configuredUserLimit || defaults.userLimit,
     propertyLimit: managed ? null : configuredPropertyLimit || defaults.propertyLimit,
+    afterlightPortfolioMinimumPercent: serviceModel === "hybrid"
+      ? HYBRID_PORTFOLIO_MINIMUMS[tier]
+      : null,
     label: managed
       ? "Managed service"
       : `${serviceModel === "platform" ? "Full Stack SaaS" : "Hybrid"} Tier ${tier.slice(-1)}`,
@@ -115,6 +123,7 @@ module.exports = {
   LICENSE_TIERS,
   METERED_SERVICE_MODELS,
   TIER_LIMITS,
+  HYBRID_PORTFOLIO_MINIMUMS,
   normalizedTier,
   resolveLicenseEntitlements,
   defaultStoredLicense,

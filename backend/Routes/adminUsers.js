@@ -25,7 +25,13 @@ const {
   expireInvitations,
 } = require("../services/organizationInvitations");
 const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails");
-const { summarizeAdminSeats } = require("../services/licenseEntitlements");
+const {
+  LICENSE_TIERS,
+  TIER_LIMITS,
+  HYBRID_PORTFOLIO_MINIMUMS,
+  resolveLicenseEntitlements,
+  summarizeAdminSeats,
+} = require("../services/licenseEntitlements");
 const { createLicensedAdminInvitations } = require("../services/licensedAdminInvitations");
 const { notifyPlatformAdministrators } = require("../services/notifications");
 const { administratorLicenseRequested } = require("../services/notificationEvents");
@@ -94,6 +100,12 @@ router.get("/", async (req, res) => {
     administrators,
     adminInvitations,
     adminSeats: summarizeAdminSeats({ organization, administrators, invitations: adminInvitations }),
+    license: resolveLicenseEntitlements(organization),
+    licenseOptions: {
+      tiers: LICENSE_TIERS,
+      tierLimits: TIER_LIMITS,
+      hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
+    },
     properties: organization.properties.map((property) => ({
       _id: property._id,
       name: property.name,

@@ -96,6 +96,24 @@ test("service model workflow events link each recipient to the correct workspace
   assert.equal(serviceModelChangeEvent(request, "Example Org", "denied").type, "service_model_change_denied");
 });
 
+test("license tier workflow events share the contract-review routes without becoming service-model events", () => {
+  const request = { _id: "request-tier-1", changeType: "license_tier" };
+  assert.equal(serviceModelChangeEvent(request, "Example Org", "requested").type, "license_tier_change_requested");
+  assert.equal(serviceModelChangeEvent(request, "Example Org", "requested").route, "/platform?view=service-models");
+  assert.equal(serviceModelChangeEvent(request, "Example Org", "approved").type, "license_tier_change_approved");
+  assert.equal(serviceModelChangeEvent(request, "Example Org", "approved").route, "/service-delivery");
+});
+
+test("custom capacity workflow events share service-plan review routes", () => {
+  const request = { _id: "request-capacity-1", changeType: "custom_capacity" };
+  const requested = serviceModelChangeEvent(request, "Example Org", "requested");
+  assert.equal(requested.type, "custom_capacity_change_requested");
+  assert.equal(requested.route, "/platform?view=service-models");
+  assert.match(requested.body, /administrator capacity/);
+  assert.equal(serviceModelChangeEvent(request, "Example Org", "approved").type, "custom_capacity_change_approved");
+  assert.equal(serviceModelChangeEvent(request, "Example Org", "approved").route, "/service-delivery");
+});
+
 test("administrator license requests alert platform administrators", () => {
   const event = administratorLicenseRequested(
     { _id: "audit-1" },

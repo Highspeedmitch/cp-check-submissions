@@ -12,6 +12,13 @@ const {
   propertyDefaultSource,
 } = require("../services/fulfillmentPolicy");
 const { consumeGrant } = require("../services/organizationPasskeys");
+const {
+  LICENSE_TIERS,
+  METERED_SERVICE_MODELS,
+  TIER_LIMITS,
+  HYBRID_PORTFOLIO_MINIMUMS,
+  resolveLicenseEntitlements,
+} = require("../services/licenseEntitlements");
 
 const router = express.Router();
 
@@ -37,6 +44,7 @@ function requestAuditDetails(req) {
 
 function serializeSettings(organization) {
   const organizationSource = organizationDefaultSource(organization);
+  const entitlements = resolveLicenseEntitlements(organization);
   return {
     organization: {
       id: organization._id,
@@ -45,6 +53,14 @@ function serializeSettings(organization) {
       defaultSource: organizationSource,
       policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
       updatedAt: organization.fulfillmentPolicy?.updatedAt || null,
+      license: {
+        tier: entitlements.tier,
+        adminLimit: entitlements.adminLimit,
+        userLimit: entitlements.userLimit,
+        propertyLimit: entitlements.propertyLimit,
+        afterlightPortfolioMinimumPercent: entitlements.afterlightPortfolioMinimumPercent,
+        planLabel: entitlements.label,
+      },
     },
     properties: (organization.properties || []).map((property) => ({
       id: property._id,
@@ -59,6 +75,10 @@ function serializeSettings(organization) {
       fulfillmentSources: FULFILLMENT_SOURCES,
       serviceModelDefaults: SERVICE_MODEL_DEFAULTS,
       sourcePolicies: SOURCE_POLICIES,
+      licenseTiers: LICENSE_TIERS,
+      tierLimits: TIER_LIMITS,
+      hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
+      meteredServiceModels: [...METERED_SERVICE_MODELS],
     },
   };
 }

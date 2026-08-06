@@ -15,6 +15,12 @@ const SERVICE_MODEL_LABELS = {
   hybrid: "Hybrid",
 };
 
+const LICENSE_TIER_LABELS = {
+  tier_1: "Tier 1",
+  tier_2: "Tier 2",
+  tier_3: "Tier 3",
+};
+
 const SOURCE_LABELS = {
   customer_employee: "Customer employee",
   customer_contractor: "Customer contractor",
@@ -36,7 +42,52 @@ const REQUEST_STATUS_LABELS = {
   canceled: "Canceled",
 };
 
-const EMPTY_REQUEST = { requestedServiceModel: "", reason: "", proposedEffectiveDate: "" };
+const EMPTY_REQUEST = {
+  changeType: "service_model",
+  requestedServiceModel: "",
+  requestedLicenseTier: "",
+  reason: "",
+  proposedEffectiveDate: "",
+};
+const EMPTY_TIER_REQUEST = {
+  changeType: "license_tier",
+  requestedLicenseTier: "",
+  reason: "",
+  proposedEffectiveDate: "",
+};
+
+function requestPlanLabel(request, requested = false) {
+  const model = requested ? request.requestedServiceModel : request.currentServiceModel;
+  const tier = requested ? request.requestedLicenseTier : request.currentLicenseTier;
+  return `${SERVICE_MODEL_LABELS[model] || model}${tier ? ` ${LICENSE_TIER_LABELS[tier]}` : ""}`;
+}
+
+function requestTypeLabel(request) {
+  if (request.changeType === "license_tier") return "Tier increase";
+  if (request.changeType === "custom_capacity") return "Custom capacity";
+  return "Service model";
+}
+
+function requestSummary(request) {
+  if (request.changeType === "custom_capacity") {
+    return `${request.organizationSnapshot?.currentAdminLimit} → ${request.organizationSnapshot?.requestedAdminLimit} administrator seats`;
+  }
+  return `${requestPlanLabel(request)} → ${requestPlanLabel(request, true)}`;
+}
+
+function limitSummary(limits) {
+  return `${limits.adminLimit} administrators, ${limits.userLimit} users, ${limits.propertyLimit} properties`;
+}
+
+function tierOptionSummary(settings, serviceModel, tier) {
+  const capacity = limitSummary(settings.options.tierLimits[tier]);
+  const hybridMinimum = serviceModel === "hybrid"
+    ? settings.options.hybridPortfolioMinimums?.[tier]
+    : null;
+  return hybridMinimum == null
+    ? capacity
+    : `${capacity}, ${hybridMinimum}% monthly portfolio minimum assigned to Afterlight`;
+}
 
 export default function ServiceDeliverySettings() {
   const navigate = useNavigate();
@@ -50,6 +101,7 @@ export default function ServiceDeliverySettings() {
   const [policySavePromptVisible, setPolicySavePromptVisible] = useState(false);
   const [requests, setRequests] = useState([]);
   const [requestDraft, setRequestDraft] = useState(EMPTY_REQUEST);
+  const [tierRequestDraft, setTierRequestDraft] = useState(EMPTY_TIER_REQUEST);
   const [informationResponse, setInformationResponse] = useState("");
 
   const load = async () => {
@@ -68,6 +120,17 @@ export default function ServiceDeliverySettings() {
       ...current,
       requestedServiceModel: current.requestedServiceModel
         || nextSettings.options.serviceModels.find((model) => model !== nextSettings.organization.serviceModel)
+        || "",
+      requestedLicenseTier: current.requestedLicenseTier
+        || nextSettings.organization.license?.tier
+        || nextSettings.options.licenseTiers?.[0]
+        || "",
+    }));
+    const currentTierIndex = nextSettings.options.licenseTiers?.indexOf(nextSettings.organization.license?.tier);
+    setTierRequestDraft((current) => ({
+      ...current,
+      requestedLicenseTier: current.requestedLicenseTier
+        || nextSettings.options.licenseTiers?.[currentTierIndex + 1]
         || "",
     }));
   };
@@ -129,7 +192,11 @@ export default function ServiceDeliverySettings() {
     try {
       const created = await api.post("/api/service-model-changes", requestDraft);
       setRequests((current) => [created, ...current]);
-      setRequestDraft((current) => ({ ...EMPTY_REQUEST, requestedServiceModel: current.requestedServiceModel }));
+      setRequestDraft((current) => ({
+        ...EMPTY_REQUEST,
+        requestedServiceModel: current.requestedServiceModel,
+        requestedLicenseTier: current.requestedLicenseTier,
+      }));
       setMessage(created.emailDelivered
         ? "Service model change requested. Afterlight platform administration was notified."
         : "Service model change requested. It is visible to platform administration, but the notification email could not be delivered.");
@@ -138,6 +205,39 @@ export default function ServiceDeliverySettings() {
     } finally {
       setSaving("");
     }
+  };
+
+  const submitTierRequest = async (event) => {
+    event.preventDefault();
+    setSaving("tier-request");
+    setMessage("");
+    setError("");
+    try {
+      const created = await api.post("/api/service-model-changes", tierRequestDraft);
+      setRequests((current) => [created, ...current]);
+      setTierRequestDraft((current) => ({
+        ...EMPTY_TIER_REQUEST,
+        requestedLicenseTier: current.requestedLicenseTier,
+      }));
+      setMessage(created.emailDelivered
+        ? "License tier increase requested. Afterlight platform administration was notified."
+        : "License tier increase requested. It is visible to platform administration, but the notification email could not be delivered.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setSaving("");
+    }
+  };
+
+  const selectRequestedServiceModel = (requestedServiceModel) => {
+    const tiered = settings.options.meteredServiceModels?.includes(requestedServiceModel);
+    setRequestDraft((current) => ({
+      ...current,
+      requestedServiceModel,
+      requestedLicenseTier: tiered
+        ? settings.organization.license?.tier || settings.options.licenseTiers?.[0] || ""
+        : "",
+    }));
   };
 
   const submitAdditionalInformation = async (requestId) => {
@@ -161,6 +261,16 @@ export default function ServiceDeliverySettings() {
   };
 
   const activeRequest = requests.find((request) => ["pending_review", "information_requested"].includes(request.status));
+  const tieredOrganization = Boolean(
+    settings?.options.meteredServiceModels?.includes(settings.organization.serviceModel)
+  );
+  const currentTier = settings?.organization.license?.tier || null;
+  const availableTierIncreases = tieredOrganization
+    ? (settings.options.licenseTiers || []).slice((settings.options.licenseTiers || []).indexOf(currentTier) + 1)
+    : [];
+  const requestedModelUsesTiers = Boolean(
+    settings?.options.meteredServiceModels?.includes(requestDraft.requestedServiceModel)
+  );
 
   const saveProperty = async (propertyId, defaultSource) => {
     setSaving(propertyId);
@@ -204,16 +314,20 @@ export default function ServiceDeliverySettings() {
               <div className="beta-section-heading">
                 <div>
                   <p className="beta-eyebrow">Contract-controlled setting</p>
-                  <h2>Service model</h2>
-                  <p>Afterlight reviews and applies changes that affect contracted service delivery.</p>
+                  <h2>Service plan</h2>
+                  <p>Afterlight reviews and applies changes that affect contracted service delivery and licensed capacity.</p>
                 </div>
-                <span className="beta-status success">{SERVICE_MODEL_LABELS[settings.organization.serviceModel]}</span>
+                <div className="beta-card-actions">
+                  <span className="beta-status success">{SERVICE_MODEL_LABELS[settings.organization.serviceModel]}</span>
+                  {tieredOrganization && <span className="beta-status success">{LICENSE_TIER_LABELS[currentTier]}</span>}
+                </div>
               </div>
               {activeRequest ? (
                 <div className="beta-service-model-request-summary">
                   <div className="beta-card-header">
                     <div>
-                      <strong>{SERVICE_MODEL_LABELS[activeRequest.currentServiceModel]} → {SERVICE_MODEL_LABELS[activeRequest.requestedServiceModel]}</strong>
+                      <span className="beta-status">{requestTypeLabel(activeRequest)}</span>
+                      <strong>{requestSummary(activeRequest)}</strong>
                       <p>Requested {new Date(activeRequest.createdAt).toLocaleString()}</p>
                     </div>
                     <span className={`beta-status ${activeRequest.status}`}>{REQUEST_STATUS_LABELS[activeRequest.status]}</span>
@@ -231,36 +345,95 @@ export default function ServiceDeliverySettings() {
                   )}
                 </div>
               ) : (
-                <form className="beta-form-grid" onSubmit={submitServiceModelRequest}>
-                  <label className="beta-form-field">Requested service model
-                    <select required value={requestDraft.requestedServiceModel}
-                      onChange={(event) => setRequestDraft((current) => ({ ...current, requestedServiceModel: event.target.value }))}>
-                      {settings.options.serviceModels.filter((model) => model !== settings.organization.serviceModel)
-                        .map((model) => <option key={model} value={model}>{SERVICE_MODEL_LABELS[model]}</option>)}
-                    </select>
-                  </label>
-                  <label className="beta-form-field">Proposed effective date (optional)
-                    <input type="date" value={requestDraft.proposedEffectiveDate}
-                      onChange={(event) => setRequestDraft((current) => ({ ...current, proposedEffectiveDate: event.target.value }))} />
-                  </label>
-                  <label className="beta-form-field full">Business reason and operational context
-                    <textarea required maxLength="2000" value={requestDraft.reason}
-                      placeholder="Describe why the organization is requesting this change and any timing considerations."
-                      onChange={(event) => setRequestDraft((current) => ({ ...current, reason: event.target.value }))} />
-                  </label>
-                  <div className="beta-card-actions full">
-                    <button className="beta-button" type="submit" disabled={saving === "service-model-request"}>
-                      {saving === "service-model-request" ? "Submitting..." : "Request service model change"}
-                    </button>
+                <>
+                  <div className="beta-contract-change-option">
+                    <div>
+                      <h3>Change service model</h3>
+                      <p>Request a move between Full-stack SaaS, Managed service, and Hybrid delivery.</p>
+                    </div>
+                    <form className="beta-form-grid" onSubmit={submitServiceModelRequest}>
+                      <label className="beta-form-field">Requested service model
+                        <select required value={requestDraft.requestedServiceModel}
+                          onChange={(event) => selectRequestedServiceModel(event.target.value)}>
+                          {settings.options.serviceModels.filter((model) => model !== settings.organization.serviceModel)
+                            .map((model) => <option key={model} value={model}>{SERVICE_MODEL_LABELS[model]}</option>)}
+                        </select>
+                      </label>
+                      {requestedModelUsesTiers && (
+                        <label className="beta-form-field">Requested service model tier
+                          <select required value={requestDraft.requestedLicenseTier}
+                            onChange={(event) => setRequestDraft((current) => ({ ...current, requestedLicenseTier: event.target.value }))}>
+                            {settings.options.licenseTiers.map((tier) => (
+                              <option key={tier} value={tier}>{LICENSE_TIER_LABELS[tier]} · {tierOptionSummary(settings, requestDraft.requestedServiceModel, tier)}</option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      <label className="beta-form-field">Service model requested effective date (optional)
+                        <input type="date" value={requestDraft.proposedEffectiveDate}
+                          onChange={(event) => setRequestDraft((current) => ({ ...current, proposedEffectiveDate: event.target.value }))} />
+                      </label>
+                      <label className="beta-form-field full">Service model business reason and operational context
+                        <textarea required maxLength="2000" value={requestDraft.reason}
+                          placeholder="Describe why the organization is requesting this change and any timing considerations."
+                          onChange={(event) => setRequestDraft((current) => ({ ...current, reason: event.target.value }))} />
+                      </label>
+                      <div className="beta-card-actions full">
+                        <button className="beta-button" type="submit" disabled={saving === "service-model-request"}>
+                          {saving === "service-model-request" ? "Submitting..." : "Request service model change"}
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                </form>
+                  {tieredOrganization && (
+                    <div className="beta-contract-change-option">
+                      <div>
+                        <h3>Increase license tier</h3>
+                        <p>
+                          Current capacity: {limitSummary(settings.organization.license)}
+                          {settings.organization.license.afterlightPortfolioMinimumPercent != null
+                            ? `, ${settings.organization.license.afterlightPortfolioMinimumPercent}% monthly portfolio minimum assigned to Afterlight`
+                            : ""}.
+                        </p>
+                      </div>
+                      {availableTierIncreases.length ? (
+                        <form className="beta-form-grid" onSubmit={submitTierRequest}>
+                          <label className="beta-form-field">Requested license tier
+                            <select required value={tierRequestDraft.requestedLicenseTier}
+                              onChange={(event) => setTierRequestDraft((current) => ({ ...current, requestedLicenseTier: event.target.value }))}>
+                              {availableTierIncreases.map((tier) => (
+                                <option key={tier} value={tier}>{LICENSE_TIER_LABELS[tier]} · {tierOptionSummary(settings, settings.organization.serviceModel, tier)}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="beta-form-field">Tier requested effective date (optional)
+                            <input type="date" value={tierRequestDraft.proposedEffectiveDate}
+                              onChange={(event) => setTierRequestDraft((current) => ({ ...current, proposedEffectiveDate: event.target.value }))} />
+                          </label>
+                          <label className="beta-form-field full">Tier increase business reason and operational context
+                            <textarea required maxLength="2000" value={tierRequestDraft.reason}
+                              placeholder="Describe the expected growth, current capacity need, and requested timing."
+                              onChange={(event) => setTierRequestDraft((current) => ({ ...current, reason: event.target.value }))} />
+                          </label>
+                          <div className="beta-card-actions full">
+                            <button className="beta-button" type="submit" disabled={saving === "tier-request"}>
+                              {saving === "tier-request" ? "Submitting..." : "Request tier increase"}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <p className="beta-field-help">This organization is on the highest standard tier. When administrator seats are full, request custom capacity from User Management.</p>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
               {requests.filter((request) => !["pending_review", "information_requested"].includes(request.status)).length > 0 && (
                 <details className="beta-service-model-history">
-                  <summary>Previous service model requests</summary>
+                  <summary>Previous service plan requests</summary>
                   {requests.filter((request) => !["pending_review", "information_requested"].includes(request.status)).map((request) => (
                     <div key={request._id}>
-                      <span>{SERVICE_MODEL_LABELS[request.currentServiceModel]} → {SERVICE_MODEL_LABELS[request.requestedServiceModel]}</span>
+                      <span>{requestSummary(request)}</span>
                       <span className={`beta-status ${request.status}`}>{REQUEST_STATUS_LABELS[request.status]}</span>
                     </div>
                   ))}

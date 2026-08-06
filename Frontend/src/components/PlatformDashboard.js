@@ -46,7 +46,7 @@ function PlatformNavigation({ open, activeView, notificationBadges, onClose, onV
           <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}>Overview</button>
           <button type="button" className={`beta-nav-item${activeView === "billing" ? " active" : ""}`} onClick={() => go("billing")}><span>Service Billing</span>{notificationBadges.platformBilling > 0 && <span className="beta-nav-badge">{notificationBadges.platformBilling > 9 ? "9+" : notificationBadges.platformBilling}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}><span>Resources &amp; Payables</span>{notificationBadges.resources > 0 && <span className="beta-nav-badge">{notificationBadges.resources > 9 ? "9+" : notificationBadges.resources}</span>}</button>
-          <button type="button" className={`beta-nav-item${activeView === "service-models" ? " active" : ""}`} onClick={() => go("service-models")}><span>Service Model Requests</span>{notificationBadges.serviceModels > 0 && <span className="beta-nav-badge">{notificationBadges.serviceModels > 9 ? "9+" : notificationBadges.serviceModels}</span>}</button>
+          <button type="button" className={`beta-nav-item${activeView === "service-models" ? " active" : ""}`} onClick={() => go("service-models")}><span>Service Plan Requests</span>{notificationBadges.serviceModels > 0 && <span className="beta-nav-badge">{notificationBadges.serviceModels > 9 ? "9+" : notificationBadges.serviceModels}</span>}</button>
           <button type="button" className="beta-nav-item" onClick={() => { onHelp(); onClose(); }}>Help Center</button>
           <button type="button" className="beta-nav-item platform-new-org-button" onClick={() => { onNewOrganization(); onClose(); }}>
             <span>New Organization</span><span aria-hidden="true">+</span>
@@ -406,8 +406,8 @@ export default function PlatformDashboard() {
           <strong>Platform</strong><span className="beta-avatar" aria-hidden="true">A</span>
         </div>
         <PageHeader eyebrow="Platform administration"
-          title={activeView === "overview" ? "Organization Overview" : activeView === "billing" ? "Service Billing" : activeView === "resources" ? "Resources & Payables" : activeView === "service-models" ? "Service Model Requests" : "Complimentary Reports"}
-          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization contract-change requests." : "Create and manage standalone property opportunity reports."}
+          title={activeView === "overview" ? "Organization Overview" : activeView === "billing" ? "Service Billing" : activeView === "resources" ? "Resources & Payables" : activeView === "service-models" ? "Service Plan Requests" : "Complimentary Reports"}
+          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization service-model and license-tier requests." : "Create and manage standalone property opportunity reports."}
           actions={<ContextualHelpLink slug={helpSlug} />} />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}

@@ -4,7 +4,9 @@
 
 Use **User Management** to invite people, assign roles and properties, suspend access, and retain former-user history without deleting operational records.
 
-## Invite a user
+Administrator access is managed separately in the **Administrator seats** section at the top of the page. See [Invite organization administrators and manage licensed seats](manage-administrator-seats.md) when the new person needs full organization access.
+
+## Invite a non-administrator user
 
 1. From the Dashboard navigation, open **Users**.
 2. Under **Invitations**, select **Invite User**.
@@ -13,6 +15,8 @@ Use **User Management** to invite people, assign roles and properties, suspend a
 5. Select **Send Invitation**.
 
 The invitation is single-use and expires. A pending or expired invitation can be resent. Revoking an invitation immediately invalidates its current link.
+
+The roles in this standard invitation form do not include organization administrator. Use **Invite Administrator** in the licensed seat panel for that role.
 
 If email delivery fails, the invitation remains in the pending list so you can resend it. Do not send a second invitation to another spelling of the same person's email to work around a delivery or account problem.
 
@@ -39,7 +43,7 @@ Archiving is appropriate when a non-administrator has left the organization and 
 
 Afterlight removes the user's organization access and current property-manager or property-owner assignments, revokes their sessions, and moves the record to **Archived Users**. Completed assignments, submissions, and audit history remain available.
 
-Organization administrators cannot be archived from this directory. Resolve administrator succession separately before changing that access.
+Organization administrators cannot be archived from this directory. Resolve administrator succession through the administrator-seat workflow before changing that access.
 
 ## Restore a user
 
@@ -58,5 +62,6 @@ Restoration preserves the previous active or inactive account status. An inactiv
 - **Archiving is refused:** Reassign or cancel the user's scheduled assignments, then try again.
 - **A restored user cannot sign in:** Check whether the preserved account status is inactive, then send a password reset if needed.
 - **A property is missing after restoration:** Reassign it from the user's current profile. Restoration does not recreate former property access.
+- **You need to add another administrator:** Use **Administrator seats**, not the standard user invitation form.
 
 [Back to the knowledge base](README.md)

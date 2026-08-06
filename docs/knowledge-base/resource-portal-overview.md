@@ -57,4 +57,14 @@ Try these checks before contacting support:
 
 Only active, property-eligible deployments can be scheduled. You cannot add a customer organization, property, or assignment yourself.
 
+## If workspace switching is unavailable on this device
+
+If switching displays **Your secure session is unavailable on this device**, Afterlight keeps you in the current workspace and preserves the current access token.
+
+1. Reload the page once and try the workspace switch again.
+2. Confirm that the browser allows secure cookies for Afterlight.
+3. If the message remains, sign out and sign in again before switching workspaces.
+
+Do not continue through a separate registration flow. Workspace switching uses the same Afterlight identity and does not require a second account.
+
 [Back to the knowledge base](README.md)

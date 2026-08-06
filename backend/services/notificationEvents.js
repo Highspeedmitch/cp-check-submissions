@@ -169,8 +169,22 @@ function gustoBatchChanged(batch, status, { platform = false, amountCents = null
   };
 }
 
-function serviceModelChangeEvent(request, organizationName, status) {
-  const labels = {
+function servicePlanChangeEvent(request, organizationName, status) {
+  const tierChange = request?.changeType === "license_tier";
+  const customCapacity = request?.changeType === "custom_capacity";
+  const labels = customCapacity ? {
+    requested: ["custom_capacity_change_requested", "Custom administrator capacity requested"],
+    information_requested: ["custom_capacity_information_requested", "More information requested"],
+    information_supplied: ["custom_capacity_information_supplied", "Capacity request information supplied"],
+    approved: ["custom_capacity_change_approved", "Custom administrator capacity approved"],
+    denied: ["custom_capacity_change_denied", "Custom administrator capacity denied"],
+  } : tierChange ? {
+    requested: ["license_tier_change_requested", "License tier increase requested"],
+    information_requested: ["license_tier_information_requested", "More information requested"],
+    information_supplied: ["license_tier_information_supplied", "License tier information supplied"],
+    approved: ["license_tier_change_approved", "License tier increase approved"],
+    denied: ["license_tier_change_denied", "License tier increase denied"],
+  } : {
     requested: ["service_model_change_requested", "Service model change requested"],
     information_requested: ["service_model_information_requested", "More information requested"],
     information_supplied: ["service_model_information_supplied", "Service model information supplied"],
@@ -179,15 +193,24 @@ function serviceModelChangeEvent(request, organizationName, status) {
   };
   const [type, title] = labels[status];
   const platformRecipient = ["requested", "information_supplied"].includes(status);
+  const requestKind = customCapacity
+    ? "administrator capacity"
+    : tierChange
+      ? "license tier"
+      : "service model";
   return {
     type,
     title,
     body: platformRecipient
-      ? `${organizationName} submitted a service model workflow update.`
-      : `${organizationName}'s service model request is now ${status.replaceAll("_", " ")}.`,
+      ? `${organizationName} submitted ${customCapacity ? "an" : "a"} ${requestKind} workflow update.`
+      : `${organizationName}'s ${requestKind} request is now ${status.replaceAll("_", " ")}.`,
     route: platformRecipient ? "/platform?view=service-models" : "/service-delivery",
     entityId: request._id,
   };
+}
+
+function serviceModelChangeEvent(request, organizationName, status) {
+  return servicePlanChangeEvent(request, organizationName, status);
 }
 
 function administratorLicenseRequested(request, organizationName, adminSeats) {
@@ -243,6 +266,7 @@ module.exports = {
   invoiceSubmittedForPropertyManager,
   invoiceReviewChanged,
   invoiceStatusChanged,
+  servicePlanChangeEvent,
   serviceModelChangeEvent,
   administratorLicenseRequested,
   bidRequestSubmitted,

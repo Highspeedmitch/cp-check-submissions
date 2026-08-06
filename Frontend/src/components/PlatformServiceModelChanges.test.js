@@ -11,6 +11,7 @@ jest.mock("../services/api", () => ({
 
 const request = {
   _id: "request-1",
+  changeType: "service_model",
   organization: { _id: "org-1", name: "Picor" },
   requestedBy: { email: "admin@picor.example" },
   currentServiceModel: "platform",
@@ -22,6 +23,16 @@ const request = {
     propertyCount: 5,
     propertyOverrideCount: 1,
     defaultFulfillmentSource: "customer_employee",
+    currentAdminLimit: 2,
+    requestedAdminLimit: 2,
+    currentUserLimit: 5,
+    requestedUserLimit: 5,
+    currentPropertyLimit: 10,
+    requestedPropertyLimit: 10,
+    activeAdministratorCount: 2,
+    pendingAdministratorCount: 0,
+    activeUserCount: 4,
+    pendingUserCount: 1,
   },
   messages: [{
     _id: "message-1",
@@ -71,4 +82,66 @@ test("requesting more information records a required platform response", async (
     });
   });
   expect(await screen.findByText(/More information requested from the organization/)).toBeInTheDocument();
+});
+
+test("platform administrators see tier capacity changes without fulfillment side effects", async () => {
+  api.get.mockResolvedValue([{
+    ...request,
+    _id: "tier-request-1",
+    changeType: "license_tier",
+    currentServiceModel: "hybrid",
+    requestedServiceModel: "hybrid",
+    currentLicenseTier: "tier_1",
+    requestedLicenseTier: "tier_2",
+    reason: "We need more licensed capacity.",
+    organizationSnapshot: {
+      ...request.organizationSnapshot,
+      currentAdminLimit: 2,
+      requestedAdminLimit: 3,
+      currentUserLimit: 5,
+      requestedUserLimit: 20,
+      currentPropertyLimit: 10,
+      requestedPropertyLimit: 50,
+      currentAfterlightPortfolioMinimumPercent: 15,
+      requestedAfterlightPortfolioMinimumPercent: 12,
+    },
+  }]);
+
+  render(<PlatformServiceModelChanges />);
+
+  expect(await screen.findByText("Tier increase")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /Hybrid Tier 1.*Tier 2/ })).toBeInTheDocument();
+  expect(screen.getByText("5 → 20")).toBeInTheDocument();
+  expect(screen.getByText("10 → 50")).toBeInTheDocument();
+  expect(screen.getByText("15% → 12%")).toBeInTheDocument();
+  expect(screen.getByText(/without changing fulfillment policy/)).toBeInTheDocument();
+});
+
+test("platform administrators can review custom administrator capacity requests", async () => {
+  api.get.mockResolvedValue([{
+    ...request,
+    _id: "capacity-request-1",
+    changeType: "custom_capacity",
+    currentServiceModel: "platform",
+    requestedServiceModel: "platform",
+    currentLicenseTier: "tier_3",
+    requestedLicenseTier: "tier_3",
+    reason: "We need more regional administrators.",
+    organizationSnapshot: {
+      ...request.organizationSnapshot,
+      currentAdminLimit: 5,
+      requestedAdminLimit: 8,
+      currentUserLimit: 50,
+      requestedUserLimit: 50,
+      currentPropertyLimit: 250,
+      requestedPropertyLimit: 250,
+    },
+  }]);
+
+  render(<PlatformServiceModelChanges />);
+
+  expect(await screen.findByText("Custom capacity")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "5 → 8 administrator seats" })).toBeInTheDocument();
+  expect(screen.getByText(/changes only the organization's administrator-seat capacity/)).toBeInTheDocument();
+  expect(screen.queryByText("Property overrides")).not.toBeInTheDocument();
 });

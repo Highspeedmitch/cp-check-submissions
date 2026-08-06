@@ -24,6 +24,8 @@ const guide = {
 beforeEach(() => {
   jest.clearAllMocks();
   localStorage.clear();
+  localStorage.setItem("role", "admin");
+  localStorage.setItem("orgType", "COM");
   api.get.mockResolvedValue(guide);
 });
 
@@ -32,6 +34,10 @@ test("renders live onboarding progress and completes a ready organization", asyn
   render(<MemoryRouter><OrganizationOnboarding /></MemoryRouter>);
 
   expect(await screen.findByRole("heading", { name: "Example Management" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /Help Center/ })).toHaveAttribute(
+    "href",
+    "/help/complete-organization-setup"
+  );
   expect(screen.getByLabelText("100% of required setup complete")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Complete Onboarding" }));
 

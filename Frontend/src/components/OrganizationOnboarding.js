@@ -53,7 +53,7 @@ export default function OrganizationOnboarding() {
             : "Review the same readiness checks used for newly onboarded organizations."}
           actions={(
             <>
-              <ContextualHelpLink slug="create-and-access-an-organization" label="Help Center" />
+              <ContextualHelpLink slug="complete-organization-setup" label="Help Center" />
               <button type="button" className="beta-back-link" onClick={() => navigate("/dashboard")}>Dashboard</button>
             </>
           )}

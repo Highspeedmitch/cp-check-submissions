@@ -29,13 +29,15 @@ test("separates platform billing events and groups new operational notifications
     { type: "contractor_earning_created", recipientScope: "platform", readAt: null },
     { type: "gusto_batch_paid", recipientScope: "afterlight_resource", readAt: null },
     { type: "service_model_change_approved", recipientScope: "organization", readAt: null },
+    { type: "license_tier_change_requested", recipientScope: "platform", readAt: null },
+    { type: "custom_capacity_change_requested", recipientScope: "platform", readAt: null },
     { type: "assignment_canceled", recipientScope: "afterlight_resource", readAt: null },
   ])).toEqual({
     dashboard: 1,
     billing: 1,
     bids: 0,
     resources: 2,
-    serviceModels: 1,
+    serviceModels: 3,
     platformBilling: 1,
   });
 });

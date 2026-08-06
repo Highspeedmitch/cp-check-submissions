@@ -8,8 +8,8 @@ The screenshots are source-verified UI illustrations built from the current appl
 
 | Task | Article | Typical time |
 | --- | --- | --- |
-| Create a customer workspace and open its audited Admin View | [Create and securely access an organization](platform-create-access-organization.md) | 4-8 minutes |
-| Review and decide organization service model requests | [Review service model change requests](platform-review-service-model-changes.md) | 3-8 minutes |
+| Launch a licensed customer workspace and open its audited Admin View | [Create and securely access an organization](platform-create-access-organization.md) | 4-8 minutes |
+| Review and decide organization service plan requests | [Review service plan change requests](platform-review-service-model-changes.md) | 3-8 minutes |
 | Prepare and reconcile customer invoices for Afterlight-delivered work | [Process Afterlight service invoices](platform-process-service-invoices.md) | 3-5 minutes |
 | Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
 | Configure and operate the Gusto contractor-payment workflow | [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md) | 12-20 minutes |
@@ -51,9 +51,11 @@ The screenshots are source-verified UI illustrations built from the current appl
 
 | Task | Article | Typical time |
 | --- | --- | --- |
-| Invite, edit, archive, or restore organization users | [Manage organization users and access](manage-organization-users.md) | 4-8 minutes |
+| Complete required workspace setup and readiness checks | [Complete the organization Setup Guide](organization-complete-setup-guide.md) | 5-10 minutes |
+| Invite another administrator and manage licensed seats | [Invite organization administrators and manage licensed seats](manage-administrator-seats.md) | 3-5 minutes |
+| Invite, edit, archive, or restore non-administrator users | [Manage organization users and access](manage-organization-users.md) | 4-8 minutes |
 | Configure property fulfillment, billing, AP, and inspection recipients | [Configure property delivery and inspection recipients](configure-property-delivery.md) | 5-10 minutes |
-| Request a contracted service model change | [Request a service model change](organization-request-service-model-change.md) | 3-5 minutes |
+| Request a service-model or license-tier change | [Request a service plan change](organization-request-service-model-change.md) | 3-5 minutes |
 | Schedule work for a submitter or deployed resource | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
 | Enable or troubleshoot workflow alerts | [Enable and troubleshoot notifications](enable-notifications.md) | 2-4 minutes |
 | Set up or recover authenticator verification | [Set up and recover authenticator verification](authenticator-verification.md) | 3-6 minutes |

@@ -84,6 +84,12 @@ test("hides platform service billing guidance from organization administrators",
     name: "Manage organization users and access",
   })).toBeInTheDocument();
   expect(screen.getByRole("heading", {
+    name: "Complete the organization Setup Guide",
+  })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Invite organization administrators and manage licensed seats",
+  })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
     name: "Configure property delivery and inspection recipients",
   })).toBeInTheDocument();
 });

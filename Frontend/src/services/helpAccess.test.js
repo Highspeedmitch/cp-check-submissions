@@ -33,6 +33,8 @@ test("filters help articles by exact role and organization type", () => {
     "request-a-service-model-change",
     "enable-notifications",
     "manage-organization-users",
+    "complete-organization-setup",
+    "manage-administrator-seats",
     "configure-property-delivery",
     "authenticator-verification",
   ]);

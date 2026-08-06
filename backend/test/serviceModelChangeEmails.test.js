@@ -29,8 +29,11 @@ function userModelWithEmails(emails) {
 
 const request = {
   _id: "request-1",
+  changeType: "service_model",
   currentServiceModel: "platform",
   requestedServiceModel: "hybrid",
+  currentLicenseTier: "tier_1",
+  requestedLicenseTier: "tier_1",
   proposedEffectiveDate: "2026-09-01T00:00:00.000Z",
   reason: "We need overflow coverage.",
   status: "pending_review",
@@ -39,6 +42,10 @@ const request = {
     propertyOverrideCount: 1,
     defaultFulfillmentSource: "customer_employee",
     policyVersion: 3,
+    activeAdministratorCount: 2,
+    pendingAdministratorCount: 0,
+    activeUserCount: 4,
+    pendingUserCount: 1,
   },
   messages: [{ actorScope: "organization_admin", message: "We need overflow coverage." }],
 };
@@ -67,10 +74,12 @@ test("the platform request email contains the relevant contract and organization
   assert.equal(email.subject, "Service model change requested: Picor");
   for (const detail of [
     "admin@picor.example",
-    "Current model: Full-stack SaaS",
-    "Requested model: Hybrid",
+    "Current plan: Full-stack SaaS Tier 1",
+    "Requested plan: Hybrid Tier 1",
     "Proposed effective date: 9/1/2026",
     "Properties: 5",
+    "Customer users: 5",
+    "Organization administrators: 2",
     "Property fulfillment overrides: 1",
     "Current default fulfillment: customer_employee",
     "Policy version: 3",
@@ -79,6 +88,62 @@ test("the platform request email contains the relevant contract and organization
   ]) {
     assert.match(email.text, new RegExp(detail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+});
+
+test("license tier request emails identify the plan increase", async () => {
+  let email;
+  await deliverPlatformRequestEmail({
+    request: {
+      ...request,
+      changeType: "license_tier",
+      currentServiceModel: "hybrid",
+      requestedServiceModel: "hybrid",
+      requestedLicenseTier: "tier_2",
+      organizationSnapshot: {
+        ...request.organizationSnapshot,
+        currentAfterlightPortfolioMinimumPercent: 15,
+        requestedAfterlightPortfolioMinimumPercent: 12,
+      },
+    },
+    organization: { name: "Picor" },
+    requester: { email: "admin@picor.example" },
+    UserModel: userModelWithEmails(["dev@afterlightinspections.com"]),
+    sendEmail: async (message) => { email = message; },
+  });
+
+  assert.equal(email.subject, "License tier increase requested: Picor");
+  assert.match(email.text, /requested a license tier increase/);
+  assert.match(email.text, /Current plan: Hybrid Tier 1/);
+  assert.match(email.text, /Requested plan: Hybrid Tier 2/);
+  assert.match(email.text, /Afterlight portfolio minimum: 15% -> 12%/);
+});
+
+test("custom capacity request emails identify the administrator-seat increase", async () => {
+  let email;
+  await deliverPlatformRequestEmail({
+    request: {
+      ...request,
+      changeType: "custom_capacity",
+      currentServiceModel: "platform",
+      requestedServiceModel: "platform",
+      currentLicenseTier: "tier_3",
+      requestedLicenseTier: "tier_3",
+      organizationSnapshot: {
+        ...request.organizationSnapshot,
+        currentAdminLimit: 5,
+        requestedAdminLimit: 8,
+      },
+    },
+    organization: { name: "Picor" },
+    requester: { email: "admin@picor.example" },
+    UserModel: userModelWithEmails(["dev@afterlightinspections.com"]),
+    sendEmail: async (message) => { email = message; },
+  });
+
+  assert.equal(email.subject, "Administrator capacity increase requested: Picor");
+  assert.match(email.text, /requested a custom administrator capacity increase/);
+  assert.match(email.text, /Current plan: Full-stack SaaS Tier 3 \(5 administrator seats\)/);
+  assert.match(email.text, /Requested plan: Full-stack SaaS Tier 3 \(8 administrator seats\)/);
 });
 
 test("supplemental organization information is included when the request returns for review", async () => {

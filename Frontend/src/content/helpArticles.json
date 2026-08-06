@@ -189,20 +189,20 @@
   },
   {
     "slug": "request-a-service-model-change",
-    "title": "Request a service model change",
-    "summary": "Ask Afterlight to review a move between Full-stack SaaS, Managed service, and Hybrid delivery without directly changing the contract.",
+    "title": "Request a service plan change",
+    "summary": "Ask Afterlight to review a service-model change, higher SaaS or Hybrid tier, or custom Tier 3 administrator capacity without directly changing the contract.",
     "category": "Organization administration",
     "roles": ["admin"],
     "accountScopes": ["organization"],
     "orgTypes": ["COM", "STR", "LTR", "RES"],
     "file": "organization-request-service-model-change.md",
     "estimatedTime": "3-5 min",
-    "keywords": ["approve", "contract", "fulfillment", "hybrid", "managed service", "request", "service delivery", "service model"]
+    "keywords": ["approve", "capacity", "contract", "fulfillment", "hybrid", "license", "managed service", "request", "service delivery", "service model", "tier", "upgrade"]
   },
   {
     "slug": "review-service-model-change-requests",
-    "title": "Review service model change requests",
-    "summary": "Approve, deny, or request more information before changing an organization's contracted service delivery model.",
+    "title": "Review service plan change requests",
+    "summary": "Approve, deny, or request more information before changing an organization's service model, licensed tier, or custom administrator capacity.",
     "category": "Platform operations",
     "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
     "platformRoles": ["platform_admin"],
@@ -210,7 +210,7 @@
     "orgTypes": ["COM", "STR", "LTR", "RES"],
     "file": "platform-review-service-model-changes.md",
     "estimatedTime": "3-8 min",
-    "keywords": ["approve", "contract", "deny", "fulfillment", "hybrid", "managed service", "platform admin", "request", "service model"]
+    "keywords": ["admin seats", "approve", "capacity", "contract", "custom capacity", "deny", "fulfillment", "hybrid", "license", "managed service", "platform admin", "request", "service model", "tier", "upgrade"]
   },
   {
     "slug": "enable-notifications",
@@ -227,7 +227,7 @@
   {
     "slug": "manage-organization-users",
     "title": "Manage organization users and access",
-    "summary": "Invite and edit organization users, manage property access, and safely archive or restore retained records.",
+    "summary": "Invite and edit non-administrator users, manage property access, and safely archive or restore retained records.",
     "category": "Organization administration",
     "roles": ["admin"],
     "accountScopes": ["organization"],
@@ -235,6 +235,30 @@
     "file": "manage-organization-users.md",
     "estimatedTime": "4-8 min",
     "keywords": ["access", "archive", "directory", "invitation", "property assignment", "restore", "role", "user"]
+  },
+  {
+    "slug": "complete-organization-setup",
+    "title": "Complete the organization Setup Guide",
+    "summary": "Finish required workspace, security, and property configuration, then validate readiness for the first inspection.",
+    "category": "Getting started",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "organization-complete-setup-guide.md",
+    "estimatedTime": "5-10 min",
+    "keywords": ["administrative passkey", "first property", "first inspection", "onboarding", "readiness", "security", "setup guide", "workspace"]
+  },
+  {
+    "slug": "manage-administrator-seats",
+    "title": "Invite organization administrators and manage licensed seats",
+    "summary": "Review administrator capacity, send passkey-authorized invitations, manage pending seats, and request additional licensing.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "manage-administrator-seats.md",
+    "estimatedTime": "3-5 min",
+    "keywords": ["additional license", "admin", "administrator", "invite administrator", "license", "passkey", "pending invitation", "seat", "tier"]
   },
   {
     "slug": "configure-property-delivery",
@@ -251,7 +275,7 @@
   {
     "slug": "create-and-access-an-organization",
     "title": "Create and securely access an organization",
-    "summary": "Create a customer workspace, invite its first administrator, and open an audited Admin View with fresh identity confirmation.",
+    "summary": "Launch a customer workspace with contracted service and license settings, invite its first administrator, and open an audited Admin View.",
     "category": "Platform operations",
     "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
     "platformRoles": ["platform_admin"],

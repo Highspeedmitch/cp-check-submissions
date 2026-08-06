@@ -26,7 +26,7 @@ Open **Service Delivery** to review the organization's contracted service model,
 - Saving a new organization default requires the organization administrative action passkey.
 - A property can remain on **Use organization default** or select a different default for future assignments.
 
-The service model itself is contract controlled. Use [Request a service model change](organization-request-service-model-change.md) when the organization needs to move between Full-stack SaaS, Managed service, or Hybrid delivery.
+The service model and license tier are contract controlled. Use [Request a service plan change](organization-request-service-model-change.md) when the organization needs to move between Full-stack SaaS, Managed service, or Hybrid delivery or request a higher tier.
 
 ## Configure commercial billing
 

@@ -8,6 +8,12 @@ const MODEL_LABELS = {
   hybrid: "Hybrid",
 };
 
+const TIER_LABELS = {
+  tier_1: "Tier 1",
+  tier_2: "Tier 2",
+  tier_3: "Tier 3",
+};
+
 const STATUS_LABELS = {
   pending_review: "Pending review",
   information_requested: "Information requested",
@@ -20,6 +26,35 @@ function dateLabel(value) {
   return value
     ? new Date(value).toLocaleDateString("en-US", { timeZone: "UTC" })
     : "Not specified";
+}
+
+function planLabel(request, requested = false) {
+  const model = requested ? request.requestedServiceModel : request.currentServiceModel;
+  const tier = requested ? request.requestedLicenseTier : request.currentLicenseTier;
+  return `${MODEL_LABELS[model] || model}${tier ? ` ${TIER_LABELS[tier]}` : ""}`;
+}
+
+function capacityLabel(value) {
+  if (value === undefined) return "Not recorded";
+  return value === null ? "Unmetered" : value;
+}
+
+function requestTypeLabel(request) {
+  if (request.changeType === "license_tier") return "Tier increase";
+  if (request.changeType === "custom_capacity") return "Custom capacity";
+  return "Service model";
+}
+
+function requestHeadline(request) {
+  if (request.changeType === "custom_capacity") {
+    return `${capacityLabel(request.organizationSnapshot?.currentAdminLimit)} → ${capacityLabel(request.organizationSnapshot?.requestedAdminLimit)} administrator seats`;
+  }
+  return `${planLabel(request)} → ${planLabel(request, true)}`;
+}
+
+function percentageLabel(value) {
+  if (value === undefined) return "Not recorded";
+  return value === null ? "None" : `${value}%`;
 }
 
 export default function PlatformServiceModelChanges() {
@@ -68,8 +103,14 @@ export default function PlatformServiceModelChanges() {
       setRequests((current) => current.map((item) => item._id === request._id ? updated : item));
       setResponses((current) => ({ ...current, [request._id]: "" }));
       const decisionMessage = action === "approve"
-        ? "Service model approved and applied to future assignments."
-        : action === "deny" ? "Service model request denied." : "More information requested from the organization.";
+        ? request.changeType === "license_tier"
+          ? "License tier increase approved and applied."
+          : request.changeType === "custom_capacity"
+            ? "Custom administrator capacity approved and applied."
+            : "Service model approved and applied to future assignments."
+        : action === "deny"
+          ? `${request.changeType === "license_tier" ? "License tier" : request.changeType === "custom_capacity" ? "Administrator capacity" : "Service model"} request denied.`
+          : "More information requested from the organization.";
       setMessage(updated.emailDelivered === false
         ? `${decisionMessage} The requester email could not be delivered, but the decision remains recorded in Afterlight.`
         : decisionMessage);
@@ -86,15 +127,15 @@ export default function PlatformServiceModelChanges() {
         <div className="beta-section-heading platform-change-heading">
           <div>
             <p className="beta-eyebrow">Contract operations</p>
-            <h2>Service Model Requests</h2>
-            <p>Review organization requests before changing contracted service delivery.</p>
+            <h2>Service Plan Requests</h2>
+            <p>Review organization requests before changing contracted service delivery or licensed capacity.</p>
           </div>
           <ContextualHelpLink slug="review-service-model-change-requests" />
         </div>
       </section>
       {error && <p className="beta-alert error" role="alert">{error}</p>}
       {message && <p className="beta-alert success" role="status">{message}</p>}
-      {loading ? <div className="beta-empty-state">Loading service model requests...</div> : orderedRequests.length ? (
+      {loading ? <div className="beta-empty-state">Loading service plan requests...</div> : orderedRequests.length ? (
         <div className="platform-service-change-list">
           {orderedRequests.map((request) => {
             const active = ["pending_review", "information_requested"].includes(request.status);
@@ -104,7 +145,8 @@ export default function PlatformServiceModelChanges() {
                 <div className="beta-card-header">
                   <div>
                     <p className="beta-eyebrow">{request.organization?.name || "Customer organization"}</p>
-                    <h3>{MODEL_LABELS[request.currentServiceModel]} → {MODEL_LABELS[request.requestedServiceModel]}</h3>
+                    <span className="beta-status">{requestTypeLabel(request)}</span>
+                    <h3>{requestHeadline(request)}</h3>
                     <p>Requested by {request.requestedBy?.email || "organization administrator"} on {new Date(request.createdAt).toLocaleString()}</p>
                   </div>
                   <span className={`beta-status ${request.status}`}>{STATUS_LABELS[request.status]}</span>
@@ -112,8 +154,17 @@ export default function PlatformServiceModelChanges() {
                 <dl className="beta-detail-list">
                   <div><dt>Proposed date</dt><dd>{dateLabel(request.proposedEffectiveDate)}</dd></div>
                   <div><dt>Properties</dt><dd>{request.organizationSnapshot?.propertyCount || 0}</dd></div>
-                  <div><dt>Property overrides</dt><dd>{request.organizationSnapshot?.propertyOverrideCount || 0}</dd></div>
-                  <div><dt>Current default</dt><dd>{request.organizationSnapshot?.defaultFulfillmentSource || "Not recorded"}</dd></div>
+                  <div><dt>Administrator capacity</dt><dd>{capacityLabel(request.organizationSnapshot?.currentAdminLimit)} → {capacityLabel(request.organizationSnapshot?.requestedAdminLimit)}</dd></div>
+                  <div><dt>User capacity</dt><dd>{capacityLabel(request.organizationSnapshot?.currentUserLimit)} → {capacityLabel(request.organizationSnapshot?.requestedUserLimit)}</dd></div>
+                  <div><dt>Property capacity</dt><dd>{capacityLabel(request.organizationSnapshot?.currentPropertyLimit)} → {capacityLabel(request.organizationSnapshot?.requestedPropertyLimit)}</dd></div>
+                  {(request.organizationSnapshot?.currentAfterlightPortfolioMinimumPercent != null
+                    || request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent != null) && (
+                    <div><dt>Afterlight portfolio minimum</dt><dd>{percentageLabel(request.organizationSnapshot?.currentAfterlightPortfolioMinimumPercent)} → {percentageLabel(request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent)}</dd></div>
+                  )}
+                  <div><dt>Administrators allocated</dt><dd>{(request.organizationSnapshot?.activeAdministratorCount || 0) + (request.organizationSnapshot?.pendingAdministratorCount || 0)}</dd></div>
+                  <div><dt>Users allocated</dt><dd>{(request.organizationSnapshot?.activeUserCount || 0) + (request.organizationSnapshot?.pendingUserCount || 0)}</dd></div>
+                  {request.changeType === "service_model" && <div><dt>Property overrides</dt><dd>{request.organizationSnapshot?.propertyOverrideCount || 0}</dd></div>}
+                  {request.changeType === "service_model" && <div><dt>Current default</dt><dd>{request.organizationSnapshot?.defaultFulfillmentSource || "Not recorded"}</dd></div>}
                 </dl>
                 <div className="beta-service-change-reason"><strong>Business reason</strong><p>{request.reason}</p></div>
                 {request.notification?.platformEmailError && (
@@ -145,7 +196,11 @@ export default function PlatformServiceModelChanges() {
                         placeholder="Required when denying or requesting more information; optional approval note."
                         onChange={(event) => setResponses((current) => ({ ...current, [request._id]: event.target.value }))} />
                     </label>
-                    <p className="beta-field-help">Approval applies the requested model immediately to future assignments, selects that model's standard fulfillment default, and clears property-level fulfillment overrides. Existing assignments and invoices keep their saved routing.</p>
+                    <p className="beta-field-help">{request.changeType === "license_tier"
+                      ? "Approval applies the requested standard tier immediately without changing fulfillment policy, property overrides, assignments, or invoices."
+                      : request.changeType === "custom_capacity"
+                        ? "Approval changes only the organization's administrator-seat capacity. Its tier, user and property limits, fulfillment policy, assignments, and invoices remain unchanged."
+                        : "Approval applies the requested model and tier immediately to future assignments, selects that model's standard fulfillment default, and clears property-level fulfillment overrides. Existing assignments and invoices keep their saved routing."}</p>
                     <div className="beta-card-actions">
                       <button type="button" className="beta-button" disabled={actionBusy} onClick={() => review(request, "approve")}>Approve and apply</button>
                       <button type="button" className="beta-button secondary" disabled={actionBusy} onClick={() => review(request, "request_information")}>Request more information</button>
@@ -158,7 +213,7 @@ export default function PlatformServiceModelChanges() {
             );
           })}
         </div>
-      ) : <div className="beta-empty-state">No service model change requests have been submitted.</div>}
+      ) : <div className="beta-empty-state">No service plan change requests have been submitted.</div>}
     </div>
   );
 }

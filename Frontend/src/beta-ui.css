@@ -1677,6 +1677,12 @@
 .beta-scheduler-date-field small { color: var(--beta-muted); font-size: 12px; line-height: 1.4; }
 .beta-service-model-request-summary { display: grid; gap: 12px; }
 .beta-service-model-request-summary p { margin: 0; color: var(--beta-muted); }
+.beta-service-model-request-summary .beta-card-header > div:first-child { display: grid; gap: 7px; }
+.beta-service-model-request-summary .beta-status { width: fit-content; }
+.beta-contract-change-option { display: grid; gap: 16px; margin-top: 18px; border-top: 1px solid var(--beta-border); padding-top: 18px; }
+.beta-section-heading + .beta-contract-change-option { margin-top: 0; border-top: 0; padding-top: 0; }
+.beta-contract-change-option h3 { margin: 0 0 4px; color: var(--beta-ink); }
+.beta-contract-change-option > div > p { margin: 0; color: var(--beta-muted); }
 .beta-service-model-history { margin-top: 18px; border-top: 1px solid var(--beta-border); padding-top: 14px; }
 .beta-service-model-history summary,
 .beta-service-change-thread summary { cursor: pointer; color: var(--beta-blue); font-weight: 700; }
@@ -1901,9 +1907,12 @@
 .beta-dialog-close:hover { background: var(--beta-soft-blue); color: var(--beta-ink); box-shadow: none; }
 .beta-dialog-copy { margin: 14px 0 20px; color: var(--beta-muted); line-height: 1.5; }
 .beta-dialog .beta-field { display: grid; gap: 7px; font-weight: 700; }
-.beta-dialog .beta-field input, .beta-dialog .beta-field textarea { width: 100%; margin: 0; }
+.beta-dialog .beta-field + .beta-field { margin-top: 16px; }
+.beta-dialog .beta-field input, .beta-dialog .beta-field select, .beta-dialog .beta-field textarea { width: 100%; margin: 0; }
 .beta-dialog .beta-field textarea { min-height: 132px; resize: vertical; }
 .beta-dialog-note { margin: 8px 0 0; color: var(--beta-muted); font-size: 13px; line-height: 1.4; }
+.beta-license-request-current { margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); }
+.beta-license-request-current p { margin: 4px 0 0; }
 .beta-dialog-error { margin: 10px 0 0; color: var(--beta-danger); font-size: 14px; }
 .beta-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .beta-dialog-actions .beta-button { width: auto; min-width: 112px; margin: 0; }
