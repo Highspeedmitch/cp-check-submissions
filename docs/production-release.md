@@ -129,24 +129,29 @@ Preview the exact membership and blocker inventory:
 npm run retire-production-historical-access
 ```
 
-The command is dry-run-only unless `--apply` is supplied. It blocks the entire
-operation if any target organization is missing or has a scheduled assignment,
-uploading/queued/processing inspection job, pending/accepting invitation,
-active/paused resource deployment, pending bid request, or invoice requiring
-attention. Review every listed email, role, account scope, and account status.
+The command is dry-run-only unless `--apply` is supplied. Current and future
+scheduled assignments block the entire operation. Past-due assignments that
+are still marked `scheduled` are reported separately and changed to `canceled`
+inside the retirement transaction, preserving the records while correcting
+their stale workflow state. Missing organizations, uploading/queued/processing
+inspection jobs, pending/accepting invitations, active/paused resource
+deployments, pending bid requests, and invoices requiring attention also block
+the operation. Review every listed email, role, account scope, account status,
+and stale-assignment count.
 
 To apply the reviewed retirement, set all three write guards:
 
 ```powershell
 $env:NODE_ENV = "production"
 $env:CONFIRM_PRODUCTION_HISTORICAL_RETIREMENT = "I_UNDERSTAND_THIS_RETIRES_PRODUCTION_ORGANIZATION_ACCESS"
-$env:PRODUCTION_HISTORICAL_RETIREMENT_VERSION = "2026-08-06-historical-access-retirement-v1"
+$env:PRODUCTION_HISTORICAL_RETIREMENT_VERSION = "2026-08-06-historical-access-retirement-v2"
 npm run retire-production-historical-access -- --apply
 ```
 
 The apply operation rebuilds the inventory inside a MongoDB transaction. It
-archives every organization membership, including administrators, increments
-the access-token version, revokes refresh sessions, and writes user and platform
+archives every organization membership, including administrators, cancels only
+past-due assignments that remain incorrectly marked `scheduled`, increments the
+access-token version, revokes refresh sessions, and writes user and platform
 audits. It preserves account status, platform role, Afterlight resource scope,
 property assignments, and all historical business data. Re-running it is
 idempotent. Remove both confirmation variables after use.
