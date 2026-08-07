@@ -84,4 +84,4 @@ jobs:
       - name: Install CloudFormation validator
         run: python -m pip install -r infra/requirements-ci.txt
       - name: Validate CloudFormation templates
-        run: cfn-lint --regions us-east-2 infra/*.yaml
+        run: cfn-lint --regions us-east-2 --template infra/*.yaml
