@@ -150,9 +150,22 @@ function humanizeFieldName(fieldName) {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
+function getOrderedTemplateFields(template) {
+  if (!Array.isArray(template?.fields)) return null;
+  return template.fields
+    .map((field, index) => ({
+      field,
+      index,
+      order: Number.isFinite(Number(field.order)) ? Number(field.order) : index,
+    }))
+    .sort((left, right) => left.order - right.order || left.index - right.index)
+    .map(({ field }) => field);
+}
+
 function getCommercialResults(formData, template) {
-  const configuredFields = template?.fields
-    ? template.fields
+  const orderedFields = getOrderedTemplateFields(template);
+  const configuredFields = orderedFields
+    ? orderedFields
       .filter((field) => field.type === 'yes_no_issue')
       .map((field) => ({
         key: field.key,
@@ -423,8 +436,9 @@ function drawResultsTable(doc, results, x, y, width, options = {}) {
 }
 
 function getObservationSummary(formData, template) {
-  if (Array.isArray(template?.fields)) {
-    const summaryField = template.fields.find((field) => (
+  const orderedFields = getOrderedTemplateFields(template);
+  if (orderedFields) {
+    const summaryField = orderedFields.find((field) => (
       field.key === 'generalObservations'
       && ['text', 'textarea'].includes(field.type)
     ));
@@ -485,7 +499,7 @@ function ensureDetailSpace(doc, y, needed, propertyName, options = {}) {
 }
 
 function drawDetailNotes(doc, formData, propertyName, startY, template, options = {}) {
-  const configuredNotes = template?.fields?.filter((field) =>
+  const configuredNotes = getOrderedTemplateFields(template)?.filter((field) =>
     ['text', 'textarea'].includes(field.type)
     && !['businessName', 'propertyAddress'].includes(field.key)
     && (field.key !== 'generalObservations' || Boolean(options.coverSummary?.text))
@@ -640,8 +654,9 @@ function drawUnmatchedPhotoSection(doc, fieldName, buffers, propertyName, startY
 
 function drawCommercialDetails(doc, formData, results, groupedPhotos, propertyName, template, options = {}) {
   const attentionResults = results.filter((result) => result.status === 'attention');
-  const hasNotes = template?.fields
-    ? template.fields.some((field) =>
+  const orderedFields = getOrderedTemplateFields(template);
+  const hasNotes = orderedFields
+    ? orderedFields.some((field) =>
       ['text', 'textarea'].includes(field.type)
       && !['businessName', 'propertyAddress'].includes(field.key)
       && hasValue(formData[field.key])
@@ -799,7 +814,9 @@ function generateChecklistPDF(formData, photoBuffers, template = null, options =
 
 module.exports = {
   generateChecklistPDF,
+  getCommercialResults,
   getObservationSummary,
+  getOrderedTemplateFields,
   findingSectionHeight,
   buildChecklistFileName,
 };

@@ -4,7 +4,7 @@ const {
   ensureOrganizationInspectionTemplate,
   resolvePropertyInspectionTemplate,
   normalizePropertyOverride,
-  validateFields,
+  validateOrganizationFields,
 } = require("../services/inspectionTemplates");
 const { assignedResourceContext } = require("../services/resourceAccess");
 const requireCurrentOrganizationPresence = require("../middleware/requireCurrentOrganizationPresence");
@@ -34,7 +34,7 @@ router.put("/organization", requireCurrentOrganizationPresence, async (req, res)
       return res.status(403).json({ error: "Only organization administrators can manage the organization template." });
     }
     const { organization, template } = await ensureOrganizationInspectionTemplate(req.user.organizationId);
-    const fields = validateFields(req.body.fields || []);
+    const fields = validateOrganizationFields(req.body.fields || [], template.fields);
     const nextVersion = template.version + 1;
     const replacement = await InspectionTemplate.create({
       organizationId: organization._id,

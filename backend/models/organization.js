@@ -82,6 +82,7 @@ const PropertySchema = new mongoose.Schema({
   propertyManagers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   inspectionTemplateOverride: {
     omittedFieldKeys: { type: [String], default: [] },
+    fieldOrder: { type: [String], default: [] },
     additionalFields: {
       type: [{
         key: { type: String, required: true },

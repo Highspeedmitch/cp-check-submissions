@@ -5,7 +5,9 @@ const {
   defaultInspectionTemplate,
   mergeTemplateWithOverride,
   normalizePropertyOverride,
+  orderFieldsByLockedAnchors,
   validateFields,
+  validateOrganizationFields,
 } = require("../services/inspectionTemplates");
 
 function templateDocument() {
@@ -65,4 +67,72 @@ test("template validation rejects duplicate and unsupported fields", () => {
   assert.throws(() => validateFields([
     { key: "invalid", label: "Invalid", type: "number" },
   ]), /Unsupported field type/);
+});
+
+test("organization templates reorder unlocked fields while preserving locked anchors", () => {
+  const current = [
+    { key: "before", label: "Before", type: "text" },
+    { key: "lockedField", label: "Locked", type: "text", locked: true },
+    { key: "first", label: "First", type: "text" },
+    { key: "second", label: "Second", type: "text" },
+  ];
+  const reordered = validateOrganizationFields([
+    current[0], current[1], current[3], current[2],
+  ], current);
+
+  assert.deepEqual(reordered.map((field) => field.key), ["before", "lockedField", "second", "first"]);
+  assert.deepEqual(reordered.map((field) => field.order), [0, 1, 2, 3]);
+  assert.throws(() => validateOrganizationFields([
+    current[3], current[1], current[0], current[2],
+  ], current), /across a locked inspection field/);
+});
+
+test("organization template validation rejects changes to locked fields", () => {
+  const current = [
+    { key: "lockedField", label: "Locked", type: "text", locked: true },
+    { key: "optionalField", label: "Optional", type: "text" },
+  ];
+  assert.throws(() => validateOrganizationFields([
+    { ...current[0], label: "Changed" },
+    current[1],
+  ], current), /locked and cannot be changed/);
+  assert.throws(() => validateOrganizationFields([current[1]], current), /cannot be removed/);
+  assert.throws(() => validateOrganizationFields([
+    { key: "newField", label: "New", type: "text" },
+    ...current,
+  ], current), /cannot be inserted before a locked inspection field/);
+});
+
+test("property field ordering retains locked anchors and drives the effective template", () => {
+  const template = templateDocument();
+  const additionalField = {
+    key: "property_loadingDock",
+    label: "Is the loading dock secure?",
+    type: "yes_no_issue",
+    section: "Property Condition",
+  };
+  const unlockedKeys = template.fields.filter((field) => !field.locked).map((field) => field.key);
+  const fieldOrder = [
+    "businessName",
+    "propertyAddress",
+    additionalField.key,
+    ...unlockedKeys,
+  ];
+  const normalized = normalizePropertyOverride(template, {
+    omittedFieldKeys: [],
+    additionalFields: [additionalField],
+    fieldOrder,
+  });
+  const effective = mergeTemplateWithOverride(template, normalized);
+
+  assert.deepEqual(effective.fields.slice(0, 4).map((field) => field.key), [
+    "businessName", "propertyAddress", "property_loadingDock", "parkingLotLights",
+  ]);
+  assert.deepEqual(effective.fields.map((field) => field.order),
+    effective.fields.map((_field, index) => index));
+  assert.throws(() => orderFieldsByLockedAnchors(
+    [...template.fields, additionalField],
+    [additionalField.key, ...template.fields.map((field) => field.key)],
+    { strict: true }
+  ), /across a locked inspection field/);
 });

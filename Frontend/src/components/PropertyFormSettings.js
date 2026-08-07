@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
+import { orderFieldsByKeys } from "../services/formFieldOrdering";
 import PageHeader from "./ui/PageHeader";
+import SortableFieldList from "./ui/SortableFieldList";
 
 function newField(label, type) {
   const base = label.toLowerCase()
@@ -27,6 +29,7 @@ export default function PropertyFormSettings() {
   const [propertyDetails, setPropertyDetails] = useState(null);
   const [omittedFieldKeys, setOmittedFieldKeys] = useState([]);
   const [additionalFields, setAdditionalFields] = useState([]);
+  const [fieldOrder, setFieldOrder] = useState([]);
   const [fieldLabel, setFieldLabel] = useState("");
   const [fieldType, setFieldType] = useState("yes_no_issue");
   const [loading, setLoading] = useState(true);
@@ -42,6 +45,7 @@ export default function PropertyFormSettings() {
         setTemplate(data);
         setOmittedFieldKeys(data.override?.omittedFieldKeys || []);
         setAdditionalFields(data.override?.additionalFields || []);
+        setFieldOrder(data.override?.fieldOrder || data.fields?.map((field) => field.key) || []);
         setPropertyDetails(await api.get(`/api/properties/${data.property._id}/details`));
       })
       .catch((err) => setError(err.message))
@@ -110,7 +114,9 @@ export default function PropertyFormSettings() {
   const addField = () => {
     const label = fieldLabel.trim();
     if (!label) return;
-    setAdditionalFields((current) => [...current, newField(label, fieldType)]);
+    const created = newField(label, fieldType);
+    setAdditionalFields((current) => [...current, created]);
+    setFieldOrder((current) => [...current, created.key]);
     setFieldLabel("");
     setMessage("");
   };
@@ -121,6 +127,18 @@ export default function PropertyFormSettings() {
     ));
   };
 
+  const removeAdditionalField = (key) => {
+    setAdditionalFields((current) => current.filter((field) => field.key !== key));
+    setFieldOrder((current) => current.filter((fieldKey) => fieldKey !== key));
+    setMessage("");
+  };
+
+  const visibleFields = template ? [
+    ...template.organizationFields.filter((field) => field.locked || !omittedFieldKeys.includes(field.key)),
+    ...additionalFields,
+  ] : [];
+  const orderedFields = orderFieldsByKeys(visibleFields, fieldOrder);
+
   const save = async () => {
     if (!template || saving) return;
     setSaving(true);
@@ -129,11 +147,16 @@ export default function PropertyFormSettings() {
     try {
       const updated = await api.put(
         `/api/inspection-templates/properties/${template.property._id}/override`,
-        { omittedFieldKeys, additionalFields }
+        {
+          omittedFieldKeys,
+          additionalFields,
+          fieldOrder: orderedFields.map((field) => field.key),
+        }
       );
       setTemplate(updated);
       setOmittedFieldKeys(updated.override?.omittedFieldKeys || []);
       setAdditionalFields(updated.override?.additionalFields || []);
+      setFieldOrder(updated.override?.fieldOrder || updated.fields?.map((field) => field.key) || []);
       setMessage("Property inspection form updated.");
     } catch (err) {
       setError(err.message);
@@ -267,6 +290,10 @@ export default function PropertyFormSettings() {
                           reportLabel: event.target.value,
                         })} />
                     </label>
+                    <label className="beta-form-field">Section
+                      <input value={field.section || ""}
+                        onChange={(event) => updateAdditionalField(field.key, { section: event.target.value })} />
+                    </label>
                     <label className="beta-template-checkbox">
                       <input type="checkbox" checked={Boolean(field.required)}
                         onChange={(event) => updateAdditionalField(field.key, { required: event.target.checked })} />
@@ -280,7 +307,7 @@ export default function PropertyFormSettings() {
                       </label>
                     )}
                     <button type="button" className="beta-button danger compact"
-                      onClick={() => setAdditionalFields((current) => current.filter((item) => item.key !== field.key))}>
+                      onClick={() => removeAdditionalField(field.key)}>
                       Remove Field
                     </button>
                   </article>
@@ -289,6 +316,28 @@ export default function PropertyFormSettings() {
                   <div className="beta-empty-state">No property-specific fields have been added.</div>
                 )}
               </div>
+            </section>
+
+            <section className="beta-panel">
+              <div className="beta-section-heading">
+                <div>
+                  <h2>Inspection field order</h2>
+                  <p>Drag unlocked fields within their section. Organization-locked fields stay fixed.</p>
+                </div>
+              </div>
+              <SortableFieldList fields={orderedFields}
+                onChange={(nextFields) => setFieldOrder(nextFields.map((field) => field.key))}
+                emptyMessage="Include or add a field to configure its position."
+                renderField={(field) => (
+                  <div className="beta-sortable-field-summary">
+                    <strong>{field.label}</strong>
+                    <small>
+                      {additionalFields.some((item) => item.key === field.key)
+                        ? "Property-specific field"
+                        : "Organization field"}
+                    </small>
+                  </div>
+                )} />
             </section>
 
             <div className="beta-sticky-submit">

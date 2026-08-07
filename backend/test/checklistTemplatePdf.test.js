@@ -2,7 +2,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   generateChecklistPDF,
+  getCommercialResults,
   getObservationSummary,
+  getOrderedTemplateFields,
   findingSectionHeight,
   buildChecklistFileName,
 } = require("../pdfservice");
@@ -49,6 +51,22 @@ test("measures complete finding sections including every photo row", () => {
   assert.equal(findingSectionHeight(62, 1), 268);
   assert.equal(findingSectionHeight(62, 3), 458);
   assert.equal(findingSectionHeight(62, 6), 648);
+});
+
+test("orders PDF results using the effective template field order", () => {
+  const template = {
+    fields: [
+      { key: "later", label: "Later", type: "yes_no_issue", order: 1 },
+      { key: "earlier", label: "Earlier", type: "yes_no_issue", order: 0 },
+      { key: "notes", label: "Notes", type: "textarea", order: 2 },
+    ],
+  };
+
+  assert.deepEqual(getOrderedTemplateFields(template).map((field) => field.key), [
+    "earlier", "later", "notes",
+  ]);
+  assert.deepEqual(getCommercialResults({ earlier: "no", later: "yes" }, template)
+    .map((field) => field.key), ["earlier", "later"]);
 });
 
 test("generates a COM checklist PDF from an effective inspection template", async () => {

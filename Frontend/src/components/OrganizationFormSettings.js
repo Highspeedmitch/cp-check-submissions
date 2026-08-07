@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import PageHeader from "./ui/PageHeader";
+import SortableFieldList from "./ui/SortableFieldList";
 
 function createField(label, type) {
   const base = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 35) || "field";
@@ -40,7 +41,7 @@ export default function OrganizationFormSettings() {
   }, []);
 
   const updateField = (key, changes) => setFields((current) => current.map((field) =>
-    field.key === key ? { ...field, ...changes } : field
+    field.key === key && !field.locked ? { ...field, ...changes } : field
   ));
 
   const save = async () => {
@@ -87,19 +88,21 @@ export default function OrganizationFormSettings() {
             </section>
             <section className="beta-panel">
               <div className="beta-section-heading"><div><h2>Default fields</h2>
-                <p>Changes create a new template version. Property overrides remain separate.</p></div></div>
-              <div className="beta-template-custom-fields">
-                {fields.map((field) => (
-                  <article className="beta-settings-card" key={field.key}>
+                <p>Drag unlocked fields within their section. Locked fields remain fixed. Changes create a new template version.</p></div></div>
+              <SortableFieldList fields={fields} onChange={setFields}
+                emptyMessage="No inspection fields have been configured."
+                renderField={(field) => (
+                  <>
                     <div className="beta-form-grid">
                       <label className="beta-form-field full">Question or field label
-                        <input value={field.label} onChange={(event) => updateField(field.key, {
+                        <input value={field.label} disabled={field.locked} onChange={(event) => updateField(field.key, {
                           label: event.target.value,
                           reportLabel: event.target.value,
                         })} />
                       </label>
                       <label className="beta-form-field">Section
-                        <input value={field.section || ""} onChange={(event) => updateField(field.key, { section: event.target.value })} />
+                        <input value={field.section || ""} disabled={field.locked}
+                          onChange={(event) => updateField(field.key, { section: event.target.value })} />
                       </label>
                       <label className="beta-form-field">Type
                         <select value={field.type} disabled={field.locked}
@@ -111,12 +114,12 @@ export default function OrganizationFormSettings() {
                       </label>
                     </div>
                     <label className="beta-template-checkbox">
-                      <input type="checkbox" checked={Boolean(field.required)}
+                      <input type="checkbox" checked={Boolean(field.required)} disabled={field.locked}
                         onChange={(event) => updateField(field.key, { required: event.target.checked })} />
                       Required response
                     </label>
                     {field.type === "yes_no_issue" && <label className="beta-template-checkbox">
-                      <input type="checkbox" checked={Boolean(field.allowPhotos)}
+                      <input type="checkbox" checked={Boolean(field.allowPhotos)} disabled={field.locked}
                         onChange={(event) => updateField(field.key, { allowPhotos: event.target.checked })} />
                       Allow issue photos
                     </label>}
@@ -124,9 +127,8 @@ export default function OrganizationFormSettings() {
                       onClick={() => setFields((current) => current.filter((item) => item.key !== field.key))}>
                       Remove from Organization Form
                     </button>}
-                  </article>
-                ))}
-              </div>
+                  </>
+                )} />
               <div className="beta-template-add-field">
                 <label className="beta-form-field">New field label
                   <input value={label} onChange={(event) => setLabel(event.target.value)} />
