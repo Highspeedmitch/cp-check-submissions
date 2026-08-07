@@ -104,47 +104,10 @@ async function finishMfaLogin({ user, req, res }) {
 }
 
 router.post("/register", registrationLimiter, async (req, res) => {
-  if (String(process.env.INVITE_ONLY_REGISTRATION || "true").toLowerCase() !== "false") {
-    return res.status(410).json({
-      code: "INVITATION_REQUIRED",
-      message: "Registration requires an invitation from an Afterlight administrator.",
-    });
-  }
-  try {
-    const { organizationName, username, email, password, adminPasskey } = req.body;
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const org = await Organization.findOne({ name: organizationName });
-    if (!org) {
-      return res.status(400).json({
-        message: "Organization name not recognized. Please check the spelling of your Organization and register again.",
-      });
-    }
-    if (!org.orgType) {
-      return res.status(500).json({ message: "Organization type not found for this organization." });
-    }
-    let role = "user";
-    if (adminPasskey) {
-      if (adminPasskey === process.env.ADMIN_PASSKEY) role = "admin";
-      else return res.status(400).json({ message: "Invalid admin passkey." });
-    }
-    await User.create({
-      username,
-      email,
-      password: hashedPassword,
-      organizationId: org._id,
-      role,
-    });
-    return res.status(201).json({
-      message: "User registered under organization successfully!",
-      organizationId: org._id,
-      orgName: org.name,
-      orgType: org.orgType,
-      role,
-    });
-  } catch (error) {
-    console.error("Error registering organization/user:", error);
-    return res.status(500).json({ message: "Error registering organization/user." });
-  }
+  return res.status(410).json({
+    code: "INVITATION_REQUIRED",
+    message: "Registration requires an invitation from an organization administrator.",
+  });
 });
 
 router.post("/login", loginLimiter, requireTrustedSessionOrigin, async (req, res) => {

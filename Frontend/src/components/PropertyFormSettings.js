@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
+import { orderFieldsByKeys } from "../services/formFieldOrdering";
 import PageHeader from "./ui/PageHeader";
+import SortableFieldList from "./ui/SortableFieldList";
 
 function newField(label, type) {
   const base = label.toLowerCase()
@@ -27,6 +29,7 @@ export default function PropertyFormSettings() {
   const [propertyDetails, setPropertyDetails] = useState(null);
   const [omittedFieldKeys, setOmittedFieldKeys] = useState([]);
   const [additionalFields, setAdditionalFields] = useState([]);
+  const [fieldOrder, setFieldOrder] = useState([]);
   const [fieldLabel, setFieldLabel] = useState("");
   const [fieldType, setFieldType] = useState("yes_no_issue");
   const [loading, setLoading] = useState(true);
@@ -42,6 +45,7 @@ export default function PropertyFormSettings() {
         setTemplate(data);
         setOmittedFieldKeys(data.override?.omittedFieldKeys || []);
         setAdditionalFields(data.override?.additionalFields || []);
+        setFieldOrder(data.override?.fieldOrder || data.fields?.map((field) => field.key) || []);
         setPropertyDetails(await api.get(`/api/properties/${data.property._id}/details`));
       })
       .catch((err) => setError(err.message))
@@ -110,7 +114,9 @@ export default function PropertyFormSettings() {
   const addField = () => {
     const label = fieldLabel.trim();
     if (!label) return;
-    setAdditionalFields((current) => [...current, newField(label, fieldType)]);
+    const created = newField(label, fieldType);
+    setAdditionalFields((current) => [...current, created]);
+    setFieldOrder((current) => [...current, created.key]);
     setFieldLabel("");
     setMessage("");
   };
@@ -121,6 +127,18 @@ export default function PropertyFormSettings() {
     ));
   };
 
+  const removeAdditionalField = (key) => {
+    setAdditionalFields((current) => current.filter((field) => field.key !== key));
+    setFieldOrder((current) => current.filter((fieldKey) => fieldKey !== key));
+    setMessage("");
+  };
+
+  const allFields = template ? [
+    ...template.organizationFields,
+    ...additionalFields,
+  ] : [];
+  const orderedFields = orderFieldsByKeys(allFields, fieldOrder);
+
   const save = async () => {
     if (!template || saving) return;
     setSaving(true);
@@ -129,11 +147,16 @@ export default function PropertyFormSettings() {
     try {
       const updated = await api.put(
         `/api/inspection-templates/properties/${template.property._id}/override`,
-        { omittedFieldKeys, additionalFields }
+        {
+          omittedFieldKeys,
+          additionalFields,
+          fieldOrder: orderedFields.map((field) => field.key),
+        }
       );
       setTemplate(updated);
       setOmittedFieldKeys(updated.override?.omittedFieldKeys || []);
       setAdditionalFields(updated.override?.additionalFields || []);
+      setFieldOrder(updated.override?.fieldOrder || updated.fields?.map((field) => field.key) || []);
       setMessage("Property inspection form updated.");
     } catch (err) {
       setError(err.message);
@@ -207,36 +230,8 @@ export default function PropertyFormSettings() {
             <section className="beta-panel">
               <div className="beta-section-heading">
                 <div>
-                  <h2>Organization fields</h2>
-                  <p>Locked identifying fields are always included. Other fields can be omitted for this property.</p>
-                </div>
-              </div>
-              <div className="beta-template-field-list">
-                {template.organizationFields.map((field) => {
-                  const included = field.locked || !omittedFieldKeys.includes(field.key);
-                  return (
-                    <label className="beta-template-field-row" key={field.key}>
-                      <input
-                        type="checkbox"
-                        checked={included}
-                        disabled={field.locked}
-                        onChange={(event) => toggleOrganizationField(field, event.target.checked)}
-                      />
-                      <span>
-                        <strong>{field.label}</strong>
-                        <small>{field.type.replaceAll("_", " ")}{field.locked ? " · required by organization" : ""}</small>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="beta-panel">
-              <div className="beta-section-heading">
-                <div>
-                  <h2>Property-specific fields</h2>
-                  <p>Add checks that apply only to {property}.</p>
+                  <h2>Inspection form fields</h2>
+                  <p>Enable organization fields and drag unlocked fields within their section. Disabled fields retain their position.</p>
                 </div>
               </div>
 
@@ -257,38 +252,66 @@ export default function PropertyFormSettings() {
                 </button>
               </div>
 
-              <div className="beta-template-custom-fields">
-                {additionalFields.map((field) => (
-                  <article className="beta-settings-card" key={field.key}>
-                    <label className="beta-form-field">Label
-                      <input value={field.label}
-                        onChange={(event) => updateAdditionalField(field.key, {
-                          label: event.target.value,
-                          reportLabel: event.target.value,
-                        })} />
-                    </label>
-                    <label className="beta-template-checkbox">
-                      <input type="checkbox" checked={Boolean(field.required)}
-                        onChange={(event) => updateAdditionalField(field.key, { required: event.target.checked })} />
-                      Required response
-                    </label>
-                    {field.type === "yes_no_issue" && (
-                      <label className="beta-template-checkbox">
-                        <input type="checkbox" checked={Boolean(field.allowPhotos)}
-                          onChange={(event) => updateAdditionalField(field.key, { allowPhotos: event.target.checked })} />
-                        Allow issue photos
+              <SortableFieldList fields={orderedFields}
+                className="beta-integrated-field-list"
+                onChange={(nextFields) => setFieldOrder(nextFields.map((field) => field.key))}
+                emptyMessage="No inspection fields have been configured."
+                renderField={(field) => {
+                  const propertySpecific = additionalFields.some((item) => item.key === field.key);
+                  const included = propertySpecific || field.locked || !omittedFieldKeys.includes(field.key);
+                  if (!propertySpecific) {
+                    return (
+                      <label className={`beta-integrated-field-toggle${included ? "" : " is-disabled"}`}>
+                        <input type="checkbox" checked={included} disabled={field.locked}
+                          onChange={(event) => toggleOrganizationField(field, event.target.checked)} />
+                        <span>
+                          <strong>{field.label}</strong>
+                          <small>
+                            {field.locked
+                              ? "Organization field · locked and always included"
+                              : `Organization field · ${included ? "included" : "not included"}`}
+                          </small>
+                        </span>
                       </label>
-                    )}
-                    <button type="button" className="beta-button danger compact"
-                      onClick={() => setAdditionalFields((current) => current.filter((item) => item.key !== field.key))}>
-                      Remove Field
-                    </button>
-                  </article>
-                ))}
-                {!additionalFields.length && (
-                  <div className="beta-empty-state">No property-specific fields have been added.</div>
-                )}
-              </div>
+                    );
+                  }
+                  return (
+                    <div className="beta-integrated-field-editor">
+                      <div className="beta-form-grid">
+                        <label className="beta-form-field">Label
+                          <input value={field.label}
+                            onChange={(event) => updateAdditionalField(field.key, {
+                              label: event.target.value,
+                              reportLabel: event.target.value,
+                            })} />
+                        </label>
+                        <label className="beta-form-field">Section
+                          <input value={field.section || ""}
+                            onChange={(event) => updateAdditionalField(field.key, { section: event.target.value })} />
+                        </label>
+                      </div>
+                      <div className="beta-integrated-field-options">
+                        <span className="beta-field-state">Property-specific · included</span>
+                        <label className="beta-template-checkbox">
+                          <input type="checkbox" checked={Boolean(field.required)}
+                            onChange={(event) => updateAdditionalField(field.key, { required: event.target.checked })} />
+                          Required response
+                        </label>
+                        {field.type === "yes_no_issue" && (
+                          <label className="beta-template-checkbox">
+                            <input type="checkbox" checked={Boolean(field.allowPhotos)}
+                              onChange={(event) => updateAdditionalField(field.key, { allowPhotos: event.target.checked })} />
+                            Allow issue photos
+                          </label>
+                        )}
+                      </div>
+                      <button type="button" className="beta-button danger compact"
+                        onClick={() => removeAdditionalField(field.key)}>
+                        Remove Field
+                      </button>
+                    </div>
+                  );
+                }} />
             </section>
 
             <div className="beta-sticky-submit">

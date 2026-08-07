@@ -91,6 +91,7 @@ test("Production license manifest explicitly configures Picor as Managed Service
     userLimit: null,
     propertyLimit: null,
     adminSeatVersion: 0,
+    capacityVersion: 0,
   });
   assert.equal(
     productionOrganizations.find((entry) => entry.name === "Picor").serviceModel,
@@ -122,6 +123,7 @@ test("metered Production license configurations require a valid tier and cannot 
     userLimit: 20,
     propertyLimit: 75,
     adminSeatVersion: 0,
+    capacityVersion: 0,
   });
 });
 

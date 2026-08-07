@@ -13,6 +13,7 @@
         "@capacitor/core": "^7.0.1",
         "@capacitor/ios": "^7.0.1",
         "@okta/okta-auth-js": "^8.0.1",
+        "@sentry/react": "^10.42.0",
         "@testing-library/jest-dom": "^5.17.0",
         "ajv": "^8.17.1",
         "date-fns": "^4.1.0",

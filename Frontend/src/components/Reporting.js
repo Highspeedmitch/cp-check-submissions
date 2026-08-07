@@ -93,7 +93,7 @@ function SubmitterActivity({ submitters }) {
     <section className="beta-panel beta-report-panel">
       <div className="beta-section-heading">
         <div>
-          <h2>Submitter Activity</h2>
+          <h2>Field Operator Activity</h2>
           <p>Who submitted, where, and their typical submission time.</p>
         </div>
       </div>
@@ -102,7 +102,7 @@ function SubmitterActivity({ submitters }) {
           <table className="beta-data-table">
             <thead>
               <tr>
-                <th>Submitter</th>
+                <th>Field Operator</th>
                 <th>Properties Serviced</th>
                 <th>Submissions</th>
                 <th>Average Time</th>
@@ -123,7 +123,7 @@ function SubmitterActivity({ submitters }) {
           </table>
         </div>
       ) : (
-        <div className="beta-empty-state">No submitter activity matches these filters.</div>
+        <div className="beta-empty-state">No field operator activity matches these filters.</div>
       )}
     </section>
   );
@@ -180,7 +180,7 @@ export default function Reporting() {
           onBack={() => navigate("/dashboard")}
           eyebrow={`Working on behalf of ${orgName}`}
           title="Reporting"
-          subtitle="Property conditions, inspection activity, and submitter performance."
+          subtitle="Property conditions, inspection activity, and field operator performance."
           actions={(
             <span className="beta-status">
               {role === "admin" ? "Admin View" : "PM View"}
@@ -214,9 +214,9 @@ export default function Reporting() {
             </select>
           </label>
           <label className="beta-form-field">
-            Submitter
+            Field Operator
             <select value={userId} onChange={(event) => setUserId(event.target.value)}>
-              <option value="">All Submitters</option>
+              <option value="">All Field Operators</option>
               {userOptions.map((user) => (
                 <option value={user._id} key={user._id}>{user.name}</option>
               ))}

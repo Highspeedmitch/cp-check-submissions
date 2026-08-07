@@ -43,7 +43,10 @@ export const NOTIFICATION_SECTIONS = {
     "custom_capacity_information_supplied",
     "custom_capacity_change_approved",
     "custom_capacity_change_denied",
+  ],
+  platformOrganizations: [
     "administrator_license_requested",
+    "bulk_onboarding_assistance_requested",
   ],
   platformBilling: [
     "invoice_ap_delivery_queued",
@@ -61,6 +64,7 @@ export function groupUnreadNotifications(notifications) {
     unread.filter((notification) => {
       if (!types.includes(notification.type)) return false;
       if (section === "platformBilling") return notification.recipientScope === "platform";
+      if (section === "platformOrganizations") return notification.recipientScope === "platform";
       if (section === "billing") return notification.recipientScope !== "platform";
       return true;
     }).length,
@@ -87,6 +91,7 @@ export function useNotificationBadges(enabled = true) {
     resources: 0,
     serviceModels: 0,
     platformBilling: 0,
+    platformOrganizations: 0,
     propertyActivityRoutes: [],
   });
 

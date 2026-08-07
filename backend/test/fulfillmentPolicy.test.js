@@ -14,6 +14,10 @@ test("service models provide safe fulfillment defaults", () => {
   assert.equal(organizationDefaultSource({ serviceModel: "platform" }), "customer_employee");
   assert.equal(organizationDefaultSource({ serviceModel: "managed" }), "afterlight_staff");
   assert.equal(organizationDefaultSource({ serviceModel: "hybrid" }), "customer_employee");
+  assert.equal(organizationDefaultSource({
+    serviceModel: "platform",
+    fulfillmentPolicy: { defaultSource: "afterlight_staff" },
+  }), "customer_employee");
 });
 
 test("SaaS organizations expose only customer-controlled fulfillment", () => {
@@ -38,15 +42,18 @@ test("SaaS assignment overrides cannot request Afterlight fulfillment", () => {
   }), /only to Managed Service and Hybrid/i);
 });
 
-test("stale SaaS property overrides cannot route new work to Afterlight", () => {
-  assert.throws(() => resolveAssignmentFulfillment({
+test("stale SaaS property overrides safely inherit customer fulfillment", () => {
+  const snapshot = resolveAssignmentFulfillment({
     organization: {
       serviceModel: "platform",
       fulfillmentPolicy: { defaultSource: "customer_employee", version: 5 },
     },
     property: { fulfillmentPolicy: { defaultSource: "afterlight_contractor" } },
     actorUserId: "admin-1",
-  }), /only to Managed Service and Hybrid/i);
+  });
+  assert.equal(snapshot.source, "customer_employee");
+  assert.equal(snapshot.sourceOrigin, "organization_default");
+  assert.equal(snapshot.invoiceRequired, false);
 });
 
 test("property defaults override the organization without changing policy history", () => {

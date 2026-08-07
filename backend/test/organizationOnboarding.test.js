@@ -1,6 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { serializeOrganizationOnboarding } = require("../services/organizationOnboarding");
+const {
+  serializeOrganizationOnboarding,
+  serializeOrganizationOnboardingStatus,
+} = require("../services/organizationOnboarding");
 
 function organization(overrides = {}) {
   return {
@@ -48,4 +51,25 @@ test("legacy organizations can use the guide without being enrolled or prompted"
   assert.equal(result.guided, false);
   assert.equal(result.status, "established");
   assert.equal(result.canComplete, false);
+});
+
+test("lightweight onboarding status distinguishes active, completed, and established workspaces", () => {
+  assert.deepEqual(serializeOrganizationOnboardingStatus(organization()), {
+    guided: true,
+    status: "in_progress",
+    completedAt: null,
+  });
+  const completedAt = new Date("2026-08-06T12:00:00Z");
+  assert.deepEqual(serializeOrganizationOnboardingStatus(organization({
+    onboarding: { status: "completed", completedAt },
+  })), {
+    guided: true,
+    status: "completed",
+    completedAt,
+  });
+  assert.deepEqual(serializeOrganizationOnboardingStatus(organization({ onboarding: undefined })), {
+    guided: false,
+    status: "established",
+    completedAt: null,
+  });
 });

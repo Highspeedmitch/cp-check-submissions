@@ -66,6 +66,18 @@ function PropertyCard({
             Manage Details
           </button>
         )}
+        {role !== "admin" && property.lat && property.lng && (
+          <button
+            type="button"
+            className="beta-button secondary"
+            onClick={(event) => {
+              event.stopPropagation();
+              onNavigate(property.lat, property.lng);
+            }}
+          >
+            Navigate
+          </button>
+        )}
       </div>
 
       {role === "admin" && orgName === "AzRoots" && (
@@ -76,7 +88,7 @@ function PropertyCard({
 
       {role === "admin" && orgType === "STR" && (
         <button
-          className="access-instructions-button"
+          className="beta-button secondary"
           onClick={(event) => {
             event.stopPropagation();
             onAccessInfo(property);
@@ -95,18 +107,6 @@ function PropertyCard({
           }}
         >
           Remove
-        </button>
-      )}
-
-      {role !== "admin" && property.lat && property.lng && (
-        <button
-          className="navigate-button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onNavigate(property.lat, property.lng);
-          }}
-        >
-          Navigate
         </button>
       )}
     </div>

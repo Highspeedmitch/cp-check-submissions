@@ -72,6 +72,7 @@ const InvoiceSchema = new mongoose.Schema({
     index: true,
   },
   review: {
+    cycle: { type: Number, min: 0, default: 0 },
     requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     requestedAt: { type: Date, default: null },
     emailSentAt: { type: Date, default: null },
@@ -82,6 +83,15 @@ const InvoiceSchema = new mongoose.Schema({
       type: String,
       enum: ["", "approved", "declined"],
       default: "",
+    },
+    method: {
+      type: String,
+      enum: ["", "authenticated_portal", "secure_email_link", "outlook_actionable"],
+      default: "",
+    },
+    approverSnapshot: {
+      name: { type: String, default: "" },
+      email: { type: String, default: "" },
     },
     declineReason: { type: String, default: "" },
   },

@@ -156,7 +156,7 @@ function AdminSubmissions() {
         </label>
         <label className="beta-form-field" htmlFor="submission-submitter">Submitted by
           <select id="submission-submitter" value={filters.submitter} onChange={(event) => updateFilter("submitter", event.target.value)}>
-            <option value="">All submitters</option>
+            <option value="">All field operators</option>
             {filterOptions.submitters.map((user) => <option key={user._id} value={user._id}>{userOptionLabel(user)}</option>)}
           </select>
         </label>
@@ -207,7 +207,7 @@ function AdminSubmissions() {
                   <div><dt>Fulfillment</dt><dd>{FULFILLMENT_LABELS[sub.assignment?.fulfillmentType] || "Direct submission"}</dd></div>
                 </dl>
               </div>
-              <a className="beta-button secondary" href={sub.signedPdfUrl} target="_blank" rel="noopener noreferrer">View PDF</a>
+              <a className="beta-button secondary beta-submission-action" href={sub.signedPdfUrl} target="_blank" rel="noopener noreferrer">View PDF</a>
             </article>
           ))}
         </section>

@@ -237,6 +237,18 @@
     "keywords": ["access", "archive", "directory", "invitation", "property assignment", "restore", "role", "user"]
   },
   {
+    "slug": "onboard-customer-field-operators",
+    "title": "Onboard customer employees and contractors as Field Operators",
+    "summary": "Assign Field Operator access, distinguish Customer Employees from Customer Contractors, and enforce matching Scheduler and invoice behavior.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM"],
+    "file": "onboard-customer-field-operators.md",
+    "estimatedTime": "3-5 min",
+    "keywords": ["assignment type", "contractor", "customer contractor", "customer employee", "field operator", "invoice", "onboarding", "scheduler"]
+  },
+  {
     "slug": "complete-organization-setup",
     "title": "Complete the organization Setup Guide",
     "summary": "Finish required workspace, security, and property configuration, then validate readiness for the first inspection.",
@@ -296,5 +308,17 @@
     "file": "authenticator-verification.md",
     "estimatedTime": "3-6 min",
     "keywords": ["authenticator", "code", "enrollment", "mfa", "multi-factor", "recovery", "security", "sign in", "totp"]
+  },
+  {
+    "slug": "bulk-onboard-users-properties",
+    "title": "Bulk onboard users and properties with CSV",
+    "summary": "Download a template, validate licensed capacity, and complete an all-or-nothing user or property CSV import.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "bulk-onboard-users-properties.md",
+    "estimatedTime": "4-10 min",
+    "keywords": ["bulk", "capacity", "csv", "import", "invitation", "license", "onboarding", "properties", "template", "users"]
   }
 ]

@@ -102,3 +102,83 @@ test("inspection photos upload directly using the signed S3 form", async () => {
     global.createImageBitmap = originalCreateImageBitmap;
   }
 });
+
+test("draft storage failure warns but does not block the inspection API", async () => {
+  const api = {
+    post: jest.fn()
+      .mockResolvedValueOnce({ jobId: "job-draft-warning", status: "uploading", uploads: [] })
+      .mockResolvedValueOnce({ jobId: "job-draft-warning", status: "queued" }),
+    get: jest.fn().mockResolvedValue({ jobId: "job-draft-warning", status: "completed" }),
+  };
+  const saveDraft = jest.fn().mockRejectedValue(new Error("Load failed"));
+  const onWarning = jest.fn();
+
+  const result = await submitInspectionJob({
+    api,
+    property: "Winterhaven Square",
+    orgType: "COM",
+    responses: { graffiti: "no" },
+    photoGroups: {},
+    draft: {
+      key: "draft-1",
+      responses: { graffiti: "no" },
+      photoGroups: {},
+    },
+    saveDraft,
+    onWarning,
+  });
+
+  expect(result.status).toBe("completed");
+  expect(saveDraft).toHaveBeenCalledTimes(1);
+  expect(onWarning).toHaveBeenCalledWith(expect.objectContaining({ phase: "draft_storage" }));
+  expect(api.post.mock.calls[0][0]).toBe("/api/inspection-jobs");
+});
+
+test("API network failures identify the preparation phase", async () => {
+  const api = {
+    post: jest.fn().mockRejectedValue(new TypeError("Load failed")),
+    get: jest.fn(),
+  };
+
+  await expect(submitInspectionJob({
+    api,
+    property: "Winterhaven Square",
+    orgType: "COM",
+    responses: { graffiti: "no" },
+    photoGroups: {},
+  })).rejects.toMatchObject({
+    name: "InspectionSubmissionError",
+    phase: "api_preparation",
+    message: "Afterlight could not begin this inspection submission. Check your connection and try again.",
+  });
+});
+
+test("direct upload network failures identify the photo upload phase", async () => {
+  const originalFetch = global.fetch;
+  global.fetch = jest.fn().mockRejectedValue(new TypeError("Load failed"));
+  const api = {
+    post: jest.fn().mockResolvedValue({
+      jobId: "job-photo-failure",
+      status: "uploading",
+      uploads: [{ uploadId: "photo-1", url: "https://uploads.example", fields: { key: "photo-key" } }],
+    }),
+    get: jest.fn(),
+  };
+  try {
+    const file = new File(["gif"], "photo.gif", { type: "image/gif" });
+    await expect(submitInspectionJob({
+      api,
+      property: "Winterhaven Square",
+      orgType: "COM",
+      responses: { graffiti: "yes" },
+      photoGroups: { graffiti: [file] },
+    })).rejects.toMatchObject({
+      name: "InspectionSubmissionError",
+      phase: "photo_upload",
+      jobId: "job-photo-failure",
+    });
+    expect(api.post).toHaveBeenCalledTimes(1);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

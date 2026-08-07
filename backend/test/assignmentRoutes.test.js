@@ -89,7 +89,7 @@ test("assignment creation retains admin and organization scoping", async () => {
         select() {
           return {
             async lean() {
-              return { _id: "user-1" };
+              return { _id: "user-1", role: "user", engagementType: "customer_employee" };
             },
           };
         },
@@ -247,7 +247,11 @@ test("assignment fulfillment overrides are snapshotted and audited", async () =>
     },
     UserModel: {
       findOne() {
-        return { select: () => ({ lean: async () => ({ _id: "user-1" }) }) };
+        return { select: () => ({ lean: async () => ({
+          _id: "user-1",
+          role: "user",
+          engagementType: "customer_employee",
+        }) }) };
       },
     },
     FulfillmentAuditModel: {
@@ -587,7 +591,7 @@ test("scheduler user lookup retains organization and role filters", async () => 
         userQuery = query;
         return {
           async select(selection) {
-            assert.equal(selection, "_id email role");
+            assert.equal(selection, "_id email role engagementType");
             return users;
           },
         };
@@ -608,7 +612,7 @@ test("scheduler user lookup retains organization and role filters", async () => 
   assert.deepEqual(res.body, users);
   assert.equal(userQuery.organizationId, "org-1");
   assert.deepEqual(userQuery.role, {
-    $in: ["user", "contractor", "cleaner"],
+    $in: ["user", "contractor", "cleaner", "property_manager", "client"],
   });
   assert.equal(schedulerRequest.serviceModel, "hybrid");
 });

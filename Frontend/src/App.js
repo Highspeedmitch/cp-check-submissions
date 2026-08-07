@@ -15,14 +15,12 @@ const Dashboard = lazy(() => import("./components/Dashboard"));
 const ClientDashboard = lazy(() => import("./components/ClientDashboard"));
 const ClientProfitStatement = lazy(() => import("./components/ClientProfitStatement"));
 const ScheduleConsultation = lazy(() => import("./components/ScheduleConsultation"));
-const ClientRegistration = lazy(() => import("./components/ClientRegistration"));
 const FormPage = lazy(() => import("./components/FormPage"));
 const PropertyFormSettings = lazy(() => import("./components/PropertyFormSettings"));
 const OrganizationFormSettings = lazy(() => import("./components/OrganizationFormSettings"));
 const OrganizationSecurity = lazy(() => import("./components/OrganizationSecurity"));
 const OrganizationOnboarding = lazy(() => import("./components/OrganizationOnboarding"));
 const ServiceDeliverySettings = lazy(() => import("./components/ServiceDeliverySettings"));
-const Register = lazy(() => import("./components/Register"));
 const InviteRegistration = lazy(() => import("./components/InviteRegistration"));
 const AdminSubmissions = lazy(() => import("./components/AdminSubmissions"));
 const ForgotPassword = lazy(() => import("./components/ForgotPassword"));
@@ -38,8 +36,10 @@ const ProfitUpload = lazy(() => import("./components/ProfitUpload"));
 const EditPropertyWrapper = lazy(() => import("./components/EditPropertyWrapper"));
 const Billing = lazy(() => import("./components/Billing"));
 const InvoiceReview = lazy(() => import("./components/InvoiceReview"));
+const InvoiceEmailApproval = lazy(() => import("./components/InvoiceEmailApproval"));
 const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
+const BulkOnboarding = lazy(() => import("./components/BulkOnboarding"));
 const Reporting = lazy(() => import("./components/Reporting"));
 const PlatformDashboard = lazy(() => import("./components/PlatformDashboard"));
 const ResourceDashboard = lazy(() => import("./components/ResourceDashboard"));
@@ -227,7 +227,7 @@ function App() {
           ? "/platform"
           : accountScope === "afterlight_resource" ? "/resource" : "/dashboard"} />} />
       <Route path="/join" element={<InviteRegistration />} />
-      <Route path="/register" element={process.env.REACT_APP_ALLOW_PUBLIC_REGISTRATION === "true" ? <Register /> : <Navigate to="/join" replace />} />
+      <Route path="/register" element={<Navigate to="/join" replace />} />
       <Route path="/login" element={user
         ? <Navigate to={platformRole && !assumedOrganization
           ? "/platform"
@@ -296,9 +296,15 @@ function App() {
         <BillingRoute user={user} role={role} accountScope={accountScope} />
       } />
       <Route path="/billing/review/:id" element={<InvoiceReviewRoute user={user} role={role} />} />
+      <Route path="/billing/email-approval" element={<InvoiceEmailApproval />} />
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
       <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />
       <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
+      <Route path="/admin/bulk-onboarding" element={
+        user && role === "admin" && !assumedOrganization
+          ? <BulkOnboarding />
+          : <Navigate to="/" />
+      } />
       <Route path="/help" element={
         <HelpRoute user={user} platformRole={platformRole} assumedOrganization={assumedOrganization}>
           <HelpCenter />
@@ -321,7 +327,7 @@ function App() {
       <Route path="/client/schedule-consultation" element={user && role === "client" ? <ScheduleConsultation /> : <Navigate to="/" />} />
 
       {/* Client Registration */}
-      <Route path="/client-registration" element={process.env.REACT_APP_ALLOW_PUBLIC_REGISTRATION === "true" ? <ClientRegistration /> : <Navigate to="/join" replace />} />
+      <Route path="/client-registration" element={<Navigate to="/join" replace />} />
      
       {/* AZRAccessinstructions conditional render */}
       <Route path="/access-instructions/:propertyName" element={<AccessInstructionsWrapper />} />

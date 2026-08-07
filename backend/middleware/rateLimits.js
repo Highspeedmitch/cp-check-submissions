@@ -54,6 +54,12 @@ const calendarFeedLimiter = limiter({
   message: "Too many calendar refreshes. Please try again later.",
 });
 
+const invoiceEmailActionLimiter = limiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  message: "Too many invoice approval attempts. Please wait before trying again.",
+});
+
 module.exports = {
   apiLimiter,
   loginLimiter,
@@ -62,4 +68,5 @@ module.exports = {
   registrationLimiter,
   uploadLimiter,
   calendarFeedLimiter,
+  invoiceEmailActionLimiter,
 };

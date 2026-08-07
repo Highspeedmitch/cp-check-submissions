@@ -83,11 +83,11 @@ function ProfitUpload() {
         <label>Profit PDF:</label>
         <input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files[0])} />
 
-        <button className="upload-button" onClick={handleUpload}>
+        <button className="beta-button" onClick={handleUpload}>
           Upload Profit Data
         </button>
 
-        <button className="back-button" onClick={() => navigate("/dashboard")}>
+        <button className="beta-button secondary" onClick={() => navigate("/dashboard")}>
           Back to Dashboard
         </button>
       </div>
@@ -99,9 +99,9 @@ function ProfitUpload() {
       {loading ? (
         <p>Loading past profit statements...</p>
       ) : error ? (
-        <p className="error-text">{error}</p>
+        <p className="beta-alert error">{error}</p>
       ) : (
-        <table className="profit-history-table">
+        <table className="beta-data-table profit-history-table">
           <thead>
             <tr>
               <th>Month</th>

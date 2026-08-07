@@ -22,6 +22,10 @@ function organization({ serviceModel = "managed", tier = null } = {}) {
     serviceModel,
     license: defaultStoredLicense(serviceModel, tier),
     fulfillmentPolicy: { defaultSource: "afterlight_staff", version: 4 },
+    billingCapabilities: {
+      invoiceApprovalExperience: "secure_email_link",
+      emailApprovalTokenHours: 24,
+    },
     properties: [
       { _id: "property-1", name: "One", fulfillmentPolicy: { defaultSource: "customer_employee" } },
       { _id: "property-2", name: "Two", fulfillmentPolicy: { defaultSource: null } },
@@ -167,6 +171,8 @@ test("platform approval applies the model to future work and clears property ove
   let deploymentUpdate;
   let requesterEmail;
   let requesterNotification;
+  let revokedAuthorizationQuery;
+  let revokedAuthorizationUpdate;
   const handlers = createServiceModelChangeHandlers({
     RequestModel: { async findOne() { return request; } },
     OrganizationModel: { async findById() { return org; } },
@@ -177,6 +183,13 @@ test("platform approval applies the model to future work and clears property ove
         deploymentQuery = query;
         deploymentUpdate = update;
         return { modifiedCount: 2 };
+      },
+    },
+    InvoiceEmailAuthorizationModel: {
+      async updateMany(query, update) {
+        revokedAuthorizationQuery = query;
+        revokedAuthorizationUpdate = update;
+        return { modifiedCount: 3 };
       },
     },
     PlatformAuditModel: { async create(entry) { platformAudit = entry; } },
@@ -198,6 +211,7 @@ test("platform approval applies the model to future work and clears property ove
   assert.equal(org.license.propertyLimit, 10);
   assert.equal(org.fulfillmentPolicy.defaultSource, "customer_employee");
   assert.equal(org.fulfillmentPolicy.version, 5);
+  assert.equal(org.billingCapabilities.invoiceApprovalExperience, "authenticated_portal");
   assert.equal(org.properties[0].fulfillmentPolicy.defaultSource, null);
   assert.equal(request.status, "approved");
   assert.equal(request.appliedAt.toISOString(), "2026-08-04T12:00:00.000Z");
@@ -215,8 +229,20 @@ test("platform approval applies the model to future work and clears property ove
       updatedBy: "platform-1",
     },
   });
+  assert.deepEqual(revokedAuthorizationQuery, {
+    organizationId: "org-1",
+    status: "active",
+  });
+  assert.deepEqual(revokedAuthorizationUpdate, {
+    $set: {
+      status: "revoked",
+      revokedAt: new Date("2026-08-04T12:00:00.000Z"),
+    },
+  });
+  assert.equal(fulfillmentAudit.metadata.revokedEmailApprovalAuthorizationCount, 3);
   assert.equal(platformAudit.action, "service_model_change_approved");
   assert.equal(platformAudit.metadata.endedResourceDeploymentCount, 2);
+  assert.equal(platformAudit.metadata.revokedEmailApprovalAuthorizationCount, 3);
   assert.equal(requesterEmail.request, request);
   assert.equal(requesterNotification.type, "service_model_change_approved");
   assert.equal(requesterNotification.route, "/service-delivery");

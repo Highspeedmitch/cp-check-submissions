@@ -6,6 +6,22 @@ import { api } from "../services/api";
 import AdminInvitationDialog from "./admin/AdminInvitationDialog";
 import LicenseIncreaseRequestDialog from "./admin/LicenseIncreaseRequestDialog";
 import ConfirmationDialog from "./ui/ConfirmationDialog";
+import {
+  CUSTOMER_ENGAGEMENT_OPTIONS,
+  ORGANIZATION_ROLE_OPTIONS,
+  customerEngagementLabel,
+  inferredCustomerEngagementType,
+  normalizeOrganizationUserForEditing,
+  organizationRoleLabel,
+  roleRequiresCustomerEngagement,
+} from "../services/organizationUsers";
+
+const EMPTY_INVITATION = {
+  email: "",
+  role: "user",
+  engagementType: "customer_employee",
+  propertyIds: [],
+};
 
 export default function UserManagement() {
   const navigate = useNavigate();
@@ -16,6 +32,7 @@ export default function UserManagement() {
     administrators: [],
     adminInvitations: [],
     adminSeats: null,
+    capacity: null,
     license: null,
     licenseOptions: null,
   });
@@ -27,7 +44,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteDraft, setInviteDraft] = useState({ email: "", role: "user", propertyIds: [] });
+  const [inviteDraft, setInviteDraft] = useState(EMPTY_INVITATION);
   const [directory, setDirectory] = useState("current");
   const [userSearch, setUserSearch] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -52,7 +69,13 @@ export default function UserManagement() {
   const visibleUsers = data.users.filter((user) => {
     const search = userSearch.trim().toLowerCase();
     if (!search) return true;
-    return [user.username, user.email, user.role]
+    return [
+      user.username,
+      user.email,
+      user.role,
+      organizationRoleLabel(user.role),
+      customerEngagementLabel(inferredCustomerEngagementType(user)),
+    ]
       .some((value) => String(value || "").toLowerCase().includes(search));
   });
 
@@ -71,7 +94,10 @@ export default function UserManagement() {
   function chooseUser(userId) {
     const user = data.users.find((item) => item._id === userId);
     setSelectedId(userId);
-    setDraft(user ? { ...user, accountStatus: user.accountStatus || "active" } : null);
+    setDraft(user ? {
+      ...normalizeOrganizationUserForEditing(user),
+      accountStatus: user.accountStatus || "active",
+    } : null);
     const assignmentField = user?.role === "client" ? "clientOwners" : "propertyManagers";
     setPropertyIds(user ? data.properties
       .filter((property) => (property[assignmentField] || []).some((id) => id === userId))
@@ -176,7 +202,7 @@ export default function UserManagement() {
     try {
       const result = await api.post("/api/admin-users/invitations", inviteDraft);
       setMessage(result.message || "Invitation sent.");
-      setInviteDraft({ email: "", role: "user", propertyIds: [] });
+      setInviteDraft(EMPTY_INVITATION);
       setInviteOpen(false);
       await load();
     } catch (err) {
@@ -337,11 +363,33 @@ export default function UserManagement() {
 
       {directory === "current" && <section className="beta-panel beta-invitation-panel">
         <div className="beta-section-heading">
-          <div><h2>Invitations</h2><p>Invite users with their organization and role already assigned.</p></div>
-          <button className="beta-button compact" type="button" onClick={() => setInviteOpen((open) => !open)}>
-            {inviteOpen ? "Close" : "Invite User"}
-          </button>
+          <div>
+            <h2>Invitations</h2>
+            <p>Invite users with their organization and role already assigned.</p>
+            {data.capacity?.users && (
+              <small>
+                {data.capacity.users.unmetered
+                  ? "User seats are not metered for this organization."
+                  : `${data.capacity.users.allocated}/${data.capacity.users.limit} user seats allocated`}
+              </small>
+            )}
+          </div>
+          <div className="beta-card-actions">
+            <button className="beta-button secondary compact" type="button"
+              onClick={() => navigate("/admin/bulk-onboarding?type=users")}>Import Users</button>
+            <button className="beta-button compact" type="button"
+              disabled={data.capacity?.users?.remaining === 0}
+              onClick={() => setInviteOpen((open) => !open)}>
+              {inviteOpen ? "Close" : "Invite User"}
+            </button>
+          </div>
         </div>
+        {data.capacity?.users?.remaining === 0 && (
+          <p className="beta-alert notice">
+            All licensed user seats are allocated. Revoke an unused invitation, archive an inactive user,
+            or request a higher tier from Service Delivery.
+          </p>
+        )}
         {inviteOpen && (
           <form className="beta-invitation-form" onSubmit={sendInvitation}>
             <div className="beta-form-grid">
@@ -350,13 +398,32 @@ export default function UserManagement() {
                   onChange={(event) => setInviteDraft({ ...inviteDraft, email: event.target.value })} required />
               </label>
               <label className="beta-form-field">Role
-                <select value={inviteDraft.role} onChange={(event) => setInviteDraft({ ...inviteDraft, role: event.target.value, propertyIds: [] })}>
-                  <option value="user">Submitter</option>
-                  <option value="property_manager">Property Manager</option>
-                  <option value="client">Property Owner</option>
-                  <option value="contractor">Contractor</option>
-                  <option value="cleaner">Cleaner</option>
+                <select value={inviteDraft.role} onChange={(event) => {
+                  const role = event.target.value;
+                  setInviteDraft({
+                    ...inviteDraft,
+                    role,
+                    engagementType: role === "user" ? "customer_employee" : "",
+                    propertyIds: [],
+                  });
+                }}>
+                  {ORGANIZATION_ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
+              </label>
+              <label className="beta-form-field">Assignment type
+                <select
+                  value={inviteDraft.engagementType || ""}
+                  onChange={(event) => setInviteDraft({ ...inviteDraft, engagementType: event.target.value })}
+                  required={roleRequiresCustomerEngagement(inviteDraft.role)}
+                >
+                  <option value="">Not scheduled</option>
+                  {CUSTOMER_ENGAGEMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <small>Customer employees do not create invoices. Customer contractors route to customer accounts payable.</small>
               </label>
             </div>
             {["property_manager", "client"].includes(inviteDraft.role) && (
@@ -380,7 +447,7 @@ export default function UserManagement() {
           <div className="beta-pending-invitations">
             {data.invitations.map((invitation) => (
               <article key={invitation._id} className="beta-invitation-row">
-                <div><strong>{invitation.email}</strong><small>{invitation.role.replaceAll("_", " ")} · {invitation.status}</small></div>
+                <div><strong>{invitation.email}</strong><small>{organizationRoleLabel(invitation.role)} · {customerEngagementLabel(inferredCustomerEngagementType(invitation))} · {invitation.status}</small></div>
                 <div className="beta-card-actions">
                   {invitation.status === "pending" && (
                     <button className="beta-button secondary compact" type="button" disabled={Boolean(busyAction)} onClick={() => resendInvitation(invitation._id)}>
@@ -419,7 +486,7 @@ export default function UserManagement() {
             <button key={user._id} onClick={() => chooseUser(user._id)}
               className={`beta-user-row${selectedId === user._id ? " active" : ""}`}>
               <span>{user.username || user.email}</span>
-              <small>{user.role.replace("_", " ")} · {directory === "archived" ? "archived" : user.accountStatus || "active"}</small>
+              <small>{organizationRoleLabel(user.role)} · {customerEngagementLabel(inferredCustomerEngagementType(user))} · {directory === "archived" ? "archived" : user.accountStatus || "active"}</small>
             </button>
           ))}
         </section>
@@ -433,7 +500,8 @@ export default function UserManagement() {
               </div>
               <dl className="platform-resource-facts">
                 <div><dt>Email</dt><dd>{draft.email}</dd></div>
-                <div><dt>Former role</dt><dd>{draft.role.replaceAll("_", " ")}</dd></div>
+                <div><dt>Former role</dt><dd>{organizationRoleLabel(draft.role)}</dd></div>
+                <div><dt>Former assignment type</dt><dd>{customerEngagementLabel(draft.engagementType)}</dd></div>
                 <div><dt>Archived</dt><dd>{draft.organizationArchivedAt ? new Date(draft.organizationArchivedAt).toLocaleString() : "Unknown"}</dd></div>
                 <div><dt>Submissions</dt><dd>{draft.submissionCount || 0}</dd></div>
                 <div><dt>Assignments</dt><dd>{draft.assignmentCount || 0}</dd></div>
@@ -455,12 +523,32 @@ export default function UserManagement() {
                 <input type="email" value={draft.email || ""} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
               </label>
               <label className="beta-form-field">Role
-                <select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
-                  <option value="user">User</option>
-                  <option value="property_manager">Property Manager</option>
-                  <option value="contractor">Contractor</option>
-                  <option value="cleaner">Cleaner</option>
+                <select value={draft.role} onChange={(e) => {
+                  const role = e.target.value;
+                  setPropertyIds([]);
+                  setDraft({
+                    ...draft,
+                    role,
+                    engagementType: role === "user" ? (draft.engagementType || "customer_employee") : "",
+                  });
+                }}>
+                  {ORGANIZATION_ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
+              </label>
+              <label className="beta-form-field">Assignment type
+                <select
+                  value={draft.engagementType || ""}
+                  onChange={(e) => setDraft({ ...draft, engagementType: e.target.value })}
+                  required={roleRequiresCustomerEngagement(draft.role)}
+                >
+                  <option value="">Not scheduled</option>
+                  {CUSTOMER_ENGAGEMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <small>Only a matching assignment type appears for Customer Employee or Customer Contractor fulfillment.</small>
               </label>
               <label className="beta-form-field">Status
                 <select value={draft.accountStatus || "active"} onChange={(e) => setDraft({ ...draft, accountStatus: e.target.value })}>
@@ -484,7 +572,7 @@ export default function UserManagement() {
               )}
 
               <div className="beta-card-actions">
-                <button className="beta-button" disabled={Boolean(busyAction)} onClick={save}>
+                <button className="beta-button" disabled={Boolean(busyAction) || (roleRequiresCustomerEngagement(draft.role) && !draft.engagementType)} onClick={save}>
                   {busyAction === "save" ? "Saving…" : "Save Changes"}
                 </button>
                 <button className="beta-button secondary" disabled={Boolean(busyAction)} onClick={sendReset}>

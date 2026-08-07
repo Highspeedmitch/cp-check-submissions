@@ -1,5 +1,6 @@
 // models/submission.js
 const mongoose = require('mongoose');
+const { createInspectionAiSummarySchema } = require('./schemas/inspectionAiSummary');
 
 const SubmissionSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
@@ -9,6 +10,7 @@ const SubmissionSchema = new mongoose.Schema({
   submittedAt: { type: Date, default: Date.now },
   responses: { type: mongoose.Schema.Types.Mixed, default: {} },
   templateSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+  aiSummary: { type: createInspectionAiSummarySchema(), default: null },
   assignmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Assignment", default: null },
   fulfillmentSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
   processingJobId: {

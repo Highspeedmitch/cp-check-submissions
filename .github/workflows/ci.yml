@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - develop
+      - main
+  merge_group:
+    types:
+      - checks_requested
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: CI / Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Reject critical dependency findings
+        run: npm audit --audit-level=critical
+      - name: Run backend tests
+        run: npm test
+
+  frontend:
+    name: CI / Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    env:
+      CI: true
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Reject critical dependency findings
+        run: npm audit --audit-level=critical
+      - name: Run frontend tests
+        run: npm test -- --watchAll=false --runInBand
+      - name: Build production frontend
+        run: npm run build
+
+  infrastructure:
+    name: CI / Infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: infra/requirements-ci.txt
+      - name: Install CloudFormation validator
+        run: python -m pip install -r infra/requirements-ci.txt
+      - name: Validate CloudFormation templates
+        run: cfn-lint --regions us-east-2 --template infra/*.yaml

@@ -18,7 +18,7 @@ function safeProviderDiagnostics(error) {
 
 function apDeliveryFailure(error) {
   const providerMessage = String(error?.message || "");
-  const configurationError = /no AP email configured|valid AP email address/i.test(providerMessage);
+  const configurationError = /no AP email configured|valid AP email address|approving property manager/i.test(providerMessage);
   return {
     status: configurationError ? 400 : 502,
     userMessage: configurationError ? providerMessage : SAFE_AP_DELIVERY_ERROR,

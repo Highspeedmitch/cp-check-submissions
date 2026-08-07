@@ -2,6 +2,15 @@ const s3 = require("../awsConfig");
 const { sendSystemEmail } = require("./systemEmail");
 const { normalizeEmailAddress } = require("./propertyEmails");
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function nowFrom(value) {
   return typeof value === "function" ? value() : new Date();
 }
@@ -50,16 +59,38 @@ async function sendApprovedInvoiceToAp(
       style: "currency",
       currency: "USD",
     }).format(invoice.amountCents / 100);
+    const approverName = String(invoice.review?.approverSnapshot?.name || "").trim();
+    const approverEmail = normalizeEmailAddress(
+      invoice.review?.approverSnapshot?.email,
+      "approving property manager email address"
+    );
+    if (!approverName || !approverEmail) {
+      const error = new Error("The approving property manager's name and email address are required for AP delivery.");
+      error.code = "APPROVER_CONTACT_REQUIRED";
+      throw error;
+    }
     const result = await sendEmail({
       to: destination,
+      replyTo: { name: approverName, address: approverEmail },
       subject: `Approved property inspection invoice ${invoice.invoiceNumber}`,
       text: [
-        `Invoice ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} has been reviewed and approved by the assigned property manager.`,
+        `Invoice ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} has been reviewed and approved by ${approverName}.`,
         `Property code: ${invoice.propertySnapshot.propertyCode}`,
         `Approved amount: ${amount}`,
         `Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}`,
         "The approved invoice is attached for processing.",
+        `If you have questions regarding this invoice, please contact ${approverName} at ${approverEmail}.`,
       ].join("\n"),
+      html: `
+        <p>Invoice <strong>${escapeHtml(invoice.invoiceNumber)}</strong> for <strong>${escapeHtml(invoice.propertySnapshot.name)}</strong>
+        has been reviewed and approved by <strong>${escapeHtml(approverName)}</strong>.</p>
+        <p>Property code: ${escapeHtml(invoice.propertySnapshot.propertyCode)}<br>
+        Approved amount: <strong>${amount}</strong><br>
+        Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}</p>
+        <p>The approved invoice is attached for processing.</p>
+        <p>If you have questions regarding this invoice, please contact
+        <a href="mailto:${escapeHtml(approverEmail)}">${escapeHtml(approverName)} at ${escapeHtml(approverEmail)}</a>.</p>
+      `,
       attachments: [{
         filename: `${invoice.invoiceNumber}.pdf`,
         content: file.Body,

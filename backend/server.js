@@ -1,5 +1,7 @@
 require("dotenv").config();
+require("./instrument");
 const mongoose = require("mongoose");
+const { captureBackendException } = require("./monitoring");
 const { validateRuntimeConfig } = require("./config/security");
 const { initializeFirebase } = require("./config/firebase");
 const { config: validateTotpConfig } = require("./services/totpMfa");
@@ -13,10 +15,12 @@ const PROSPECT_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 function scheduleProspectCleanup() {
   purgeExpiredProspectAssessments().catch((error) => {
     console.error("Initial prospect assessment cleanup error:", error);
+    captureBackendException(error, { tags: { job: "prospect-retention-cleanup", phase: "initial" } });
   });
   const timer = setInterval(() => {
     purgeExpiredProspectAssessments().catch((error) => {
       console.error("Prospect assessment cleanup error:", error);
+      captureBackendException(error, { tags: { job: "prospect-retention-cleanup", phase: "scheduled" } });
     });
   }, PROSPECT_CLEANUP_INTERVAL_MS);
   timer.unref();
@@ -55,6 +59,7 @@ async function startServer() {
 if (require.main === module) {
   startServer().catch((error) => {
     console.error("Server startup error:", error);
+    captureBackendException(error, { tags: { phase: "server-startup" } });
     process.exit(1);
   });
 }

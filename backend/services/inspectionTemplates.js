@@ -61,7 +61,7 @@ function normalizeField(field, index, { propertyOverride = false } = {}) {
     allowPhotos: field.type === "yes_no_issue" && Boolean(field.allowPhotos),
     descriptionLabel: String(field.descriptionLabel || "Describe the issue").trim(),
     locked: propertyOverride ? false : Boolean(field.locked),
-    order: Number.isFinite(Number(field.order)) ? Number(field.order) : index,
+    order: index,
   };
 }
 
@@ -77,6 +77,123 @@ function validateFields(fields, options) {
     throw new Error("Inspection templates support up to 18 condition-check fields.");
   }
   return normalized;
+}
+
+function plainField(field) {
+  return field?.toObject ? field.toObject() : { ...field };
+}
+
+function lockedFieldState(field) {
+  const { order: _order, ...state } = field;
+  return state;
+}
+
+function validateOrganizationFields(fields, currentFields = []) {
+  const normalized = validateFields(fields);
+  const current = currentFields.map((field, index) => normalizeField(plainField(field), index));
+  const currentByKey = new Map(current.map((field) => [field.key, field]));
+  const lockedKeys = current.filter((field) => field.locked).map((field) => field.key);
+  const submittedLockedKeys = normalized.filter((field) => field.locked).map((field) => field.key);
+  if (lockedKeys.some((key) => !submittedLockedKeys.includes(key))) {
+    throw new Error("Locked inspection fields cannot be removed.");
+  }
+  if (submittedLockedKeys.length !== lockedKeys.length
+    || submittedLockedKeys.some((key, index) => key !== lockedKeys[index])) {
+    throw new Error("Locked inspection fields cannot be moved or added.");
+  }
+  const currentSegments = new Map();
+  let currentSegment = 0;
+
+  current.forEach((field) => {
+    if (field.locked) {
+      currentSegment += 1;
+    } else {
+      currentSegments.set(field.key, currentSegment);
+    }
+  });
+
+  let submittedSegment = 0;
+  normalized.forEach((field) => {
+    const previous = currentByKey.get(field.key);
+    if (field.locked) {
+      if (lockedKeys[submittedSegment] !== field.key) {
+        throw new Error("Locked inspection fields cannot be moved or added.");
+      }
+      if (!previous || JSON.stringify(lockedFieldState(field)) !== JSON.stringify(lockedFieldState(previous))) {
+        throw new Error(`${previous?.label || field.label} is locked and cannot be changed.`);
+      }
+      submittedSegment += 1;
+      return;
+    }
+
+    if (previous?.locked) {
+      throw new Error(`${previous.label} is locked and cannot be changed.`);
+    }
+    if (!previous && submittedSegment < lockedKeys.length) {
+      throw new Error("New fields cannot be inserted before a locked inspection field.");
+    }
+    if (previous && currentSegments.get(field.key) !== submittedSegment) {
+      throw new Error("Fields cannot be moved across a locked inspection field.");
+    }
+  });
+
+  if (submittedSegment !== lockedKeys.length) {
+    throw new Error("Locked inspection fields cannot be removed.");
+  }
+  return normalized;
+}
+
+function orderFieldsByLockedAnchors(fields, requestedOrder, { strict = false } = {}) {
+  const canonical = fields.map(plainField);
+  const canonicalKeys = canonical.map((field) => field.key);
+  const knownKeys = new Set(canonicalKeys);
+  const suppliedOrder = Array.isArray(requestedOrder) ? requestedOrder.map(String) : [];
+  const suppliedUnique = [...new Set(suppliedOrder.filter((key) => knownKeys.has(key)))];
+
+  if (strict && (
+    suppliedOrder.length !== canonical.length
+    || suppliedUnique.length !== canonical.length
+    || suppliedOrder.some((key) => !knownKeys.has(key))
+  )) {
+    throw new Error("The property field order must include every visible field exactly once.");
+  }
+
+  const requestedKeys = [...suppliedUnique, ...canonicalKeys.filter((key) => !suppliedUnique.includes(key))];
+  const requestedIndex = new Map(requestedKeys.map((key, index) => [key, index]));
+  const lockedFields = canonical.filter((field) => field.locked);
+  const segments = Array.from({ length: lockedFields.length + 1 }, () => []);
+  let segment = 0;
+
+  canonical.forEach((field, canonicalIndex) => {
+    if (field.locked) {
+      segment += 1;
+      return;
+    }
+    segments[segment].push({ field, canonicalIndex });
+  });
+
+  segments.forEach((items) => items.sort((left, right) => (
+    requestedIndex.get(left.field.key) - requestedIndex.get(right.field.key)
+    || left.canonicalIndex - right.canonicalIndex
+  )));
+
+  const ordered = [];
+  segments.forEach((items, index) => {
+    ordered.push(...items.map((item) => item.field));
+    if (lockedFields[index]) ordered.push(lockedFields[index]);
+  });
+
+  if (strict && ordered.some((field, index) => field.key !== suppliedOrder[index])) {
+    throw new Error("Fields cannot be moved across a locked inspection field.");
+  }
+  return ordered.map((field, order) => ({ ...field, order }));
+}
+
+function orderContainsEveryField(requestedOrder, fields) {
+  if (!Array.isArray(requestedOrder) || requestedOrder.length !== fields.length) return false;
+  const expected = new Set(fields.map((field) => field.key));
+  const received = requestedOrder.map(String);
+  return new Set(received).size === received.length && received.every((key) => expected.has(key));
 }
 
 async function ensureOrganizationInspectionTemplate(organizationId) {
@@ -115,22 +232,29 @@ async function ensureOrganizationInspectionTemplate(organizationId) {
 
 function mergeTemplateWithOverride(template, override = {}) {
   const omitted = new Set(override.omittedFieldKeys || []);
-  const baseFields = template.fields
-    .map((field) => field.toObject ? field.toObject() : field)
-    .filter((field) => field.locked || !omitted.has(field.key));
+  const organizationFields = template.fields
+    .map((field) => field.toObject ? field.toObject() : field);
   const additionalFields = (override.additionalFields || [])
     .map((field) => field.toObject ? field.toObject() : field);
+  const orderedFields = orderFieldsByLockedAnchors(
+    [...organizationFields, ...additionalFields],
+    override.fieldOrder
+  );
+  const fields = orderedFields
+    .filter((field) => field.locked || !omitted.has(field.key))
+    .map((field, order) => ({ ...field, order }));
   return {
     templateId: template._id,
     version: template.version,
     name: template.name,
     title: template.title,
-    organizationFields: template.fields.map((field) => field.toObject ? field.toObject() : field),
+    organizationFields,
     override: {
       omittedFieldKeys: [...omitted],
       additionalFields,
+      fieldOrder: orderedFields.map((field) => field.key),
     },
-    fields: [...baseFields, ...additionalFields].map((field, order) => ({ ...field, order })),
+    fields,
   };
 }
 
@@ -166,7 +290,32 @@ function normalizePropertyOverride(template, override) {
   if (organizationFields.length - omittedFieldKeys.length + additionalFields.length > MAX_TEMPLATE_FIELDS) {
     throw new Error(`The effective inspection form can have up to ${MAX_TEMPLATE_FIELDS} fields.`);
   }
-  return { omittedFieldKeys, additionalFields };
+  const omitted = new Set(omittedFieldKeys);
+  const allFields = [...organizationFields, ...additionalFields];
+  const visibleFields = [
+    ...organizationFields.filter((field) => field.locked || !omitted.has(field.key)),
+    ...additionalFields,
+  ];
+  let orderedFields;
+  if (Array.isArray(override.fieldOrder)) {
+    if (orderContainsEveryField(override.fieldOrder, allFields)) {
+      orderedFields = orderFieldsByLockedAnchors(allFields, override.fieldOrder, { strict: true });
+    } else if (orderContainsEveryField(override.fieldOrder, visibleFields)) {
+      // Accept the previous client contract during rolling deployments, then
+      // reconcile omitted organization fields into the stored complete order.
+      orderFieldsByLockedAnchors(visibleFields, override.fieldOrder, { strict: true });
+      orderedFields = orderFieldsByLockedAnchors(allFields, override.fieldOrder);
+    } else {
+      throw new Error("The property field order must include every configured field exactly once.");
+    }
+  } else {
+    orderedFields = orderFieldsByLockedAnchors(allFields);
+  }
+  return {
+    omittedFieldKeys,
+    additionalFields,
+    fieldOrder: orderedFields.map((field) => field.key),
+  };
 }
 
 function createTemplateSnapshot(effectiveTemplate) {
@@ -184,6 +333,8 @@ module.exports = {
   MAX_TEMPLATE_FIELDS,
   defaultInspectionTemplate,
   validateFields,
+  validateOrganizationFields,
+  orderFieldsByLockedAnchors,
   ensureOrganizationInspectionTemplate,
   mergeTemplateWithOverride,
   resolvePropertyInspectionTemplate,

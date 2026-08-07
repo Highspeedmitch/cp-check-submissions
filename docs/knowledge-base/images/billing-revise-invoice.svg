@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1300" height="680" viewBox="0 0 1300 680" role="img" aria-labelledby="title desc">
   <title id="title">Billing page with a declined invoice</title>
-  <desc id="desc">Illustrated submitter Billing view with numbered callouts for Needs Revision status, decline reason, amount, Save Amount, and Review PDF.</desc>
+  <desc id="desc">Illustrated Field Operator Billing view with numbered callouts for Needs Revision status, decline reason, amount, Save Amount, and Review PDF.</desc>
   <defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#19263d" flood-opacity=".09"/></filter></defs>
   <rect width="1300" height="680" fill="#f4f6f9"/>
   <text x="74" y="56" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#087df5">← Dashboard</text>

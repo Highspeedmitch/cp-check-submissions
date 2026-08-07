@@ -26,9 +26,25 @@ async function getPlatformOrganizationMetrics({
       $project: {
         name: 1,
         orgType: 1,
+        serviceModel: 1,
         onboarding: 1,
         security: 1,
+        billingCapabilities: 1,
         propertyCount: { $size: { $ifNull: ["$properties", []] } },
+        emailApPropertyCount: {
+          $size: {
+            $filter: {
+              input: { $ifNull: ["$properties", []] },
+              as: "property",
+              cond: {
+                $and: [
+                  { $eq: ["$$property.apMethod", "email"] },
+                  { $ne: [{ $ifNull: ["$$property.apEmail", ""] }, ""] },
+                ],
+              },
+            },
+          },
+        },
       },
     }, { $sort: { name: 1 } }]),
     UserModel.aggregate([{ $match: { accountStatus: { $ne: "inactive" }, organizationArchivedAt: null } }, {
@@ -74,7 +90,11 @@ async function getPlatformOrganizationMetrics({
       organizationId: id,
       name: organization.name,
       orgType: organization.orgType,
+      serviceModel: organization.serviceModel || "managed",
       propertyCount: organization.propertyCount || 0,
+      emailApPropertyCount: organization.emailApPropertyCount || 0,
+      invoiceApprovalExperience:
+        organization.billingCapabilities?.invoiceApprovalExperience || "authenticated_portal",
       activeUserCount: userCounts.get(id) || 0,
       recentSubmissionCount: submissionCounts.get(id) || 0,
       pendingBidCount: bidCounts.get(id) || 0,

@@ -1,6 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import HelpCenter from "./HelpCenter";
+import { api } from "../../services/api";
+
+jest.mock("../../services/api", () => ({
+  api: { get: jest.fn() },
+}));
 
 function renderHelpCenter(role, orgType = "COM") {
   localStorage.setItem("role", role);
@@ -12,7 +17,10 @@ function renderHelpCenter(role, orgType = "COM") {
   );
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  api.get.mockReset();
+});
 
 test("shows inspection help without contractor billing to a commercial employee", () => {
   renderHelpCenter("user");
@@ -92,4 +100,13 @@ test("hides platform service billing guidance from organization administrators",
   expect(screen.getByRole("heading", {
     name: "Configure property delivery and inspection recipients",
   })).toBeInTheDocument();
+});
+
+test("offers completed setup as a Help Center readiness review", async () => {
+  localStorage.setItem("token", "test-token");
+  api.get.mockResolvedValue({ guided: true, status: "completed", completedAt: "2026-08-06T12:00:00Z" });
+  renderHelpCenter("admin");
+
+  expect(await screen.findByRole("button", { name: "Review Setup Guide" })).toBeInTheDocument();
+  expect(api.get).toHaveBeenCalledWith("/api/onboarding/status");
 });

@@ -10,7 +10,6 @@ import InspectionDraftPersistence from "./InspectionDraftPersistence";
 import {
   deleteInspectionDraft,
   inspectionDraftKey,
-  saveInspectionDraft,
 } from "../services/inspectionDrafts";
 
 export default function FormPage() {
@@ -27,6 +26,7 @@ export default function FormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [draftWarning, setDraftWarning] = useState("");
   const [assignmentInstructions, setAssignmentInstructions] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
   const draftKey = useMemo(() => inspectionDraftKey("commercial", property), [property]);
@@ -92,6 +92,7 @@ export default function FormPage() {
     if (!template || submitting) return;
     setSubmitting(true);
     setError("");
+    setDraftWarning("");
     try {
       const payload = {};
       template.fields.forEach((field) => {
@@ -100,13 +101,6 @@ export default function FormPage() {
           payload[`${field.key}Description`] = responses[`${field.key}Description`] || "";
         }
       });
-      await saveInspectionDraft({
-        key: draftKey,
-        responses,
-        photoGroups: photos,
-        assignmentId,
-        metadata: draftMetadata,
-      });
       const result = await submitInspectionJob({
         api,
         property,
@@ -114,9 +108,16 @@ export default function FormPage() {
         responses: payload,
         photoGroups: photos,
         assignmentId,
+        draft: {
+          key: draftKey,
+          responses,
+          photoGroups: photos,
+          assignmentId,
+          metadata: draftMetadata,
+        },
         onProgress: updateProgress,
+        onWarning: ({ message: warning }) => setDraftWarning(warning),
       });
-      if (result.status === "failed") throw new Error(result.error || "Report processing failed.");
       setMessage(result.status === "completed"
         ? "Inspection submitted and report generated successfully."
         : "Inspection uploaded and queued. Processing will continue in the background.");
@@ -208,6 +209,7 @@ export default function FormPage() {
 
         {loading && <div className="beta-empty-state">Loading inspection form…</div>}
         {error && <p className="beta-alert error" role="alert">{error}</p>}
+        {draftWarning && <p className="beta-alert notice" role="status">{draftWarning}</p>}
         {assignmentInstructions && !submitted && (
           <section className="beta-assignment-note beta-inspection-assignment-note">
             <strong>Special assignment instructions</strong>

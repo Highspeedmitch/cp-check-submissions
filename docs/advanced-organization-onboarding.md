@@ -31,7 +31,7 @@ invitation advances a guided tenant from `invited` to `in_progress`.
 
 ### 3. Organization Setup Guide
 
-Organization administrators can open **Setup Guide** from Admin tools. Required
+Organization administrators can open **Setup Guide** from Admin tools while guided onboarding is incomplete. Required
 progress is derived from live configuration instead of manual checkboxes:
 
 - workspace settings are present;
@@ -46,8 +46,10 @@ customer administrator must make security changes.
 ### 4. Completion and ongoing readiness
 
 After every required item is complete, the organization administrator can mark
-onboarding complete. That action is persisted and audited. The Setup Guide remains
-available as a readiness review after completion.
+onboarding complete. That action is persisted and audited. The navigation entry is
+then removed from Admin tools, while **Review Setup Guide** remains available in the
+Help Center header as a readiness review. Established organizations use the same
+Help Center entry without being enrolled in guided onboarding.
 
 ## Compatibility and rollout
 

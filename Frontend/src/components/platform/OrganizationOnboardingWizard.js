@@ -53,6 +53,12 @@ export const FULFILLMENT_SOURCES = {
   afterlight_contractor: "Afterlight contractor",
 };
 
+export const SERVICE_MODEL_FULFILLMENT_SOURCES = {
+  platform: ["customer_employee", "customer_contractor"],
+  managed: Object.keys(FULFILLMENT_SOURCES),
+  hybrid: Object.keys(FULFILLMENT_SOURCES),
+};
+
 export const TIMEZONES = [
   "America/Phoenix",
   "America/Los_Angeles",
@@ -66,9 +72,12 @@ const STEPS = ["Organization", "Service delivery", "Administrator", "Review"];
 function savedDraft() {
   try {
     const saved = JSON.parse(localStorage.getItem(DRAFT_KEY));
-    return saved && typeof saved === "object"
+    const draft = saved && typeof saved === "object"
       ? { ...EMPTY_ORGANIZATION, ...saved }
       : EMPTY_ORGANIZATION;
+    return SERVICE_MODEL_FULFILLMENT_SOURCES[draft.serviceModel]?.includes(draft.defaultFulfillmentSource)
+      ? draft
+      : { ...draft, defaultFulfillmentSource: SERVICE_MODEL_DEFAULTS[draft.serviceModel] || "customer_employee" };
   } catch (_error) {
     return EMPTY_ORGANIZATION;
   }
@@ -83,7 +92,9 @@ function validateStep(stepIndex, draft) {
   if (stepIndex === 1) {
     if (!SERVICE_MODELS[draft.serviceModel]) return "Select a service model.";
     if (draft.serviceModel !== "managed" && !LICENSE_TIERS[draft.licenseTier]) return "Select a license tier.";
-    if (!FULFILLMENT_SOURCES[draft.defaultFulfillmentSource]) return "Select a default fulfillment source.";
+    if (!SERVICE_MODEL_FULFILLMENT_SOURCES[draft.serviceModel]?.includes(draft.defaultFulfillmentSource)) {
+      return "Select a default fulfillment source allowed by the service model.";
+    }
   }
   if (stepIndex === 2 && !/^\S+@\S+\.\S+$/.test(draft.initialAdminEmail.trim())) {
     return "Enter a valid administrator email address.";
@@ -234,7 +245,9 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
               )}
               <label className="beta-form-field platform-onboarding-default-source">Default fulfillment
                 <select value={draft.defaultFulfillmentSource} onChange={(event) => update("defaultFulfillmentSource", event.target.value)}>
-                  {Object.entries(FULFILLMENT_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  {SERVICE_MODEL_FULFILLMENT_SOURCES[draft.serviceModel].map((value) => (
+                    <option key={value} value={value}>{FULFILLMENT_SOURCES[value]}</option>
+                  ))}
                 </select>
                 <small className="beta-field-help">{operationalSummary}</small>
               </label>

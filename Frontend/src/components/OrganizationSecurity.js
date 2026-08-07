@@ -205,7 +205,7 @@ function OrganizationSecurity() {
               <h2>Multi-factor authentication</h2>
               <p>
                 Organization and platform administrators always use an authenticator app.
-                You can also require MFA for property managers, submitters, and other users.
+                You can also require MFA for property managers, field operators, and other users.
               </p>
             </div>
             {status && (

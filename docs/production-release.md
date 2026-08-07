@@ -65,6 +65,15 @@ Optional identity controls:
 - set `OKTA_ISSUER`, `OKTA_CLIENT_IDS`, and `OKTA_ENFORCEMENT_ENABLED` only when
   the matching Production Okta application is ready.
 
+Optional inspection AI controls:
+
+- leave `INSPECTION_AI_SUMMARY_MODE=off` until the DEV preview has been reviewed and explicitly approved for customer-facing reports;
+- when approved, set `INSPECTION_AI_SUMMARY_MODE=live` and `INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST=Picor` on the inspection worker and on the web service while its embedded worker remains enabled; the allowlist uses exact case-insensitive organization names or IDs and fails closed when missing;
+- optionally pin `INSPECTION_AI_SUMMARY_MODEL_ID`, and grant the backend identity least-privilege `bedrock:InvokeModel` access to that inference profile and its routed foundation model;
+- `INSPECTION_AI_SUMMARY_TIMEOUT_MS` defaults to 8,000 milliseconds. Model failures remain non-blocking and produce a non-AI cover fallback.
+
+See [inspection-processing.md](inspection-processing.md) for the rollout modes, 300-character contract, disclaimer, IAM scope, and QA cases.
+
 Firebase credentials are not required for PWA Web Push. The current Gusto
 handoff is manual and does not require a Gusto API credential.
 
@@ -82,7 +91,7 @@ If Okta sign-in is enabled, also set `REACT_APP_OKTA_ISSUER`,
 application must allow the Production `/login/callback` redirect URI.
 
 The S3 bucket CORS policy must allow browser `POST` requests from the exact
-Production frontend origin. See [inspection-processing.md](inspection-processing.md).
+Production frontend origin. Verify the versioned inspection upload CORS rule for the configured S3 bucket before smoke testing photo submission. See [inspection-processing.md](inspection-processing.md).
 
 ## 4. Preconfigure Production organizations
 

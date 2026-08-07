@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const RefreshSession = require("../models/refreshSession");
+const { inferredCustomerEngagementType } = require("./organizationUserClassification");
 
 const ACCESS_TOKEN_LIFETIME = "2h";
 const REFRESH_SESSION_DAYS = 90;
@@ -38,6 +39,9 @@ function accessTokenPayload(user, authentication = {}) {
     email: user.email,
     organizationId: organization._id,
     role: user.role,
+    engagementType: accountScope === "organization"
+      ? inferredCustomerEngagementType(user)
+      : null,
     platformRole: user.platformRole || null,
     userId: user._id,
     tokenVersion: user.tokenVersion || 0,
@@ -58,6 +62,7 @@ function authResponse(user, secretKey, authentication = {}) {
     orgName: user.organizationId.name,
     orgType: payload.orgType,
     role: payload.role,
+    engagementType: payload.engagementType,
     platformRole: payload.platformRole,
     accountScope: payload.accountScope,
     availableWorkspaces: payload.availableWorkspaces,

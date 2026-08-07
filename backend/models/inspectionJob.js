@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { createInspectionAiSummarySchema } = require("./schemas/inspectionAiSummary");
 
 const PhotoUploadSchema = new mongoose.Schema({
   uploadId: { type: String, required: true },
@@ -34,6 +35,10 @@ const InspectionJobSchema = new mongoose.Schema({
   idempotencyKey: { type: String, required: true },
   submissionData: { type: mongoose.Schema.Types.Mixed, required: true },
   templateSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+  aiSummary: {
+    type: createInspectionAiSummarySchema(),
+    default: () => ({ status: "not_requested", mode: "off" }),
+  },
   photoUploads: { type: [PhotoUploadSchema], default: [] },
   status: {
     type: String,

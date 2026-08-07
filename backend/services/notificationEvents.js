@@ -218,7 +218,22 @@ function administratorLicenseRequested(request, organizationName, adminSeats) {
     type: "administrator_license_requested",
     title: "Administrator license increase requested",
     body: `${organizationName} requested additional administrator seats after reaching ${adminSeats.allocated}/${adminSeats.limit}.`,
-    route: "/platform?view=organizations",
+    route: "/platform?view=overview",
+    entityId: request._id,
+  };
+}
+
+function bulkOnboardingAssistanceRequested(request, organizationName, details) {
+  const label = details.type === "properties" ? "property" : "user";
+  const pluralLabel = details.type === "properties" ? "properties" : "users";
+  const estimate = details.estimatedRows
+    ? ` for approximately ${details.estimatedRows} ${details.estimatedRows === 1 ? label : pluralLabel}`
+    : "";
+  return {
+    type: "bulk_onboarding_assistance_requested",
+    title: "Bulk onboarding assistance requested",
+    body: `${organizationName} requested help with a bulk ${label} import${estimate}.`,
+    route: "/platform?view=overview",
     entityId: request._id,
   };
 }
@@ -269,6 +284,7 @@ module.exports = {
   servicePlanChangeEvent,
   serviceModelChangeEvent,
   administratorLicenseRequested,
+  bulkOnboardingAssistanceRequested,
   bidRequestSubmitted,
   bidRequestReceived,
   bidRequestStatusChanged,

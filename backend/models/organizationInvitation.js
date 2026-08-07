@@ -13,6 +13,11 @@ const OrganizationInvitationSchema = new mongoose.Schema({
     enum: ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
     required: true,
   },
+  engagementType: {
+    type: String,
+    enum: ["customer_employee", "customer_contractor", null],
+    default: null,
+  },
   propertyIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
   tokenHash: { type: String, required: true, unique: true, select: false },
   status: {

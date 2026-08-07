@@ -8,6 +8,7 @@ const {
 const {
   buildProductionOrganizationPlan,
   configureProductionOrganizations,
+  normalizeProductionOrganizationConfiguration,
 } = require("../services/productionOrganizationConfiguration");
 
 const CONFIGURATION = {
@@ -21,6 +22,14 @@ test("production organization configuration defaults to dry run", () => {
   assert.deepEqual(parseArguments([]), { apply: false });
   assert.throws(() => parseArguments(["--unknown"]), /Unsupported arguments/);
   assert.doesNotThrow(() => requireProductionApplyApproval({ apply: false, env: {} }));
+});
+
+test("production configuration rejects fulfillment that conflicts with the service model", () => {
+  assert.throws(() => normalizeProductionOrganizationConfiguration({
+    name: "SaaS Organization",
+    serviceModel: "platform",
+    defaultFulfillmentSource: "afterlight_staff",
+  }), /Managed Service and Hybrid/);
 });
 
 test("applying production organization configuration requires two explicit guards", () => {

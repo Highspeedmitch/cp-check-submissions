@@ -9,7 +9,6 @@ import InspectionDraftPersistence from "./InspectionDraftPersistence";
 import {
   deleteInspectionDraft,
   inspectionDraftKey,
-  saveInspectionDraft,
 } from "../services/inspectionDrafts";
 
 function LongTermRental() {
@@ -36,6 +35,7 @@ function LongTermRental() {
 
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
+  const [draftWarning, setDraftWarning] = useState("");
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const draftKey = useMemo(() => inspectionDraftKey("long-term-rental", property), [property]);
@@ -59,16 +59,9 @@ function LongTermRental() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setDraftWarning("");
     try {
       const { photos, ...responses } = formData;
-      await saveInspectionDraft({
-        key: draftKey,
-        responses,
-        photoGroups: photos,
-        assignmentId,
-        metadata: draftMetadata,
-      });
-
       const result = await submitInspectionJob({
         api,
         property,
@@ -76,6 +69,14 @@ function LongTermRental() {
         responses,
         photoGroups: photos,
         assignmentId,
+        draft: {
+          key: draftKey,
+          responses,
+          photoGroups: photos,
+          assignmentId,
+          metadata: draftMetadata,
+        },
+        onWarning: ({ message: warning }) => setDraftWarning(warning),
         onProgress: ({ phase, completed, total }) => {
           if (phase === "preparing") setMessage("Preparing photo uploads…");
           if (phase === "uploading") setMessage(`Uploading photo ${completed} of ${total}…`);
@@ -84,7 +85,6 @@ function LongTermRental() {
         },
       });
 
-      if (result.status === "failed") throw new Error(result.error || "Report processing failed.");
       setMessage(result.status === "completed"
         ? "Inspection submitted and report generated successfully."
         : "Inspection uploaded and queued for background processing.");
@@ -100,6 +100,7 @@ function LongTermRental() {
 
   return (
     <div className="container">
+      {draftWarning && <p className="beta-alert notice" role="status">{draftWarning}</p>}
       <h1>{property} – Long-Term Rental Inspection Checklist</h1>
 
       {!submitted && (

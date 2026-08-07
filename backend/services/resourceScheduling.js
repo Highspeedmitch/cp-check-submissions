@@ -2,6 +2,10 @@ const User = require("../models/user");
 const ResourceProfile = require("../models/resourceProfile");
 const ResourceDeployment = require("../models/resourceDeployment");
 const { serviceModelAllowsAfterlightResources } = require("./fulfillmentPolicy");
+const {
+  customerEngagementLabel,
+  customerEngagementMatchesFulfillment,
+} = require("./organizationUserClassification");
 
 function validationError(message) {
   const error = new Error(message);
@@ -28,9 +32,12 @@ async function resolveAssignmentAssignee({
       accountScope: { $ne: "afterlight_resource" },
       accountStatus: { $ne: "inactive" },
       organizationArchivedAt: null,
-    }).select("_id").lean();
+    }).select("_id role engagementType").lean();
     if (!assignedUser) {
       throw validationError("Assigned user is not active in this organization.");
+    }
+    if (!customerEngagementMatchesFulfillment(assignedUser, fulfillment.source)) {
+      throw validationError(`Select a ${customerEngagementLabel(fulfillment.source)} field operator for this fulfillment type.`);
     }
     return {
       userId: assignedUser._id,

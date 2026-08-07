@@ -20,6 +20,7 @@ import {
 } from "../services/notificationCenter";
 
 const PENDING_ADMIN_VIEW_STEP_UP = "afterlightPendingAdminViewStepUp";
+const PENDING_CAPABILITY_STEP_UP = "afterlightPendingCapabilityStepUp";
 const PENDING_ADMIN_VIEW_LIFETIME_MS = 10 * 60 * 1000;
 
 function PlatformNavigation({ open, activeView, notificationBadges, onClose, onView, onNewOrganization, onHelp, onLogout }) {
@@ -43,7 +44,7 @@ function PlatformNavigation({ open, activeView, notificationBadges, onClose, onV
         </div>
         <nav>
           <p className="beta-nav-label">Platform</p>
-          <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}>Overview</button>
+          <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}><span>Overview</span>{notificationBadges.platformOrganizations > 0 && <span className="beta-nav-badge">{notificationBadges.platformOrganizations > 9 ? "9+" : notificationBadges.platformOrganizations}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "billing" ? " active" : ""}`} onClick={() => go("billing")}><span>Service Billing</span>{notificationBadges.platformBilling > 0 && <span className="beta-nav-badge">{notificationBadges.platformBilling > 9 ? "9+" : notificationBadges.platformBilling}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}><span>Resources &amp; Payables</span>{notificationBadges.resources > 0 && <span className="beta-nav-badge">{notificationBadges.resources > 9 ? "9+" : notificationBadges.resources}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "service-models" ? " active" : ""}`} onClick={() => go("service-models")}><span>Service Plan Requests</span>{notificationBadges.serviceModels > 0 && <span className="beta-nav-badge">{notificationBadges.serviceModels > 9 ? "9+" : notificationBadges.serviceModels}</span>}</button>
@@ -90,7 +91,9 @@ function StepUpAuthenticationDialog({ request, onClose, onVerify }) {
           <button type="button" className="beta-dialog-close" onClick={onClose} disabled={request.working} aria-label="Close dialog">×</button>
         </div>
         <p className="beta-dialog-copy" id="platform-step-up-description">
-          Enter a new six-digit code from your authenticator app to open the Admin View for {request.organization.name}.
+          Enter a new six-digit code from your authenticator app to {request.kind === "capability"
+            ? `change billing capabilities for ${request.organization.name}`
+            : `open the Admin View for ${request.organization.name}`}.
         </p>
         <label className="beta-field">
           Authentication code
@@ -121,7 +124,62 @@ function StepUpAuthenticationDialog({ request, onClose, onVerify }) {
   );
 }
 
-function OrganizationCard({ organization, busy, onEnter, onResendAdminInvite }) {
+function OrganizationCapabilitiesDialog({ organization, busy, error, onClose, onSave }) {
+  const [experience, setExperience] = useState("authenticated_portal");
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    setExperience(organization?.invoiceApprovalExperience || "authenticated_portal");
+    setReason("");
+  }, [organization]);
+  if (!organization) return null;
+
+  const supported = ["managed", "hybrid"].includes(organization.serviceModel);
+  const incompleteApSetup = organization.emailApPropertyCount < organization.propertyCount;
+  return (
+    <div className="beta-dialog-overlay" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
+      <form className="beta-dialog" role="dialog" aria-modal="true" aria-labelledby="organization-capabilities-title"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave({ invoiceApprovalExperience: experience, reason: reason.trim() });
+        }}>
+        <div className="beta-dialog-header">
+          <div>
+            <span className="beta-eyebrow">Platform-controlled capability</span>
+            <h2 id="organization-capabilities-title">Invoice approval for {organization.name}</h2>
+          </div>
+          <button type="button" className="beta-dialog-close" disabled={busy} onClick={onClose} aria-label="Close dialog">×</button>
+        </div>
+        <p className="beta-dialog-copy">Choose how property managers approve managed-service invoices. Organization administrators cannot change this setting.</p>
+        <label className="beta-form-field">Approval experience
+          <select value={experience} onChange={(event) => setExperience(event.target.value)}>
+            <option value="authenticated_portal">Standard Afterlight review</option>
+            <option value="secure_email_link" disabled={!supported}>Secure email approval</option>
+          </select>
+        </label>
+        {!supported && <p className="beta-alert notice">Secure email approval is currently limited to Managed service and Hybrid organizations.</p>}
+        {experience === "secure_email_link" && incompleteApSetup && (
+          <p className="beta-alert notice">
+            {organization.emailApPropertyCount} of {organization.propertyCount} properties currently have AP email delivery configured. Ineligible invoices will continue using standard Afterlight review.
+          </p>
+        )}
+        <label className="beta-form-field">Reason for change
+          <textarea required maxLength="500" value={reason} onChange={(event) => setReason(event.target.value)}
+            placeholder="Record the customer request or operational reason." />
+        </label>
+        {error && <p className="beta-dialog-error" role="alert">{error}</p>}
+        <div className="beta-dialog-actions">
+          <button type="button" className="beta-button secondary" disabled={busy} onClick={onClose}>Cancel</button>
+          <button type="submit" className="beta-button" disabled={busy || !reason.trim()}>
+            {busy ? "Saving..." : "Save capability"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function OrganizationCard({ organization, busy, onEnter, onManageCapabilities, onResendAdminInvite }) {
   const attentionCount = organization.pendingBidCount + organization.pendingInvoiceCount;
   return (
     <article className="platform-organization-card">
@@ -153,9 +211,15 @@ function OrganizationCard({ organization, busy, onEnter, onResendAdminInvite }) 
           <small>{organization.onboarding.requiredComplete} of {organization.onboarding.requiredTotal} required setup items complete</small>
         </div>
       )}
-      <button className="beta-button secondary" type="button" disabled={Boolean(busy)} onClick={() => onEnter(organization)}>
-        {busy === organization.organizationId ? "Entering..." : "Open Admin View"}
-      </button>
+      <div className="platform-organization-actions">
+        <button className="beta-button secondary" type="button" disabled={Boolean(busy)} onClick={() => onManageCapabilities(organization)}>
+          Manage capabilities
+        </button>
+        <button className="beta-button secondary" type="button" disabled={Boolean(busy)} onClick={() => onEnter(organization)}>
+          {busy === organization.organizationId ? "Entering..." : "Open Admin View"}
+        </button>
+      </div>
+      <small className="platform-capability-summary">Invoice approval: {organization.invoiceApprovalExperience === "secure_email_link" ? "Secure email" : "Standard Afterlight review"}</small>
     </article>
   );
 }
@@ -177,6 +241,8 @@ export default function PlatformDashboard() {
   const [navOpen, setNavOpen] = useState(false);
   const [newOrganizationOpen, setNewOrganizationOpen] = useState(false);
   const [organizationError, setOrganizationError] = useState("");
+  const [capabilityOrganization, setCapabilityOrganization] = useState(null);
+  const [capabilityError, setCapabilityError] = useState("");
   const [stepUpRequest, setStepUpRequest] = useState(null);
   const notificationBadges = useNotificationBadges(true);
   const helpSlug = activeView === "billing"
@@ -194,7 +260,9 @@ export default function PlatformDashboard() {
       ? NOTIFICATION_SECTIONS.resources
       : activeView === "service-models"
         ? NOTIFICATION_SECTIONS.serviceModels
-        : [];
+        : activeView === "overview"
+          ? NOTIFICATION_SECTIONS.platformOrganizations
+          : [];
   useMarkNotificationsRead(activeNotificationTypes);
 
   const selectView = useCallback((view) => {
@@ -221,12 +289,13 @@ export default function PlatformDashboard() {
     );
   }, [report, search]);
 
-  const beginIdentityConfirmation = useCallback(async (organization, reason) => {
+  const beginIdentityConfirmation = useCallback(async (organization, reason, pending = { kind: "assume" }) => {
     const challenge = await api.post("/api/auth/mfa/step-up/challenge", {});
     if (challenge.provider === "totp" && challenge.challengeToken) {
       setStepUpRequest({
         organization,
         reason,
+        ...pending,
         challengeToken: challenge.challengeToken,
         working: false,
         error: "",
@@ -237,24 +306,67 @@ export default function PlatformDashboard() {
       if (!oktaConfigured) {
         throw new Error("Okta identity confirmation is not available in this application build.");
       }
-      sessionStorage.setItem(PENDING_ADMIN_VIEW_STEP_UP, JSON.stringify({
+      const storageKey = pending.kind === "capability"
+        ? PENDING_CAPABILITY_STEP_UP
+        : PENDING_ADMIN_VIEW_STEP_UP;
+      sessionStorage.setItem(storageKey, JSON.stringify({
         organizationId: organization.organizationId,
         reason,
+        ...pending,
         createdAt: Date.now(),
       }));
       try {
         await beginOktaLogin({
-          returnTo: "/platform?resumeAdminView=1",
+          returnTo: pending.kind === "capability"
+            ? "/platform?resumeCapability=1"
+            : "/platform?resumeAdminView=1",
           stepUp: true,
         });
       } catch (requestError) {
-        sessionStorage.removeItem(PENDING_ADMIN_VIEW_STEP_UP);
+        sessionStorage.removeItem(storageKey);
         throw requestError;
       }
       return;
     }
     throw new Error(challenge.message || "Identity confirmation is unavailable.");
   }, []);
+
+  const attemptCapabilityUpdate = useCallback(async (
+    organization,
+    capability,
+    allowStepUp = true
+  ) => {
+    setBusy(`capability-${organization.organizationId}`);
+    setCapabilityError("");
+    try {
+      const result = await api.put(
+        `/api/platform/organizations/${organization.organizationId}/billing-capabilities`,
+        capability
+      );
+      await loadReport();
+      setCapabilityOrganization(null);
+      setMessage(result.invoiceApprovalExperience === "secure_email_link"
+        ? `Secure email invoice approval enabled for ${organization.name}.`
+        : `Standard Afterlight invoice review restored for ${organization.name}.`);
+    } catch (requestError) {
+      const stepUpRequired = ["STEP_UP_REQUIRED", "OKTA_REAUTH_REQUIRED"]
+        .includes(requestError.data?.code);
+      if (allowStepUp && stepUpRequired) {
+        try {
+          await beginIdentityConfirmation(organization, capability.reason, {
+            kind: "capability",
+            invoiceApprovalExperience: capability.invoiceApprovalExperience,
+          });
+        } catch (confirmationError) {
+          setCapabilityError(confirmationError.message);
+        }
+        return;
+      }
+      setCapabilityError(requestError.message);
+    } finally {
+      setBusy("");
+    }
+  }, [beginIdentityConfirmation, loadReport]);
 
   const attemptOrganizationAccess = useCallback(async (organization, reason, allowStepUp = true) => {
     setBusy(organization.organizationId);
@@ -313,6 +425,35 @@ export default function PlatformDashboard() {
     }
   }, [attemptOrganizationAccess, report, searchParams, setSearchParams]);
 
+  useEffect(() => {
+    if (!report || searchParams.get("resumeCapability") !== "1") return;
+    const pendingValue = sessionStorage.getItem(PENDING_CAPABILITY_STEP_UP);
+    sessionStorage.removeItem(PENDING_CAPABILITY_STEP_UP);
+    setSearchParams({});
+    if (!pendingValue) {
+      setError("The pending capability change could not be restored. Please try again.");
+      return;
+    }
+    try {
+      const pending = JSON.parse(pendingValue);
+      const organization = report.organizations.find(
+        (candidate) => candidate.organizationId === pending.organizationId
+      );
+      if (!organization || !pending.reason || !pending.invoiceApprovalExperience
+        || !pending.createdAt || Date.now() - pending.createdAt > PENDING_ADMIN_VIEW_LIFETIME_MS) {
+        setError("The pending capability change expired or could not be restored. Please try again.");
+        return;
+      }
+      setCapabilityOrganization(organization);
+      attemptCapabilityUpdate(organization, {
+        invoiceApprovalExperience: pending.invoiceApprovalExperience,
+        reason: pending.reason,
+      }, false);
+    } catch (_parseError) {
+      setError("The pending capability change could not be restored. Please try again.");
+    }
+  }, [attemptCapabilityUpdate, report, searchParams, setSearchParams]);
+
   async function createOrganization(draft) {
     if (busy) return false;
     setBusy("create-organization");
@@ -351,11 +492,18 @@ export default function PlatformDashboard() {
       });
       storeAuthentication(authentication);
       setStepUpRequest(null);
-      await attemptOrganizationAccess(
-        pendingRequest.organization,
-        pendingRequest.reason,
-        false
-      );
+      if (pendingRequest.kind === "capability") {
+        await attemptCapabilityUpdate(pendingRequest.organization, {
+          invoiceApprovalExperience: pendingRequest.invoiceApprovalExperience,
+          reason: pendingRequest.reason,
+        }, false);
+      } else {
+        await attemptOrganizationAccess(
+          pendingRequest.organization,
+          pendingRequest.reason,
+          false
+        );
+      }
     } catch (requestError) {
       setStepUpRequest((current) => current && ({
         ...current,
@@ -428,7 +576,8 @@ export default function PlatformDashboard() {
               </div>
               {organizations.length ? (
                 <div className="platform-organization-grid">
-                  {organizations.map((organization) => <OrganizationCard key={organization.organizationId} organization={organization} busy={busy} onEnter={enterOrganization} onResendAdminInvite={resendAdminInvitation} />)}
+                  {organizations.map((organization) => <OrganizationCard key={organization.organizationId} organization={organization} busy={busy} onEnter={enterOrganization}
+                    onManageCapabilities={(selected) => { setCapabilityError(""); setCapabilityOrganization(selected); }} onResendAdminInvite={resendAdminInvitation} />)}
                 </div>
               ) : <div className="beta-empty-state">No organizations match that search.</div>}
             </section>
@@ -437,6 +586,11 @@ export default function PlatformDashboard() {
       </div>
       <OrganizationOnboardingWizard open={newOrganizationOpen} busy={busy === "create-organization"} error={organizationError}
         onClose={() => !busy && setNewOrganizationOpen(false)} onCreate={createOrganization} />
+      <OrganizationCapabilitiesDialog organization={capabilityOrganization}
+        busy={busy === `capability-${capabilityOrganization?.organizationId}`}
+        error={capabilityError}
+        onClose={() => { if (!busy) setCapabilityOrganization(null); }}
+        onSave={(capability) => attemptCapabilityUpdate(capabilityOrganization, capability)} />
       <StepUpAuthenticationDialog
         request={stepUpRequest}
         onClose={() => !stepUpRequest?.working && setStepUpRequest(null)}

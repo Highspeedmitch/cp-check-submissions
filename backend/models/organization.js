@@ -82,6 +82,7 @@ const PropertySchema = new mongoose.Schema({
   propertyManagers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   inspectionTemplateOverride: {
     omittedFieldKeys: { type: [String], default: [] },
+    fieldOrder: { type: [String], default: [] },
     additionalFields: {
       type: [{
         key: { type: String, required: true },
@@ -127,12 +128,33 @@ const OrganizationLicenseSchema = new mongoose.Schema({
   userLimit: { type: Number, min: 1, default: null },
   propertyLimit: { type: Number, min: 1, default: null },
   adminSeatVersion: { type: Number, min: 0, default: 0 },
+  capacityVersion: { type: Number, min: 0, default: 0 },
   updatedAt: { type: Date, default: null },
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     default: null,
   },
+}, { _id: false });
+
+const OrganizationBillingCapabilitiesSchema = new mongoose.Schema({
+  invoiceApprovalExperience: {
+    type: String,
+    enum: ["authenticated_portal", "secure_email_link", "outlook_actionable"],
+    default: "authenticated_portal",
+  },
+  emailApprovalTokenHours: {
+    type: Number,
+    min: 1,
+    max: 168,
+    default: 24,
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+  updatedAt: { type: Date, default: null },
 }, { _id: false });
 
 const OrganizationSchema = new mongoose.Schema({
@@ -172,6 +194,10 @@ const OrganizationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "BillingPolicy",
     default: null,
+  },
+  billingCapabilities: {
+    type: OrganizationBillingCapabilitiesSchema,
+    default: () => ({}),
   },
   inspectionTemplateId: {
     type: mongoose.Schema.Types.ObjectId,

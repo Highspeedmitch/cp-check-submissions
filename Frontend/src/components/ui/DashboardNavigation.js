@@ -1,5 +1,9 @@
 import React, { useState } from "react";
 import { canAccessExternalConnections } from "../../services/externalConnectionsAccess";
+import {
+  setupGuideNavigationVisible,
+  useOrganizationOnboardingStatus,
+} from "../../services/organizationOnboardingStatus";
 import WorkspaceSwitcher from "../WorkspaceSwitcher";
 import ThemeToggle from "./ThemeToggle";
 
@@ -97,6 +101,10 @@ export default function DashboardNavigation({
   const isAdmin = role === "admin";
   const isManager = role === "property_manager";
   const isManagement = isAdmin || isManager;
+  const onboardingStatus = useOrganizationOnboardingStatus(
+    isAdmin && accountScope === "organization"
+  );
+  const showSetupGuide = setupGuideNavigationVisible(onboardingStatus);
   const externalConnectionsAllowed = canAccessExternalConnections({ role, accountScope });
   const dashboardRoute = accountScope === "afterlight_resource" ? "/resource" : "/dashboard";
   const [sections, setSections] = useState(() => initialSectionState(accountScope, activeRoute));
@@ -173,8 +181,10 @@ export default function DashboardNavigation({
                 onToggle={() => toggleSection("adminTools")}
                 badge={notificationBadges.serviceModels}
               >
-                <NavButton active={activeRoute === "onboarding"} onClick={() => go("/onboarding")}>Setup Guide</NavButton>
-                <NavButton onClick={onAddProperty}>Add Property</NavButton>
+                {showSetupGuide && (
+                  <NavButton active={activeRoute === "onboarding"} onClick={() => go("/onboarding")}>Setup Guide</NavButton>
+                )}
+                <NavButton onClick={onAddProperty}>Add Properties</NavButton>
                 {orgType === "COM" && <NavButton onClick={() => go("/admin/users")}>Users</NavButton>}
                 {orgType === "COM" && <NavButton onClick={() => go("/organization-form-settings")}>Form Template</NavButton>}
                 <NavButton badge={notificationBadges.serviceModels} onClick={() => go("/service-delivery")}>Service Delivery</NavButton>

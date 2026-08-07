@@ -55,6 +55,10 @@ function fulfillmentSourcesForServiceModel(organizationOrServiceModel) {
     : [...CUSTOMER_FULFILLMENT_SOURCES];
 }
 
+function fulfillmentSourceAllowedForServiceModel(value, organizationOrServiceModel) {
+  return fulfillmentSourcesForServiceModel(organizationOrServiceModel).includes(value);
+}
+
 function validateFulfillmentSourceForServiceModel(value, organizationOrServiceModel) {
   const source = validateFulfillmentSource(value);
   if (AFTERLIGHT_FULFILLMENT_SOURCES.includes(source)
@@ -68,16 +72,14 @@ function validateFulfillmentSourceForServiceModel(value, organizationOrServiceMo
 
 function organizationDefaultSource(organization) {
   const explicit = organization?.fulfillmentPolicy?.defaultSource;
-  if (FULFILLMENT_SOURCES.includes(explicit)) return explicit;
-  const serviceModel = SERVICE_MODELS.includes(organization?.serviceModel)
-    ? organization.serviceModel
-    : "managed";
+  const serviceModel = normalizedServiceModel(organization);
+  if (fulfillmentSourceAllowedForServiceModel(explicit, serviceModel)) return explicit;
   return SERVICE_MODEL_DEFAULTS[serviceModel];
 }
 
 function propertyDefaultSource(organization, property) {
   const explicit = property?.fulfillmentPolicy?.defaultSource;
-  return FULFILLMENT_SOURCES.includes(explicit)
+  return fulfillmentSourceAllowedForServiceModel(explicit, organization)
     ? explicit
     : organizationDefaultSource(organization);
 }
@@ -88,7 +90,10 @@ function policyForSource(source) {
 
 function resolveAssignmentFulfillment({ organization, property, requestedSource, actorUserId, resolvedAt = new Date() }) {
   const organizationSource = organizationDefaultSource(organization);
-  const hasPropertyOverride = FULFILLMENT_SOURCES.includes(property?.fulfillmentPolicy?.defaultSource);
+  const hasPropertyOverride = fulfillmentSourceAllowedForServiceModel(
+    property?.fulfillmentPolicy?.defaultSource,
+    organization
+  );
   const inheritedSource = propertyDefaultSource(organization, property);
   const hasAssignmentOverride = requestedSource !== undefined && requestedSource !== null && requestedSource !== "";
   const source = validateFulfillmentSourceForServiceModel(
@@ -146,6 +151,7 @@ module.exports = {
   validateFulfillmentSource,
   validateFulfillmentSourceForServiceModel,
   fulfillmentSourcesForServiceModel,
+  fulfillmentSourceAllowedForServiceModel,
   serviceModelAllowsAfterlightResources,
   organizationDefaultSource,
   propertyDefaultSource,

@@ -6,6 +6,7 @@ const User = require("../models/user");
 const Assignment = require("../models/assignment");
 const Invoice = require("../models/invoice");
 const { generateChecklistPDF } = require("../pdfservice");
+const { ensureInspectionSummary } = require("./inspectionSummary");
 const {
   downloadAndValidatePhoto,
   uploadInspectionPdf,
@@ -65,7 +66,7 @@ async function loadPhotoBuffers(job) {
   return buffers;
 }
 
-async function ensurePdf(job) {
+async function ensurePdf(job, options = {}) {
   if (job.pdfKey && job.pdfUrl && job.pdfFileName) {
     return {
       pdfBuffer: await downloadInspectionPdf(job.pdfKey),
@@ -76,7 +77,8 @@ async function ensurePdf(job) {
   const generated = await generateChecklistPDF(
     job.submissionData,
     photoBuffers,
-    job.templateSnapshot
+    job.templateSnapshot,
+    options
   );
   if (!generated.pdfBuffer?.length) throw new Error("PDF generation returned no content.");
   const uploaded = await uploadInspectionPdf({
@@ -122,6 +124,9 @@ async function ensureSubmission(job, organization, property, assignment) {
           submittedAt: job.createdAt,
           responses: job.submissionData,
           templateSnapshot: job.templateSnapshot,
+          aiSummary: job.aiSummary?.status === "generated"
+            ? (job.aiSummary.toObject?.() || job.aiSummary)
+            : null,
           assignmentId: assignment?._id || null,
           fulfillmentSnapshot: initialFulfillment,
           processingJobId: job._id,
@@ -334,7 +339,10 @@ async function processInspectionJob(job) {
         userId: job.userId,
         status: "scheduled",
       });
-  const generated = await ensurePdf(job);
+  const summaryResult = await ensureInspectionSummary(job, { organization });
+  const generated = await ensurePdf(job, {
+    coverSummary: summaryResult.coverSummary,
+  });
   const { submission, contractorEarning } = await ensureSubmission(
     job,
     organization,

@@ -34,7 +34,7 @@ Conditions:
 Resources:
   ApDeliveryEventKey:
     Type: AWS::KMS::Key
-    DeletionPolicy: Retain
+    DeletionPolicy: RetainExceptOnCreate
     UpdateReplacePolicy: Retain
     Properties:
       Description: !Sub "Afterlight ${Environment} SES AP delivery event encryption"
@@ -169,7 +169,7 @@ Resources:
 
   ApDeliveryEventDeadLetterQueue:
     Type: AWS::SQS::Queue
-    DeletionPolicy: Retain
+    DeletionPolicy: RetainExceptOnCreate
     UpdateReplacePolicy: Retain
     Properties:
       MessageRetentionPeriod: 1209600
@@ -300,7 +300,7 @@ Resources:
     Properties:
       ConfigurationSetName: !Ref ApInvoiceConfigurationSet
       EventDestination:
-        Name: ap-invoice-delivery-events
+        Name: !Sub "${Environment}-ap-invoice-delivery-events"
         Enabled: true
         MatchingEventTypes:
           - DELIVERY

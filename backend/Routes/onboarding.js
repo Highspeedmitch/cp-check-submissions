@@ -4,7 +4,10 @@ const OrganizationInvitation = require("../models/organizationInvitation");
 const Submission = require("../models/submission");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
-const { serializeOrganizationOnboarding } = require("../services/organizationOnboarding");
+const {
+  serializeOrganizationOnboarding,
+  serializeOrganizationOnboardingStatus,
+} = require("../services/organizationOnboarding");
 
 const router = express.Router();
 
@@ -46,6 +49,19 @@ async function loadOnboarding(organizationId) {
     }),
   };
 }
+
+router.get("/status", async (req, res) => {
+  try {
+    const organization = await Organization.findById(req.user.organizationId)
+      .select("onboarding")
+      .lean();
+    if (!organization) return res.status(404).json({ error: "Organization not found." });
+    return res.json(serializeOrganizationOnboardingStatus(organization));
+  } catch (error) {
+    console.error("Organization onboarding status error:", error.message);
+    return res.status(500).json({ error: "Unable to load setup status." });
+  }
+});
 
 router.get("/", async (req, res) => {
   try {

@@ -33,10 +33,12 @@ test("filters help articles by exact role and organization type", () => {
     "request-a-service-model-change",
     "enable-notifications",
     "manage-organization-users",
+    "onboard-customer-field-operators",
     "complete-organization-setup",
     "manage-administrator-seats",
     "configure-property-delivery",
     "authenticator-verification",
+    "bulk-onboard-users-properties",
   ]);
   expect(visibleHelpArticles({ role: "client", orgType: "STR" }).map(({ slug }) => slug)).toEqual([
     "enable-notifications",

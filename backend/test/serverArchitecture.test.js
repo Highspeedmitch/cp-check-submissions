@@ -99,6 +99,18 @@ test("billing router exposes the platform-owned service invoice lifecycle", () =
   }
 });
 
+test("secure invoice email actions are isolated in a public POST-only router", () => {
+  assert.deepEqual(routeInventory(require("../Routes/invoiceEmailActions")), [
+    { path: "/resolve", methods: ["post"] },
+    { path: "/approve", methods: ["post"] },
+  ]);
+  const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  const publicActionIndex = appSource.indexOf('"/api/invoice-email-actions"');
+  const authenticatedBillingIndex = appSource.indexOf('"/api/billing"');
+  assert.ok(publicActionIndex > -1);
+  assert.ok(publicActionIndex < authenticatedBillingIndex);
+});
+
 test("platform resource deployments expose an editable organization and scope path", () => {
   const inventory = routeInventory(require("../Routes/platformResources"));
   assert.deepEqual(

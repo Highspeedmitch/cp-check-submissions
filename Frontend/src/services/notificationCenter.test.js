@@ -19,6 +19,7 @@ test("groups only unread notifications into their destination sections", () => {
     resources: 0,
     serviceModels: 0,
     platformBilling: 0,
+    platformOrganizations: 0,
   });
 });
 
@@ -39,7 +40,17 @@ test("separates platform billing events and groups new operational notifications
     resources: 2,
     serviceModels: 3,
     platformBilling: 1,
+    platformOrganizations: 0,
   });
+});
+
+test("routes organization-level platform requests to the overview badge", () => {
+  const grouped = groupUnreadNotifications([
+    { type: "administrator_license_requested", recipientScope: "platform", readAt: null },
+    { type: "bulk_onboarding_assistance_requested", recipientScope: "platform", readAt: null },
+  ]);
+  expect(grouped.platformOrganizations).toBe(2);
+  expect(grouped.serviceModels).toBe(0);
 });
 
 test("identifies properties with unread inspection activity", () => {

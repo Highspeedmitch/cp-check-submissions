@@ -10,9 +10,11 @@ const {
   normalizeInvitationEmail,
 } = require("./organizationInvitations");
 const {
-  adminLimitError,
-  summarizeAdminSeatCounts,
-} = require("./licenseEntitlements");
+  assertLicenseCapacity,
+  capacitySnapshot,
+  summarizeLicenseCapacity,
+  touchCapacityVersion,
+} = require("./licenseCapacity");
 const { sendSystemEmail } = require("./systemEmail");
 
 const MAX_ADMIN_INVITATIONS_PER_REQUEST = 10;
@@ -55,10 +57,6 @@ async function defaultTransactionRunner(work) {
   }
 }
 
-async function queryCount(Model, filter, session) {
-  return withSession(Model.countDocuments(filter), session);
-}
-
 async function queryLean(Model, filter, fields, session) {
   let query = Model.find(filter);
   if (fields && typeof query.select === "function") query = query.select(fields);
@@ -89,19 +87,14 @@ async function createLicensedAdminInvitations({
     const organization = await withSession(OrganizationModel.findById(organizationId), session);
     if (!organization) throw operationError("Organization not found.", 404);
 
-    const [active, pending, existingPending] = await Promise.all([
-      queryCount(UserModel, {
-        organizationId,
-        role: "admin",
-        accountStatus: "active",
-        organizationArchivedAt: null,
-      }, session),
-      queryCount(InvitationModel, {
-        organizationId,
-        role: "admin",
-        status: "pending",
-        expiresAt: { $gt: now },
-      }, session),
+    const [counts, existingPending] = await Promise.all([
+      capacitySnapshot({
+        organization,
+        now,
+        session,
+        UserModel,
+        InvitationModel,
+      }),
       queryLean(InvitationModel, {
         organizationId,
         role: "admin",
@@ -119,8 +112,18 @@ async function createLicensedAdminInvitations({
       );
     }
 
-    const before = summarizeAdminSeatCounts({ organization, active, pending });
-    if (!before.unmetered && emails.length > before.remaining) throw adminLimitError(before);
+    const beforeCapacity = summarizeLicenseCapacity({ organization, capacity: counts });
+    const before = {
+      ...beforeCapacity.administrators,
+      tier: beforeCapacity.tier,
+      planLabel: beforeCapacity.planLabel,
+    };
+    try {
+      assertLicenseCapacity({ summary: beforeCapacity, dimension: "administrators", additional: emails.length });
+    } catch (error) {
+      error.adminSeats = before;
+      throw error;
+    }
 
     const grantAccepted = await consumeAdminGrant({
       organization,
@@ -153,15 +156,21 @@ async function createLicensedAdminInvitations({
 
     if (!organization.license) organization.license = {};
     organization.license.adminSeatVersion = Number(organization.license.adminSeatVersion || 0) + 1;
-    organization.license.updatedAt = now;
-    organization.license.updatedBy = invitedBy;
+    touchCapacityVersion(organization, { actorUserId: invitedBy, now });
     await organization.save({ session });
 
-    const after = summarizeAdminSeatCounts({
+    const afterCapacity = summarizeLicenseCapacity({
       organization,
-      active,
-      pending: pending + prepared.length,
+      capacity: {
+        ...counts,
+        pendingAdministrators: counts.pendingAdministrators + prepared.length,
+      },
     });
+    const after = {
+      ...afterCapacity.administrators,
+      tier: afterCapacity.tier,
+      planLabel: afterCapacity.planLabel,
+    };
     const auditRecords = prepared.map(({ invitation }) => ({
       actorUserId: invitedBy,
       action: "organization_admin_invitation_created",

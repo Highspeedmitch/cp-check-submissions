@@ -1,0 +1,290 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Afterlight API health canary, notifications, alarms, and dashboard
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: production
+    AllowedPattern: "^[a-z0-9-]+$"
+    Description: Lowercase environment label used in monitoring resources
+  ApiBaseUrl:
+    Type: String
+    Default: https://api.afterlightinspections.com
+    AllowedPattern: "^https://[^/]+$"
+    Description: Public API origin without a trailing slash
+  CanaryName:
+    Type: String
+    Default: afterlight-prod-api
+    AllowedPattern: "^[a-z0-9_-]{1,21}$"
+    Description: CloudWatch Synthetics canary name
+  CanaryRuntimeVersion:
+    Type: String
+    Default: syn-nodejs-puppeteer-15.0
+    Description: Supported CloudWatch Synthetics Node.js runtime
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Optional email address that must confirm the SNS subscription
+  LatencyThresholdMilliseconds:
+    Type: Number
+    Default: 5000
+    MinValue: 1000
+    Description: P90 canary duration threshold in milliseconds
+
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Resources:
+  CanaryArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-canary-artifacts
+            Status: Enabled
+            ExpirationInDays: 90
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+
+  CanaryExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: canary-runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: CanaryArtifacts
+                Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !GetAtt CanaryArtifactsBucket.Arn
+              - Sid: CanaryArtifactObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "${CanaryArtifactsBucket.Arn}/*"
+              - Sid: CanaryLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/cwsyn-*"
+              - Sid: CanaryMetrics
+                Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    cloudwatch:namespace: CloudWatchSynthetics
+              - Sid: CanaryTracing
+                Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: "*"
+
+  CanaryArtifactsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CanaryArtifactsBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt CanaryArtifactsBucket.Arn
+              - !Sub "${CanaryArtifactsBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  ApiHealthCanary:
+    Type: AWS::Synthetics::Canary
+    Properties:
+      Name: !Ref CanaryName
+      ArtifactS3Location: !Sub "s3://${CanaryArtifactsBucket}/artifacts"
+      Code:
+        Handler: index.handler
+        Script: |
+          const synthetics = require("Synthetics");
+          const log = require("SyntheticsLogger");
+
+          const handler = async () => {
+            const page = await synthetics.getPage();
+            const response = await page.goto(process.env.API_HEALTH_URL, {
+              waitUntil: "domcontentloaded",
+              timeout: 15000,
+            });
+            const status = response.status();
+            if (status !== 200) {
+              log.error("Health endpoint returned HTTP " + status);
+              throw new Error("Expected HTTP 200, received " + status);
+            }
+            const payload = await response.json();
+            if (payload.status !== "ok" || payload.service !== "afterlight-api") {
+              throw new Error("Health endpoint returned an unexpected readiness payload");
+            }
+          };
+
+          exports.handler = async () => synthetics.executeStep("api-health", handler);
+      ExecutionRoleArn: !GetAtt CanaryExecutionRole.Arn
+      RuntimeVersion: !Ref CanaryRuntimeVersion
+      Schedule:
+        Expression: rate(5 minutes)
+        DurationInSeconds: "0"
+      RunConfig:
+        ActiveTracing: true
+        EnvironmentVariables:
+          API_HEALTH_URL: !Sub "${ApiBaseUrl}/health"
+        TimeoutInSeconds: 60
+      SuccessRetentionPeriod: 31
+      FailureRetentionPeriod: 31
+      StartCanaryAfterCreation: true
+      ProvisionedResourceCleanup: AUTOMATIC
+
+  HealthAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Afterlight production health alerts
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub "afterlight-${EnvironmentName}-health-alerts"
+
+  HealthAlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlertEmail
+    Properties:
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+      TopicArn: !Ref HealthAlertTopic
+
+  CanaryAvailabilityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "afterlight-${EnvironmentName}-api-availability"
+      AlarmDescription: Afterlight API health checks are failing or missing
+      Namespace: CloudWatchSynthetics
+      MetricName: SuccessPercent
+      Dimensions:
+        - Name: CanaryName
+          Value: !Ref ApiHealthCanary
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 90
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref HealthAlertTopic
+      OKActions:
+        - !Ref HealthAlertTopic
+
+  CanaryLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "afterlight-${EnvironmentName}-api-latency"
+      AlarmDescription: Afterlight API health check latency is elevated
+      Namespace: CloudWatchSynthetics
+      MetricName: Duration
+      Dimensions:
+        - Name: CanaryName
+          Value: !Ref ApiHealthCanary
+      ExtendedStatistic: p90
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref LatencyThresholdMilliseconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref HealthAlertTopic
+      OKActions:
+        - !Ref HealthAlertTopic
+
+  MonitoringDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "afterlight-${EnvironmentName}-health"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "API health availability",
+                "region": "${AWS::Region}",
+                "view": "timeSeries",
+                "stat": "Average",
+                "period": 300,
+                "metrics": [
+                  ["CloudWatchSynthetics", "SuccessPercent", "CanaryName", "${CanaryName}"]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "API health duration",
+                "region": "${AWS::Region}",
+                "view": "timeSeries",
+                "stat": "p90",
+                "period": 300,
+                "metrics": [
+                  ["CloudWatchSynthetics", "Duration", "CanaryName", "${CanaryName}"]
+                ]
+              }
+            }
+          ]
+        }
+
+Outputs:
+  Canary:
+    Description: CloudWatch Synthetics canary name
+    Value: !Ref ApiHealthCanary
+  AlertTopicArn:
+    Description: SNS topic for production health alarms
+    Value: !Ref HealthAlertTopic
+  ArtifactsBucketName:
+    Description: Retained S3 bucket for canary artifacts
+    Value: !Ref CanaryArtifactsBucket
+  DashboardName:
+    Description: CloudWatch dashboard name
+    Value: !Ref MonitoringDashboard

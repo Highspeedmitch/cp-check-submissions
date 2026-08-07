@@ -44,7 +44,7 @@ export default function InvoiceReview() {
     if (action === "decline" && !reason.trim()) {
       setError(afterlightServiceInvoice
         ? "Enter a reason so Afterlight billing knows what to revise."
-        : "Enter a reason so the submitter knows what to revise.");
+        : "Enter a reason so the field operator knows what to revise.");
       return;
     }
     setBusy(action);
@@ -60,7 +60,7 @@ export default function InvoiceReview() {
         ? "Invoice approved and sent to AP."
         : afterlightServiceInvoice
           ? "Invoice declined and returned to Afterlight billing."
-          : "Invoice declined and returned to the submitter."));
+          : "Invoice declined and returned to the field operator."));
     } catch (err) {
       setError(err.message);
     } finally {

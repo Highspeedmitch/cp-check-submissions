@@ -252,7 +252,7 @@ function createAssignmentHandlers({
       }
 
       const roleFilter = req.query.roles === "all"
-        ? ["user", "contractor", "cleaner"]
+        ? ["user", "contractor", "cleaner", "property_manager", "client"]
         : ["user"];
       const [users, organization] = await Promise.all([
         UserModel.find({
@@ -260,7 +260,7 @@ function createAssignmentHandlers({
           role: { $in: roleFilter },
           accountStatus: { $ne: "inactive" },
           organizationArchivedAt: null,
-        }).select("_id email role"),
+        }).select("_id email role engagementType"),
         OrganizationModel.findById(req.user.organizationId),
       ]);
       if (!organization) return res.status(404).json({ error: "Organization not found." });

@@ -15,6 +15,12 @@ function invoice(overrides = {}) {
       apMethod: "email",
       apEmail: "ap@example.com",
     },
+    review: {
+      approverSnapshot: {
+        name: "Jordan Lee",
+        email: "jordan.lee@client.example",
+      },
+    },
     delivery: {},
     ...overrides,
   };
@@ -42,6 +48,12 @@ test("records SES acceptance without claiming final mailbox delivery", async () 
   assert.equal(record.delivery.attemptCount, 1);
   assert.equal(record.delivery.deliveredAt, undefined);
   assert.equal(mailOptions.ses.tags.find((tag) => tag.Name === "invoice_id").Value, "invoice-1");
+  assert.deepEqual(mailOptions.replyTo, {
+    name: "Jordan Lee",
+    address: "jordan.lee@client.example",
+  });
+  assert.match(mailOptions.text, /approved by Jordan Lee/i);
+  assert.match(mailOptions.text, /contact Jordan Lee at jordan\.lee@client\.example/i);
 });
 
 test("moves an earlier SES message ID into attempt history before retrying", async () => {
@@ -105,4 +117,20 @@ test("rejects a malformed AP address before calling SES", async () => {
   );
   assert.equal(emailCalled, false);
   assert.equal(record.delivery.attemptCount, 1);
+});
+
+test("requires the approving property manager contact before AP delivery", async () => {
+  const record = invoice({ review: { approverSnapshot: {} } });
+  let emailCalled = false;
+
+  await assert.rejects(
+    sendApprovedInvoiceToAp(record, "", {
+      storage: {
+        getObject: () => ({ promise: async () => ({ Body: Buffer.from("invoice") }) }),
+      },
+      sendEmail: async () => { emailCalled = true; },
+    }),
+    /approving property manager email address/i
+  );
+  assert.equal(emailCalled, false);
 });

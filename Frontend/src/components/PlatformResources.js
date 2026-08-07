@@ -330,7 +330,7 @@ export default function PlatformResources() {
       {message && <p className="beta-alert success" role="status">{message}</p>}
 
       <section className="beta-panel">
-        <div className="beta-section-heading"><div><p className="beta-eyebrow">Afterlight-owned supply</p><h2>Add a Resource</h2><p>An existing submitter keeps the same login and gains a workspace switcher. A new email receives an invitation.</p></div></div>
+        <div className="beta-section-heading"><div><p className="beta-eyebrow">Afterlight-owned supply</p><h2>Add a Resource</h2><p>An existing organization user keeps the same login and gains a workspace switcher. A new email receives an invitation.</p></div></div>
         <form className="beta-form-grid" onSubmit={inviteResource}>
           <label className="beta-form-field">Name<input required value={resourceDraft.displayName} onChange={(event) => setResourceDraft((current) => ({ ...current, displayName: event.target.value }))} /></label>
           <label className="beta-form-field">Email<input required type="email" value={resourceDraft.email} onChange={(event) => setResourceDraft((current) => ({ ...current, email: event.target.value }))} /></label>

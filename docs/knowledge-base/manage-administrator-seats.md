@@ -4,7 +4,7 @@
 
 Use the **Administrator seats** section of **User Management** to review administrator access, invite another administrator, manage pending invitations, and request more licensed capacity.
 
-Administrators have full organization access. Use the standard **Invitations** section below it for submitters, property managers, owners, contractors, and cleaners.
+Administrators have full organization access. Use the standard **Invitations** section below it for Field Operators, property managers, owners, and cleaners.
 
 ## Understand the administrator seat meter
 

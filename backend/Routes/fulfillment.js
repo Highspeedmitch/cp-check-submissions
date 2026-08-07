@@ -8,6 +8,7 @@ const {
   validateServiceModel,
   validateFulfillmentSourceForServiceModel,
   fulfillmentSourcesForServiceModel,
+  fulfillmentSourceAllowedForServiceModel,
   organizationDefaultSource,
   propertyDefaultSource,
 } = require("../services/fulfillmentPolicy");
@@ -62,14 +63,20 @@ function serializeSettings(organization) {
         planLabel: entitlements.label,
       },
     },
-    properties: (organization.properties || []).map((property) => ({
-      id: property._id,
-      name: property.name,
-      defaultSource: property.fulfillmentPolicy?.defaultSource || null,
-      resolvedSource: propertyDefaultSource(organization, property),
-      inheritsOrganizationDefault: !property.fulfillmentPolicy?.defaultSource,
-      updatedAt: property.fulfillmentPolicy?.updatedAt || null,
-    })),
+    properties: (organization.properties || []).map((property) => {
+      const storedSource = property.fulfillmentPolicy?.defaultSource;
+      const defaultSource = fulfillmentSourceAllowedForServiceModel(storedSource, organization)
+        ? storedSource
+        : null;
+      return {
+        id: property._id,
+        name: property.name,
+        defaultSource,
+        resolvedSource: propertyDefaultSource(organization, property),
+        inheritsOrganizationDefault: !defaultSource,
+        updatedAt: property.fulfillmentPolicy?.updatedAt || null,
+      };
+    }),
     options: {
       serviceModels: SERVICE_MODELS,
       fulfillmentSources: fulfillmentSourcesForServiceModel(organization),

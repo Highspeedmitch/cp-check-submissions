@@ -86,6 +86,8 @@ test("lets administrators collapse Workspace and Admin tools independently", () 
   fireEvent.click(adminToolsToggle);
   expect(adminToolsToggle).toHaveAttribute("aria-expanded", "true");
   expect(screen.getByRole("button", { name: "Setup Guide" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Add Properties" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Bulk Onboarding" })).not.toBeInTheDocument();
   expect(workspaceToggle).toHaveAttribute("aria-expanded", "true");
 
   fireEvent.click(workspaceToggle);
