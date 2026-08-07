@@ -18,12 +18,12 @@ Use **Platform > Resources & Payables** to control who can enter the Resource Po
 
 Afterlight checks the email before deciding what happens next:
 
-- **Existing submitter:** Afterlight links a `ResourceProfile` to the existing identity. No second account or invitation is created. The user signs out and back in, then uses **Resource Portal** or **Organization Workspace** to switch contexts.
+- **Existing organization user:** Afterlight links a `ResourceProfile` to the existing identity. No second account or invitation is created. The user signs out and back in, then uses **Resource Portal** or **Organization Workspace** to switch contexts.
 - **New identity:** Afterlight emails a one-time invitation. The person creates an Afterlight account and initially receives only the Resource Portal workspace.
 - **Existing resource:** Afterlight refuses the duplicate. Find and update the existing resource profile instead.
 - **Ineligible account:** Inactive accounts and organization administrators or property managers cannot be linked as field resources without first resolving their access role.
 
-Do not create a duplicate email merely to work around an existing submitter account.
+Do not create a duplicate email merely to work around an existing organization account.
 
 ## Complete onboarding and activation
 

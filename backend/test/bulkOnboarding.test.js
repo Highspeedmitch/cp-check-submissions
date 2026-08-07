@@ -109,3 +109,28 @@ test("managed service bulk onboarding remains unmetered", async () => {
   assert.equal(preview.capacity.users.unmetered, true);
   assert.equal(preview.canCommit, true);
 });
+
+test("user preview normalizes Field Operator assignment types", async () => {
+  const preview = await previewBulkOnboarding({
+    organization: organization(),
+    type: "users",
+    csv: "email,role,engagement_type\ncontractor@example.com,field_operator,customer_contractor",
+    ...models(),
+  });
+
+  assert.equal(preview.canCommit, true);
+  assert.equal(preview.rows[0].data.role, "user");
+  assert.equal(preview.rows[0].data.engagementType, "customer_contractor");
+});
+
+test("user preview requires cleaners to declare their assignment type", async () => {
+  const preview = await previewBulkOnboarding({
+    organization: organization(),
+    type: "users",
+    csv: "email,role,engagement_type\ncleaner@example.com,cleaner,",
+    ...models(),
+  });
+
+  assert.equal(preview.canCommit, false);
+  assert.match(preview.rows[0].errors.join(" "), /Customer Employee or Customer Contractor/);
+});

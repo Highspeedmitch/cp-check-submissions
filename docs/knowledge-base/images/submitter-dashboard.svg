@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
-  <title id="title">Submitter Dashboard and assignment card</title>
+  <title id="title">Field Operator Dashboard and assignment card</title>
   <desc id="desc">Illustrated Afterlight Dashboard with numbered callouts for the assignment, special instructions, and Start Inspection button.</desc>
   <defs>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#19263d" flood-opacity=".10"/></filter>

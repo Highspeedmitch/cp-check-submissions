@@ -38,7 +38,7 @@ Afterlight displays 10 records per page. When more than 10 records match, use **
 
 The property’s new-activity notification is marked read when you open its submission history.
 
-For trends across multiple submissions, return to the Dashboard and open **Reporting**. You can filter Reporting by date range, property, and submitter.
+For trends across multiple submissions, return to the Dashboard and open **Reporting**. You can filter Reporting by date range, property, and Field Operator.
 
 ## If something goes wrong
 

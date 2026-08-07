@@ -1,6 +1,6 @@
 # Prepare and send an invoice for approval
 
-**Audience:** Submitters
+**Audience:** Customer Contractor Field Operators
 
 **Applies to:** Commercial property inspections
 
@@ -14,7 +14,7 @@ After a commercial inspection report finishes processing, Afterlight automatical
 
 ## Prepare the invoice
 
-![Illustrated submitter Billing page showing a draft invoice and its action buttons](images/billing-submit-invoice.svg)
+![Illustrated Field Operator Billing page showing a draft invoice and its action buttons](images/billing-submit-invoice.svg)
 
 1. Open **Billing** from the workspace navigation.
 2. In the **All** view, find the invoice with a **Draft** status. Use the **Status** filter if the list is long.

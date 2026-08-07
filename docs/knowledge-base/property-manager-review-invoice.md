@@ -4,7 +4,7 @@
 
 **Applies to:** Invoices for properties assigned to you
 
-Use the invoice review to confirm the PDF and either approve delivery to accounts payable or return the invoice with a clear reason. An **Afterlight service** invoice is prepared automatically by Afterlight platform billing; its submitter field identifies who performed the inspection, not who owns the invoice. The review email may include both the inspection report and invoice PDF.
+Use the invoice review to confirm the PDF and either approve delivery to accounts payable or return the invoice with a clear reason. An **Afterlight service** invoice is prepared automatically by Afterlight platform billing; its field-operator entry identifies who performed the inspection, not who owns the invoice. The review email may include both the inspection report and invoice PDF.
 
 ## Open the review
 
@@ -14,9 +14,9 @@ Open the **Review Invoice** link in the notification email, or open **Billing** 
 
 ![Illustrated Invoice Review page with invoice details, PDF link, decline reason, and decision buttons](images/invoice-review.svg)
 
-1. Confirm the property, invoice number, amount, property code, inspection date, submitter, and AP method.
+1. Confirm the property, invoice number, amount, property code, inspection date, Field Operator, and AP method.
 2. Select **View Invoice PDF** and check the complete invoice before deciding.
-3. If you plan to return the invoice, enter a specific **Decline reason**. The reason is required and is shown to the submitter.
+3. If you plan to return the invoice, enter a specific **Decline reason**. The reason is required and is shown to the Field Operator.
 4. To approve it, select **Approve & Send to AP**. Select it only once and wait for the success message.
 5. To return it, select **Decline Invoice**.
 
@@ -32,7 +32,7 @@ A useful decline reason identifies both the problem and the expected correction.
 
 ## What happens after a decline
 
-The invoice moves to **Needs Revision**. For customer-contractor invoices, Afterlight notifies the submitter and displays your decline reason in their Billing view. For Afterlight service invoices, the reason returns to **Platform > Service Billing** for Afterlight to correct, regenerate, and resubmit.
+The invoice moves to **Needs Revision**. For customer-contractor invoices, Afterlight notifies the Field Operator and displays your decline reason in their Billing view. For Afterlight service invoices, the reason returns to **Platform > Service Billing** for Afterlight to correct, regenerate, and resubmit.
 
 ## If something goes wrong
 

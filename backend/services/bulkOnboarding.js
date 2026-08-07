@@ -13,6 +13,7 @@ const {
 const { consumeGrant } = require("./organizationPasskeys");
 const { normalizePropertyEmails } = require("./propertyEmails");
 const { sendSystemEmail } = require("./systemEmail");
+const { normalizeOrganizationUserClassification } = require("./organizationUserClassification");
 
 const MAX_CSV_BYTES = 512 * 1024;
 const MAX_IMPORT_ROWS = 250;
@@ -180,16 +181,29 @@ async function userPreviewRows({ organization, parsedRows, UserModel, Invitation
     } catch (error) {
       errors.push(error.message);
     }
-    const role = String(values.role || "").trim().toLowerCase();
-    if (role === "admin") errors.push("Administrator invitations must use the dedicated administrator workflow.");
-    else if (!ORGANIZATION_INVITE_ROLES.has(role)) errors.push("Select a supported user role.");
+    const requestedRole = String(values.role || "").trim().toLowerCase();
+    let classification = { role: requestedRole, engagementType: null };
+    if (requestedRole === "admin") {
+      errors.push("Administrator invitations must use the dedicated administrator workflow.");
+    } else if (!ORGANIZATION_INVITE_ROLES.has(requestedRole)) {
+      errors.push("Select a supported user role.");
+    } else {
+      try {
+        classification = normalizeOrganizationUserClassification({
+          role: requestedRole,
+          engagementType: values.engagement_type,
+        });
+      } catch (error) {
+        errors.push(error.message);
+      }
+    }
     const requestedProperties = splitPipeList(values.property_names);
     const propertyByName = new Map((organization.properties || []).map((property) => [
       String(property.name || "").trim().toLowerCase(),
       property,
     ]));
     const propertyIds = [];
-    if (["property_manager", "client"].includes(role)) {
+    if (["property_manager", "client"].includes(classification.role)) {
       for (const propertyName of requestedProperties) {
         const property = propertyByName.get(propertyName.toLowerCase());
         if (!property) errors.push(`Property not found: ${propertyName}.`);
@@ -198,7 +212,17 @@ async function userPreviewRows({ organization, parsedRows, UserModel, Invitation
     } else if (requestedProperties.length) {
       errors.push("Property assignments are only available for property managers and property owners.");
     }
-    return { rowNumber, errors, data: { email, role, propertyIds, propertyNames: requestedProperties } };
+    return {
+      rowNumber,
+      errors,
+      data: {
+        email,
+        role: classification.role,
+        engagementType: classification.engagementType,
+        propertyIds,
+        propertyNames: requestedProperties,
+      },
+    };
   });
 
   const seenEmails = new Set();
@@ -378,6 +402,7 @@ async function commitBulkOnboarding({
             organization: currentOrganization,
             email: row.data.email,
             role: row.data.role,
+            engagementType: row.data.engagementType,
             propertyIds: row.data.propertyIds,
             invitedBy: actorUserId,
             inviterScope: "organization",

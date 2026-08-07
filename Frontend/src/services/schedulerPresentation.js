@@ -1,7 +1,13 @@
+import {
+  customerEngagementLabel,
+  customerEngagementMatchesFulfillment,
+  inferredCustomerEngagementType,
+} from "./organizationUsers";
+
 export function schedulerAssigneeLabel(user) {
   const name = user.displayName || user.email;
   if (user.accountScope !== "afterlight_resource") {
-    return `${name} (${user.role})`;
+    return `${name} (${customerEngagementLabel(inferredCustomerEngagementType(user))})`;
   }
   const relationship = user.resourceType === "contractor"
     ? "Afterlight contractor"
@@ -9,6 +15,11 @@ export function schedulerAssigneeLabel(user) {
       ? "Afterlight owner"
       : "Afterlight employee";
   return `${name} (${relationship})`;
+}
+
+export function schedulerUserMatchesFulfillment(user, fulfillmentSource) {
+  return user.accountScope !== "afterlight_resource"
+    && customerEngagementMatchesFulfillment(user, fulfillmentSource);
 }
 
 export function propertySuggestedAmount(property) {

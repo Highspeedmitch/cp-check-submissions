@@ -11,8 +11,14 @@ Administrator access is managed separately in the **Administrator seats** sectio
 1. From the Dashboard navigation, open **Users**.
 2. Under **Invitations**, select **Invite User**.
 3. Enter the person's email address and choose the role that matches their work.
-4. For a property manager or property owner, select the properties they may access.
-5. Select **Send Invitation**.
+4. Choose an **Assignment type** when the person performs field work:
+   - **Customer Employee** for an organization employee whose work does not create an invoice;
+   - **Customer Contractor** for an organization-managed contractor whose work can route an invoice to customer accounts payable; or
+   - **Not scheduled** for a property manager or property owner who should not appear as an assignee.
+5. For a property manager or property owner, select the properties they may access.
+6. Select **Send Invitation**.
+
+Use **Field Operator** as the role for a customer employee or customer contractor whose primary responsibility is completing inspections. The assignment type is deliberately separate from access. See [Onboard customer employees and contractors as Field Operators](onboard-customer-field-operators.md).
 
 The invitation is single-use and expires. A pending or expired invitation can be resent. Revoking an invitation immediately invalidates its current link.
 
@@ -24,8 +30,8 @@ If email delivery fails, the invitation remains in the pending list so you can r
 
 1. Keep **Current users** selected and search by name, email, or role when needed.
 2. Select the user.
-3. Review their name, email, role, account status, and property assignments.
-4. Make the required changes and select **Save User**.
+3. Review their name, email, role, assignment type, account status, and property assignments.
+4. Make the required changes and select **Save Changes**.
 
 Changing account details or access invalidates the user's existing sessions. Ask the user to sign in again after a role, status, or property-access change.
 

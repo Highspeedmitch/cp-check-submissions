@@ -26,7 +26,7 @@ Complete the numbered areas shown in the illustration:
 
 1. Choose the **Property**. When the selected fulfillment route creates an invoice, Scheduler displays the property's **Suggested client amount**. This is the customer billing setting, not an Afterlight contractor's compensation. No amount is shown for customer-employee work because that route creates no invoice.
 2. Review **Fulfillment** and **Routing**. The property default is used unless you select another allowed source for this assignment. Changing the property or fulfillment source clears the selected user so eligibility can be recalculated.
-3. Choose the **User** who will complete the work. The list is limited to active users and resources eligible for the selected property and fulfillment source. Customer users and property managers never see a resource's contractor pay rate.
+3. Choose the **Assignee** who will complete the work. Customer fulfillment lists only active organization users whose saved assignment type matches Customer Employee or Customer Contractor. Afterlight fulfillment lists only eligible deployed resources. Customer users and property managers never see a resource's contractor pay rate.
 4. Set the required **Start Date**. Leave **End Date (optional)** blank when the work must be completed on that same date. Enter an end date when the assignee may complete the work during a date range. Afterlight blocks creation when another scheduled assignment overlaps the same property and dates.
 5. In **One-Time Additional Check Request**, enter instructions that apply only to this assignment. Be concise and do not place passwords, alarm codes, or other secrets here.
 6. Select **Create Assignment**. Close the editor and confirm that the assignment appears on the calendar.
@@ -37,7 +37,7 @@ Some legacy organization workflows also display a **Visit Type** field with **QA
 
 ## Understand fulfillment choices
 
-- **Customer employee:** Assigns the work to an eligible organization employee. No submitter invoice is required.
+- **Customer employee:** Assigns the work to an eligible organization employee. No field-operator invoice is required.
 - **Customer contractor:** Assigns the work to an organization-managed contractor. Customer accounts payable handles the invoice.
 - **Afterlight staff:** Available to Hybrid and Managed Service organizations when an eligible Afterlight employee or owner is actively deployed.
 - **Afterlight contractor:** Available to Hybrid and Managed Service organizations when an eligible 1099 resource is actively deployed and has a configured rate.
@@ -69,7 +69,7 @@ Organization administrators see history across their organization. Property mana
 
 ## If something goes wrong
 
-- **The user is missing:** Only active, eligible users in the organization appear. Check the user's account, role, and property access. If you changed fulfillment, select the user again.
+- **The assignee is missing:** Select the fulfillment route first. Then check that the user's account is active and their Assignment type exactly matches Customer Employee or Customer Contractor. If you changed fulfillment, select the assignee again.
 - **An Afterlight contractor is missing:** Confirm that **Afterlight contractor** is selected and that the resource has an active deployment for the property. The selected start date must fall within the deployment period, and a positive contractor rate must be configured.
 - **An Afterlight employee or owner is missing:** Confirm that **Afterlight staff** is selected and that the resource relationship and deployment are active for the property and selected date.
 - **No Afterlight fulfillment choices appear:** SaaS plans use only customer employees and customer-managed contractors. Existing Afterlight work may still appear as retained work when it was scheduled before a service-model transition.

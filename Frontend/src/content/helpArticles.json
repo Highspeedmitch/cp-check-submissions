@@ -237,6 +237,18 @@
     "keywords": ["access", "archive", "directory", "invitation", "property assignment", "restore", "role", "user"]
   },
   {
+    "slug": "onboard-customer-field-operators",
+    "title": "Onboard customer employees and contractors as Field Operators",
+    "summary": "Assign Field Operator access, distinguish Customer Employees from Customer Contractors, and enforce matching Scheduler and invoice behavior.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM"],
+    "file": "onboard-customer-field-operators.md",
+    "estimatedTime": "3-5 min",
+    "keywords": ["assignment type", "contractor", "customer contractor", "customer employee", "field operator", "invoice", "onboarding", "scheduler"]
+  },
+  {
     "slug": "complete-organization-setup",
     "title": "Complete the organization Setup Guide",
     "summary": "Finish required workspace, security, and property configuration, then validate readiness for the first inspection.",

@@ -8,6 +8,7 @@ import {
   propertySuggestedAmount,
   schedulerAssigneeLabel,
   schedulerFulfillmentSources,
+  schedulerUserMatchesFulfillment,
   shouldShowSuggestedClientAmount,
   showAfterlightQueue,
 } from "../services/schedulerPresentation";
@@ -139,7 +140,7 @@ function Scheduler() {
   const eligibleUsers = users.filter((user) => {
     const isAfterlightResource = user.accountScope === "afterlight_resource";
     if (!["afterlight_staff", "afterlight_contractor"].includes(effectiveFulfillmentSource)) {
-      return !isAfterlightResource;
+      return schedulerUserMatchesFulfillment(user, effectiveFulfillmentSource);
     }
     if (!isAfterlightResource) return false;
     if (effectiveFulfillmentSource === "afterlight_contractor" && user.resourceType !== "contractor") return false;
@@ -458,25 +459,6 @@ function Scheduler() {
     ))}
   </select>
 
-  <label>User:</label>
-  <select
-    value={newAssignment.userId}
-    onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
-    required
-  >
-    <option value="">Select User</option>
-    {retainedEditingAssignee && (
-      <option value={retainedEditingAssignee._id}>
-        {retainedEditingAssignee.label} (existing assignment)
-      </option>
-    )}
-    {eligibleUsers.map((user) => (
-      <option key={user._id} value={user._id}>
-        {schedulerAssigneeLabel(user)}
-      </option>
-    ))}
-  </select>
-
   <label>Fulfillment:</label>
   <select
     value={newAssignment.fulfillmentSource}
@@ -489,6 +471,25 @@ function Scheduler() {
     </option>
     {availableFulfillmentSources.map((value) => (
       <option key={value} value={value}>{FULFILLMENT_LABELS[value]}</option>
+    ))}
+  </select>
+
+  <label>Assignee:</label>
+  <select
+    value={newAssignment.userId}
+    onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
+    required
+  >
+    <option value="">Select matching field operator</option>
+    {retainedEditingAssignee && (
+      <option value={retainedEditingAssignee._id}>
+        {retainedEditingAssignee.label} (existing assignment)
+      </option>
+    )}
+    {eligibleUsers.map((user) => (
+      <option key={user._id} value={user._id}>
+        {schedulerAssigneeLabel(user)}
+      </option>
     ))}
   </select>
 

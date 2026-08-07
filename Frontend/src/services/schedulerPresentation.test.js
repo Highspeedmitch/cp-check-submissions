@@ -2,6 +2,7 @@ import {
   propertySuggestedAmount,
   schedulerAssigneeLabel,
   schedulerFulfillmentSources,
+  schedulerUserMatchesFulfillment,
   shouldShowSuggestedClientAmount,
   showAfterlightQueue,
 } from "./schedulerPresentation";
@@ -17,6 +18,17 @@ test("Afterlight contractor labels never expose internal compensation", () => {
 
   expect(label).toBe("AL 1099 resource (Afterlight contractor)");
   expect(label).not.toMatch(/90|\$|rate/i);
+});
+
+test("organization assignees are labeled and filtered by customer assignment type", () => {
+  const employee = {
+    email: "operator@example.com",
+    role: "user",
+    engagementType: "customer_employee",
+  };
+  expect(schedulerAssigneeLabel(employee)).toBe("operator@example.com (Customer Employee)");
+  expect(schedulerUserMatchesFulfillment(employee, "customer_employee")).toBe(true);
+  expect(schedulerUserMatchesFulfillment(employee, "customer_contractor")).toBe(false);
 });
 
 test("property suggested amounts use the client billing setting", () => {

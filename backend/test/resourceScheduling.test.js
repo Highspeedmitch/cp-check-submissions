@@ -88,7 +88,11 @@ test("organization workers remain tenant-local and have no contractor pay snapsh
     UserModel: {
       findOne(query) {
         userQuery = query;
-        return { select: () => leanResult({ _id: "user-1" }) };
+        return { select: () => leanResult({
+          _id: "user-1",
+          role: "user",
+          engagementType: "customer_employee",
+        }) };
       },
     },
   });
@@ -97,6 +101,42 @@ test("organization workers remain tenant-local and have no contractor pay snapsh
   assert.deepEqual(userQuery.accountScope, { $ne: "afterlight_resource" });
   assert.equal(result.resourceProfileId, null);
   assert.equal(result.compensationSnapshot, undefined);
+});
+
+test("organization workers cannot be scheduled under a mismatched customer fulfillment type", async () => {
+  await assert.rejects(resolveAssignmentAssignee({
+    fulfillment: { source: "customer_contractor" },
+    userId: "employee-1",
+    organizationId: "org-1",
+    property: { _id: "property-1" },
+    startDate: "2026-08-10T17:00:00.000Z",
+    UserModel: {
+      findOne: () => ({
+        select: () => leanResult({
+          _id: "employee-1",
+          role: "user",
+          engagementType: "customer_employee",
+        }),
+      }),
+    },
+  }), (error) => error.status === 400 && /Customer Contractor field operator/.test(error.message));
+});
+
+test("legacy contractor users infer Customer Contractor assignment eligibility", async () => {
+  const result = await resolveAssignmentAssignee({
+    fulfillment: { source: "customer_contractor" },
+    userId: "contractor-1",
+    organizationId: "org-1",
+    property: { _id: "property-1" },
+    startDate: "2026-08-10T17:00:00.000Z",
+    UserModel: {
+      findOne: () => ({
+        select: () => leanResult({ _id: "contractor-1", role: "contractor" }),
+      }),
+    },
+  });
+
+  assert.equal(result.userId, "contractor-1");
 });
 
 test("scheduler resources expose deployment scope without internal contractor rates", async () => {

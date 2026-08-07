@@ -256,3 +256,41 @@ test("revoking a pending invitation uses an in-app confirmation and releases the
   await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/api/admin-users/invitations/invitation-1"));
   expect(await screen.findByRole("status")).toHaveTextContent("Invitation revoked.");
 });
+
+test("invites a Field Operator with a separate Customer Contractor assignment type", async () => {
+  renderManagement();
+  fireEvent.click(await screen.findByRole("button", { name: "Invite User" }));
+
+  expect(screen.getByRole("option", { name: "Field Operator" })).toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: "Contractor" })).not.toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Property Owner" })).toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText("Email address"), {
+    target: { value: "operator@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Assignment type/), {
+    target: { value: "customer_contractor" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Send Invitation" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/admin-users/invitations",
+    {
+      email: "operator@example.com",
+      role: "user",
+      engagementType: "customer_contractor",
+      propertyIds: [],
+    }
+  ));
+});
+
+test("the user editor uses the same role list and exposes Property Owner", async () => {
+  renderManagement();
+  fireEvent.click(await screen.findByRole("button", { name: /Current Submitter/ }));
+  const editor = screen.getByRole("heading", { name: "Current Submitter" }).closest("section");
+  const roleSelect = within(editor).getByLabelText("Role");
+
+  expect(within(roleSelect).getByRole("option", { name: "Field Operator" })).toBeInTheDocument();
+  expect(within(roleSelect).getByRole("option", { name: "Property Owner" })).toBeInTheDocument();
+  expect(within(roleSelect).queryByRole("option", { name: "Contractor" })).not.toBeInTheDocument();
+});

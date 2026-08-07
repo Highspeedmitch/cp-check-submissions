@@ -14,7 +14,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
 | Configure and operate the Gusto contractor-payment workflow | [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md) | 12-20 minutes |
 
-## Submitters
+## Field Operators
 
 | Task | Article | Typical time |
 | --- | --- | --- |
@@ -54,9 +54,10 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Complete required workspace setup and readiness checks | [Complete the organization Setup Guide](organization-complete-setup-guide.md) | 5-10 minutes |
 | Invite another administrator and manage licensed seats | [Invite organization administrators and manage licensed seats](manage-administrator-seats.md) | 3-5 minutes |
 | Invite, edit, archive, or restore non-administrator users | [Manage organization users and access](manage-organization-users.md) | 4-8 minutes |
+| Onboard a customer employee or customer contractor | [Onboard customer employees and contractors as Field Operators](onboard-customer-field-operators.md) | 3-5 minutes |
 | Configure property fulfillment, billing, AP, and inspection recipients | [Configure property delivery and inspection recipients](configure-property-delivery.md) | 5-10 minutes |
 | Request a service-model or license-tier change | [Request a service plan change](organization-request-service-model-change.md) | 3-5 minutes |
-| Schedule work for a submitter or deployed resource | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
+| Schedule work for a Field Operator or deployed resource | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
 | Enable or troubleshoot workflow alerts | [Enable and troubleshoot notifications](enable-notifications.md) | 2-4 minutes |
 | Set up or recover authenticator verification | [Set up and recover authenticator verification](authenticator-verification.md) | 3-6 minutes |
 
@@ -68,9 +69,9 @@ The screenshots are source-verified UI illustrations built from the current appl
 
 | Status | Meaning | Who acts next |
 | --- | --- | --- |
-| Draft | The inspection created an invoice that has not been sent for review. | Submitter, or Afterlight platform billing for Afterlight-delivered work |
+| Draft | The inspection created an invoice that has not been sent for review. | Field Operator, or Afterlight platform billing for Afterlight-delivered work |
 | Awaiting PM Review | The invoice was sent to an assigned property manager. | Property manager |
-| Needs Revision | The property manager returned the invoice with a reason. | Submitter, or Afterlight platform billing for Afterlight-delivered work |
+| Needs Revision | The property manager returned the invoice with a reason. | Field Operator, or Afterlight platform billing for Afterlight-delivered work |
 | Sending to AP | Approval and delivery are in progress. | No action unless an error appears |
 | AP delivery submitted | The property manager approved the invoice. Email delivery may still be queued with the provider. | Platform billing marks Afterlight service invoices paid only after customer payment is received; customer oversight handles customer-contractor invoices |
 | AP Delivery Failed | Approval succeeded, but AP delivery failed. | Property manager retries delivery |

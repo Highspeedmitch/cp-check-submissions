@@ -13,6 +13,12 @@ const UserSchema = new mongoose.Schema({
     index: true,
   },
   role: { type: String, enum: ["admin", "property_manager", "user", "client", "contractor", "cleaner"], default: "user" },
+  engagementType: {
+    type: String,
+    enum: ["customer_employee", "customer_contractor", null],
+    default: null,
+    index: true,
+  },
   platformRole: {
     type: String,
     enum: ["platform_admin"],

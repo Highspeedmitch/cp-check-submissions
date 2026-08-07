@@ -3,9 +3,15 @@ const OrganizationInvitation = require("../models/organizationInvitation");
 const User = require("../models/user");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const { sendSystemEmail } = require("./systemEmail");
+const {
+  customerEngagementLabel,
+  normalizeOrganizationUserClassification,
+} = require("./organizationUserClassification");
 
 const INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
-const ORGANIZATION_INVITE_ROLES = new Set(["property_manager", "user", "client", "contractor", "cleaner"]);
+const ORGANIZATION_INVITE_ROLES = new Set([
+  "field_operator", "property_manager", "user", "client", "contractor", "cleaner",
+]);
 
 function normalizeInvitationEmail(value) {
   const email = String(value || "").trim().toLowerCase();
@@ -27,15 +33,19 @@ function invitationUrl(token) {
   return `${buildFrontendUrl("/join")}#${encodeURIComponent(token)}`;
 }
 
-function invitationRoleLabel(role) {
-  return ({
+function invitationRoleLabel(role, engagementType = null, accountScope = "organization") {
+  if (accountScope === "afterlight_resource") {
+    return role === "contractor" ? "Afterlight Contractor" : "Afterlight Resource";
+  }
+  const accessRole = ({
     admin: "Organization Administrator",
     property_manager: "Property Manager",
-    user: "Submitter",
+    user: "Field Operator",
     client: "Property Owner",
     contractor: "Contractor",
     cleaner: "Cleaner",
   })[role] || role;
+  return engagementType ? `${accessRole} - ${customerEngagementLabel(engagementType)}` : accessRole;
 }
 
 async function deliverInvitation({ invitation, organization, token, sendEmail = sendSystemEmail }) {
@@ -47,7 +57,7 @@ async function deliverInvitation({ invitation, organization, token, sendEmail = 
     to: invitation.email,
     subject: `You're invited to join ${organization.name} in Afterlight`,
     text: [
-      `You have been invited to join ${organization.name} in Afterlight as ${invitationRoleLabel(invitation.role)}.`,
+      `You have been invited to join ${organization.name} in Afterlight as ${invitationRoleLabel(invitation.role, invitation.engagementType, invitation.accountScope)}.`,
       "",
       `Create your account: ${link}`,
       ...resourceHelp,
@@ -62,6 +72,7 @@ async function createInvitation({
   organization,
   email,
   role,
+  engagementType = null,
   propertyIds = [],
   invitedBy,
   inviterScope,
@@ -75,6 +86,9 @@ async function createInvitation({
   session,
 }) {
   const normalizedEmail = normalizeInvitationEmail(email);
+  const organizationClassification = accountScope === "organization" && role !== "admin"
+    ? normalizeOrganizationUserClassification({ role, engagementType })
+    : { role, engagementType: null };
   let existingUserQuery = UserModel.findOne({ email: normalizedEmail })
     .select("_id organizationId organizationArchivedAt");
   if (session && typeof existingUserQuery.session === "function") {
@@ -89,7 +103,7 @@ async function createInvitation({
   if (role === "admin" && inviterScope !== "platform" && !allowOrganizationAdmin) {
     throw new Error("Administrator invitations must be issued by a platform administrator.");
   }
-  if (role !== "admin" && !ORGANIZATION_INVITE_ROLES.has(role)) {
+  if (accountScope === "organization" && role !== "admin" && !ORGANIZATION_INVITE_ROLES.has(role)) {
     throw new Error("Select a valid invitation role.");
   }
 
@@ -105,7 +119,8 @@ async function createInvitation({
   const record = {
     organizationId: organization._id,
     email: normalizedEmail,
-    role,
+    role: role === "admin" ? role : organizationClassification.role,
+    engagementType: role === "admin" ? null : organizationClassification.engagementType,
     propertyIds,
     tokenHash: hashInvitationToken(token),
     invitedBy,

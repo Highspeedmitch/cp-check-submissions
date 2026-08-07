@@ -86,49 +86,44 @@
     <rect x="548" y="330" width="430" height="40" rx="7" fill="#242f40" stroke="#53627b"/>
     <text x="566" y="355" font-size="13" fill="#f2f5fa">Cedar Ridge Offices</text>
 
-    <text x="382" y="406" font-size="12" font-weight="700" fill="#b9c7da">User</text>
+    <text x="382" y="406" font-size="12" font-weight="700" fill="#b9c7da">Fulfillment</text>
     <rect x="548" y="382" width="430" height="40" rx="7" fill="#242f40" stroke="#53627b"/>
-    <text x="566" y="407" font-size="13" fill="#f2f5fa">alex@example.com (user)</text>
+    <text x="566" y="407" font-size="13" fill="#f2f5fa">Use property default (Customer employee)</text>
 
-    <text x="382" y="458" font-size="12" font-weight="700" fill="#b9c7da">Fulfillment</text>
+    <text x="382" y="458" font-size="12" font-weight="700" fill="#b9c7da">Assignee</text>
     <rect x="548" y="434" width="430" height="40" rx="7" fill="#242f40" stroke="#53627b"/>
-    <text x="566" y="459" font-size="13" fill="#f2f5fa">Use property default (Customer employee)</text>
+    <text x="566" y="459" font-size="13" fill="#f2f5fa">alex@example.com (Customer Employee)</text>
 
     <text x="382" y="510" font-size="12" font-weight="700" fill="#b9c7da">Routing</text>
     <rect x="548" y="486" width="430" height="40" rx="7" fill="#242f40" stroke="#44536a"/>
     <text x="566" y="511" font-size="13" font-weight="700" fill="#f2f5fa">Customer Assigned</text>
     <text x="956" y="511" text-anchor="end" font-size="12" fill="#b5c2d4">No invoice</text>
 
-    <text x="382" y="562" font-size="12" font-weight="700" fill="#b9c7da">Suggested client amount</text>
-    <rect x="548" y="538" width="430" height="40" rx="7" fill="#242f40" stroke="#44536a"/>
-    <text x="566" y="563" font-size="13" font-weight="700" fill="#f2f5fa">$225.00</text>
-    <text x="956" y="563" text-anchor="end" font-size="12" fill="#b5c2d4">Property billing setting</text>
+    <text x="382" y="562" font-size="12" font-weight="700" fill="#b9c7da">Start Date</text>
+    <rect x="548" y="538" width="196" height="40" rx="7" fill="#242f40" stroke="#53627b"/>
+    <text x="566" y="563" font-size="13" fill="#f2f5fa">08/12/2026</text>
+    <text x="770" y="562" font-size="12" font-weight="700" fill="#b9c7da">End Date (optional)</text>
+    <rect x="886" y="538" width="92" height="40" rx="7" fill="#242f40" stroke="#53627b"/>
 
-    <text x="382" y="614" font-size="12" font-weight="700" fill="#b9c7da">Start Date</text>
-    <rect x="548" y="590" width="196" height="40" rx="7" fill="#242f40" stroke="#53627b"/>
-    <text x="566" y="615" font-size="13" fill="#f2f5fa">08/12/2026</text>
-    <text x="770" y="614" font-size="12" font-weight="700" fill="#b9c7da">End Date (optional)</text>
-    <rect x="886" y="590" width="92" height="40" rx="7" fill="#242f40" stroke="#53627b"/>
-
-    <text x="382" y="674" font-size="12" font-weight="700" fill="#b9c7da">One-Time Additional</text>
-    <text x="382" y="691" font-size="12" font-weight="700" fill="#b9c7da">Check Request</text>
-    <rect x="548" y="650" width="430" height="96" rx="7" fill="#242f40" stroke="#53627b"/>
-    <text x="566" y="678" font-size="13" fill="#f2f5fa">Photograph the north stairwell and note</text>
-    <text x="566" y="699" font-size="13" fill="#f2f5fa">any active lighting issues.</text>
+    <text x="382" y="614" font-size="12" font-weight="700" fill="#b9c7da">One-Time Additional</text>
+    <text x="382" y="631" font-size="12" font-weight="700" fill="#b9c7da">Check Request</text>
+    <rect x="548" y="590" width="430" height="96" rx="7" fill="#242f40" stroke="#53627b"/>
+    <text x="566" y="618" font-size="13" fill="#f2f5fa">Photograph the north stairwell and note</text>
+    <text x="566" y="639" font-size="13" fill="#f2f5fa">any active lighting issues.</text>
   </g>
 
-  <rect x="548" y="776" width="150" height="43" rx="8" fill="#248df0"/>
-  <text x="623" y="803" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#fff">Create Assignment</text>
-  <rect x="710" y="776" width="82" height="43" rx="8" fill="#263244" stroke="#52617a"/>
-  <text x="751" y="803" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#e3e9f2">Close</text>
+  <rect x="548" y="716" width="150" height="43" rx="8" fill="#248df0"/>
+  <text x="623" y="743" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#fff">Create Assignment</text>
+  <rect x="710" y="716" width="82" height="43" rx="8" fill="#263244" stroke="#52617a"/>
+  <text x="751" y="743" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#e3e9f2">Close</text>
 
   <g font-family="Arial, sans-serif" font-size="15" font-weight="700" text-anchor="middle">
     <circle cx="995" cy="330" r="17" fill="#f28a35"/><text x="995" y="336" fill="#fff">1</text>
-    <circle cx="995" cy="434" r="17" fill="#f28a35"/><text x="995" y="440" fill="#fff">2</text>
-    <circle cx="995" cy="382" r="17" fill="#f28a35"/><text x="995" y="388" fill="#fff">3</text>
-    <circle cx="995" cy="590" r="17" fill="#f28a35"/><text x="995" y="596" fill="#fff">4</text>
-    <circle cx="995" cy="650" r="17" fill="#f28a35"/><text x="995" y="656" fill="#fff">5</text>
-    <circle cx="698" cy="776" r="17" fill="#f28a35"/><text x="698" y="782" fill="#fff">6</text>
+    <circle cx="995" cy="382" r="17" fill="#f28a35"/><text x="995" y="388" fill="#fff">2</text>
+    <circle cx="995" cy="434" r="17" fill="#f28a35"/><text x="995" y="440" fill="#fff">3</text>
+    <circle cx="995" cy="538" r="17" fill="#f28a35"/><text x="995" y="544" fill="#fff">4</text>
+    <circle cx="995" cy="590" r="17" fill="#f28a35"/><text x="995" y="596" fill="#fff">5</text>
+    <circle cx="698" cy="716" r="17" fill="#f28a35"/><text x="698" y="722" fill="#fff">6</text>
   </g>
 
   <text x="700" y="974" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#95a6bd">Desktop illustration. On compact mobile screens, select a day and then choose + Create Assignment.</text>

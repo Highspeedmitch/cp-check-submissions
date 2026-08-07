@@ -169,7 +169,7 @@ export default function Billing() {
       setMessage(
         data?.warning || (path === "submit" ? "Invoice sent to the property manager for review."
           : path === "approve" ? "Invoice approved and sent to AP."
-          : path === "decline" ? "Invoice declined and returned to the submitter."
+          : path === "decline" ? "Invoice declined and returned to the field operator."
           : path === "mark-paid" ? "Invoice marked paid."
           : path === "amount" ? "Invoice amount saved."
           : path === "archive" ? "Invoice archived."
@@ -207,7 +207,7 @@ export default function Billing() {
   async function decline(invoice) {
     const reason = window.prompt(isAfterlightServiceInvoice(invoice)
       ? "Why is this invoice being declined? Afterlight billing will use this to revise it."
-      : "Why is this invoice being declined? The submitter will use this to revise it.");
+      : "Why is this invoice being declined? The field operator will use this to revise it.");
     if (reason === null) return;
     if (!reason.trim()) {
       setError("A decline reason is required.");
@@ -358,7 +358,7 @@ export default function Billing() {
             <>
               <label className="beta-form-field">Submitted by
                 <select value={submitterFilter} onChange={(e) => setSubmitterFilter(e.target.value)}>
-                  <option value="">All users</option>
+                  <option value="">All field operators</option>
                   {filterOptions.users.map((user) => (
                     <option key={user._id} value={user._id}>{user.username || user.email}</option>
                   ))}
@@ -385,7 +385,7 @@ export default function Billing() {
             <thead>
               <tr>
                 <th>Property</th><th>Inspection</th>
-                {isOversight && <th>Submitter / performer</th>}
+                {isOversight && <th>Field operator / performer</th>}
                 <th>Amount</th><th>Status</th><th>AP Method</th><th>Actions</th>
               </tr>
             </thead>
@@ -434,7 +434,7 @@ export default function Billing() {
                 <div><dt>Inspection date</dt><dd>{new Date(invoice.inspectionDate).toLocaleDateString()}</dd></div>
                 <div><dt>AP method</dt><dd>{invoice.propertySnapshot.apMethod || "download"}</dd></div>
                 <div><dt>Billing route</dt><dd>{invoiceRoutingLabel(invoice)}</dd></div>
-                {isOversight && <div><dt>{isAfterlightServiceInvoice(invoice) ? "Inspection performed by" : "Submitter"}</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
+                {isOversight && <div><dt>{isAfterlightServiceInvoice(invoice) ? "Inspection performed by" : "Field operator"}</dt><dd>{invoice.submitterId?.username || invoice.submitterId?.email}</dd></div>}
                 {invoice.review?.declineReason && <div><dt>Decline reason</dt><dd>{invoice.review.declineReason}</dd></div>}
                 {displayedApDeliveryError(invoice) && <div><dt>Delivery error</dt><dd>{displayedApDeliveryError(invoice)}</dd></div>}
                 {invoice.delivery?.providerMessageId && <div><dt>Delivery provider reference</dt><dd>{invoice.delivery.providerMessageId}</dd></div>}

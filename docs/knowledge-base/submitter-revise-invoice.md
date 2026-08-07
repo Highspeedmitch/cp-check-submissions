@@ -1,6 +1,6 @@
 # Revise and resubmit a declined invoice
 
-**Audience:** Submitters
+**Audience:** Customer Contractor Field Operators
 
 **Applies to:** Commercial property invoices with a **Needs Revision** status
 
@@ -22,7 +22,7 @@ The invoice returns to **Awaiting PM Review**, and the assigned property manager
 
 ## Important limitations
 
-The Billing screen lets a submitter revise the invoice amount. Property details, billing instructions, and inspection information come from the property and completed inspection records. If the decline reason concerns one of those items, contact an organization administrator before generating the replacement PDF.
+The Billing screen lets a Customer Contractor Field Operator revise the invoice amount. Property details, billing instructions, and inspection information come from the property and completed inspection records. If the decline reason concerns one of those items, contact an organization administrator before generating the replacement PDF.
 
 ## If something goes wrong
 

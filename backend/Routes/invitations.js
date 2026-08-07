@@ -9,6 +9,7 @@ const ResourceProfile = require("../models/resourceProfile");
 const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails");
 const { registrationLimiter } = require("../middleware/rateLimits");
 const { hashInvitationToken, invitationRoleLabel } = require("../services/organizationInvitations");
+const { inferredCustomerEngagementType } = require("../services/organizationUserClassification");
 
 const router = express.Router();
 router.use(registrationLimiter);
@@ -29,10 +30,14 @@ router.post("/resolve", async (req, res) => {
   if (!invitation?.organizationId) {
     return res.status(404).json({ error: "This invitation is invalid or expired." });
   }
+  const engagementType = (invitation.accountScope || "organization") === "organization"
+    ? inferredCustomerEngagementType(invitation)
+    : null;
   return res.json({
     email: invitation.email,
     role: invitation.role,
-    roleLabel: invitationRoleLabel(invitation.role),
+    engagementType,
+    roleLabel: invitationRoleLabel(invitation.role, engagementType, invitation.accountScope),
     organizationName: invitation.organizationId.name,
     organizationType: invitation.organizationId.orgType,
     expiresAt: invitation.expiresAt,
@@ -76,6 +81,9 @@ router.post("/accept", async (req, res) => {
         password: passwordHash,
         organizationId: organization._id,
         role: invitation.role,
+        engagementType: (invitation.accountScope || "organization") === "organization"
+          ? inferredCustomerEngagementType(invitation)
+          : null,
         accountScope: invitation.accountScope || "organization",
       }], { session });
 
@@ -135,7 +143,11 @@ router.post("/accept", async (req, res) => {
         targetUserId: createdUser._id,
         changedBy: invitation.invitedBy,
         action: "invitation_accepted",
-        changes: { role: invitation.role, propertyIds: [...assignedIds] },
+        changes: {
+          role: invitation.role,
+          engagementType: createdUser.engagementType,
+          propertyIds: [...assignedIds],
+        },
       }], { session });
       acceptedOrganization = organization;
     });
@@ -143,6 +155,7 @@ router.post("/accept", async (req, res) => {
       message: "Your Afterlight account has been created.",
       email: createdUser.email,
       role: createdUser.role,
+      engagementType: createdUser.engagementType,
       organizationName: acceptedOrganization.name,
       accountScope: createdUser.accountScope,
     });

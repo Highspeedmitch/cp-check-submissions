@@ -10,6 +10,7 @@ const {
 const { currentLicenseCapacity } = require("./licenseCapacity");
 const { reserveLicensedCapacity } = require("./licensedCapacityOperations");
 const { sendSystemEmail } = require("./systemEmail");
+const { normalizeOrganizationUserClassification } = require("./organizationUserClassification");
 
 function invitationError(message, status = 400, code = "") {
   const error = new Error(message);
@@ -22,6 +23,7 @@ async function createLicensedOrganizationInvitation({
   organizationId,
   email,
   role,
+  engagementType = null,
   propertyIds = [],
   invitedBy,
   ipAddress = "",
@@ -37,9 +39,8 @@ async function createLicensedOrganizationInvitation({
   reserveCapacity = reserveLicensedCapacity,
   transactionRunner,
 }) {
-  if (!ORGANIZATION_INVITE_ROLES.has(role)) {
-    throw invitationError("Select a valid invitation role.");
-  }
+  if (!ORGANIZATION_INVITE_ROLES.has(role)) throw invitationError("Select a valid invitation role.");
+  const classification = normalizeOrganizationUserClassification({ role, engagementType });
 
   const result = await reserveCapacity({
     organizationId,
@@ -52,7 +53,7 @@ async function createLicensedOrganizationInvitation({
     capacityOptions: { UserModel, InvitationModel },
     work: async ({ organization, session }) => {
       const validPropertyIds = new Set((organization.properties || []).map((property) => String(property._id)));
-      const normalizedPropertyIds = ["property_manager", "client"].includes(role)
+      const normalizedPropertyIds = ["property_manager", "client"].includes(classification.role)
         ? [...new Set((propertyIds || []).map(String))]
         : [];
       if (normalizedPropertyIds.some((id) => !validPropertyIds.has(id))) {
@@ -62,7 +63,8 @@ async function createLicensedOrganizationInvitation({
       const created = await createInvitationRecord({
         organization,
         email,
-        role,
+        role: classification.role,
+        engagementType: classification.engagementType,
         propertyIds: normalizedPropertyIds,
         invitedBy,
         inviterScope: "organization",
@@ -79,7 +81,8 @@ async function createLicensedOrganizationInvitation({
         metadata: {
           invitationId: created.invitation._id,
           email: created.invitation.email,
-          role,
+          role: classification.role,
+          engagementType: classification.engagementType,
         },
         ipAddress,
         userAgent,

@@ -30,13 +30,20 @@ Keep the template header names unchanged.
 
 ## Prepare a user CSV
 
-Each row needs an email address and role. Supported roles are:
+Each row needs an email address and role. Use these role values in new files:
 
-- user;
+- field_operator;
 - property_manager;
 - client;
-- contractor;
 - cleaner.
+
+Use the `engagement_type` column to control scheduling eligibility:
+
+- `customer_employee` for customer employees;
+- `customer_contractor` for customer-managed contractors; or
+- blank for a property manager or property owner who should not be scheduled.
+
+Field Operators and cleaners require an assignment type. Older CSV values of `user` and `contractor` remain accepted for backward compatibility and infer Customer Employee and Customer Contractor respectively, but new templates use `field_operator` plus an explicit `engagement_type`.
 
 To assign a property manager or property owner during invitation, enter exact property names in the property_names column. Separate multiple names with a vertical bar.
 

@@ -42,7 +42,7 @@ The property item becomes complete when at least one property exists in the work
 
 The following items are recommended but do not prevent onboarding completion:
 
-- **Invite the operating team:** Add submitters, property managers, owners, or another administrator and assign the required access. See [Manage organization users and access](manage-organization-users.md) and [Invite organization administrators and manage licensed seats](manage-administrator-seats.md).
+- **Invite the operating team:** Add Field Operators, property managers, owners, or another administrator and assign the required access. See [Manage organization users and access](manage-organization-users.md) and [Invite organization administrators and manage licensed seats](manage-administrator-seats.md).
 - **Validate the first inspection:** Schedule and complete a controlled inspection to confirm assignment access, the checklist, photo uploads, report generation, and delivery.
 
 Recommended items remain visible after onboarding so the Setup Guide can continue serving as a readiness review.

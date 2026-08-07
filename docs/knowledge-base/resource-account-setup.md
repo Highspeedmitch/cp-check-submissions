@@ -18,7 +18,7 @@ Afterlight gives you one login for organization work and Resource Network work. 
 Complete this section only when you do not already have an Afterlight account.
 
 1. Open the invitation email and select the secure **Create your account** link.
-2. Confirm that the page identifies the organization as **Afterlight Resource Network** and shows your correct email address. The invitation may label the role as **Contractor** or **Submitter** based on your Afterlight relationship.
+2. Confirm that the page identifies the organization as **Afterlight Resource Network** and shows your correct email address. The invitation labels the role as **Afterlight Contractor** or **Afterlight Resource** based on your Afterlight relationship.
 3. Enter your name.
 4. Create a password with at least 10 characters and enter it again under **Confirm password**.
 5. Select **Accept Invitation and Create Account** once.

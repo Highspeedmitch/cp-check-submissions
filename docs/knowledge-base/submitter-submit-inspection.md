@@ -1,6 +1,6 @@
 # Complete and submit an inspection
 
-**Audience:** Submitters, contractors, and cleaners
+**Audience:** Field Operators and cleaners
 
 **Applies to:** Commercial, residential, long-term rental, and short-term rental inspections
 
@@ -15,7 +15,7 @@ Use this workflow when an inspection has been assigned to you or when you need t
 
 ## 1. Open the inspection
 
-![Illustrated submitter Dashboard with an assigned property and Start Inspection button](images/submitter-dashboard.svg)
+![Illustrated Field Operator Dashboard with an assigned property and Start Inspection button](images/submitter-dashboard.svg)
 
 1. Find the property in **My Assignments**. A scheduled assignment shows the property name and date.
 2. Read **Special instructions** before beginning the work.

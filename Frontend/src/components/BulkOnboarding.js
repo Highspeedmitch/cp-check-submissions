@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import PageHeader from "./ui/PageHeader";
+import { customerEngagementLabel, organizationRoleLabel } from "../services/organizationUsers";
 
 const TEMPLATES = {
   users: [
-    "email,role,property_names",
-    "person@example.com,property_manager,Property One|Property Two",
+    "email,role,engagement_type,property_names",
+    "operator@example.com,field_operator,customer_employee,",
+    "manager@example.com,property_manager,,Property One|Property Two",
   ].join("\n"),
   properties: [
     "name,property_code,physical_address,billing_address,region,latitude,longitude,inspection_recipient_emails",
@@ -346,7 +348,9 @@ export default function BulkOnboarding() {
                       <td>{row.rowNumber}</td>
                       <td>
                         <strong>{row.data.email || row.data.name || "Incomplete row"}</strong>
-                        <small>{row.data.role || row.data.propertyCode || ""}</small>
+                        <small>{row.data.role
+                          ? `${organizationRoleLabel(row.data.role)} · ${customerEngagementLabel(row.data.engagementType)}`
+                          : row.data.propertyCode || ""}</small>
                       </td>
                       <td>
                         {row.errors.length

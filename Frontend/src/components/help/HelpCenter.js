@@ -14,7 +14,7 @@ import {
 const ROLE_NAMES = {
   admin: "organization administrator",
   property_manager: "property manager",
-  user: "submitter",
+  user: "field operator",
   contractor: "contractor",
   cleaner: "cleaner",
   client: "client",

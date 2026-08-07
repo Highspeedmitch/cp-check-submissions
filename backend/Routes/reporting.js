@@ -41,7 +41,7 @@ router.get("/summary", async (req, res) => {
 
     const selectedUserId = req.query.userId || "";
     if (selectedUserId && !mongoose.Types.ObjectId.isValid(selectedUserId)) {
-      return res.status(400).json({ error: "Invalid submitter filter." });
+      return res.status(400).json({ error: "Invalid field operator filter." });
     }
 
     const cutoff = getSubmissionCutoff(months);
@@ -53,7 +53,7 @@ router.get("/summary", async (req, res) => {
 
     const userIds = [...new Set(submissions.map((submission) => String(submission.userId)))];
     if (selectedUserId && !userIds.includes(String(selectedUserId))) {
-      return res.status(404).json({ error: "Submitter not found in this reporting scope." });
+      return res.status(404).json({ error: "Field operator not found in this reporting scope." });
     }
     const users = await User.find({
       _id: { $in: userIds },

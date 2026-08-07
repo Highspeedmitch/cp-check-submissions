@@ -34,9 +34,16 @@ const {
 const { createLicensedAdminInvitations } = require("../services/licensedAdminInvitations");
 const { createLicensedOrganizationInvitation } = require("../services/licensedOrganizationInvitations");
 const { currentLicenseCapacity } = require("../services/licenseCapacity");
-const { licensedCapacityErrorBody } = require("../services/licensedCapacityOperations");
+const {
+  licensedCapacityErrorBody,
+  reserveLicensedCapacity,
+} = require("../services/licensedCapacityOperations");
 const { notifyPlatformAdministrators } = require("../services/notifications");
 const { administratorLicenseRequested } = require("../services/notificationEvents");
+const {
+  inferredCustomerEngagementType,
+  normalizeOrganizationUserClassification,
+} = require("../services/organizationUserClassification");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "client", "contractor", "cleaner"];
@@ -66,13 +73,13 @@ router.get("/", async (req, res) => {
   const [organization, users, invitations, administrators, adminInvitations] = await Promise.all([
     Organization.findById(req.user.organizationId).lean(),
     User.find(userQuery)
-      .select("username email role accountStatus tokenVersion organizationArchivedAt organizationArchivedBy organizationArchiveReason")
+      .select("username email role engagementType accountStatus tokenVersion organizationArchivedAt organizationArchivedBy organizationArchiveReason")
       .sort({ username: 1 }).lean(),
     OrganizationInvitation.find({
       organizationId: req.user.organizationId,
       role: { $ne: "admin" },
       status: { $in: ["pending", "expired"] },
-    }).select("email role propertyIds status expiresAt lastSentAt createdAt")
+    }).select("email role engagementType propertyIds status expiresAt lastSentAt createdAt")
       .sort({ createdAt: -1 }).lean(),
     User.find({
       organizationId: req.user.organizationId,
@@ -290,6 +297,7 @@ router.post("/invitations", async (req, res) => {
       organizationId: req.user.organizationId,
       email: req.body.email,
       role,
+      engagementType: req.body.engagementType,
       propertyIds: req.body.propertyIds || [],
       invitedBy: req.user.userId,
       ipAddress: req.ip || "",
@@ -300,6 +308,7 @@ router.post("/invitations", async (req, res) => {
         _id: result.invitation._id,
         email: result.invitation.email,
         role: result.invitation.role,
+        engagementType: inferredCustomerEngagementType(result.invitation),
         propertyIds: result.invitation.propertyIds,
         status: result.invitation.status,
         expiresAt: result.invitation.expiresAt,
@@ -387,14 +396,19 @@ router.put("/:userId", async (req, res) => {
     });
     if (!user) return res.status(404).json({ error: "Editable user not found." });
 
-    const { username, email, role, accountStatus, propertyIds = [] } = req.body;
+    const {
+      username,
+      email,
+      role,
+      engagementType,
+      accountStatus,
+      propertyIds = [],
+    } = req.body;
     const normalizedAccountStatus = normalizeAccountStatus(accountStatus);
     if (!username?.trim() || !email?.trim()) {
       return res.status(400).json({ error: "Name and email are required." });
     }
-    if (!editableRoles.includes(role)) {
-      return res.status(400).json({ error: "Invalid role." });
-    }
+    const classification = normalizeOrganizationUserClassification({ role, engagementType });
     if (!isValidAccountStatus(normalizedAccountStatus)) {
       return res.status(400).json({ error: "Invalid account status." });
     }
@@ -410,12 +424,13 @@ router.put("/:userId", async (req, res) => {
     if ([...assignedIds].some((id) => !validPropertyIds.has(id))) {
       return res.status(400).json({ error: "One or more properties are outside this organization." });
     }
-    if (!["property_manager", "client"].includes(role)) assignedIds.clear();
+    if (!["property_manager", "client"].includes(classification.role)) assignedIds.clear();
 
     const before = {
       username: user.username,
       email: user.email,
       role: user.role,
+      engagementType: inferredCustomerEngagementType(user),
       accountStatus: user.accountStatus,
     };
     const additionalSeats = user.accountStatus === "inactive" && normalizedAccountStatus !== "inactive" ? 1 : 0;
@@ -443,16 +458,17 @@ router.put("/:userId", async (req, res) => {
           property.clientOwners = (property.clientOwners || [])
             .filter((id) => id.toString() !== currentUser._id.toString());
           if (assignedIds.has(property._id.toString())) {
-            const assignmentField = role === "client" ? "clientOwners" : "propertyManagers";
+            const assignmentField = classification.role === "client" ? "clientOwners" : "propertyManagers";
             property[assignmentField].push(currentUser._id);
-            if (role === "property_manager") {
+            if (classification.role === "property_manager") {
               property.emails = withoutAutomaticPropertyEmails(property.emails, [email]);
             }
           }
         });
         currentUser.username = username.trim();
         currentUser.email = email.trim().toLowerCase();
-        currentUser.role = role;
+        currentUser.role = classification.role;
+        currentUser.engagementType = classification.engagementType;
         currentUser.accountStatus = normalizedAccountStatus;
         currentUser.tokenVersion = (currentUser.tokenVersion || 0) + 1;
         await currentUser.save({ session });
@@ -466,7 +482,8 @@ router.put("/:userId", async (req, res) => {
             after: {
               username: currentUser.username,
               email: currentUser.email,
-              role,
+              role: classification.role,
+              engagementType: classification.engagementType,
               accountStatus: normalizedAccountStatus,
             },
             propertyIds: [...assignedIds],
