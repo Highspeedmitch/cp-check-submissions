@@ -6,6 +6,7 @@ const Organization = require("../models/organization");
 const PlatformSession = require("../models/platformSession");
 const PlatformAudit = require("../models/platformAudit");
 const OrganizationInvitation = require("../models/organizationInvitation");
+const InvoiceEmailAuthorization = require("../models/invoiceEmailAuthorization");
 const ProspectTemplate = require("../models/prospectTemplate");
 const ProspectAssessment = require("../models/prospectAssessment");
 const authenticateToken = require("../middleware/authenticateToken");
@@ -174,6 +175,82 @@ router.post("/organizations/:organizationId/admin-invitations/:invitationId/rese
     } catch (error) {
       console.error("Administrator invitation resend error:", error.message);
       return res.status(500).json({ error: "Unable to resend the administrator invitation." });
+    }
+  });
+
+router.put("/organizations/:organizationId/billing-capabilities",
+  authenticateToken, requirePlatformAdmin, async (req, res) => {
+    try {
+      if (!hasRecentStepUpAuthentication(req.user.mfaAuthenticatedAt)) {
+        return res.status(428).json({
+          code: "STEP_UP_REQUIRED",
+          error: "Confirm your identity to change organization billing capabilities.",
+        });
+      }
+      const invoiceApprovalExperience = String(
+        req.body.invoiceApprovalExperience || ""
+      ).trim();
+      if (!["authenticated_portal", "secure_email_link"].includes(invoiceApprovalExperience)) {
+        return res.status(400).json({ error: "Select a supported invoice approval experience." });
+      }
+      const reason = String(req.body.reason || "").trim();
+      if (!reason) return res.status(400).json({ error: "A reason is required." });
+      if (reason.length > 500) {
+        return res.status(400).json({ error: "Reason must be 500 characters or fewer." });
+      }
+
+      const organization = await Organization.findById(req.params.organizationId);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
+      if (invoiceApprovalExperience === "secure_email_link"
+        && !["managed", "hybrid"].includes(organization.serviceModel || "managed")) {
+        return res.status(409).json({
+          error: "Secure email approval is currently limited to Managed service and Hybrid organizations.",
+        });
+      }
+
+      const previousExperience = organization.billingCapabilities?.invoiceApprovalExperience
+        || "authenticated_portal";
+      organization.billingCapabilities = {
+        invoiceApprovalExperience,
+        emailApprovalTokenHours: 24,
+        updatedBy: req.user.userId,
+        updatedAt: new Date(),
+      };
+      await organization.save();
+
+      if (invoiceApprovalExperience !== "secure_email_link") {
+        await InvoiceEmailAuthorization.updateMany(
+          { organizationId: organization._id, status: "active" },
+          { $set: { status: "revoked", revokedAt: new Date() } }
+        );
+      }
+      await PlatformAudit.create({
+        actorUserId: req.user.userId,
+        action: "organization_invoice_approval_experience_changed",
+        targetOrganizationId: organization._id,
+        metadata: {
+          previousExperience,
+          invoiceApprovalExperience,
+          emailApprovalTokenHours: 24,
+          reason,
+        },
+        ipAddress: req.ip || "",
+        userAgent: req.get("user-agent") || "",
+      });
+
+      const emailReadyProperties = organization.properties.filter(
+        (property) => property.apMethod === "email" && String(property.apEmail || "").trim()
+      ).length;
+      return res.json({
+        organizationId: String(organization._id),
+        invoiceApprovalExperience,
+        emailApprovalTokenHours: 24,
+        emailApPropertyCount: emailReadyProperties,
+        propertyCount: organization.properties.length,
+      });
+    } catch (error) {
+      console.error("Organization billing capability update error:", error.message);
+      return res.status(500).json({ error: "Unable to update organization billing capabilities." });
     }
   });
 

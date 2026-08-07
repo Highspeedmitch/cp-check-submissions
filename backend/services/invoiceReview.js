@@ -7,6 +7,10 @@ const { sendUserNotification } = require("./notifications");
 const { invoiceSubmittedForPropertyManager } = require("./notificationEvents");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const { sendSystemEmail } = require("./systemEmail");
+const {
+  issueEmailApprovalAuthorization,
+  secureEmailApprovalEligible,
+} = require("./invoiceEmailAuthorization");
 
 function escapeHtml(value) {
   return String(value || "")
@@ -65,7 +69,13 @@ async function notifyPropertyManagersOfSubmittedInvoice(
 async function emailPropertyManagersForReview(
   invoice,
   managers,
-  { inspectionPdf = null, sendEmail = sendSystemEmail, storage = s3 } = {}
+  {
+    inspectionPdf = null,
+    sendEmail = sendSystemEmail,
+    storage = s3,
+    OrganizationModel = Organization,
+    issueAuthorization = issueEmailApprovalAuthorization,
+  } = {}
 ) {
   const recipients = managers.map((manager) => manager.email).filter(Boolean);
   if (!recipients.length) return;
@@ -91,6 +101,56 @@ async function emailPropertyManagersForReview(
     content: inspectionPdf.content,
     contentType: "application/pdf",
   });
+
+  const organization = await OrganizationModel.findById(invoice.organizationId)
+    .select("serviceModel billingCapabilities")
+    .lean();
+  if (secureEmailApprovalEligible(organization, invoice)) {
+    const signedReviewUrl = buildFrontendUrl(`/billing/review/${invoice._id}`);
+    const tokenHours = Number(organization.billingCapabilities?.emailApprovalTokenHours) || 24;
+    await Promise.all(managers.filter((manager) => manager.email).map(async (manager) => {
+      const issued = await issueAuthorization({ invoice, organization, manager });
+      const approverName = escapeHtml(manager.username || manager.email);
+      const safeApprovalUrl = escapeHtml(issued.url);
+      const safeSignedReviewUrl = escapeHtml(signedReviewUrl);
+      try {
+        const result = await sendEmail({
+          to: manager.email,
+          subject: `Approval requested: inspection and invoice ${invoice.invoiceNumber}`,
+          text: [
+            `Hello ${manager.username || "Property Manager"},`,
+            `The inspection report and Afterlight invoice ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} are ready for review.`,
+            `Amount: ${amount}`,
+            `Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}`,
+            `Approve and send to AP: ${issued.url}`,
+            `Review or decline in Afterlight: ${signedReviewUrl}`,
+            `The approval link expires in ${tokenHours} hours and can be used once.`,
+          ].join("\n"),
+          html: `
+            <p>Hello ${approverName},</p>
+            <p>The inspection report and Afterlight invoice <strong>${invoiceNumber}</strong> for
+            <strong>${propertyName}</strong> are ready for review.</p>
+            <p>Amount: <strong>${amount}</strong><br>
+            Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}</p>
+            <p><a href="${safeApprovalUrl}" style="display:inline-block;padding:12px 18px;background:#087df1;color:#fff;text-decoration:none;border-radius:6px">
+            Approve &amp; Send to AP</a></p>
+            <p><a href="${safeSignedReviewUrl}">Review or decline in Afterlight</a></p>
+            <p>The approval link expires in ${tokenHours} hours and can be used once. Opening the link does not approve the invoice; you will confirm the action on a secure Afterlight page.</p>
+          `,
+          attachments,
+        });
+        issued.authorization.emailSentAt = new Date();
+        issued.authorization.providerMessageId = result?.messageId || "";
+        await issued.authorization.save();
+      } catch (error) {
+        issued.authorization.deliveryError = "Review email delivery failed.";
+        await issued.authorization.save().catch(() => {});
+        throw error;
+      }
+    }));
+    return;
+  }
+
   await sendEmail({
     to: process.env.SYSTEM_EMAIL_ADDRESS,
     bcc: recipients.join(","),
@@ -163,11 +223,14 @@ async function submitInvoiceForReview(
   }
   invoice.billingOwner = "afterlight_platform";
   invoice.status = "pending_review";
+  invoice.review.cycle = Number(invoice.review.cycle || 0) + 1;
   invoice.review.requestedBy = requestedBy || null;
   invoice.review.requestedAt = new Date();
   invoice.review.reviewedBy = null;
   invoice.review.reviewedAt = null;
   invoice.review.decision = "";
+  invoice.review.method = "";
+  invoice.review.approverSnapshot = { name: "", email: "" };
   invoice.review.declineReason = "";
   invoice.review.emailSentAt = null;
   invoice.review.emailError = "";

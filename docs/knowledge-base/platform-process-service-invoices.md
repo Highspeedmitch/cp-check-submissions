@@ -25,6 +25,8 @@ After an assigned Afterlight resource completes a commercial inspection, Afterli
 4. Places the invoice in **Awaiting customer review**.
 5. Notifies the assigned property manager in the app and emails the inspection report and invoice PDF when email delivery is available.
 
+When a platform administrator has enabled **Secure email approval** for the organization, each assigned property manager receives an individual 24-hour, one-time approval link. The link opens a minimal confirmation page; opening the link alone never approves the invoice. This option is used only when the invoice has an automated AP email destination. All other invoices retain the standard authenticated review.
+
 The resource cannot see Billing, change the customer amount, generate the invoice, or submit it for review.
 
 ## Resolve a preparation exception
@@ -45,6 +47,8 @@ Saving a revised amount invalidates the previous PDF. Generate a new PDF before 
 - **AP delivery failed:** The customer approved the invoice, but its configured AP delivery failed. Correct the property AP destination from the organization's Billing settings, then have the property manager retry delivery.
 - **AP email queued:** Amazon SES accepted the approved invoice for processing. Use the stored provider reference to correlate delivery events; provider acceptance is not proof that the destination mailbox received it.
 - **Sent to AP:** The customer approved a manual-download or portal route and Afterlight recorded that submission.
+
+The AP message identifies the approving property manager by name, provides that manager's email for questions, and uses the manager as the Reply-To contact. Afterlight preserves this approval-time contact snapshot even if the user's profile changes later.
 
 ## Reconcile customer payment
 

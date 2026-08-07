@@ -23,15 +23,12 @@ const {
   evaluateOrganizationBillingAction,
 } = require("../services/billingPolicy");
 const { resolveBillingAddress } = require("../services/propertyAddresses");
-const { buildFrontendUrl } = require("../utils/frontendUrls");
-const { sendSystemEmail } = require("../services/systemEmail");
-const { sendApprovedInvoiceToAp } = require("../services/apDelivery");
-const { apDeliveryFailure } = require("../services/apDeliveryErrors");
 const { normalizeEmailAddress } = require("../services/propertyEmails");
 const {
   assignedPropertyManagers,
-  notifyApDeliveryState,
 } = require("../services/apDeliveryNotifications");
+const { emailPropertyManagersForReview } = require("../services/invoiceReview");
+const { approveInvoiceAndSendToAp } = require("../services/invoiceApproval");
 const {
   isAfterlightServiceInvoice,
   afterlightServiceInvoiceScope,
@@ -63,15 +60,6 @@ router.use(async (req, res, next) => {
     return res.status(500).json({ error: "Unable to verify billing access." });
   }
 });
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
 
 router.get("/properties", async (req, res) => {
   try {
@@ -236,48 +224,6 @@ async function notifyPropertyManagersOfSubmittedInvoice(invoice, organizationId,
   ));
 }
 
-async function emailPropertyManagersForReview(invoice, managers) {
-  const recipients = managers.map((manager) => manager.email).filter(Boolean);
-  if (!recipients.length) return;
-  const file = await s3.getObject({
-    Bucket: process.env.S3_BUCKET_NAME,
-    Key: invoice.pdfKey,
-  }).promise();
-  const reviewUrl = buildFrontendUrl(`/billing/review/${invoice._id}`);
-  const invoiceNumber = escapeHtml(invoice.invoiceNumber);
-  const propertyName = escapeHtml(invoice.propertySnapshot.name);
-  const safeReviewUrl = escapeHtml(reviewUrl);
-  const amount = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(invoice.amountCents / 100);
-  await sendSystemEmail({
-    to: process.env.SYSTEM_EMAIL_ADDRESS,
-    bcc: recipients.join(","),
-    subject: `Review requested: invoice ${invoice.invoiceNumber}`,
-    text: [
-      `Invoice ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} is ready for review.`,
-      `Amount: ${amount}`,
-      `Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}`,
-      `Review and approve or decline: ${reviewUrl}`,
-    ].join("\n"),
-    html: `
-      <p>Invoice <strong>${invoiceNumber}</strong> for
-      <strong>${propertyName}</strong> is ready for review.</p>
-      <p>Amount: <strong>${amount}</strong><br>
-      Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}</p>
-      <p><a href="${safeReviewUrl}" style="display:inline-block;padding:12px 18px;background:#087df1;color:#fff;text-decoration:none;border-radius:6px">
-      Review Invoice</a></p>
-      <p>You will be asked to sign in if your Afterlight session is not active.</p>
-    `,
-    attachments: [{
-      filename: `${invoice.invoiceNumber}.pdf`,
-      content: file.Body,
-      contentType: "application/pdf",
-    }],
-  });
-}
-
 function platformAuditDetails(req, invoice, action, metadata = {}) {
   return {
     actorUserId: req.user.userId,
@@ -428,11 +374,14 @@ router.post("/platform-service-invoices/:id/submit", requirePlatformAdmin, async
     }
     invoice.billingOwner = "afterlight_platform";
     invoice.status = "pending_review";
+    invoice.review.cycle = Number(invoice.review.cycle || 0) + 1;
     invoice.review.requestedBy = req.user.userId;
     invoice.review.requestedAt = new Date();
     invoice.review.reviewedBy = null;
     invoice.review.reviewedAt = null;
     invoice.review.decision = "";
+    invoice.review.method = "";
+    invoice.review.approverSnapshot = { name: "", email: "" };
     invoice.review.declineReason = "";
     invoice.review.emailSentAt = null;
     invoice.review.emailError = "";
@@ -709,11 +658,14 @@ router.post("/:id/submit", async (req, res) => {
       });
     }
     invoice.status = "pending_review";
+    invoice.review.cycle = Number(invoice.review.cycle || 0) + 1;
     invoice.review.requestedBy = req.user.userId;
     invoice.review.requestedAt = new Date();
     invoice.review.reviewedBy = null;
     invoice.review.reviewedAt = null;
     invoice.review.decision = "";
+    invoice.review.method = "";
+    invoice.review.approverSnapshot = { name: "", email: "" };
     invoice.review.declineReason = "";
     invoice.review.emailSentAt = null;
     invoice.review.emailError = "";
@@ -780,59 +732,17 @@ router.get("/:id/review", async (req, res) => {
 });
 
 router.post("/:id/approve", async (req, res) => {
-  let invoice;
   try {
     if (!validId(req.params.id)) {
       return res.status(400).json({ error: "Invalid invoice." });
     }
-    const existingInvoice = await Invoice.findOne({
-      _id: req.params.id,
+    const { invoice, deliveryResult } = await approveInvoiceAndSendToAp({
+      invoiceId: req.params.id,
       organizationId: req.user.organizationId,
-      status: { $in: ["pending_review", "failed"] },
+      actor: req.user,
+      approvalMethod: "authenticated_portal",
+      confirmationNumber: req.body.confirmationNumber,
     });
-    if (!existingInvoice) {
-      return res.status(409).json({ error: "This invoice is no longer awaiting approval." });
-    }
-    const decision = await evaluateOrganizationBillingAction({
-      organizationId: req.user.organizationId,
-      action: "review_invoice",
-      user: req.user,
-      invoice: existingInvoice,
-    });
-    if (!decision.allowed) return res.status(403).json({ error: decision.reason });
-
-    invoice = await Invoice.findOneAndUpdate(
-      {
-        _id: existingInvoice._id,
-        organizationId: req.user.organizationId,
-        status: { $in: ["pending_review", "failed"] },
-      },
-      {
-        $set: {
-          status: "approving",
-          "review.reviewedBy": req.user.userId,
-          "review.reviewedAt": new Date(),
-          "review.decision": "approved",
-          "review.declineReason": "",
-          "delivery.error": "",
-        },
-        $push: {
-          statusHistory: { status: "approved", changedBy: req.user.userId },
-        },
-      },
-      { new: true }
-    );
-    if (!invoice) {
-      return res.status(409).json({ error: "Another reviewer has already acted on this invoice." });
-    }
-
-    const deliveryResult = await sendApprovedInvoiceToAp(
-      invoice,
-      String(req.body.confirmationNumber || "").trim()
-    );
-    invoice.status = "submitted";
-    invoice.statusHistory.push({ status: "submitted", changedBy: req.user.userId });
-    await invoice.save();
     console.info(JSON.stringify({
       event: deliveryResult.status === "accepted"
         ? "invoice_ap_delivery_accepted"
@@ -845,49 +755,20 @@ router.post("/:id/approve", async (req, res) => {
       providerMessageId: invoice.delivery.providerMessageId,
       attemptCount: invoice.delivery.attemptCount,
     }));
-    if (deliveryResult.status === "accepted") {
-      notifyApDeliveryState(invoice, "queued").catch((notificationError) => {
-        console.error("AP delivery queued notification error:", notificationError);
-      });
-    } else if (!isAfterlightServiceInvoice(invoice)) {
-      sendUserNotification({
-        organizationId: req.user.organizationId,
-        userId: invoice.submitterId,
-        ...invoiceReviewChanged(invoice, "approved"),
-      }).catch((notificationError) => {
-        console.error("Invoice approval notification error:", notificationError);
-      });
-    }
     res.json({ ...invoice.toObject(), warning: deliveryResult.warning });
   } catch (error) {
-    const failure = apDeliveryFailure(error);
-    if (invoice) {
-      invoice.status = "failed";
-      invoice.delivery.status = "failed";
-      invoice.delivery.failedAt = new Date();
-      invoice.delivery.error = failure.userMessage;
-      invoice.delivery.errorCode = failure.errorCode;
-      invoice.statusHistory.push({ status: "failed", changedBy: req.user.userId });
-      await invoice.save().catch(() => {});
-      notifyApDeliveryState(invoice, "failed").catch((notificationError) => {
-        console.error("AP delivery failure notification error:", notificationError);
-      });
-    }
     console.error(JSON.stringify({
-      event: "invoice_ap_delivery_failed",
-      invoiceId: invoice?._id ? String(invoice._id) : String(req.params.id),
-      organizationId: invoice?.organizationId ? String(invoice.organizationId) : String(req.user.organizationId),
-      method: invoice?.delivery?.method || "unknown",
-      deliveryStatus: "failed",
-      provider: invoice?.delivery?.provider || "ses",
-      providerMessageId: invoice?.delivery?.providerMessageId || "",
-      attemptCount: invoice?.delivery?.attemptCount || 0,
-      errorCode: failure.errorCode,
-      providerRequestId: failure.providerRequestId,
-      httpStatusCode: failure.httpStatusCode,
-      retryable: failure.retryable,
+      event: error.deliveryFailure ? "invoice_ap_delivery_failed" : "invoice_approval_rejected",
+      invoiceId: error.invoice?._id ? String(error.invoice._id) : String(req.params.id),
+      organizationId: error.invoice?.organizationId
+        ? String(error.invoice.organizationId)
+        : String(req.user.organizationId),
+      errorCode: error.code || "INVOICE_APPROVAL_ERROR",
     }));
-    res.status(failure.status).json({ error: failure.userMessage });
+    res.status(error.status || 500).json({
+      error: error.status ? error.message : "Unable to approve and send this invoice.",
+      code: error.code || undefined,
+    });
   }
 });
 

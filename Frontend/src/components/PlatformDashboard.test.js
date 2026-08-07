@@ -6,7 +6,7 @@ import { storeAuthentication } from "../services/session";
 import { beginOktaLogin } from "../services/okta";
 
 jest.mock("../services/api", () => ({
-  api: { get: jest.fn(), post: jest.fn() },
+  api: { get: jest.fn(), post: jest.fn(), put: jest.fn() },
 }));
 jest.mock("../services/session", () => ({
   storeAuthentication: jest.fn(),
@@ -50,7 +50,10 @@ const report = {
     organizationId: "org-1",
     name: "PICOR",
     orgType: "COM",
+    serviceModel: "managed",
     propertyCount: 5,
+    emailApPropertyCount: 4,
+    invoiceApprovalExperience: "authenticated_portal",
     activeUserCount: 4,
     recentSubmissionCount: 6,
     pendingBidCount: 0,
@@ -171,4 +174,30 @@ test("a platform error clears when navigating to another dashboard view", async 
   fireEvent.click(screen.getByRole("button", { name: "Resources & Payables" }));
   expect(await screen.findByText("Resources view")).toBeInTheDocument();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test("platform administrators can configure secure email approval per organization", async () => {
+  api.put.mockResolvedValue({ invoiceApprovalExperience: "secure_email_link" });
+
+  renderDashboard();
+  fireEvent.click(await screen.findByRole("button", { name: "Manage capabilities" }));
+
+  const dialog = screen.getByRole("dialog", { name: "Invoice approval for PICOR" });
+  expect(dialog).toHaveTextContent("Organization administrators cannot change this setting");
+  fireEvent.change(screen.getByLabelText("Approval experience"), {
+    target: { value: "secure_email_link" },
+  });
+  expect(dialog).toHaveTextContent("4 of 5 properties currently have AP email delivery configured");
+  fireEvent.change(screen.getByLabelText("Reason for change"), {
+    target: { value: "Requested in the managed-service agreement" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save capability" }));
+
+  await waitFor(() => expect(api.put).toHaveBeenCalledWith(
+    "/api/platform/organizations/org-1/billing-capabilities",
+    {
+      invoiceApprovalExperience: "secure_email_link",
+      reason: "Requested in the managed-service agreement",
+    }
+  ));
 });

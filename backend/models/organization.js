@@ -137,6 +137,26 @@ const OrganizationLicenseSchema = new mongoose.Schema({
   },
 }, { _id: false });
 
+const OrganizationBillingCapabilitiesSchema = new mongoose.Schema({
+  invoiceApprovalExperience: {
+    type: String,
+    enum: ["authenticated_portal", "secure_email_link", "outlook_actionable"],
+    default: "authenticated_portal",
+  },
+  emailApprovalTokenHours: {
+    type: Number,
+    min: 1,
+    max: 168,
+    default: 24,
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+  updatedAt: { type: Date, default: null },
+}, { _id: false });
+
 const OrganizationSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   workspaceType: {
@@ -174,6 +194,10 @@ const OrganizationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "BillingPolicy",
     default: null,
+  },
+  billingCapabilities: {
+    type: OrganizationBillingCapabilitiesSchema,
+    default: () => ({}),
   },
   inspectionTemplateId: {
     type: mongoose.Schema.Types.ObjectId,

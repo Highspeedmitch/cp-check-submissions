@@ -1,7 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const { apiLimiter, calendarFeedLimiter } = require("./middleware/rateLimits");
+const {
+  apiLimiter,
+  calendarFeedLimiter,
+  invoiceEmailActionLimiter,
+} = require("./middleware/rateLimits");
 const authenticateToken = require("./middleware/authenticateToken");
 const requireCurrentOrganizationPresence = require("./middleware/requireCurrentOrganizationPresence");
 const { getAllowedFrontendOrigins } = require("./utils/frontendUrls");
@@ -35,6 +39,12 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "2mb", extended: true }));
   app.use(cookieParser());
+
+  app.use(
+    "/api/invoice-email-actions",
+    invoiceEmailActionLimiter,
+    require("./Routes/invoiceEmailActions")
+  );
 
   app.use(
     "/calendar",

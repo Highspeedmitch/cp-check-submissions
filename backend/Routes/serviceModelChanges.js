@@ -7,6 +7,7 @@ const ServiceModelChangeRequest = require("../models/serviceModelChangeRequest")
 const PlatformAudit = require("../models/platformAudit");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
 const ResourceDeployment = require("../models/resourceDeployment");
+const InvoiceEmailAuthorization = require("../models/invoiceEmailAuthorization");
 const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const {
   SERVICE_MODEL_DEFAULTS,
@@ -235,6 +236,7 @@ function createServiceModelChangeHandlers({
   PlatformAuditModel = PlatformAudit,
   FulfillmentAuditModel = FulfillmentAudit,
   ResourceDeploymentModel = ResourceDeployment,
+  InvoiceEmailAuthorizationModel = InvoiceEmailAuthorization,
   sendPlatformEmail = deliverPlatformRequestEmail,
   sendRequesterEmail = deliverRequesterDecisionEmail,
   notifyPlatform = notifyPlatformAdministrators,
@@ -483,6 +485,7 @@ function createServiceModelChangeHandlers({
       });
       let appliedEntitlements = null;
       let endedResourceDeploymentCount = 0;
+      let revokedEmailApprovalAuthorizationCount = 0;
       let requestAppliedInTransaction = false;
 
       if (action === "approve") {
@@ -541,6 +544,8 @@ function createServiceModelChangeHandlers({
             propertyLimit: currentEntitlements.propertyLimit,
             defaultSource: organizationDefaultSource(organization),
             policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
+            invoiceApprovalExperience:
+              organization.billingCapabilities?.invoiceApprovalExperience || "authenticated_portal",
           };
           const clearedPropertyOverrides = (organization.properties || [])
             .filter((property) => property.fulfillmentPolicy?.defaultSource).length;
@@ -566,6 +571,14 @@ function createServiceModelChangeHandlers({
               updatedBy: req.user.userId,
               updatedAt: reviewedAt,
             };
+            if (!["managed", "hybrid"].includes(request.requestedServiceModel)) {
+              organization.billingCapabilities = {
+                invoiceApprovalExperience: "authenticated_portal",
+                emailApprovalTokenHours: 24,
+                updatedBy: req.user.userId,
+                updatedAt: reviewedAt,
+              };
+            }
             await saveDocument(organization, session);
 
             let endedDeployments = { modifiedCount: 0 };
@@ -586,8 +599,28 @@ function createServiceModelChangeHandlers({
                 session
               );
             }
+            let revokedEmailApprovals = { modifiedCount: 0 };
+            if (!["managed", "hybrid"].includes(request.requestedServiceModel)) {
+              revokedEmailApprovals = await updateMany(
+                InvoiceEmailAuthorizationModel,
+                {
+                  organizationId: organization._id,
+                  status: "active",
+                },
+                {
+                  $set: {
+                    status: "revoked",
+                    revokedAt: reviewedAt,
+                  },
+                },
+                session
+              );
+            }
             const endedCount = Number(
               endedDeployments.modifiedCount ?? endedDeployments.nModified ?? 0
+            );
+            const revokedEmailApprovalCount = Number(
+              revokedEmailApprovals.modifiedCount ?? revokedEmailApprovals.nModified ?? 0
             );
             const nextEntitlements = resolveLicenseEntitlements(organization);
             await createDocument(FulfillmentAuditModel, {
@@ -605,22 +638,31 @@ function createServiceModelChangeHandlers({
                 propertyLimit: nextEntitlements.propertyLimit,
                 defaultSource: organization.fulfillmentPolicy.defaultSource,
                 policyVersion: organization.fulfillmentPolicy.version,
+                invoiceApprovalExperience:
+                  organization.billingCapabilities?.invoiceApprovalExperience || "authenticated_portal",
               },
               reason: response,
               metadata: {
                 requestId: request._id,
                 clearedPropertyOverrides,
                 endedResourceDeploymentCount: endedCount,
+                revokedEmailApprovalAuthorizationCount: revokedEmailApprovalCount,
                 appliesTo: "future_assignments_only",
               },
             }, session);
             request.status = "approved";
             request.appliedAt = reviewedAt;
             await saveDocument(request, session);
-            return { nextEntitlements, endedResourceDeploymentCount: endedCount };
+            return {
+              nextEntitlements,
+              endedResourceDeploymentCount: endedCount,
+              revokedEmailApprovalAuthorizationCount: revokedEmailApprovalCount,
+            };
           });
           appliedEntitlements = transition.nextEntitlements;
           endedResourceDeploymentCount = transition.endedResourceDeploymentCount;
+          revokedEmailApprovalAuthorizationCount =
+            transition.revokedEmailApprovalAuthorizationCount;
           requestAppliedInTransaction = true;
         }
         if (!requestAppliedInTransaction) {
@@ -672,6 +714,7 @@ function createServiceModelChangeHandlers({
               ?? request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent
               ?? null,
           endedResourceDeploymentCount,
+          revokedEmailApprovalAuthorizationCount,
         },
       });
       notifyUser({

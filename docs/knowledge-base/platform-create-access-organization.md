@@ -34,6 +34,21 @@ Afterlight creates the workspace and a secure, single-use invitation for its fir
 
 After accepting the invitation, the customer administrator uses **Setup Guide** to confirm service delivery, establish an organization-owned administrative passkey, and add the first property. Inviting the team and validating the first inspection are recommended readiness items.
 
+## Manage invoice approval capabilities
+
+Secure email invoice approval is an organization-specific, platform-controlled capability for Managed service and Hybrid customers. The default remains the standard signed-in Afterlight review.
+
+1. Find the organization under **Organization Overview**.
+2. Select **Manage capabilities**.
+3. Review how many properties have AP email delivery configured.
+4. Select **Secure email approval** only when the customer requested it and the applicable properties use an AP email destination.
+5. Enter the customer request or operational reason and select **Save capability**.
+6. Complete identity confirmation when prompted.
+
+When enabled, eligible managed-service review emails contain an individual, one-time **Approve & Send to AP** link for each assigned property manager. Invoices configured for portal, download, or another ineligible route continue using standard Afterlight review. Restoring **Standard Afterlight review** immediately revokes outstanding email-approval links.
+
+If the organization later changes to Full-stack SaaS, Afterlight automatically restores standard signed-in review and revokes every unused email-approval link. Returning to Managed service or Hybrid does not automatically re-enable the capability; a platform administrator must review and enable it again.
+
 ## Open an audited Admin View
 
 1. Find the organization under **Organization Overview**.
@@ -61,5 +76,7 @@ Do not share an assumed session, leave it open on an unattended device, or use a
 - **The authenticator code is refused:** Wait for a new code and try once more. A code already used during that time step cannot be replayed.
 - **Identity confirmation is unavailable:** Sign out, sign in again to refresh MFA, and retry. Escalate the deployment configuration if the error remains.
 - **The pending Admin View request expired:** Return to Platform Administration, select **Open Admin View**, and enter the reason again.
+- **Secure email approval is unavailable:** Confirm the organization uses Managed service or Hybrid delivery. Full-stack SaaS organizations continue using standard review.
+- **Some properties are not ready for email approval:** Configure an AP email destination for those properties. Their invoices continue using standard review until then.
 
 [Back to the knowledge base](README.md)

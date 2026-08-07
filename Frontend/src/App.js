@@ -36,6 +36,7 @@ const ProfitUpload = lazy(() => import("./components/ProfitUpload"));
 const EditPropertyWrapper = lazy(() => import("./components/EditPropertyWrapper"));
 const Billing = lazy(() => import("./components/Billing"));
 const InvoiceReview = lazy(() => import("./components/InvoiceReview"));
+const InvoiceEmailApproval = lazy(() => import("./components/InvoiceEmailApproval"));
 const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
 const BulkOnboarding = lazy(() => import("./components/BulkOnboarding"));
@@ -295,6 +296,7 @@ function App() {
         <BillingRoute user={user} role={role} accountScope={accountScope} />
       } />
       <Route path="/billing/review/:id" element={<InvoiceReviewRoute user={user} role={role} />} />
+      <Route path="/billing/email-approval" element={<InvoiceEmailApproval />} />
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
       <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />
       <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
