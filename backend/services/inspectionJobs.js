@@ -15,7 +15,7 @@ const {
 } = require("./inspectionStorage");
 const { assignedResourceContext } = require("./resourceAccess");
 
-const MAX_PHOTOS = 10;
+const MAX_PHOTOS = 15;
 const MAX_PHOTOS_PER_FIELD = 6;
 const LEGACY_PHOTO_FIELDS = new Set([
   "toiletriesStocked",

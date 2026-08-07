@@ -390,23 +390,24 @@ function drawResultsTable(doc, results, x, y, width, options = {}) {
 }
 
 function getObservationSummary(formData, template) {
-  const noteFields = template?.fields?.filter((field) =>
-    ['text', 'textarea'].includes(field.type)
-    && !['businessName', 'propertyAddress'].includes(field.key)
-  ) || [
-    { key: 'additionalComments' },
-    { key: 'homelessActivity' },
-  ];
-  const prioritizedNoteFields = [...noteFields].sort((left, right) =>
-    Number(right.key === 'generalObservations') - Number(left.key === 'generalObservations')
-  );
-  return prioritizedNoteFields
-    .map((field) => cleanValue(formData[field.key]))
-    .find(Boolean) || 'No additional observations were provided.';
+  if (Array.isArray(template?.fields)) {
+    const summaryField = template.fields.find((field) => (
+      field.key === 'generalObservations'
+      && ['text', 'textarea'].includes(field.type)
+    ));
+    if (!summaryField) return null;
+    return cleanValue(formData[summaryField.key]) || 'No general observations were provided.';
+  }
+
+  return cleanValue(formData.generalObservations)
+    || cleanValue(formData.additionalComments)
+    || cleanValue(formData.homelessActivity)
+    || 'No additional observations were provided.';
 }
 
 function drawObservationSummary(doc, formData, x, y, width, template) {
   const summary = getObservationSummary(formData, template);
+  if (summary === null) return;
   doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(11.5).text('General Observations', x, y);
   doc.roundedRect(x, y + 20, width, 46, 5).fillAndStroke(COLORS.panel, COLORS.line);
   doc
@@ -435,6 +436,7 @@ function drawDetailNotes(doc, formData, propertyName, startY, template, options 
   const configuredNotes = template?.fields?.filter((field) =>
     ['text', 'textarea'].includes(field.type)
     && !['businessName', 'propertyAddress'].includes(field.key)
+    && field.key !== 'generalObservations'
   ).map((field) => ({
     label: field.reportLabel || field.label,
     value: cleanValue(formData[field.key]),

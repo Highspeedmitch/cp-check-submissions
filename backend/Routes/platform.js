@@ -32,6 +32,10 @@ const { workspaceAuthentication } = require("../services/workspaceAccess");
 const { uploadLimiter } = require("../middleware/rateLimits");
 const { imageFileFilter, rejectInvalidSignatures } = require("../utils/uploadSecurity");
 const {
+  MAX_PHOTOS,
+  normalizePhotoRequests,
+} = require("../services/inspectionJobs");
+const {
   normalizeOrganizationSetup,
   caseInsensitiveExact,
 } = require("../services/organizationProvisioning");
@@ -45,9 +49,23 @@ const router = express.Router();
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const prospectUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { files: 20, fileSize: 8 * 1024 * 1024 },
+  limits: { files: MAX_PHOTOS, fileSize: 8 * 1024 * 1024 },
   fileFilter: imageFileFilter,
 });
+
+function uploadProspectPhotos(req, res, next) {
+  prospectUpload.array("photos", MAX_PHOTOS)(req, res, (error) => {
+    if (!error) return next();
+    const tooManyPhotos = error instanceof multer.MulterError
+      && ["LIMIT_FILE_COUNT", "LIMIT_UNEXPECTED_FILE"].includes(error.code);
+    if (tooManyPhotos) {
+      return res.status(400).json({
+        error: `Complimentary reports support up to ${MAX_PHOTOS} photos.`,
+      });
+    }
+    return next(error);
+  });
+}
 
 async function getProspectTemplate() {
   const template = await ProspectTemplate.findOneAndUpdate(
@@ -210,7 +228,7 @@ router.get("/prospect-assessments", authenticateToken, requirePlatformAdmin, asy
 });
 
 router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
-  uploadLimiter, prospectUpload.array("photos", 10), async (req, res) => {
+  uploadLimiter, uploadProspectPhotos, async (req, res) => {
     try {
       rejectInvalidSignatures(req.files);
       const template = await getProspectTemplate();
@@ -242,12 +260,21 @@ router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
         title: template.title,
         fields: template.fields.map((field) => field.toObject()),
       };
-      const photoBuffers = (req.files || []).map((file) => ({
+      const submittedPhotos = (req.files || []).map((file) => ({
+        file,
         fieldName: extractPhotoFieldName(file.originalname),
-        imageBuffer: file.buffer,
-      })).filter((photo) =>
-        isAllowedTemplatePhotoField(snapshot.fields, photo.fieldName)
+      }));
+      normalizePhotoRequests(
+        submittedPhotos.map(({ file, fieldName }) => ({
+          fieldName,
+          fileName: file.originalname,
+        })),
+        (fieldName) => isAllowedTemplatePhotoField(snapshot.fields, fieldName)
       );
+      const photoBuffers = submittedPhotos.map(({ file, fieldName }) => ({
+        fieldName,
+        imageBuffer: file.buffer,
+      }));
       const assessmentData = { businessName, propertyAddress, responses, templateSnapshot: snapshot, createdAt };
       const pdfBuffer = await generateProspectAssessmentPDF({ assessment: assessmentData, photoBuffers });
       const safeName = (businessName || propertyAddress)
@@ -274,7 +301,12 @@ router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
       return res.status(201).json(assessment);
     } catch (error) {
       console.error("Prospect assessment creation error:", error);
-      return res.status(500).json({ error: "Unable to generate the prospect assessment." });
+      const status = error.status || 500;
+      return res.status(status).json({
+        error: status === 500
+          ? "Unable to generate the prospect assessment."
+          : error.message,
+      });
     }
   });
 

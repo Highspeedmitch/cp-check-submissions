@@ -1,6 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  MAX_PHOTOS,
+  MAX_PHOTOS_PER_FIELD,
   cleanSubmissionData,
   normalizePhotoRequests,
 } = require("../services/inspectionJobs");
@@ -26,14 +28,34 @@ test("inspection job payloads only retain bounded string responses", () => {
 });
 
 test("photo reservations enforce allowed fields and per-field limits", () => {
-  const requests = Array.from({ length: 6 }, (_, index) => ({
+  const requests = Array.from({ length: MAX_PHOTOS_PER_FIELD }, (_, index) => ({
     fieldName: "graffiti",
     fileName: `${index}.jpg`,
   }));
-  assert.equal(normalizePhotoRequests(requests, (field) => field === "graffiti").length, 6);
+  assert.equal(MAX_PHOTOS, 15);
+  assert.equal(MAX_PHOTOS_PER_FIELD, 6);
+  assert.equal(
+    normalizePhotoRequests(requests, (field) => field === "graffiti").length,
+    MAX_PHOTOS_PER_FIELD
+  );
   assert.throws(
     () => normalizePhotoRequests([...requests, requests[0]], () => true),
     /Up to 6 photos/
+  );
+  const withinTotalLimit = Array.from({ length: MAX_PHOTOS }, (_, index) => ({
+    fieldName: `field_${index % 3}`,
+    fileName: `${index}.jpg`,
+  }));
+  assert.equal(
+    normalizePhotoRequests(withinTotalLimit, () => true).length,
+    MAX_PHOTOS
+  );
+  assert.throws(
+    () => normalizePhotoRequests([...withinTotalLimit, {
+      fieldName: "field_3",
+      fileName: "too-many.jpg",
+    }], () => true),
+    /up to 15 photos/i
   );
   assert.throws(
     () => normalizePhotoRequests([{ fieldName: "private", fileName: "x.jpg" }], () => false),

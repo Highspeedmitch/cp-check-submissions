@@ -28,6 +28,22 @@ test("normalizes submitted line breaks for PDF text", () => {
   );
 });
 
+test("does not promote another form response into an unconfigured General Observations field", () => {
+  const template = {
+    fields: [
+      { key: "homelessActivity", label: "Is there any homeless activity of note?", type: "textarea" },
+      { key: "additionalComments", label: "Additional Comments", type: "textarea" },
+    ],
+  };
+  assert.equal(
+    getObservationSummary({
+      homelessActivity: "Homeless activity response",
+      additionalComments: "Additional response",
+    }, template),
+    null
+  );
+});
+
 test("measures complete finding sections including every photo row", () => {
   assert.equal(findingSectionHeight(62, 0), 99);
   assert.equal(findingSectionHeight(62, 1), 268);
