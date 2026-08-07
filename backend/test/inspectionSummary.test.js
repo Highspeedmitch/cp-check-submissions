@@ -6,6 +6,8 @@ const {
   SUMMARY_DISCLAIMER,
   SUMMARY_FALLBACK,
   inspectionSummaryMode,
+  inspectionSummaryOrganizationAllowlist,
+  isInspectionSummaryOrganizationAllowed,
   buildInspectionSummarySource,
   normalizeGeneratedSummary,
   ensureInspectionSummary,
@@ -27,6 +29,7 @@ function template() {
 function job(overrides = {}) {
   return {
     _id: "inspection-job-1",
+    organizationId: "org-picor",
     orgType: "COM",
     pdfKey: "",
     submissionData: {
@@ -46,10 +49,33 @@ function job(overrides = {}) {
   };
 }
 
+const PICOR = { _id: "org-picor", name: "Picor" };
+
+function aiEnv(mode, overrides = {}) {
+  return {
+    INSPECTION_AI_SUMMARY_MODE: mode,
+    INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST: "Picor",
+    ...overrides,
+  };
+}
+
 test("summary mode is explicitly gated and defaults invalid values to off", () => {
   assert.equal(inspectionSummaryMode({}), "off");
   assert.equal(inspectionSummaryMode({ INSPECTION_AI_SUMMARY_MODE: "DEV-PREVIEW" }), "dev-preview");
   assert.equal(inspectionSummaryMode({ INSPECTION_AI_SUMMARY_MODE: "unexpected" }), "off");
+});
+
+test("summary organization allowlist is exact, case-insensitive, and fail-closed", () => {
+  assert.deepEqual([...inspectionSummaryOrganizationAllowlist({})], []);
+  assert.equal(isInspectionSummaryOrganizationAllowed(job(), PICOR, {
+    INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST: "Other Tenant, PICOR",
+  }), true);
+  assert.equal(isInspectionSummaryOrganizationAllowed(job(), PICOR, {
+    INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST: "Picor West",
+  }), false);
+  assert.equal(isInspectionSummaryOrganizationAllowed(job(), PICOR, {
+    INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST: "org-picor",
+  }), true);
 });
 
 test("summary source contains findings and notes without property identity fields", () => {
@@ -92,12 +118,12 @@ test("DEV preview generates, persists, and renders a Bedrock summary", async () 
   const inspectionJob = job();
   const result = await ensureInspectionSummary(inspectionJob, {
     client,
-    env: {
-      INSPECTION_AI_SUMMARY_MODE: "dev-preview",
+    organization: PICOR,
+    env: aiEnv("dev-preview", {
       INSPECTION_AI_SUMMARY_MODEL_ID: "us.amazon.nova-micro-v1:0",
       INSPECTION_AI_SUMMARY_TIMEOUT_MS: "8000",
       AWS_REGION: "us-east-2",
-    },
+    }),
     now: new Date("2026-08-06T12:00:00Z"),
   });
 
@@ -113,9 +139,10 @@ test("DEV preview generates, persists, and renders a Bedrock summary", async () 
 
 test("shadow mode reuses a matching stored result without rendering or reinvoking", async () => {
   const inspectionJob = job();
-  const env = { INSPECTION_AI_SUMMARY_MODE: "shadow" };
+  const env = aiEnv("shadow");
   const generated = await ensureInspectionSummary(inspectionJob, {
     env,
+    organization: PICOR,
     client: {
       async send() {
         return {
@@ -131,6 +158,7 @@ test("shadow mode reuses a matching stored result without rendering or reinvokin
 
   const reused = await ensureInspectionSummary(inspectionJob, {
     env,
+    organization: PICOR,
     client: { async send() { throw new Error("should not be called"); } },
   });
   assert.equal(reused.summary.text, "One item was flagged for review.");
@@ -141,7 +169,8 @@ test("shadow mode reuses a matching stored result without rendering or reinvokin
 test("Bedrock failures are recorded but return a non-AI PDF fallback", async () => {
   const inspectionJob = job();
   const result = await ensureInspectionSummary(inspectionJob, {
-    env: { INSPECTION_AI_SUMMARY_MODE: "dev-preview" },
+    env: aiEnv("dev-preview"),
+    organization: PICOR,
     client: { async send() { throw new Error("Bedrock is temporarily unavailable"); } },
   });
 
@@ -151,6 +180,21 @@ test("Bedrock failures are recorded but return a non-AI PDF fallback", async () 
   assert.equal(result.coverSummary.disclaimer, "");
   assert.equal(result.coverSummary.aiGenerated, false);
   assert.equal(inspectionJob.saves, 1);
+});
+
+test("a non-allowlisted organization never invokes Bedrock or mutates the job", async () => {
+  const inspectionJob = job();
+  const result = await ensureInspectionSummary(inspectionJob, {
+    env: aiEnv("live", {
+      INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST: "Another Organization",
+    }),
+    organization: PICOR,
+    client: { async send() { throw new Error("should not be called"); } },
+  });
+  assert.equal(result.mode, "live");
+  assert.equal(result.coverSummary, null);
+  assert.equal(inspectionJob.aiSummary, null);
+  assert.equal(inspectionJob.saves, 0);
 });
 
 test("off mode never invokes Bedrock or mutates the job", async () => {
@@ -167,7 +211,8 @@ test("off mode never invokes Bedrock or mutates the job", async () => {
 test("non-commercial reports do not purchase an unused cover summary", async () => {
   const inspectionJob = job({ orgType: "LTR" });
   const result = await ensureInspectionSummary(inspectionJob, {
-    env: { INSPECTION_AI_SUMMARY_MODE: "dev-preview" },
+    env: aiEnv("dev-preview"),
+    organization: PICOR,
     client: { async send() { throw new Error("should not be called"); } },
   });
   assert.equal(result.coverSummary, null);

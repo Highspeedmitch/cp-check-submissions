@@ -68,7 +68,8 @@ Optional identity controls:
 Optional inspection AI controls:
 
 - leave `INSPECTION_AI_SUMMARY_MODE=off` until the DEV preview has been reviewed and explicitly approved for customer-facing reports;
-- when approved, set `INSPECTION_AI_SUMMARY_MODE=live`, optionally pin `INSPECTION_AI_SUMMARY_MODEL_ID`, and grant the backend identity least-privilege `bedrock:InvokeModel` access to that inference profile and its routed foundation model;
+- when approved, set `INSPECTION_AI_SUMMARY_MODE=live` and `INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST=Picor` on the inspection worker and on the web service while its embedded worker remains enabled; the allowlist uses exact case-insensitive organization names or IDs and fails closed when missing;
+- optionally pin `INSPECTION_AI_SUMMARY_MODEL_ID`, and grant the backend identity least-privilege `bedrock:InvokeModel` access to that inference profile and its routed foundation model;
 - `INSPECTION_AI_SUMMARY_TIMEOUT_MS` defaults to 8,000 milliseconds. Model failures remain non-blocking and produce a non-AI cover fallback.
 
 See [inspection-processing.md](inspection-processing.md) for the rollout modes, 300-character contract, disclaimer, IAM scope, and QA cases.

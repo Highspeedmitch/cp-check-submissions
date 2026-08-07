@@ -22,6 +22,15 @@ The feature is opt-in through `INSPECTION_AI_SUMMARY_MODE`:
 - `shadow`: generate and store the summary without displaying it.
 - `live`: generate and display the summary in a customer-facing environment.
 
+Every non-`off` mode also requires an exact organization match in
+`INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST`. Supply a comma-separated list
+of organization names or IDs. Matching is case-insensitive and the feature
+fails closed when the value is missing or empty. For the initial Production
+rollout, set the value to `Picor`; DEV must use its exact `Picor - DEV` name or
+organization ID. Do not use partial names or a wildcard. Configure the value
+on the background worker and on the web service while its embedded inspection
+worker remains enabled.
+
 Optional controls:
 
 - `INSPECTION_AI_SUMMARY_MODEL_ID` defaults to `us.amazon.nova-micro-v1:0`.

@@ -26,6 +26,25 @@ function inspectionSummaryMode(env = process.env) {
   return SUMMARY_MODES.has(value) ? value : "off";
 }
 
+function inspectionSummaryOrganizationAllowlist(env = process.env) {
+  return new Set(
+    String(env.INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST || "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function isInspectionSummaryOrganizationAllowed(job, organization, env = process.env) {
+  const allowlist = inspectionSummaryOrganizationAllowlist(env);
+  if (!allowlist.size) return false;
+  const identifiers = [organization?._id, organization?.name, job?.organizationId]
+    .filter((value) => value !== undefined && value !== null)
+    .map((value) => String(value).trim().toLowerCase())
+    .filter(Boolean);
+  return identifiers.some((identifier) => allowlist.has(identifier));
+}
+
 function shouldRenderSummary(mode) {
   return mode === "dev-preview" || mode === "live";
 }
@@ -245,10 +264,14 @@ async function ensureInspectionSummary(job, {
   env = process.env,
   client,
   now = new Date(),
+  organization,
 } = {}) {
   const mode = inspectionSummaryMode(env);
   if (mode === "off") return { mode, summary: null, coverSummary: null };
   if (job.orgType && job.orgType !== "COM") {
+    return { mode, summary: null, coverSummary: null };
+  }
+  if (!isInspectionSummaryOrganizationAllowed(job, organization, env)) {
     return { mode, summary: null, coverSummary: null };
   }
 
@@ -321,6 +344,8 @@ module.exports = {
   SUMMARY_DISCLAIMER,
   SUMMARY_FALLBACK,
   inspectionSummaryMode,
+  inspectionSummaryOrganizationAllowlist,
+  isInspectionSummaryOrganizationAllowed,
   shouldRenderSummary,
   buildInspectionSummarySource,
   summarySourceHash,

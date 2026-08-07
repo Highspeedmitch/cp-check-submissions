@@ -339,7 +339,7 @@ async function processInspectionJob(job) {
         userId: job.userId,
         status: "scheduled",
       });
-  const summaryResult = await ensureInspectionSummary(job);
+  const summaryResult = await ensureInspectionSummary(job, { organization });
   const generated = await ensurePdf(job, {
     coverSummary: summaryResult.coverSummary,
   });
