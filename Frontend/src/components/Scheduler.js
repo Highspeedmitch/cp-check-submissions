@@ -8,6 +8,7 @@ import {
   propertySuggestedAmount,
   schedulerAssigneeLabel,
   schedulerFulfillmentSources,
+  shouldShowSuggestedClientAmount,
   showAfterlightQueue,
 } from "../services/schedulerPresentation";
 import AssignmentHistoryDialog from "./scheduler/AssignmentHistoryDialog";
@@ -497,11 +498,15 @@ function Scheduler() {
     <span>{effectivePolicy.invoiceLabel}</span>
   </div>
 
-  <label>Suggested client amount:</label>
-  <div className="beta-assignment-routing-preview">
-    <strong>{selectedProperty ? propertySuggestedAmount(selectedProperty) : "Select a property"}</strong>
-    <span>Property billing setting</span>
-  </div>
+  {shouldShowSuggestedClientAmount(effectivePolicy) && (
+    <>
+      <label>Suggested client amount:</label>
+      <div className="beta-assignment-routing-preview">
+        <strong>{selectedProperty ? propertySuggestedAmount(selectedProperty) : "Select a property"}</strong>
+        <span>Property billing setting</span>
+      </div>
+    </>
+  )}
 
   {newAssignment.fulfillmentSource && (
     <>

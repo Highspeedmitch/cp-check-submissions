@@ -24,7 +24,7 @@ Use **Month**, **Week**, or **Agenda** to change the calendar view. **Today** re
 
 Complete the numbered areas shown in the illustration:
 
-1. Choose the **Property**. Scheduler displays the property's **Suggested client amount**. This is the customer billing setting, not an Afterlight contractor's compensation.
+1. Choose the **Property**. When the selected fulfillment route creates an invoice, Scheduler displays the property's **Suggested client amount**. This is the customer billing setting, not an Afterlight contractor's compensation. No amount is shown for customer-employee work because that route creates no invoice.
 2. Review **Fulfillment** and **Routing**. The property default is used unless you select another allowed source for this assignment. Changing the property or fulfillment source clears the selected user so eligibility can be recalculated.
 3. Choose the **User** who will complete the work. The list is limited to active users and resources eligible for the selected property and fulfillment source. Customer users and property managers never see a resource's contractor pay rate.
 4. Set the required **Start Date**. Leave **End Date (optional)** blank when the work must be completed on that same date. Enter an end date when the assignee may complete the work during a date range. Afterlight blocks creation when another scheduled assignment overlaps the same property and dates.

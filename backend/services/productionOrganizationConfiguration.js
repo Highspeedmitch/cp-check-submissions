@@ -2,7 +2,7 @@ const {
   SERVICE_MODEL_DEFAULTS,
   organizationDefaultSource,
   validateServiceModel,
-  validateFulfillmentSource,
+  validateFulfillmentSourceForServiceModel,
 } = require("./fulfillmentPolicy");
 const { caseInsensitiveExact } = require("./organizationProvisioning");
 
@@ -12,9 +12,10 @@ function normalizeProductionOrganizationConfiguration(input = {}) {
     throw new Error("Production organization name must be between 2 and 120 characters.");
   }
   const serviceModel = validateServiceModel(String(input.serviceModel || "").trim());
-  const defaultFulfillmentSource = validateFulfillmentSource(String(
-    input.defaultFulfillmentSource || SERVICE_MODEL_DEFAULTS[serviceModel]
-  ).trim());
+  const defaultFulfillmentSource = validateFulfillmentSourceForServiceModel(
+    String(input.defaultFulfillmentSource || SERVICE_MODEL_DEFAULTS[serviceModel]).trim(),
+    serviceModel
+  );
   return {
     name,
     serviceModel,

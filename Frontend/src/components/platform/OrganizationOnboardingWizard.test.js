@@ -53,3 +53,19 @@ test("preserves a partial draft when the wizard is closed", () => {
   );
   expect(screen.getByLabelText("Organization name")).toHaveValue("Saved Organization");
 });
+
+test("SaaS onboarding offers only customer-controlled fulfillment", () => {
+  render(
+    <OrganizationOnboardingWizard open busy={false} error="" onClose={jest.fn()} onCreate={jest.fn()} />
+  );
+  fireEvent.change(screen.getByLabelText("Organization name"), { target: { value: "SaaS Organization" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByLabelText(/Full-stack SaaS/));
+
+  const fulfillmentSelect = screen.getByRole("combobox", { name: /Default fulfillment/i });
+  expect(fulfillmentSelect).toHaveValue("customer_employee");
+  expect(screen.getByRole("option", { name: "Customer employee" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Customer contractor" })).toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: "Afterlight staff" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: "Afterlight contractor" })).not.toBeInTheDocument();
+});

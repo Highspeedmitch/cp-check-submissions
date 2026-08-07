@@ -40,7 +40,7 @@ Open **Billing**, expand **Commercial property billing settings**, and review ea
 
 Select **Save settings** for the property after making a change.
 
-The Scheduler's **Suggested client amount** comes from this property billing setting. It is customer pricing and never exposes an Afterlight contractor's default or deployment-specific compensation. Contractor pay remains restricted to Afterlight platform management.
+When an assignment's fulfillment route creates an invoice, the Scheduler's **Suggested client amount** comes from this property billing setting. Customer-employee work does not display an amount because it creates no invoice. The value is customer pricing and never exposes an Afterlight contractor's default or deployment-specific compensation. Contractor pay remains restricted to Afterlight platform management.
 
 Invoices save a snapshot of the property billing route. Correcting a property setting prepares future invoices and retries, but does not silently rewrite completed historical records.
 

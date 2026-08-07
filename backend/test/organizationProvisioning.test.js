@@ -67,6 +67,12 @@ test("organization setup stores the selected Tier 2 SaaS limits", () => {
     serviceModel: "platform",
     licenseTier: "tier_4",
   }), /license tier/);
+  assert.throws(() => normalizeOrganizationSetup({
+    name: "Invalid SaaS Fulfillment",
+    orgType: "COM",
+    serviceModel: "platform",
+    defaultFulfillmentSource: "afterlight_staff",
+  }), /Managed Service and Hybrid/);
 });
 
 test("organization name matching is exact and case insensitive", () => {

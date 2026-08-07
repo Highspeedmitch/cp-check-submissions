@@ -28,6 +28,10 @@ export function schedulerFulfillmentSources(settings) {
     : ["customer_employee", "customer_contractor"];
 }
 
+export function shouldShowSuggestedClientAmount(policy) {
+  return policy?.invoiceRequired === true;
+}
+
 export function showAfterlightQueue(serviceModel, assignmentCount) {
   return ["managed", "hybrid"].includes(serviceModel) || Number(assignmentCount) > 0;
 }

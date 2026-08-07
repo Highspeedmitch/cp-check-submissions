@@ -121,12 +121,22 @@ test("saving an unchanged organization policy remains a harmless no-op", async (
 test("serialized SaaS settings omit Afterlight fulfillment choices", () => {
   const org = organization();
   org.serviceModel = "platform";
-  org.fulfillmentPolicy.defaultSource = "customer_employee";
+  org.fulfillmentPolicy.defaultSource = "afterlight_staff";
+  org.properties = [{
+    _id: "property-1",
+    name: "Stale override",
+    fulfillmentPolicy: { defaultSource: "afterlight_contractor" },
+  }];
 
-  assert.deepEqual(serializeSettings(org).options.fulfillmentSources, [
+  const settings = serializeSettings(org);
+  assert.equal(settings.organization.defaultSource, "customer_employee");
+  assert.deepEqual(settings.options.fulfillmentSources, [
     "customer_employee",
     "customer_contractor",
   ]);
+  assert.equal(settings.properties[0].defaultSource, null);
+  assert.equal(settings.properties[0].resolvedSource, "customer_employee");
+  assert.equal(settings.properties[0].inheritsOrganizationDefault, true);
 });
 
 test("SaaS administrators cannot set an Afterlight fulfillment default", async () => {

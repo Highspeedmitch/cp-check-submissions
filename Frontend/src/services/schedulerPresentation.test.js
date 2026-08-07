@@ -2,6 +2,7 @@ import {
   propertySuggestedAmount,
   schedulerAssigneeLabel,
   schedulerFulfillmentSources,
+  shouldShowSuggestedClientAmount,
   showAfterlightQueue,
 } from "./schedulerPresentation";
 
@@ -31,6 +32,12 @@ test("the scheduler uses server-provided service-model fulfillment choices", () 
     "customer_employee",
     "customer_contractor",
   ]);
+});
+
+test("suggested client amount is shown only for invoice-producing assignments", () => {
+  expect(shouldShowSuggestedClientAmount({ invoiceRequired: false })).toBe(false);
+  expect(shouldShowSuggestedClientAmount({ invoiceRequired: true })).toBe(true);
+  expect(shouldShowSuggestedClientAmount(null)).toBe(false);
 });
 
 test("SaaS hides an empty Afterlight queue but retains existing Afterlight work", () => {

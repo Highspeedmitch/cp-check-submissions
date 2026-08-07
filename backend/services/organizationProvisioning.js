@@ -2,7 +2,7 @@ const ORGANIZATION_TYPES = new Set(["COM", "RES", "LTR", "STR"]);
 const {
   SERVICE_MODEL_DEFAULTS,
   validateServiceModel,
-  validateFulfillmentSource,
+  validateFulfillmentSourceForServiceModel,
 } = require("./fulfillmentPolicy");
 const { LICENSE_TIERS, defaultStoredLicense } = require("./licenseEntitlements");
 
@@ -14,8 +14,9 @@ function normalizeOrganizationSetup(input = {}) {
   const licenseTier = serviceModel === "managed"
     ? null
     : String(input.licenseTier || "tier_1").trim();
-  const defaultSource = validateFulfillmentSource(
-    String(input.defaultFulfillmentSource || SERVICE_MODEL_DEFAULTS[serviceModel]).trim()
+  const defaultSource = validateFulfillmentSourceForServiceModel(
+    String(input.defaultFulfillmentSource || SERVICE_MODEL_DEFAULTS[serviceModel]).trim(),
+    serviceModel
   );
 
   if (name.length < 2 || name.length > 120) {
