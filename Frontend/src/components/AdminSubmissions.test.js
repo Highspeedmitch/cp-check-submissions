@@ -58,10 +58,10 @@ test("shows assignment context alongside a property submission", async () => {
   expect(screen.getByText("Admin One")).toBeInTheDocument();
   expect(screen.getAllByText("Afterlight contractor")).toHaveLength(2);
   expect(screen.getByText("Date assigned")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "View PDF" })).toHaveAttribute(
-    "href",
-    "https://signed.example.com/report.pdf"
-  );
+  expect(screen.getByRole("link", { name: "View PDF" }))
+    .toHaveAttribute("href", "https://signed.example.com/report.pdf");
+  expect(screen.getByRole("link", { name: "View PDF" }))
+    .toHaveClass("beta-submission-action");
   expect(global.fetch).toHaveBeenCalledWith(
     "/api/admin/submissions/Black%20Crown?months=12&page=1",
     expect.objectContaining({

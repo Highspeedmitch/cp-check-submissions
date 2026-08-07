@@ -207,7 +207,7 @@ function AdminSubmissions() {
                   <div><dt>Fulfillment</dt><dd>{FULFILLMENT_LABELS[sub.assignment?.fulfillmentType] || "Direct submission"}</dd></div>
                 </dl>
               </div>
-              <a className="beta-button secondary" href={sub.signedPdfUrl} target="_blank" rel="noopener noreferrer">View PDF</a>
+              <a className="beta-button secondary beta-submission-action" href={sub.signedPdfUrl} target="_blank" rel="noopener noreferrer">View PDF</a>
             </article>
           ))}
         </section>

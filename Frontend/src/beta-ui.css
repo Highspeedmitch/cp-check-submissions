@@ -368,6 +368,10 @@
 .beta-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 
 .beta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   width: auto;
   min-height: 44px;
   margin: 0;
@@ -377,6 +381,8 @@
   background: var(--beta-blue);
   color: #fff;
   box-shadow: none;
+  line-height: 1.2;
+  text-decoration: none;
 }
 .beta-button:hover { background: var(--beta-blue-dark); box-shadow: none; }
 .beta-button.secondary { background: var(--beta-control); color: var(--beta-blue); }
@@ -686,11 +692,12 @@
 .beta-property-access { margin-top: 20px; padding: 16px; border: 1px solid var(--beta-border); border-radius: 8px; }
 .beta-property-access label { display: flex; align-items: center; gap: 9px; padding: 8px 0; }
 .beta-property-access input { width: 18px; margin: 0; }
-.beta-submission-list article { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--beta-border); }
+.beta-submission-list article { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--beta-border); }
 .beta-submission-list article:last-child { border-bottom: 0; }
 .beta-submission-list article > div { display: flex; flex-direction: column; gap: 4px; }
 .beta-submission-list small { color: var(--beta-muted); }
-.beta-submission-list .beta-submission-summary { flex: 1; gap: 14px; }
+.beta-submission-list .beta-submission-summary { flex: 1; min-width: 0; gap: 14px; }
+.beta-submission-action { flex: 0 0 auto; min-width: 110px; max-width: 100%; }
 .beta-submission-date { display: flex; flex-direction: column; gap: 4px; }
 .beta-submission-metadata { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 12px 24px; margin: 0; }
 .beta-submission-metadata div { min-width: 0; }
@@ -706,6 +713,7 @@
   border-radius: var(--beta-radius);
   background: var(--beta-surface);
 }
+.beta-submission-filters > * { min-width: 0; }
 .beta-submission-filters select { width: 100%; min-width: 0; margin-top: 6px; }
 .beta-submission-clear-filters { min-width: 120px; }
 .beta-submission-clear-filters:disabled,
@@ -2010,7 +2018,7 @@
   .beta-submission-pagination { align-items: stretch; flex-direction: column; }
   .beta-submission-pagination .beta-button { width: 100%; }
   .beta-submission-list article { align-items: stretch; flex-direction: column; }
-  .beta-submission-list article .beta-button { width: 100%; }
+  .beta-submission-list article > .beta-submission-action { align-self: stretch; width: 100%; min-width: 0; max-width: 100%; }
   .beta-submission-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .beta-invitation-row { align-items: flex-start; flex-direction: column; }
   .beta-invitation-row .beta-card-actions { width: 100%; }
