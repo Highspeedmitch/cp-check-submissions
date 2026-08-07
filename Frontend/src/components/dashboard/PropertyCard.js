@@ -76,7 +76,7 @@ function PropertyCard({
 
       {role === "admin" && orgType === "STR" && (
         <button
-          className="access-instructions-button"
+          className="beta-button secondary"
           onClick={(event) => {
             event.stopPropagation();
             onAccessInfo(property);
@@ -100,7 +100,7 @@ function PropertyCard({
 
       {role !== "admin" && property.lat && property.lng && (
         <button
-          className="navigate-button"
+          className="beta-button secondary"
           onClick={(event) => {
             event.stopPropagation();
             onNavigate(property.lat, property.lng);

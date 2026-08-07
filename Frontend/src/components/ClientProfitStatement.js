@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { apiUrl } from "../services/api";
 
 function ClientProfitStatement() {
@@ -9,27 +9,24 @@ function ClientProfitStatement() {
   const [profitData, setProfitData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showNoProfitModal, setShowNoProfitModal] = useState(false); // Controls modal visibility
+  const [showNoProfitModal, setShowNoProfitModal] = useState(false);
 
   useEffect(() => {
     const fetchProfitData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch(
-          apiUrl(`/api/profits/${propertyId}`),
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const response = await fetch(apiUrl(`/api/profits/${propertyId}`), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await response.json();
         if (response.ok) {
           setProfitData(data);
         } else {
           setError(data.error || "Error fetching profit data");
-          setShowNoProfitModal(true); // Show modal if no data is found
+          setShowNoProfitModal(true);
         }
-      } catch (err) {
-        console.error("Error fetching profit data:", err);
+      } catch (fetchError) {
+        console.error("Error fetching profit data:", fetchError);
         setError("Server error while fetching profit data");
         setShowNoProfitModal(true);
       } finally {
@@ -40,11 +37,11 @@ function ClientProfitStatement() {
     fetchProfitData();
   }, [propertyId]);
 
-  if (loading) return <div className="loading-text">Loading profit data...</div>;
+  if (loading) return <div className="beta-empty-state">Loading profit data...</div>;
 
   return (
     <div className="profit-statement-container">
-      <h1 className="profit-header">💰 Profit Statement</h1>
+      <h1 className="profit-header">Profit Statement</h1>
       {error && <p className="beta-alert error" role="alert">{error}</p>}
 
       {profitData ? (
@@ -62,46 +59,40 @@ function ClientProfitStatement() {
           </p>
           {profitData.pdfUrl && (
             <p>
-              <a
-                className="pdf-link"
-                href={profitData.pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="pdf-link" href={profitData.pdfUrl} target="_blank" rel="noopener noreferrer">
                 View PDF Statement
               </a>
             </p>
           )}
-          <button
-        className="secondary-button"
-        onClick={() => navigate("/dashboard")}
-        style={{ marginTop: "1rem" }}
-      >
-        Back to Dashboard
-      </button>
+          <button className="beta-button secondary" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </button>
         </div>
       ) : (
-        // Show the modal if there's no profit data
         showNoProfitModal && (
-          <div className="modal-overlay">
-            <div className="modal">
-              <h2>🤔 Hmm... Looks like you don't have a profit statement yet.</h2>
-              <p>Come back later or reach out to your property manager.</p>
-              <div className="modal-buttons">
-                <button className="back-button" onClick={() => navigate("/dashboard")}>
-                  ← Back to Dashboard
+          <div className="beta-dialog-overlay">
+            <section className="beta-dialog" role="dialog" aria-modal="true" aria-labelledby="missing-profit-title">
+              <div className="beta-dialog-header">
+                <div>
+                  <span className="beta-eyebrow">Profit statement</span>
+                  <h2 id="missing-profit-title">Nothing here yet</h2>
+                </div>
+              </div>
+              <p className="beta-dialog-copy">Come back later or reach out to your property manager.</p>
+              <div className="beta-dialog-actions">
+                <button className="beta-button secondary" onClick={() => navigate("/dashboard")}>
+                  Back to Dashboard
                 </button>
                 <button
-                  className="contact-pm-button"
+                  className="beta-button"
                   onClick={() => {
-                    // Replace with a proper contact method (email or form)
                     window.location.href = "mailto:propertymanager@example.com";
                   }}
                 >
-                  📩 Contact PM
+                  Contact PM
                 </button>
               </div>
-            </div>
+            </section>
           </div>
         )
       )}
