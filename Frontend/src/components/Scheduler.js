@@ -1,13 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
-import "react-big-calendar/lib/css/react-big-calendar.css"; 
-import "react-big-calendar/lib/addons/dragAndDrop/styles.css"; 
-import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { apiUrl } from "../services/api";
-import { HTML5Backend } from "react-dnd-html5-backend";
-import { DndProvider } from "react-dnd";
 import PageHeader from "./ui/PageHeader";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 import {
@@ -17,9 +11,13 @@ import {
   showAfterlightQueue,
 } from "../services/schedulerPresentation";
 import AssignmentHistoryDialog from "./scheduler/AssignmentHistoryDialog";
-
-const localizer = momentLocalizer(moment);
-const DnDCalendar = withDragAndDrop(Calendar);
+import SchedulerCalendar from "./scheduler/SchedulerCalendar";
+import {
+  assignmentFormDatesFromStored,
+  assignmentDatesFromCalendarDrop,
+  assignmentDatesFromCalendarSelection,
+  calendarEventDatesFromAssignment,
+} from "../services/schedulerDates";
 
 const FULFILLMENT_LABELS = {
   customer_employee: "Customer employee",
@@ -60,8 +58,24 @@ function Scheduler() {
   const [assignmentHistory, setAssignmentHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const propertySelectRef = useRef(null);
 
   const [editingAssignment, setEditingAssignment] = useState(null); // Holds event being edited
+
+  useEffect(() => {
+    if (!editorOpen) return undefined;
+    const focusTimer = window.setTimeout(() => propertySelectRef.current?.focus(), 0);
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setEditorOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [editorOpen]);
 
   // Fetch assignments
   useEffect(() => {
@@ -149,7 +163,7 @@ function Scheduler() {
   const handleSaveAssignment = async (e) => {
     e.preventDefault();
     if (!token) {
-      alert("Unauthorized. Please log in again.");
+      setFeedback({ type: "error", message: "Your session has expired. Please sign in again." });
       return;
     }
   
@@ -161,8 +175,7 @@ function Scheduler() {
   
     const storedOrgId = localStorage.getItem("organizationId");
     if (!storedOrgId) {
-      console.error("❌ Missing organizationId. Ensure it is stored correctly in localStorage.");
-      alert("❌ Error: Organization ID is missing.");
+      setFeedback({ type: "error", message: "The organization could not be identified. Please sign in again." });
       return;
     }
 
@@ -192,9 +205,11 @@ function Scheduler() {
   
       const data = await response.json();
       if (data.success) {
-        alert("✅ Assignment saved successfully!");
-  
-        // ✅ Refresh assignments immediately
+        setFeedback({
+          type: "success",
+          message: editingAssignment ? "Assignment updated." : "Assignment created.",
+        });
+
         fetch(apiUrl("/api/assignments"), {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
@@ -207,31 +222,42 @@ function Scheduler() {
   
         setEditingAssignment(null);
         setNewAssignment(EMPTY_ASSIGNMENT);
-  
+        setEditorOpen(false);
       } else {
-        console.error("❌ Server error:", data);
-        alert("❌ " + (data.error || "Failed to save assignment."));
+        setFeedback({ type: "error", message: data.error || "Failed to save assignment." });
       }
     } catch (err) {
-      console.error("❌ Error saving assignment:", err);
+      console.error("Error saving assignment:", err);
+      setFeedback({ type: "error", message: "The assignment could not be saved. Please try again." });
     }
   };  
     
   
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {
+    const dates = assignmentDatesFromCalendarDrop(start, end);
     fetch(apiUrl(`/api/assignments/${event._id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ startDate: start, endDate: end }),
+      body: JSON.stringify(dates),
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          setAssignments(assignments.map((a) => (a._id === event._id ? { ...a, startDate: start, endDate: end } : a)));
+          setAssignments((current) => current.map((assignment) => (
+            assignment._id === event._id
+              ? { ...assignment, startDate: dates.startDate, endDate: dates.endDate }
+              : assignment
+          )));
+          setFeedback({ type: "success", message: "Assignment moved to the selected date." });
+        } else {
+          setFeedback({ type: "error", message: data.error || "The assignment could not be moved." });
         }
       })
-      .catch((err) => console.error("Error updating assignment:", err));
+      .catch((err) => {
+        console.error("Error updating assignment:", err);
+        setFeedback({ type: "error", message: "The assignment could not be moved." });
+      });
   };
 
   // Handle Delete Assignment
@@ -247,15 +273,19 @@ function Scheduler() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          alert("✅ Assignment canceled successfully!");
-          setAssignments(assignments.filter((a) => a._id !== editingAssignment._id));
+          setAssignments((current) => current.filter((a) => a._id !== editingAssignment._id));
           setEditingAssignment(null);
           setNewAssignment(EMPTY_ASSIGNMENT);
+          setEditorOpen(false);
+          setFeedback({ type: "success", message: "Assignment canceled." });
         } else {
-          alert("❌ " + (data.error || "Failed to cancel assignment."));
+          setFeedback({ type: "error", message: data.error || "Failed to cancel assignment." });
         }
       })
-      .catch((err) => console.error("Error deleting assignment:", err));
+      .catch((err) => {
+        console.error("Error deleting assignment:", err);
+        setFeedback({ type: "error", message: "The assignment could not be canceled." });
+      });
   };
 
   const openAssignmentHistory = async () => {
@@ -275,41 +305,42 @@ function Scheduler() {
     }
   };
 
-  // Handle Double Click (Edit Event)
-  const handleEventDoubleClick = (event) => {
-    // Find matching property
-    const matchedProperty = properties.find(prop => prop.name === event.title.split(" - ")[0]); 
-    const propertyName = matchedProperty ? matchedProperty.name : event.title; // Fallback if not found
-  
+  const openAssignment = (event) => {
     const savedStartDate = event.assignmentStartDate || event.start;
     const savedEndDate = event.assignmentEndDate || event.end;
-    const isSingleDay = moment(savedStartDate).isSame(moment(savedEndDate), "day");
+    const formDates = assignmentFormDatesFromStored(savedStartDate, savedEndDate);
     setEditingAssignment(event);
     setNewAssignment({
-      propertyName: propertyName, // ✅ Ensure correct property is populated
+      propertyName: event.propertyName || event.title.split(" - ")[0],
       userId: event.userId,
-      startDate: moment(savedStartDate).format("YYYY-MM-DD"),
-      endDate: isSingleDay ? "" : moment(savedEndDate).format("YYYY-MM-DD"),
+      ...formDates,
       oneTimeCheckRequest: event.oneTimeCheckRequest || "",
       fulfillmentSource: "",
       fulfillmentOverrideReason: "",
     });
+    setFeedback(null);
+    setEditorOpen(true);
   };
 
+  const openNewAssignment = (dates = {}) => {
+    setEditingAssignment(null);
+    setNewAssignment({ ...EMPTY_ASSIGNMENT, ...dates });
+    setFeedback(null);
+    setEditorOpen(true);
+  };
+
+  const handleCalendarSelection = ({ start, end }) => {
+    openNewAssignment(assignmentDatesFromCalendarSelection(start, end));
+  };
+
+  const queueForAssignment = (assignment) => assignment.fulfillment?.queue
+    || SOURCE_POLICIES[fulfillmentSettings?.organization?.defaultSource]?.queue
+    || "afterlight_coverage";
+  const serviceModel = fulfillmentSettings?.organization?.serviceModel;
+
   // Map assignments into events
-const events = assignments.map((assignment) => {
-    // Convert stored ISO dates to Date objects
-    let startDate = new Date(assignment.startDate);
-    let endDate = new Date(assignment.endDate);
-  
-    // If the event is date-only and the start and end are the same,
-    // adjust the end date to be the next day so the event spans the whole day.
-    if (startDate.toDateString() === endDate.toDateString()) {
-      // Create a new date object based on the start date and add one day.
-      const adjustedEndDate = new Date(startDate);
-      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-      endDate = adjustedEndDate;
-    }
+  const events = assignments.map((assignment) => {
+    const calendarDates = calendarEventDatesFromAssignment(assignment.startDate, assignment.endDate);
   
     // Find user email by ID
     const assignedUser = users.find(user => user._id === assignment.userId);
@@ -321,24 +352,25 @@ const events = assignments.map((assignment) => {
     return {
       _id: assignment._id,
       title: `${assignment.propertyName} - ${assignedUserEmail}`,
-      start: startDate,
-      end: endDate,
+      propertyName: assignment.propertyName,
+      assigneeLabel: assignedUserEmail,
+      start: calendarDates.start,
+      end: calendarDates.end,
       assignmentStartDate: assignment.startDate,
       assignmentEndDate: assignment.endDate,
       userId: assignment.userId,
       oneTimeCheckRequest: assignment.oneTimeCheckRequest || "",
       fulfillment: assignment.fulfillment || null,
       assignee: assignment.assignee || null,
+      tone: assignment.fulfillment?.source === "legacy"
+        ? "legacy"
+        : queueForAssignment(assignment) === "afterlight_coverage" ? "afterlight" : "customer",
       allDay: true, // This flag tells react-big-calendar to treat this as an all-day event
     };
   });
 
-  const queueForAssignment = (assignment) => assignment.fulfillment?.queue
-    || SOURCE_POLICIES[fulfillmentSettings?.organization?.defaultSource]?.queue
-    || "afterlight_coverage";
   const customerAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "customer_assigned");
   const afterlightAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "afterlight_coverage");
-  const serviceModel = fulfillmentSettings?.organization?.serviceModel;
   const hasAfterlightQueue = showAfterlightQueue(serviceModel, afterlightAssignments.length);
   
 
@@ -372,10 +404,49 @@ const events = assignments.map((assignment) => {
         )}
       </section>
 
-      {/* Form Section */}
-      <form onSubmit={handleSaveAssignment} className="assignment-form beta-scheduler-form">
+      {feedback && !editorOpen && <p className={`beta-alert ${feedback.type}`} role={feedback.type === "error" ? "alert" : "status"}>
+        {feedback.message}
+      </p>}
+
+      <SchedulerCalendar
+        events={events}
+        onEventDrop={handleEventDrop}
+        onSelectEvent={openAssignment}
+        onSelectSlot={handleCalendarSelection}
+        onNewAssignment={() => openNewAssignment()}
+        onHistory={openAssignmentHistory}
+        showHistory
+        legend={[
+          { tone: "customer", label: "Customer assigned" },
+          ...(hasAfterlightQueue ? [{ tone: "afterlight", label: "Afterlight coverage" }] : []),
+          ...(events.some((event) => event.tone === "legacy") ? [{ tone: "legacy", label: "Retained assignment" }] : []),
+        ]}
+      />
+
+      {editorOpen && <div className="beta-scheduler-editor-overlay"
+        onMouseDown={(event) => event.target === event.currentTarget && setEditorOpen(false)}>
+        <section className="beta-scheduler-editor" role="dialog" aria-modal="true"
+          aria-labelledby="assignment-editor-title">
+          <div className="beta-scheduler-editor-header">
+            <div>
+              <span className="beta-eyebrow">{editingAssignment ? "Scheduled assignment" : "New assignment"}</span>
+              <h2 id="assignment-editor-title">{editingAssignment ? "Edit assignment" : "Create assignment"}</h2>
+              <p>{newAssignment.startDate
+                ? `Scheduled for ${moment(newAssignment.startDate).format("MMMM D, YYYY")}`
+                : "Choose the property, assignee, and schedule."}</p>
+            </div>
+            <button type="button" className="beta-dialog-close" aria-label="Close assignment editor"
+              onClick={() => setEditorOpen(false)}>×</button>
+          </div>
+
+          {feedback && <p className={`beta-alert ${feedback.type}`} role={feedback.type === "error" ? "alert" : "status"}>
+            {feedback.message}
+          </p>}
+
+      <form onSubmit={handleSaveAssignment} className="assignment-form beta-scheduler-form beta-scheduler-editor-form">
   <label>Property:</label>
   <select
+    ref={propertySelectRef}
     value={newAssignment.propertyName}
     onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value, userId: "", fulfillmentSource: "", fulfillmentOverrideReason: "" })}
     required
@@ -484,8 +555,8 @@ const events = assignments.map((assignment) => {
     <button type="submit" className="create-button">
       {editingAssignment ? "Update Assignment" : "Create Assignment"}
     </button>
-    <button type="button" className="history-button" onClick={openAssignmentHistory}>
-      Assignment History
+    <button type="button" className="history-button" onClick={() => setEditorOpen(false)}>
+      Close
     </button>
     {editingAssignment && (
       <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
@@ -494,6 +565,8 @@ const events = assignments.map((assignment) => {
     )}
   </div>
 </form>
+        </section>
+      </div>}
 
       {historyOpen && (
         <AssignmentHistoryDialog
@@ -504,18 +577,6 @@ const events = assignments.map((assignment) => {
         />
       )}
 
-      <DndProvider backend={HTML5Backend}>
-      <DnDCalendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            views={["month", "week", "agenda"]}
-            style={{ height: "500px", width: "100%" }}
-            onEventDrop={handleEventDrop}
-            onSelectEvent={handleEventDoubleClick}
-          />
-      </DndProvider>
     </div>
   );
 }

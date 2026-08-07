@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
-import "react-big-calendar/lib/css/react-big-calendar.css"; 
-import "react-big-calendar/lib/addons/dragAndDrop/styles.css"; 
-import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { apiUrl } from "../services/api";
-import { HTML5Backend } from "react-dnd-html5-backend";
-import { DndProvider } from "react-dnd";
 import PageHeader from "./ui/PageHeader";
 import ContextualHelpLink from "./help/ContextualHelpLink";
+import SchedulerCalendar from "./scheduler/SchedulerCalendar";
+import {
+  assignmentFormDatesFromStored,
+  assignmentDatesFromCalendarDrop,
+  assignmentDatesFromCalendarSelection,
+  calendarEventDatesFromAssignment,
+} from "../services/schedulerDates";
 
-const localizer = momentLocalizer(moment);
-const DnDCalendar = withDragAndDrop(Calendar);
+const EMPTY_ASSIGNMENT = {
+  propertyName: "",
+  userId: "",
+  eventType: "",
+  startDate: "",
+  endDate: "",
+  oneTimeCheckRequest: "",
+};
 
 function AzRootsScheduler() {
   const navigate = useNavigate();
@@ -25,16 +32,19 @@ function AzRootsScheduler() {
   const [cleaners, setCleaners] = useState([]);
   const role = localStorage.getItem("role");
   const orgName = localStorage.getItem("orgName");
-  const [newAssignment, setNewAssignment] = useState({
-    propertyName: "",
-    userId: "",
-    eventType: "",
-    startDate: "",
-    endDate: "",
-    oneTimeCheckRequest: "", // New field for one-time request
-  });
+  const [newAssignment, setNewAssignment] = useState(EMPTY_ASSIGNMENT);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const [editingAssignment, setEditingAssignment] = useState(null); // Holds event being edited
+
+  useEffect(() => {
+    if (!editorOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setEditorOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [editorOpen]);
 
   useEffect(() => {
     if (role !== "admin" || orgName !== "AzRoots") {
@@ -150,7 +160,8 @@ function AzRootsScheduler() {
           .catch((err) => console.error("❌ Error refreshing assignments:", err));
   
         setEditingAssignment(null);
-        setNewAssignment({ propertyName: "", userId: "", eventType: "", startDate: "", endDate: "" });
+        setNewAssignment(EMPTY_ASSIGNMENT);
+        setEditorOpen(false);
   
         // ✅ Send push notification
         const notifResponse = await fetch(
@@ -181,15 +192,20 @@ function AzRootsScheduler() {
   
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {
+    const dates = assignmentDatesFromCalendarDrop(start, end);
     fetch(apiUrl(`/api/assignments/${event._id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ startDate: start, endDate: end }),
+      body: JSON.stringify(dates),
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          setAssignments(assignments.map((a) => (a._id === event._id ? { ...a, startDate: start, endDate: end } : a)));
+          setAssignments((current) => current.map((assignment) => (
+            assignment._id === event._id
+              ? { ...assignment, startDate: dates.startDate, endDate: dates.endDate }
+              : assignment
+          )));
         }
       })
       .catch((err) => console.error("Error updating assignment:", err));
@@ -211,7 +227,8 @@ function AzRootsScheduler() {
           alert("✅ Assignment canceled successfully!");
           setAssignments(assignments.filter((a) => a._id !== editingAssignment._id));
           setEditingAssignment(null);
-          setNewAssignment({ propertyName: "", userId: "", startDate: "", endDate: "" });
+          setNewAssignment(EMPTY_ASSIGNMENT);
+          setEditorOpen(false);
         } else {
           alert("❌ " + (data.error || "Failed to cancel assignment."));
         }
@@ -219,55 +236,55 @@ function AzRootsScheduler() {
       .catch((err) => console.error("Error deleting assignment:", err));
   };
 
-  // Handle Double Click (Edit Event)
-  const handleEventDoubleClick = (event) => {
-    // Find matching property
-    const matchedProperty = properties.find(prop => prop.name === event.title.split(" - ")[0]); 
-    const propertyName = matchedProperty ? matchedProperty.name : event.title; // Fallback if not found
-  
+  const openAssignment = (event) => {
     const savedStartDate = event.assignmentStartDate || event.start;
     const savedEndDate = event.assignmentEndDate || event.end;
-    const isSingleDay = moment(savedStartDate).isSame(moment(savedEndDate), "day");
+    const formDates = assignmentFormDatesFromStored(savedStartDate, savedEndDate);
     setEditingAssignment(event);
     setNewAssignment({
-      propertyName: propertyName, // ✅ Ensure correct property is populated
+      propertyName: event.propertyName || event.title.split(" - ")[0],
       userId: event.userId,
       eventType: event.eventType || "",
-      startDate: moment(savedStartDate).format("YYYY-MM-DD"),
-      endDate: isSingleDay ? "" : moment(savedEndDate).format("YYYY-MM-DD"),
+      ...formDates,
       oneTimeCheckRequest: event.oneTimeCheckRequest || "",
     });
+    setEditorOpen(true);
+  };
+
+  const openNewAssignment = (dates = {}) => {
+    setEditingAssignment(null);
+    setNewAssignment({ ...EMPTY_ASSIGNMENT, ...dates });
+    setEditorOpen(true);
+  };
+
+  const handleCalendarSelection = ({ start, end }) => {
+    openNewAssignment(assignmentDatesFromCalendarSelection(start, end));
   };
 
   // Map assignments into events
 const events = assignments.map((assignment) => {
-    // Convert stored ISO dates to Date objects
-    let startDate = new Date(assignment.startDate);
-    let endDate = new Date(assignment.endDate);
-  
-    // If the event is date-only and the start and end are the same,
-    // adjust the end date to be the next day so the event spans the whole day.
-    if (startDate.toDateString() === endDate.toDateString()) {
-      // Create a new date object based on the start date and add one day.
-      const adjustedEndDate = new Date(startDate);
-      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-      endDate = adjustedEndDate;
-    }
+    const calendarDates = calendarEventDatesFromAssignment(assignment.startDate, assignment.endDate);
   
     // Find user email by ID
-    const assignedUser = users.find(user => user._id === assignment.userId);
+    const assignedUser = [...users, ...contractors, ...cleaners]
+      .find(user => user._id === assignment.userId);
     const assignedUserEmail = assignedUser ? assignedUser.email : "Unknown User";
   
     return {
       _id: assignment._id,
       title: `${assignment.propertyName} - ${assignedUserEmail}`,
-      start: startDate,
-      end: endDate,
+      propertyName: assignment.propertyName,
+      assigneeLabel: assignedUserEmail,
+      start: calendarDates.start,
+      end: calendarDates.end,
       assignmentStartDate: assignment.startDate,
       assignmentEndDate: assignment.endDate,
       eventType: assignment.eventType || "",
       userId: assignment.userId,
       oneTimeCheckRequest: assignment.oneTimeCheckRequest || "",
+      tone: assignment.eventType === "Maintenance"
+        ? "afterlight"
+        : assignment.eventType === "Cleaning" ? "cleaning" : "customer",
       allDay: true, // This flag tells react-big-calendar to treat this as an all-day event
     };
   });
@@ -286,8 +303,36 @@ const events = assignments.map((assignment) => {
         actions={<ContextualHelpLink slug="create-a-scheduler-assignment" />}
       />
 
-      {/* Form Section */}
-      <form onSubmit={handleSaveAssignment} className="assignment-form beta-scheduler-form">
+      <SchedulerCalendar
+        events={events}
+        onEventDrop={handleEventDrop}
+        onSelectEvent={openAssignment}
+        onSelectSlot={handleCalendarSelection}
+        onNewAssignment={() => openNewAssignment()}
+        legend={[
+          { tone: "customer", label: "QA check" },
+          { tone: "afterlight", label: "Maintenance" },
+          { tone: "cleaning", label: "Cleaning" },
+        ]}
+      />
+
+      {editorOpen && <div className="beta-scheduler-editor-overlay"
+        onMouseDown={(event) => event.target === event.currentTarget && setEditorOpen(false)}>
+        <section className="beta-scheduler-editor" role="dialog" aria-modal="true"
+          aria-labelledby="azroots-assignment-editor-title">
+          <div className="beta-scheduler-editor-header">
+            <div>
+              <span className="beta-eyebrow">{editingAssignment ? "Scheduled visit" : "New visit"}</span>
+              <h2 id="azroots-assignment-editor-title">{editingAssignment ? "Edit assignment" : "Create assignment"}</h2>
+              <p>{newAssignment.startDate
+                ? `Scheduled for ${moment(newAssignment.startDate).format("MMMM D, YYYY")}`
+                : "Choose the property, visit type, and assignee."}</p>
+            </div>
+            <button type="button" className="beta-dialog-close" aria-label="Close assignment editor"
+              onClick={() => setEditorOpen(false)}>×</button>
+          </div>
+
+      <form onSubmit={handleSaveAssignment} className="assignment-form beta-scheduler-form beta-scheduler-editor-form">
   <label>Property:</label>
   <select
     value={newAssignment.propertyName}
@@ -367,29 +412,20 @@ const events = assignments.map((assignment) => {
   }
   placeholder="Enter any additional request for this specific assignment..."
 />
-  <button type="submit" className="create-button">
-    {editingAssignment ? "Update Assignment" : "Create Assignment"}
-  </button>
-
-  {editingAssignment && (
-    <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
-      Cancel Assignment
+  <div className="beta-scheduler-actions">
+    <button type="submit" className="create-button">
+      {editingAssignment ? "Update Assignment" : "Create Assignment"}
     </button>
-  )}
+    <button type="button" className="history-button" onClick={() => setEditorOpen(false)}>Close</button>
+    {editingAssignment && (
+      <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
+        Cancel Assignment
+      </button>
+    )}
+  </div>
 </form>
-
-      <DndProvider backend={HTML5Backend}>
-      <DnDCalendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            views={["month", "week", "agenda"]}
-            style={{ height: "500px", width: "100%" }}
-            onEventDrop={handleEventDrop}
-            onSelectEvent={handleEventDoubleClick}
-          />
-      </DndProvider>
+        </section>
+      </div>}
     </div>
   );
 }
