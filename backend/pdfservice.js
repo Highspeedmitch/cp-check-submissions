@@ -250,6 +250,27 @@ function drawBadge(doc, x, y, width, label, status) {
     .text(label, x + 7, y + 7, { width: width - 14, align: 'center' });
 }
 
+function drawCompactTableBadge(doc, x, y, width, rowHeight, label, status) {
+  const isAttention = status === 'attention';
+  const isOk = status === 'ok';
+  const background = isAttention ? COLORS.orangeLight : isOk ? COLORS.greenLight : COLORS.grayLight;
+  const foreground = isAttention ? COLORS.orange : isOk ? COLORS.green : COLORS.gray;
+  const height = Math.max(13, rowHeight - 3);
+  const fontSize = rowHeight < 19 ? 6.8 : 8.2;
+  const top = y + Math.max(2.5, (height - fontSize) / 2 - 0.5);
+  doc.roundedRect(x, y, width, height, Math.min(5, height / 3)).fill(background);
+  doc
+    .fillColor(foreground)
+    .font('Helvetica-Bold')
+    .fontSize(fontSize)
+    .text(label, x + 5, top, {
+      width: width - 10,
+      height: height - 2,
+      align: 'center',
+      ellipsis: true,
+    });
+}
+
 function drawSummaryCard(doc, x, y, width, count, label, status) {
   const color = status === 'attention' ? COLORS.orange : status === 'ok' ? COLORS.green : COLORS.gray;
   doc.roundedRect(x, y, width, 52, 6).fillAndStroke(COLORS.white, COLORS.line);
@@ -327,7 +348,7 @@ function drawCommercialOverview(doc, formData, displayStamp, results, template, 
   drawSummaryCard(doc, left + (cardWidth + gap) * 2, summaryY, cardWidth, counts.not_assessed, 'NOT ASSESSED', 'not_assessed');
 
   drawResultsTable(doc, results, left, 287, contentWidth, options);
-  drawObservationSummary(doc, formData, left, 664, contentWidth, template);
+  drawObservationSummary(doc, formData, left, 660, contentWidth, template, options);
   if (options.notice) {
     doc.fillColor(COLORS.muted).font('Helvetica').fontSize(6.5)
       .text(options.notice, left, 196, { width: contentWidth, align: 'center', height: 9, ellipsis: true });
@@ -341,7 +362,10 @@ function drawResultsTable(doc, results, x, y, width, options = {}) {
     .text(options.resultsTitle || 'Inspection Results', x, y);
   const tableY = y + 23;
   const headerHeight = 23;
-  const rowHeight = Math.min(25, Math.max(18, 340 / Math.max(results.length, 1)));
+  // Reserve the bottom of page one for the 300-character cover summary.
+  // Effective templates allow up to 18 checks, so the dense case uses a
+  // compact row and badge rather than colliding with General Observations.
+  const rowHeight = Math.min(25, Math.max(16.5, 315 / Math.max(results.length, 1)));
   const areaWidth = 205;
   const statusWidth = 90;
   const observationWidth = width - areaWidth - statusWidth;
@@ -363,14 +387,23 @@ function drawResultsTable(doc, results, x, y, width, options = {}) {
       .lineTo(x + areaWidth + statusWidth, rowY + rowHeight)
       .stroke(COLORS.line);
 
-    doc.fillColor(COLORS.navyDark).font('Helvetica').fontSize(8.3).text(result.label, x + 9, rowY + 8, {
+    const textTop = rowY + Math.max(4, (rowHeight - 8.3) / 2);
+    doc.fillColor(COLORS.navyDark).font('Helvetica').fontSize(rowHeight < 19 ? 7.3 : 8.3).text(result.label, x + 9, textTop, {
       width: areaWidth - 18,
       ellipsis: true,
-      height: 11,
+      height: Math.max(9, rowHeight - 5),
     });
 
     const statusLabel = result.status === 'attention' ? 'ATTENTION' : result.status === 'ok' ? 'OK' : 'NOT ASSESSED';
-    drawBadge(doc, x + areaWidth + 8, rowY + 2, statusWidth - 16, statusLabel, result.status);
+    drawCompactTableBadge(
+      doc,
+      x + areaWidth + 8,
+      rowY + 1.5,
+      statusWidth - 16,
+      rowHeight,
+      statusLabel,
+      result.status
+    );
 
     const observation = result.status === 'attention'
       ? result.description || 'Issue noted; no description provided'
@@ -380,11 +413,11 @@ function drawResultsTable(doc, results, x, y, width, options = {}) {
     doc
       .fillColor(COLORS.slate)
       .font('Helvetica')
-      .fontSize(7.6)
-      .text(truncate(observation, 55), x + areaWidth + statusWidth + 8, rowY + 8, {
+      .fontSize(rowHeight < 19 ? 7.1 : 7.6)
+      .text(truncate(observation, 55), x + areaWidth + statusWidth + 8, textTop, {
         width: observationWidth - 16,
         ellipsis: true,
-        height: 11,
+        height: Math.max(9, rowHeight - 5),
       });
   });
 }
@@ -405,16 +438,35 @@ function getObservationSummary(formData, template) {
     || 'No additional observations were provided.';
 }
 
-function drawObservationSummary(doc, formData, x, y, width, template) {
-  const summary = getObservationSummary(formData, template);
+function drawObservationSummary(doc, formData, x, y, width, template, options = {}) {
+  const coverSummary = options.coverSummary || null;
+  const summary = cleanValue(coverSummary?.text) || getObservationSummary(formData, template);
   if (summary === null) return;
+  const disclaimer = cleanValue(coverSummary?.disclaimer);
+  const panelY = y + 20;
+  const panelHeight = 58;
   doc.fillColor(COLORS.navyDark).font('Helvetica-Bold').fontSize(11.5).text('General Observations', x, y);
-  doc.roundedRect(x, y + 20, width, 46, 5).fillAndStroke(COLORS.panel, COLORS.line);
+  doc.roundedRect(x, panelY, width, panelHeight, 5).fillAndStroke(COLORS.panel, COLORS.line);
   doc
     .fillColor(COLORS.slate)
     .font('Helvetica')
-    .fontSize(8.5)
-    .text(truncate(summary, 190), x + 11, y + 32, { width: width - 22, height: 25, ellipsis: true });
+    .fontSize(8.3)
+    .text(truncate(summary, 300), x + 11, panelY + 8, {
+      width: width - 22,
+      height: disclaimer ? 31 : 42,
+      ellipsis: true,
+    });
+  if (disclaimer) {
+    doc
+      .fillColor(COLORS.muted)
+      .font('Helvetica-Oblique')
+      .fontSize(6.3)
+      .text(disclaimer, x + 11, panelY + 44, {
+        width: width - 22,
+        height: 8,
+        ellipsis: true,
+      });
+  }
 }
 
 function addDetailPage(doc, propertyName, options = {}) {
@@ -436,7 +488,7 @@ function drawDetailNotes(doc, formData, propertyName, startY, template, options 
   const configuredNotes = template?.fields?.filter((field) =>
     ['text', 'textarea'].includes(field.type)
     && !['businessName', 'propertyAddress'].includes(field.key)
-    && field.key !== 'generalObservations'
+    && (field.key !== 'generalObservations' || Boolean(options.coverSummary?.text))
   ).map((field) => ({
     label: field.reportLabel || field.label,
     value: cleanValue(formData[field.key]),

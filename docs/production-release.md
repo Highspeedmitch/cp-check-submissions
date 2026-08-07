@@ -65,6 +65,14 @@ Optional identity controls:
 - set `OKTA_ISSUER`, `OKTA_CLIENT_IDS`, and `OKTA_ENFORCEMENT_ENABLED` only when
   the matching Production Okta application is ready.
 
+Optional inspection AI controls:
+
+- leave `INSPECTION_AI_SUMMARY_MODE=off` until the DEV preview has been reviewed and explicitly approved for customer-facing reports;
+- when approved, set `INSPECTION_AI_SUMMARY_MODE=live`, optionally pin `INSPECTION_AI_SUMMARY_MODEL_ID`, and grant the backend identity least-privilege `bedrock:InvokeModel` access to that inference profile and its routed foundation model;
+- `INSPECTION_AI_SUMMARY_TIMEOUT_MS` defaults to 8,000 milliseconds. Model failures remain non-blocking and produce a non-AI cover fallback.
+
+See [inspection-processing.md](inspection-processing.md) for the rollout modes, 300-character contract, disclaimer, IAM scope, and QA cases.
+
 Firebase credentials are not required for PWA Web Push. The current Gusto
 handoff is manual and does not require a Gusto API credential.
 
