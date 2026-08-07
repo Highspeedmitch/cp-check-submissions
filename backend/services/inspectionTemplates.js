@@ -189,6 +189,13 @@ function orderFieldsByLockedAnchors(fields, requestedOrder, { strict = false } =
   return ordered.map((field, order) => ({ ...field, order }));
 }
 
+function orderContainsEveryField(requestedOrder, fields) {
+  if (!Array.isArray(requestedOrder) || requestedOrder.length !== fields.length) return false;
+  const expected = new Set(fields.map((field) => field.key));
+  const received = requestedOrder.map(String);
+  return new Set(received).size === received.length && received.every((key) => expected.has(key));
+}
+
 async function ensureOrganizationInspectionTemplate(organizationId) {
   const organization = await Organization.findById(organizationId);
   if (!organization) throw new Error("Organization not found.");
@@ -225,25 +232,27 @@ async function ensureOrganizationInspectionTemplate(organizationId) {
 
 function mergeTemplateWithOverride(template, override = {}) {
   const omitted = new Set(override.omittedFieldKeys || []);
-  const baseFields = template.fields
-    .map((field) => field.toObject ? field.toObject() : field)
-    .filter((field) => field.locked || !omitted.has(field.key));
+  const organizationFields = template.fields
+    .map((field) => field.toObject ? field.toObject() : field);
   const additionalFields = (override.additionalFields || [])
     .map((field) => field.toObject ? field.toObject() : field);
-  const fields = orderFieldsByLockedAnchors(
-    [...baseFields, ...additionalFields],
+  const orderedFields = orderFieldsByLockedAnchors(
+    [...organizationFields, ...additionalFields],
     override.fieldOrder
   );
+  const fields = orderedFields
+    .filter((field) => field.locked || !omitted.has(field.key))
+    .map((field, order) => ({ ...field, order }));
   return {
     templateId: template._id,
     version: template.version,
     name: template.name,
     title: template.title,
-    organizationFields: template.fields.map((field) => field.toObject ? field.toObject() : field),
+    organizationFields,
     override: {
       omittedFieldKeys: [...omitted],
       additionalFields,
-      fieldOrder: fields.map((field) => field.key),
+      fieldOrder: orderedFields.map((field) => field.key),
     },
     fields,
   };
@@ -282,13 +291,26 @@ function normalizePropertyOverride(template, override) {
     throw new Error(`The effective inspection form can have up to ${MAX_TEMPLATE_FIELDS} fields.`);
   }
   const omitted = new Set(omittedFieldKeys);
+  const allFields = [...organizationFields, ...additionalFields];
   const visibleFields = [
     ...organizationFields.filter((field) => field.locked || !omitted.has(field.key)),
     ...additionalFields,
   ];
-  const orderedFields = orderFieldsByLockedAnchors(visibleFields, override.fieldOrder, {
-    strict: Array.isArray(override.fieldOrder),
-  });
+  let orderedFields;
+  if (Array.isArray(override.fieldOrder)) {
+    if (orderContainsEveryField(override.fieldOrder, allFields)) {
+      orderedFields = orderFieldsByLockedAnchors(allFields, override.fieldOrder, { strict: true });
+    } else if (orderContainsEveryField(override.fieldOrder, visibleFields)) {
+      // Accept the previous client contract during rolling deployments, then
+      // reconcile omitted organization fields into the stored complete order.
+      orderFieldsByLockedAnchors(visibleFields, override.fieldOrder, { strict: true });
+      orderedFields = orderFieldsByLockedAnchors(allFields, override.fieldOrder);
+    } else {
+      throw new Error("The property field order must include every configured field exactly once.");
+    }
+  } else {
+    orderedFields = orderFieldsByLockedAnchors(allFields);
+  }
   return {
     omittedFieldKeys,
     additionalFields,

@@ -892,6 +892,36 @@ select:focus-visible {
 }
 .beta-sortable-field-summary { display: grid; gap: 4px; }
 .beta-sortable-field-summary small { color: var(--beta-muted); }
+.beta-integrated-field-list { gap: 8px; margin-top: 16px; }
+.beta-integrated-field-list .beta-sortable-field-card { padding: 12px 14px; }
+.beta-integrated-field-list .beta-sortable-field-toolbar { margin-bottom: 9px; }
+.beta-integrated-field-toggle {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 38px;
+  cursor: pointer;
+}
+.beta-integrated-field-toggle input { width: 19px; height: 19px; margin: 0; flex: 0 0 auto; }
+.beta-integrated-field-toggle span { display: grid; gap: 3px; min-width: 0; }
+.beta-integrated-field-toggle strong { color: var(--beta-ink); }
+.beta-integrated-field-toggle small { color: var(--beta-muted); }
+.beta-integrated-field-toggle.is-disabled strong { color: var(--beta-muted); }
+.beta-integrated-field-toggle.is-disabled small { color: var(--beta-danger); }
+.beta-integrated-field-editor { display: grid; gap: 10px; }
+.beta-integrated-field-options { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; }
+.beta-integrated-field-options .beta-template-checkbox { margin-top: 0; }
+.beta-field-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--beta-success-bg);
+  color: var(--beta-success);
+  font-size: 12px;
+  font-weight: 750;
+}
 
 /* Reporting */
 .beta-reporting-page { max-width: 1280px; }

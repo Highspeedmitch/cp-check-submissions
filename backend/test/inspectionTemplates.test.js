@@ -136,3 +136,43 @@ test("property field ordering retains locked anchors and drives the effective te
     { strict: true }
   ), /across a locked inspection field/);
 });
+
+test("disabled organization fields retain their configured property position", () => {
+  const template = templateDocument();
+  const canonicalKeys = template.fields.map((field) => field.key);
+  const requestedOrder = [
+    "businessName",
+    "propertyAddress",
+    "potholes",
+    ...canonicalKeys.filter((key) => !["businessName", "propertyAddress", "potholes"].includes(key)),
+  ];
+  const normalized = normalizePropertyOverride(template, {
+    omittedFieldKeys: ["potholes"],
+    additionalFields: [],
+    fieldOrder: requestedOrder,
+  });
+  const disabled = mergeTemplateWithOverride(template, normalized);
+  const reenabled = mergeTemplateWithOverride(template, {
+    ...normalized,
+    omittedFieldKeys: [],
+  });
+
+  assert.equal(disabled.fields.some((field) => field.key === "potholes"), false);
+  assert.equal(disabled.override.fieldOrder[2], "potholes");
+  assert.equal(reenabled.fields[2].key, "potholes");
+});
+
+test("previous visible-only property orders are reconciled to include disabled fields", () => {
+  const template = templateDocument();
+  const visibleOrder = template.fields
+    .filter((field) => field.key !== "potholes")
+    .map((field) => field.key);
+  const normalized = normalizePropertyOverride(template, {
+    omittedFieldKeys: ["potholes"],
+    additionalFields: [],
+    fieldOrder: visibleOrder,
+  });
+
+  assert.equal(normalized.fieldOrder.length, template.fields.length);
+  assert.equal(normalized.fieldOrder.includes("potholes"), true);
+});

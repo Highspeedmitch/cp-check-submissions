@@ -63,10 +63,10 @@ function SortableFieldCard({ field, fields, onChange, renderField }) {
   );
 }
 
-function SortableFieldListContent({ fields, onChange, renderField, emptyMessage }) {
+function SortableFieldListContent({ fields, onChange, renderField, emptyMessage, className = "" }) {
   if (!fields.length) return <div className="beta-empty-state">{emptyMessage}</div>;
   return (
-    <div className="beta-template-custom-fields beta-sortable-field-list">
+    <div className={`beta-template-custom-fields beta-sortable-field-list${className ? ` ${className}` : ""}`}>
       {fields.map((field) => (
         <SortableFieldCard key={field.key} field={field} fields={fields}
           onChange={onChange} renderField={renderField} />
