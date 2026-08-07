@@ -4,43 +4,63 @@
 
 **Current access:** Administrators across their organization; property managers for properties assigned to them
 
-Use Scheduler to assign property work to an eligible organization user or deployed Afterlight resource, set the work dates, and include instructions shown with the assignment.
+Use Scheduler to review upcoming property work, create assignments for eligible organization users or deployed Afterlight resources, and manage schedule changes from a visual calendar.
+
+## Open the assignment editor
+
+![Illustrated Scheduler calendar and assignment editor with numbered fields](images/scheduler-assignment.svg)
+
+From the Dashboard navigation, open **Scheduler**. The page shows current assignment counts, a color legend, and the assignment calendar.
+
+Choose the way you prefer to begin:
+
+1. Select **+ New Assignment** to open a blank assignment editor.
+2. On a desktop or tablet with a wide screen, select a calendar date to prefill the start date, or drag across several dates to prefill a date range.
+3. On a compact mobile screen, select a date first. Scheduler displays that day's assignments; select **+ Create Assignment** to open the editor for that date.
+
+Use **Month**, **Week**, or **Agenda** to change the calendar view. **Today** returns to the current date.
 
 ## Create an assignment
 
-![Illustrated Scheduler assignment form with numbered fields and calendar](images/scheduler-assignment.svg)
+Complete the numbered areas shown in the illustration:
 
-From the Dashboard navigation, open **Scheduler**, then use the numbered areas in the illustration:
+1. Choose the **Property**. Scheduler displays the property's **Suggested client amount**. This is the customer billing setting, not an Afterlight contractor's compensation.
+2. Review **Fulfillment** and **Routing**. The property default is used unless you select another allowed source for this assignment. Changing the property or fulfillment source clears the selected user so eligibility can be recalculated.
+3. Choose the **User** who will complete the work. The list is limited to active users and resources eligible for the selected property and fulfillment source. Customer users and property managers never see a resource's contractor pay rate.
+4. Set the required **Start Date**. Leave **End Date (optional)** blank when the work must be completed on that same date. Enter an end date when the assignee may complete the work during a date range. Afterlight blocks creation when another scheduled assignment overlaps the same property and dates.
+5. In **One-Time Additional Check Request**, enter instructions that apply only to this assignment. Be concise and do not place passwords, alarm codes, or other secrets here.
+6. Select **Create Assignment**. Close the editor and confirm that the assignment appears on the calendar.
 
-1. Choose the **Property** and review its **Suggested client amount**. This is the property's customer billing setting, not an Afterlight contractor's compensation.
-2. Confirm the **Fulfillment** source. SaaS organizations can choose customer employees or customer-managed contractors. Hybrid and Managed Service organizations can also choose **Afterlight contractor** for a deployed 1099 resource or **Afterlight staff** for a deployed Afterlight employee or owner.
-3. Choose the **User** who will complete the work. The list updates for the selected property and fulfillment source. Customer users and property managers never see a resource's default or deployment-specific contractor pay rate.
-4. Set the required **Start Date**. Leave **End Date (optional)** blank when the work must be completed on that same date. Enter an end date only when the assignee may complete the work during a date range. Avoid dates that overlap another assignment for the same property.
-5. In **One-Time Additional Check Request**, enter only instructions for this assignment. Be concise and do not place passwords, alarm codes, or other secrets here.
-6. Select **Create Assignment**.
-7. Confirm that the new assignment appears on the calendar.
+Afterlight sends the assignee an in-app or push notification when available. Organization users see the work on their Dashboard. Afterlight resources see it in the Resource Portal. Only Afterlight 1099 contractor assignments include snapshotted compensation and create a contractor earning after completion.
 
-Afterlight adds the assignment to the calendar and sends an in-app or push notification when available. Organization users see the work on their Dashboard. Afterlight resources see it in the Resource Portal. Only 1099 contractor assignments include snapshotted compensation and create a contractor earning after completion.
+Some legacy organization workflows also display a **Visit Type** field with **QA Check**, **Maintenance**, and **Cleaning** options. Choose the visit type before selecting the assignee.
 
-Some organizations also display an **Event Type** field with options such as **QA Check**, **Maintenance**, and **Cleaning**. Choose the type that matches the work before selecting the user.
+## Understand fulfillment choices
 
-## Change or delete an assignment
+- **Customer employee:** Assigns the work to an eligible organization employee. No submitter invoice is required.
+- **Customer contractor:** Assigns the work to an organization-managed contractor. Customer accounts payable handles the invoice.
+- **Afterlight staff:** Available to Hybrid and Managed Service organizations when an eligible Afterlight employee or owner is actively deployed.
+- **Afterlight contractor:** Available to Hybrid and Managed Service organizations when an eligible 1099 resource is actively deployed and has a configured rate.
 
-1. Select the assignment in the calendar. The form is populated with its current values.
-2. Change the property, user, dates, or instructions and select **Update Assignment**. Afterlight notifies the affected assignee when work is rescheduled or reassigned.
-3. To remove it from future work, select **Cancel Assignment** and confirm the prompt. Cancellation retains an audit record and notifies the assignee.
+SaaS organizations can create new assignments only for customer employees or customer-managed contractors. Hybrid and Managed Service organizations can also use deployed Afterlight staff and contractors.
 
-You can also drag an assignment to new dates in the calendar. Open it afterward to verify the start and end dates.
+## Change or cancel an assignment
 
-If an organization moves from Hybrid or Managed Service to SaaS, previously scheduled Afterlight assignments remain available for completion, rescheduling, or cancellation. The assigned resource is retained only on that existing work. To change its property or assignee, first change fulfillment to a customer source and select an eligible organization user.
+1. Select the assignment on the calendar. The editor opens with its saved property, user, fulfillment, dates, and instructions.
+2. Change the permitted fields and select **Update Assignment**. Afterlight notifies the affected assignee when work is rescheduled or reassigned.
+3. To remove it from future work, select **Cancel Assignment** and confirm. Cancellation retains an audit record and notifies the assignee.
+
+On desktop, you can also drag a scheduled assignment to new dates. Open it afterward to verify the start and end dates.
+
+If an organization moves from Hybrid or Managed Service to SaaS, previously scheduled Afterlight assignments remain available for completion, rescheduling, or cancellation. The Afterlight resource is retained only on that existing work. To change its property or assignee, first change fulfillment to a customer source and select an eligible organization user.
 
 ## Review completed and canceled work
 
-Select **Assignment History** next to **Create Assignment** to open the read-only audit trail. The view shows up to the 200 most recently created completed or canceled assignments, including:
+Select **Assignment History** in the calendar header to open the read-only audit trail. The view shows up to the 200 most recently created completed or canceled assignments, including:
 
 - property and fulfillment type;
 - person assigned;
-- scheduled date;
+- scheduled date or date range;
 - person who assigned the work and the assignment time;
 - completion or cancellation time; and
 - final status.
@@ -49,11 +69,11 @@ Organization administrators see history across their organization. Property mana
 
 ## If something goes wrong
 
-- **The user is missing:** Only active, eligible users in the organization appear. Check the user’s account and role.
-- **An Afterlight contractor is missing:** Confirm that **Afterlight contractor** is the selected fulfillment source and that the resource has an active deployment for the selected property and date.
-- **An Afterlight employee or owner is missing:** Confirm that **Afterlight staff** is selected and that the resource relationship and deployment are active for the selected property and date.
+- **The user is missing:** Only active, eligible users in the organization appear. Check the user's account, role, and property access. If you changed fulfillment, select the user again.
+- **An Afterlight contractor is missing:** Confirm that **Afterlight contractor** is selected and that the resource has an active deployment for the property. The selected start date must fall within the deployment period, and a positive contractor rate must be configured.
+- **An Afterlight employee or owner is missing:** Confirm that **Afterlight staff** is selected and that the resource relationship and deployment are active for the property and selected date.
 - **No Afterlight fulfillment choices appear:** SaaS plans use only customer employees and customer-managed contractors. Existing Afterlight work may still appear as retained work when it was scheduled before a service-model transition.
-- **The assignment overlaps:** Choose different dates or edit the existing assignment for that property.
+- **The assignment overlaps:** Choose different dates or edit the existing scheduled assignment for that property.
 - **The assignment is created but the user did not receive a push:** Ask them to sign in and check **My Assignments** or the Resource Portal.
 - **The suggested client amount is not configured:** Ask an organization administrator to save the property's Suggested amount under commercial Billing settings.
 - **A property manager cannot select the property:** An organization administrator must assign that property to the manager before they can schedule its work.
