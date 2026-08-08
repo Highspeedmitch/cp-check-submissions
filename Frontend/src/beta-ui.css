@@ -2637,7 +2637,7 @@ select:focus-visible {
 .platform-pricing-eligibility legend { grid-column: 1 / -1; margin-bottom: 10px; color: var(--beta-ink); font-size: 13px; font-weight: 800; }
 .platform-pricing-mode label { display: flex; align-items: flex-start; gap: 10px; padding: 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); cursor: pointer; }
 .platform-pricing-mode label:has(input:checked) { border-color: var(--beta-primary); box-shadow: 0 0 0 1px var(--beta-primary); }
-.platform-pricing-mode input { margin-top: 3px; }
+.platform-pricing-mode input[type="radio"] { flex: 0 0 18px; width: 18px; height: 18px; min-height: 0; margin: 2px 0 0; padding: 0; border: 0; border-radius: 50%; accent-color: var(--beta-blue); }
 .platform-pricing-mode span { display: grid; gap: 3px; }
 .platform-pricing-mode strong { color: var(--beta-ink); font-size: 14px; }
 .platform-pricing-mode small { color: var(--beta-muted); font-size: 12px; line-height: 1.4; }
