@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import PricingEstimator, { estimateSummaryText } from "./PricingEstimator";
 import { api } from "../services/api";
 
@@ -7,7 +7,7 @@ jest.mock("../services/api", () => ({
 }));
 
 const weeklyEstimate = {
-  version: 1,
+  version: 2,
   estimatedPerVisitCents: 25000,
   estimatedMonthlyCents: 90000,
   requiresManualReview: false,
@@ -19,6 +19,37 @@ const weeklyEstimate = {
     frequencyMultiplier: 3.6,
     knownIssuesProvided: false,
   },
+};
+
+const clusterEstimate = {
+  version: 2,
+  pricingMode: "cluster",
+  estimatedPerVisitCents: 15000,
+  estimatedMonthlyCents: 15000,
+  standalonePerVisitCents: 22500,
+  standaloneMonthlyCents: 22500,
+  clusterDiscountPerVisitCents: 7500,
+  clusterDiscountMonthlyCents: 7500,
+  requiresManualReview: false,
+  manualReviewReasons: [],
+  inputs: {
+    propertyCount: 3,
+    primaryPropertyIndex: 0,
+    additionalPropertyMultiplier: 0.5,
+    clusterDistanceMiles: 0.5,
+    visitsPerMonth: 1,
+    frequencyMultiplier: 1,
+    knownIssuesProvided: false,
+  },
+  properties: [0, 1, 2].map((index) => ({
+    index,
+    grossSquareFeet: 1500,
+    propertyType: "free_standing",
+    standalonePerVisitCents: 7500,
+    standaloneMonthlyCents: 7500,
+    normalizedSquareFeet: 1500,
+    complexityModifier: 1,
+  })),
 };
 
 beforeEach(() => {
@@ -93,6 +124,48 @@ test("shows manual review reasons and clears stale results when inputs change", 
   expect(screen.queryByRole("heading", { name: "Planning estimate" })).not.toBeInTheDocument();
 });
 
+test("calculates an eligible three-property cluster with a standalone comparison", async () => {
+  api.post.mockResolvedValue(clusterEstimate);
+  render(<PricingEstimator />);
+
+  fireEvent.click(screen.getByRole("radio", { name: /Property cluster/ }));
+  fireEvent.change(screen.getByLabelText("Property 1 gross square footage"), {
+    target: { value: "1500" },
+  });
+  fireEvent.change(screen.getByLabelText("Property 2 gross square footage"), {
+    target: { value: "1500" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add property" }));
+  fireEvent.change(screen.getByLabelText("Property 3 gross square footage"), {
+    target: { value: "1500" },
+  });
+  fireEvent.click(screen.getByLabelText("Every property is within 0.5 mile of the primary property"));
+  fireEvent.click(screen.getByLabelText("Every property will be serviced during the same scheduled visit"));
+  fireEvent.click(screen.getByRole("button", { name: "Calculate estimate" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/platform/pricing-estimate",
+    {
+      pricingMode: "cluster",
+      properties: [0, 1, 2].map(() => ({
+        grossSquareFeet: 1500,
+        propertyType: "free_standing",
+      })),
+      serviceFrequency: "monthly",
+      hasKnownIssues: false,
+      withinHalfMile: true,
+      sameScheduledVisit: true,
+    }
+  ));
+  expect(await screen.findByRole("heading", { name: "Cluster planning estimate" })).toBeInTheDocument();
+  expect(screen.getByText("$225")).toBeInTheDocument();
+  expect(within(screen.getByText("Cluster savings per visit").closest("article"))
+    .getByText("$75")).toBeInTheDocument();
+  expect(screen.getAllByText("$150")).toHaveLength(2);
+  expect(screen.getByText("Additional properties at 50%")).toBeInTheDocument();
+  expect(screen.getByText("Primary")).toBeInTheDocument();
+});
+
 test("formats a copyable summary without persisting prospect information", () => {
   expect(estimateSummaryText({
     grossSquareFeet: "18000",
@@ -105,6 +178,15 @@ test("formats a copyable summary without persisting prospect information", () =>
   })).toBe(
     "Afterlight planning estimate: 18,000 sq ft free standing, monthly service. "
     + "$225 estimated per visit; $225 estimated monthly. "
+    + "No automatic manual-review flags were identified."
+  );
+});
+
+test("formats a cluster summary with its savings comparison", () => {
+  expect(estimateSummaryText({ serviceFrequency: "monthly" }, clusterEstimate)).toBe(
+    "Afterlight cluster planning estimate: 3 properties, monthly service. "
+    + "$150 combined per visit; $150 estimated monthly. "
+    + "$75 per-visit savings against $225 standalone. "
     + "No automatic manual-review flags were identified."
   );
 });

@@ -45,7 +45,7 @@ const {
   createInvitation,
   resendInvitation,
 } = require("../services/organizationInvitations");
-const { estimateBidPricing } = require("../services/bidPricing");
+const { estimateBidPricing, estimateClusterPricing } = require("../services/bidPricing");
 
 const router = express.Router();
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -96,6 +96,15 @@ router.get("/organizations", authenticateToken, requirePlatformAdmin, async (req
 
 router.post("/pricing-estimate", authenticateToken, requirePlatformAdmin, (req, res) => {
   try {
+    if (req.body.pricingMode === "cluster") {
+      return res.json(estimateClusterPricing({
+        properties: req.body.properties,
+        serviceFrequency: req.body.serviceFrequency,
+        hasKnownIssues: req.body.hasKnownIssues === true,
+        withinHalfMile: req.body.withinHalfMile === true,
+        sameScheduledVisit: req.body.sameScheduledVisit === true,
+      }));
+    }
     return res.json(estimateBidPricing({
       grossSquareFeet: req.body.grossSquareFeet,
       propertyType: req.body.propertyType,

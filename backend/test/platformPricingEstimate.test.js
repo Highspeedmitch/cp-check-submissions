@@ -44,10 +44,32 @@ test("platform pricing estimation reuses the bid pricing contract without persis
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.version, 1);
+  assert.equal(res.body.version, 2);
   assert.equal(res.body.estimatedPerVisitCents, 25000);
   assert.equal(res.body.estimatedMonthlyCents, 90000);
   assert.equal(res.body.requiresManualReview, false);
+});
+
+test("platform pricing estimation calculates eligible property clusters", () => {
+  const res = response();
+  pricingRoute().stack[2].handle({
+    body: {
+      pricingMode: "cluster",
+      properties: [
+        { grossSquareFeet: 1500, propertyType: "free_standing" },
+        { grossSquareFeet: 1500, propertyType: "free_standing" },
+        { grossSquareFeet: 1500, propertyType: "free_standing" },
+      ],
+      serviceFrequency: "monthly",
+      withinHalfMile: true,
+      sameScheduledVisit: true,
+    },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.pricingMode, "cluster");
+  assert.equal(res.body.standalonePerVisitCents, 22500);
+  assert.equal(res.body.estimatedPerVisitCents, 15000);
 });
 
 test("platform pricing estimation returns safe validation errors", () => {
