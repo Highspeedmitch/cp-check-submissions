@@ -40,7 +40,7 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      formRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
