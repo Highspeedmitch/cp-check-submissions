@@ -14,6 +14,9 @@ const {
   hashRecoveryCode,
 } = require("../services/totpMfa");
 const { revokeUserSessions } = require("../services/authSessions");
+const {
+  verifyAdministratorAccessChange,
+} = require("../services/administratorAccessVerification");
 
 const router = express.Router();
 const verificationLimiter = rateLimit({
@@ -192,19 +195,34 @@ router.post("/totp/reset", verificationLimiter, async (req, res) => {
 
 router.post("/grants", verificationLimiter, async (req, res) => {
   const purpose = String(req.body.purpose || "");
-  if (!["add_property", "remove_property", "update_fulfillment_policy", "invite_admin", "bulk_onboarding"].includes(purpose)) {
+  if (!["add_property", "remove_property", "update_fulfillment_policy", "invite_admin", "remove_admin", "bulk_onboarding"].includes(purpose)) {
     return res.status(400).json({ error: "Invalid administrative action." });
   }
-  const organization = await Organization.findById(req.user.organizationId);
-  if (!organization) return res.status(404).json({ error: "Organization not found." });
-  const token = await issueGrant({
-    organization,
-    userId: req.user.userId,
-    purpose,
-    passkey: String(req.body.passkey || ""),
-  });
-  if (!token) return res.status(403).json({ error: "Administrative verification failed." });
-  res.json({ grant: token, expiresInSeconds: 300 });
+  try {
+    if (purpose === "remove_admin") {
+      await verifyAdministratorAccessChange({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        currentPassword: req.body.currentPassword,
+        code: req.body.code,
+      });
+    }
+    const organization = await Organization.findById(req.user.organizationId);
+    if (!organization) return res.status(404).json({ error: "Organization not found." });
+    const token = await issueGrant({
+      organization,
+      userId: req.user.userId,
+      purpose,
+      passkey: String(req.body.passkey || ""),
+    });
+    if (!token) return res.status(403).json({ error: "Administrative verification failed." });
+    return res.json({ grant: token, expiresInSeconds: 300 });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.status ? error.message : "Unable to verify the administrative action.",
+      ...(error.code ? { code: error.code } : {}),
+    });
+  }
 });
 
 router.put("/passkey", verificationLimiter, async (req, res) => {

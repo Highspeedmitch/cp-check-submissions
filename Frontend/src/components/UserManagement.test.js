@@ -87,6 +87,7 @@ const archivedDirectory = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  localStorage.setItem("userId", "admin-1");
   api.get.mockImplementation(async (path) => path.includes("directory=archived")
     ? archivedDirectory
     : currentDirectory);
@@ -255,6 +256,119 @@ test("revoking a pending invitation uses an in-app confirmation and releases the
 
   await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/api/admin-users/invitations/invitation-1"));
   expect(await screen.findByRole("status")).toHaveTextContent("Invitation revoked.");
+});
+
+test("an organization administrator can securely remove another administrator", async () => {
+  const secondAdministrator = {
+    _id: "admin-2",
+    username: "Second Administrator",
+    email: "second.admin@example.com",
+    role: "admin",
+    accountStatus: "active",
+  };
+  api.get.mockResolvedValue({
+    ...currentDirectory,
+    administrators: [...currentDirectory.administrators, secondAdministrator],
+    adminSeats: { ...currentDirectory.adminSeats, active: 2, allocated: 2, remaining: 0 },
+  });
+  api.post.mockImplementation(async (path) => {
+    if (path === "/api/organization-security/grants") return { grant: "removal-grant" };
+    if (path === "/api/admin-users/administrators/admin-2/access") {
+      return { message: "Administrator access removed and the account was archived." };
+    }
+    return { message: "Operation completed." };
+  });
+  renderManagement();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Manage access for second.admin@example.com" }));
+  expect(screen.getByRole("dialog", { name: "Manage administrator access" })).toHaveTextContent("1 active administrator will remain");
+  fireEvent.change(screen.getByLabelText("Reason for access change"), {
+    target: { value: "No longer employed by the organization" },
+  });
+  fireEvent.change(screen.getByLabelText("Type second.admin@example.com to confirm"), {
+    target: { value: "second.admin@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText("Confirm your account password"), {
+    target: { value: "account-password" },
+  });
+  fireEvent.change(screen.getByLabelText("Current authenticator code"), {
+    target: { value: "123456" },
+  });
+  fireEvent.change(screen.getByLabelText("Administrative action passkey"), {
+    target: { value: "organization-passkey" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Remove administrator access" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/organization-security/grants",
+    {
+      purpose: "remove_admin",
+      currentPassword: "account-password",
+      code: "123456",
+      passkey: "organization-passkey",
+    }
+  ));
+  expect(api.post).toHaveBeenCalledWith(
+    "/api/admin-users/administrators/admin-2/access",
+    {
+      disposition: "archive",
+      targetRole: null,
+      engagementType: null,
+      propertyIds: [],
+      reason: "No longer employed by the organization",
+      adminActionGrant: "removal-grant",
+    }
+  );
+});
+
+test("administrator access can be changed to a property-scoped non-admin role", async () => {
+  api.get.mockResolvedValue({
+    ...currentDirectory,
+    administrators: [
+      ...currentDirectory.administrators,
+      {
+        _id: "admin-2",
+        username: "Second Administrator",
+        email: "second.admin@example.com",
+        role: "admin",
+        accountStatus: "active",
+      },
+    ],
+    adminSeats: { ...currentDirectory.adminSeats, active: 2, allocated: 2, remaining: 0 },
+  });
+  api.post.mockImplementation(async (path) => path === "/api/organization-security/grants"
+    ? { grant: "removal-grant" }
+    : { message: "Administrator access changed." });
+  renderManagement();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Manage access for second.admin@example.com" }));
+  fireEvent.change(screen.getByLabelText("Access outcome"), { target: { value: "demote" } });
+  fireEvent.change(screen.getByLabelText("Resulting organization role"), { target: { value: "property_manager" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Winterhaven Square" }));
+  fireEvent.change(screen.getByLabelText("Reason for access change"), { target: { value: "Moving to property operations" } });
+  fireEvent.change(screen.getByLabelText("Type second.admin@example.com to confirm"), { target: { value: "second.admin@example.com" } });
+  fireEvent.change(screen.getByLabelText("Confirm your account password"), { target: { value: "account-password" } });
+  fireEvent.change(screen.getByLabelText("Current authenticator code"), { target: { value: "123456" } });
+  fireEvent.change(screen.getByLabelText("Administrative action passkey"), { target: { value: "organization-passkey" } });
+  fireEvent.click(screen.getByRole("button", { name: "Change administrator access" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/admin-users/administrators/admin-2/access",
+    expect.objectContaining({
+      disposition: "demote",
+      targetRole: "property_manager",
+      engagementType: "",
+      propertyIds: ["property-1"],
+      reason: "Moving to property operations",
+    })
+  ));
+});
+
+test("the current and last active administrators cannot open the removal workflow", async () => {
+  renderManagement();
+  await screen.findByText("Current Administrator");
+  expect(screen.getByText("Current administrator")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Manage access for admin@example.com/ })).not.toBeInTheDocument();
 });
 
 test("invites a Field Operator with a separate Customer Contractor assignment type", async () => {
