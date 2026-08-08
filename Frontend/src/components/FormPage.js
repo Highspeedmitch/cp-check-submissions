@@ -28,6 +28,8 @@ export default function FormPage() {
   const [error, setError] = useState("");
   const [draftWarning, setDraftWarning] = useState("");
   const [assignmentInstructions, setAssignmentInstructions] = useState("");
+  const [contractorInvoiceConfig, setContractorInvoiceConfig] = useState(null);
+  const [reviewContractorInvoiceFirst, setReviewContractorInvoiceFirst] = useState(false);
   const [commentPhotosEnabled, setCommentPhotosEnabled] = useState(false);
   const draftKey = useMemo(() => inspectionDraftKey("commercial", property), [property]);
   const draftMetadata = useMemo(() => ({ formType: "commercial", template }), [template]);
@@ -45,12 +47,13 @@ export default function FormPage() {
     const userId = localStorage.getItem("userId");
     Promise.all([
       api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective${assignmentId ? `?assignmentId=${encodeURIComponent(assignmentId)}` : ""}`),
+      api.get(`/api/properties/${encodeURIComponent(property)}${assignmentId ? `?assignmentId=${encodeURIComponent(assignmentId)}` : ""}`),
       api.get("/api/assignments").catch((assignmentError) => {
         console.error("Unable to load assignment instructions:", assignmentError);
         return [];
       }),
     ])
-      .then(([data, assignments]) => {
+      .then(([data, propertyDetails, assignments]) => {
         if (!active) return;
         setTemplate(data);
         setResponses((current) => ({
@@ -65,6 +68,13 @@ export default function FormPage() {
           ))
           : null;
         setAssignmentInstructions(assignment?.oneTimeCheckRequest || "");
+        const customerContractorAssignment = assignment?.fulfillment?.source === "customer_contractor";
+        setContractorInvoiceConfig(customerContractorAssignment ? {
+          amountCents: propertyDetails.defaultInspectionAmountCents,
+          autoSubmit: Boolean(propertyDetails.autoSubmitCustomerContractorInvoices)
+            && propertyDetails.defaultInspectionAmountCents > 0,
+        } : null);
+        setReviewContractorInvoiceFirst(false);
         setError("");
       })
       .catch((err) => active && setError(err.message))
@@ -108,6 +118,11 @@ export default function FormPage() {
         responses: payload,
         photoGroups: photos,
         assignmentId,
+        customerContractorInvoicePreference: contractorInvoiceConfig
+          ? contractorInvoiceConfig.autoSubmit && !reviewContractorInvoiceFirst
+            ? "auto_submit"
+            : "review_first"
+          : "",
         draft: {
           key: draftKey,
           responses,
@@ -249,6 +264,34 @@ export default function FormPage() {
                 </div>
               </section>
             ))}
+            {contractorInvoiceConfig && (
+              <section className="beta-panel beta-inspection-section">
+                <h2>Customer Contractor Invoice</h2>
+                {contractorInvoiceConfig.autoSubmit ? (
+                  <>
+                    <p>
+                      The organization’s default invoice amount is <strong>{new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      }).format(contractorInvoiceConfig.amountCents / 100)}</strong>. Unless you choose otherwise, the invoice will be generated and sent to the property manager for approval with the inspection report.
+                    </p>
+                    <label className="beta-template-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={reviewContractorInvoiceFirst}
+                        onChange={(event) => setReviewContractorInvoiceFirst(event.target.checked)}
+                      />
+                      <span>
+                        Review or change this invoice before sending
+                        <small>The invoice will remain a Draft in Billing so you can make a one-off adjustment.</small>
+                      </span>
+                    </label>
+                  </>
+                ) : (
+                  <p>The invoice will be created as a Draft in Billing for you to review and submit.</p>
+                )}
+              </section>
+            )}
             <div className="beta-sticky-submit">
               {submitting && message && <span role="status">{message}</span>}
               <button className="beta-button" type="submit" disabled={submitting}>

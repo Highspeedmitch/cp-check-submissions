@@ -619,6 +619,23 @@ export default function UserManagement() {
                   <option value="inactive">Inactive</option>
                 </select>
               </label>
+              {draft.engagementType === "customer_contractor" && (
+                <label className="beta-form-field full">Invoice issuer / company name
+                  <input
+                    maxLength="160"
+                    value={draft.billingProfile?.companyName || ""}
+                    placeholder={draft.username || "Contractor name"}
+                    onChange={(e) => setDraft({
+                      ...draft,
+                      billingProfile: {
+                        ...(draft.billingProfile || {}),
+                        companyName: e.target.value,
+                      },
+                    })}
+                  />
+                  <small>Used as the “From” name on this contractor’s invoices. Their account name is used when blank.</small>
+                </label>
+              )}
               </div>
 
               {["property_manager", "client"].includes(draft.role) && (

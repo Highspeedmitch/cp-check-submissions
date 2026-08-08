@@ -77,7 +77,7 @@ router.get("/", async (req, res) => {
   const [organization, users, invitations, administrators, adminInvitations] = await Promise.all([
     Organization.findById(req.user.organizationId).lean(),
     User.find(userQuery)
-      .select("username email role engagementType accountStatus tokenVersion organizationArchivedAt organizationArchivedBy organizationArchiveReason")
+      .select("username email role engagementType billingProfile accountStatus tokenVersion organizationArchivedAt organizationArchivedBy organizationArchiveReason")
       .sort({ username: 1 }).lean(),
     OrganizationInvitation.find({
       organizationId: req.user.organizationId,
@@ -439,6 +439,7 @@ router.put("/:userId", async (req, res) => {
       email,
       role,
       engagementType,
+      billingProfile = {},
       accountStatus,
       propertyIds = [],
     } = req.body;
@@ -447,6 +448,10 @@ router.put("/:userId", async (req, res) => {
       return res.status(400).json({ error: "Name and email are required." });
     }
     const classification = normalizeOrganizationUserClassification({ role, engagementType });
+    const companyName = String(billingProfile.companyName || "").trim();
+    if (companyName.length > 160) {
+      return res.status(400).json({ error: "Contractor company name must be 160 characters or fewer." });
+    }
     if (!isValidAccountStatus(normalizedAccountStatus)) {
       return res.status(400).json({ error: "Invalid account status." });
     }
@@ -469,6 +474,7 @@ router.put("/:userId", async (req, res) => {
       email: user.email,
       role: user.role,
       engagementType: inferredCustomerEngagementType(user),
+      billingProfile: { companyName: user.billingProfile?.companyName || "" },
       accountStatus: user.accountStatus,
     };
     const additionalSeats = user.accountStatus === "inactive" && normalizedAccountStatus !== "inactive" ? 1 : 0;
@@ -507,6 +513,11 @@ router.put("/:userId", async (req, res) => {
         currentUser.email = email.trim().toLowerCase();
         currentUser.role = classification.role;
         currentUser.engagementType = classification.engagementType;
+        currentUser.billingProfile = {
+          companyName: classification.engagementType === "customer_contractor"
+            ? companyName
+            : "",
+        };
         currentUser.accountStatus = normalizedAccountStatus;
         currentUser.tokenVersion = (currentUser.tokenVersion || 0) + 1;
         await currentUser.save({ session });
@@ -522,6 +533,7 @@ router.put("/:userId", async (req, res) => {
               email: currentUser.email,
               role: classification.role,
               engagementType: classification.engagementType,
+              billingProfile: { companyName: currentUser.billingProfile?.companyName || "" },
               accountStatus: normalizedAccountStatus,
             },
             propertyIds: [...assignedIds],

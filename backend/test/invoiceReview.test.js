@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   emailPropertyManagersForReview,
   prepareAfterlightServiceInvoiceForReview,
+  prepareCustomerContractorInvoiceForReview,
 } = require("../services/invoiceReview");
 
 function invoice(overrides = {}) {
@@ -68,6 +69,93 @@ test("missing billing configuration leaves a visible platform exception without 
   assert.match(result.warning, /customer inspection amount/i);
   assert.match(record.review.emailError, /customer inspection amount/i);
   assert.equal(record.status, "unbilled");
+});
+
+test("customer contractor invoices can be generated and sent directly to PM review", async () => {
+  const record = invoice({
+    billingOwner: "customer_submitter",
+    fulfillmentSnapshot: {
+      source: "customer_contractor",
+      invoiceRouting: "customer_accounts_payable",
+    },
+    issuerSnapshot: {
+      type: "customer_contractor",
+      name: "Sonoran Field Services",
+      email: "billing@sonoran.example",
+    },
+  });
+  let messageOptions;
+  const result = await prepareCustomerContractorInvoiceForReview(record, {
+    generatePdf: async () => Buffer.from("invoice"),
+    createId: () => "contractor-document-1",
+    storage: {
+      upload: () => ({ promise: async () => ({}) }),
+    },
+    findManagers: async () => [{ _id: "pm-1", email: "pm@example.com" }],
+    notifyManagers: async () => {},
+    emailManagers: async (_invoice, _managers, options) => {
+      messageOptions = options;
+    },
+  });
+
+  assert.equal(result.prepared, true);
+  assert.equal(record.billingOwner, "customer_submitter");
+  assert.equal(record.status, "pending_review");
+  assert.equal(record.review.cycle, 1);
+  assert.equal(messageOptions.inspectionPdf, null);
+});
+
+test("customer contractor review email names the vendor and replies to the contractor", async () => {
+  const record = invoice({
+    billingOwner: "customer_submitter",
+    invoiceNumber: "CC-22",
+    pdfKey: "contractor-invoice.pdf",
+    inspectionDate: new Date("2026-08-07T12:00:00Z"),
+    fulfillmentSnapshot: { invoiceRouting: "customer_accounts_payable" },
+    issuerSnapshot: {
+      type: "customer_contractor",
+      name: "Sonoran Field Services",
+      email: "billing@sonoran.example",
+    },
+    review: { cycle: 1 },
+    propertySnapshot: {
+      name: "Winterhaven Square",
+      propertyCode: "WH01",
+      apMethod: "email",
+      apEmail: "ap@client.example",
+    },
+  });
+  let message;
+  await emailPropertyManagersForReview(record, [
+    { _id: "pm-1", username: "Jordan Lee", email: "jordan@client.example" },
+  ], {
+    storage: {
+      getObject: () => ({ promise: async () => ({ Body: Buffer.from("invoice") }) }),
+    },
+    OrganizationModel: {
+      findById: () => ({
+        select: () => ({
+          lean: async () => ({
+            serviceModel: "hybrid",
+            billingCapabilities: { invoiceApprovalExperience: "secure_email_link" },
+          }),
+        }),
+      }),
+    },
+    issueAuthorization: async () => ({
+      url: "https://app.example/approve",
+      authorization: { save: async () => {} },
+    }),
+    sendEmail: async (options) => {
+      message = options;
+      return { messageId: "message-1" };
+    },
+  });
+
+  assert.equal(message.replyTo, "billing@sonoran.example");
+  assert.match(message.subject, /Sonoran Field Services/);
+  assert.match(message.text, /invoice from Sonoran Field Services, delivered via Afterlight/);
+  assert.doesNotMatch(message.text, /Afterlight invoice/);
 });
 
 test("secure email approval sends each property manager an individual one-time link", async () => {

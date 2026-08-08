@@ -5,6 +5,7 @@ const {
   MAX_PHOTOS_PER_FIELD,
   cleanSubmissionData,
   normalizePhotoRequests,
+  resolveCustomerContractorInvoiceSettings,
 } = require("../services/inspectionJobs");
 const {
   claimInspectionJob,
@@ -25,6 +26,33 @@ test("inspection job payloads only retain bounded string responses", () => {
     () => cleanSubmissionData({ "../invalid": "value" }),
     /invalid response field/
   );
+});
+
+test("customer contractor invoice settings default to admin auto-submit and preserve one-off review", () => {
+  const assignment = { fulfillment: { source: "customer_contractor" } };
+  const property = {
+    defaultInspectionAmountCents: 15000,
+    autoSubmitCustomerContractorInvoices: true,
+  };
+  assert.deepEqual(resolveCustomerContractorInvoiceSettings({ assignment, property }), {
+    preference: "auto_submit",
+    amountCents: 15000,
+  });
+  assert.deepEqual(resolveCustomerContractorInvoiceSettings({
+    assignment,
+    property,
+    requestedPreference: "review_first",
+  }), {
+    preference: "review_first",
+    amountCents: 15000,
+  });
+  assert.deepEqual(resolveCustomerContractorInvoiceSettings({
+    assignment: { fulfillment: { source: "customer_employee" } },
+    property,
+  }), {
+    preference: "not_applicable",
+    amountCents: null,
+  });
 });
 
 test("photo reservations enforce allowed fields and per-field limits", () => {

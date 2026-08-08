@@ -305,6 +305,21 @@ export default function Billing() {
                       <input type="number" min="0" step="0.01" value={property.defaultInspectionAmountDollars ?? ""}
                         onChange={(e) => updateProperty(property._id, "defaultInspectionAmountDollars", e.target.value)} />
                     </label>
+                    <label className="beta-template-checkbox full">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(property.autoSubmitCustomerContractorInvoices)}
+                        onChange={(e) => updateProperty(
+                          property._id,
+                          "autoSubmitCustomerContractorInvoices",
+                          e.target.checked
+                        )}
+                      />
+                      <span>
+                        Automatically submit Customer Contractor invoices at this amount
+                        <small>Contractors can choose to review and change a one-off invoice before it is sent.</small>
+                      </span>
+                    </label>
                     <label className="beta-form-field">AP method
                       <select value={property.apMethod || "download"} onChange={(e) => updateProperty(property._id, "apMethod", e.target.value)}>
                         <option value="download">Manual download</option>

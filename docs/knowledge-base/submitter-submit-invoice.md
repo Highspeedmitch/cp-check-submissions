@@ -4,7 +4,9 @@
 
 **Applies to:** Commercial property inspections
 
-After a commercial inspection report finishes processing, Afterlight automatically creates a **Draft** invoice in Billing. Use this workflow to verify its amount, review the generated PDF, and send it to the assigned property manager.
+After a commercial inspection report finishes processing, Afterlight creates an invoice in Billing. Depending on the property settings and your submission choice, it is either sent automatically for property-manager review or retained as a **Draft** for you to verify and submit.
+
+If an organization administrator enabled automatic Customer Contractor invoices for the property, the inspection form shows the admin-defined amount before submission. Leave the automatic option selected to generate the contractor invoice and send it to the assigned property manager with the inspection report. Select **Review or change this invoice before sending** when a one-off amount adjustment is needed; the invoice will remain a **Draft** and follow the steps below.
 
 ## Before you begin
 
@@ -22,6 +24,8 @@ After a commercial inspection report finishes processing, Afterlight automatical
 4. Select **Review PDF**. Afterlight generates the invoice PDF and opens it for review.
 5. Check the property name, property code, inspection date, amount, and billing address in the PDF. Close the preview to return to Billing.
 6. Select **Send for Approval**. This button appears only after the PDF has been generated.
+
+The invoice identifies the contractor or contractor company as the issuer and notes that it was delivered via Afterlight.
 
 ## What happens next
 

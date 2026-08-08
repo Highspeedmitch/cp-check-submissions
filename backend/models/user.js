@@ -19,6 +19,9 @@ const UserSchema = new mongoose.Schema({
     default: null,
     index: true,
   },
+  billingProfile: {
+    companyName: { type: String, default: "", trim: true, maxlength: 160 },
+  },
   platformRole: {
     type: String,
     enum: ["platform_admin"],

@@ -1,7 +1,6 @@
 const crypto = require("crypto");
 const InvoiceEmailAuthorization = require("../models/invoiceEmailAuthorization");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
-const { isAfterlightServiceInvoice } = require("./serviceBilling");
 
 const DEFAULT_EMAIL_APPROVAL_TOKEN_HOURS = 24;
 
@@ -14,9 +13,15 @@ function secureEmailApprovalEnabled(organization) {
 }
 
 function secureEmailApprovalEligible(organization, invoice) {
+  const invoiceRouting = invoice?.fulfillmentSnapshot?.invoiceRouting;
+  const reviewableInvoice = [
+    "afterlight_service_billing",
+    "customer_accounts_payable",
+  ].includes(invoiceRouting)
+    || invoice?.billingOwner === "afterlight_platform";
   return secureEmailApprovalEnabled(organization)
     && ["managed", "hybrid"].includes(organization?.serviceModel || "managed")
-    && isAfterlightServiceInvoice(invoice)
+    && reviewableInvoice
     && invoice?.propertySnapshot?.apMethod === "email"
     && Boolean(String(invoice?.propertySnapshot?.apEmail || "").trim());
 }

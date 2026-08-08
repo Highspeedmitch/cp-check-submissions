@@ -8,6 +8,10 @@ const { invoiceSubmittedForPropertyManager } = require("./notificationEvents");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const { sendSystemEmail } = require("./systemEmail");
 const {
+  ensureInvoiceIssuerSnapshot,
+  invoiceIssuer,
+} = require("./invoiceIssuer");
+const {
   issueEmailApprovalAuthorization,
   secureEmailApprovalEligible,
 } = require("./invoiceEmailAuthorization");
@@ -86,6 +90,15 @@ async function emailPropertyManagersForReview(
   const reviewUrl = buildFrontendUrl(`/billing/review/${invoice._id}`);
   const invoiceNumber = escapeHtml(invoice.invoiceNumber);
   const propertyName = escapeHtml(invoice.propertySnapshot.name);
+  const issuer = invoiceIssuer(invoice);
+  const issuerName = escapeHtml(issuer.name);
+  const invoiceDescription = issuer.type === "afterlight"
+    ? "Afterlight invoice"
+    : `invoice from ${issuer.name}, delivered via Afterlight`;
+  const safeInvoiceDescription = issuer.type === "afterlight"
+    ? "Afterlight invoice"
+    : `invoice from <strong>${issuerName}</strong>, delivered via Afterlight`;
+  const replyTo = issuer.type !== "afterlight" && issuer.email ? issuer.email : undefined;
   const safeReviewUrl = escapeHtml(reviewUrl);
   const amount = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -116,10 +129,11 @@ async function emailPropertyManagersForReview(
       try {
         const result = await sendEmail({
           to: manager.email,
-          subject: `Approval requested: inspection and invoice ${invoice.invoiceNumber}`,
+          ...(replyTo ? { replyTo } : {}),
+          subject: `Approval requested: ${issuer.name} inspection invoice ${invoice.invoiceNumber}`,
           text: [
             `Hello ${manager.username || "Property Manager"},`,
-            `The inspection report and Afterlight invoice ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} are ready for review.`,
+            `The inspection report and ${invoiceDescription} ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} are ready for review.`,
             `Amount: ${amount}`,
             `Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}`,
             `Approve and send to AP: ${issued.url}`,
@@ -128,7 +142,7 @@ async function emailPropertyManagersForReview(
           ].join("\n"),
           html: `
             <p>Hello ${approverName},</p>
-            <p>The inspection report and Afterlight invoice <strong>${invoiceNumber}</strong> for
+            <p>The inspection report and ${safeInvoiceDescription} <strong>${invoiceNumber}</strong> for
             <strong>${propertyName}</strong> are ready for review.</p>
             <p>Amount: <strong>${amount}</strong><br>
             Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}</p>
@@ -154,15 +168,16 @@ async function emailPropertyManagersForReview(
   await sendEmail({
     to: process.env.SYSTEM_EMAIL_ADDRESS,
     bcc: recipients.join(","),
-    subject: `Review requested: inspection and invoice ${invoice.invoiceNumber}`,
+    ...(replyTo ? { replyTo } : {}),
+    subject: `Review requested: ${issuer.name} inspection invoice ${invoice.invoiceNumber}`,
     text: [
-      `The inspection report and Afterlight invoice ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} are ready for review.`,
+      `The inspection report and ${invoiceDescription} ${invoice.invoiceNumber} for ${invoice.propertySnapshot.name} are ready for review.`,
       `Amount: ${amount}`,
       `Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}`,
       `Review and approve or decline: ${reviewUrl}`,
     ].join("\n"),
     html: `
-      <p>The inspection report and Afterlight invoice <strong>${invoiceNumber}</strong> for
+      <p>The inspection report and ${safeInvoiceDescription} <strong>${invoiceNumber}</strong> for
       <strong>${propertyName}</strong> are ready for review.</p>
       <p>Amount: <strong>${amount}</strong><br>
       Inspection date: ${new Date(invoice.inspectionDate).toLocaleDateString("en-US")}</p>
@@ -178,6 +193,7 @@ async function generateInvoiceDocument(
   invoice,
   { generatePdf = generateInvoicePDF, storage = s3, createId = uuidv4 } = {}
 ) {
+  await ensureInvoiceIssuerSnapshot(invoice);
   if (!invoice.amountCents) {
     throw invoiceConfigurationError("Configure the customer inspection amount before automatic billing can continue.");
   }
@@ -197,9 +213,10 @@ async function generateInvoiceDocument(
     ACL: "private",
   }).promise();
   invoice.pdfKey = key;
-  invoice.billingOwner = "afterlight_platform";
   invoice.amountSetBySubmitter = false;
-  invoice.platformPreparation.preparedAt = new Date();
+  if (invoice.billingOwner === "afterlight_platform") {
+    invoice.platformPreparation.preparedAt = new Date();
+  }
   await invoice.save();
   return invoice;
 }
@@ -221,7 +238,6 @@ async function submitInvoiceForReview(
       "Assign an active property manager before automatic billing can continue."
     );
   }
-  invoice.billingOwner = "afterlight_platform";
   invoice.status = "pending_review";
   invoice.review.cycle = Number(invoice.review.cycle || 0) + 1;
   invoice.review.requestedBy = requestedBy || null;
@@ -259,6 +275,35 @@ async function prepareAfterlightServiceInvoiceForReview(invoice, options = {}) {
   if (invoice.status !== "unbilled") {
     return { invoice, prepared: false, warning: "" };
   }
+  invoice.billingOwner = "afterlight_platform";
+  if (!invoice.pdfKey) {
+    try {
+      await generateInvoiceDocument(invoice, options);
+    } catch (error) {
+      if (!error.configuration) throw error;
+      invoice.review.emailError = error.message;
+      await invoice.save();
+      return { invoice, prepared: false, warning: error.message };
+    }
+  }
+  try {
+    const result = await submitInvoiceForReview(invoice, options);
+    return { ...result, prepared: true };
+  } catch (error) {
+    if (!error.configuration) throw error;
+    invoice.review.emailError = error.message;
+    await invoice.save();
+    return { invoice, prepared: false, warning: error.message };
+  }
+}
+
+async function prepareCustomerContractorInvoiceForReview(invoice, options = {}) {
+  if (!invoice || invoice.fulfillmentSnapshot?.invoiceRouting !== "customer_accounts_payable") {
+    return { invoice, prepared: false, warning: "" };
+  }
+  if (invoice.status !== "unbilled") {
+    return { invoice, prepared: false, warning: "" };
+  }
   if (!invoice.pdfKey) {
     try {
       await generateInvoiceDocument(invoice, options);
@@ -287,4 +332,5 @@ module.exports = {
   generateInvoiceDocument,
   submitInvoiceForReview,
   prepareAfterlightServiceInvoiceForReview,
+  prepareCustomerContractorInvoiceForReview,
 };

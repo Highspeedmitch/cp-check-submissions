@@ -26,6 +26,7 @@ const PropertySchema = new mongoose.Schema({
   name: { type: String, required: true },
   propertyCode: { type: String, default: "" },
   defaultInspectionAmountCents: { type: Number, min: 0, default: null },
+  autoSubmitCustomerContractorInvoices: { type: Boolean, default: false },
   apMethod: {
     type: String,
     enum: ["email", "portal", "download"],
