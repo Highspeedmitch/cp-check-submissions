@@ -124,6 +124,48 @@ function resolveCustomerContractorInvoiceSettings({
   };
 }
 
+async function resolveSubmissionAssignment({
+  requestedAssignmentId,
+  organizationId,
+  userId,
+  propertyName,
+  AssignmentModel = Assignment,
+}) {
+  const query = {
+    organizationId,
+    userId,
+    propertyName,
+    status: "scheduled",
+  };
+  if (requestedAssignmentId) {
+    if (!mongoose.Types.ObjectId.isValid(requestedAssignmentId)) {
+      const error = new Error("Assigned work item is invalid.");
+      error.status = 400;
+      throw error;
+    }
+    const assignment = await AssignmentModel.findOne({
+      ...query,
+      _id: requestedAssignmentId,
+    });
+    if (!assignment) {
+      const error = new Error("Assigned work item not found.");
+      error.status = 404;
+      throw error;
+    }
+    return assignment;
+  }
+
+  let candidatesQuery = AssignmentModel.find(query);
+  if (typeof candidatesQuery.sort === "function") {
+    candidatesQuery = candidatesQuery.sort({ startDate: 1, createdAt: 1 });
+  }
+  if (typeof candidatesQuery.limit === "function") {
+    candidatesQuery = candidatesQuery.limit(2);
+  }
+  const candidates = await candidatesQuery;
+  return Array.isArray(candidates) && candidates.length === 1 ? candidates[0] : null;
+}
+
 function jobResponse(job, uploads = []) {
   return {
     jobId: job._id,
@@ -185,24 +227,14 @@ async function createInspectionJob({
     });
     organization = result.organization;
     property = result.property;
-    if (!submissionAssignment && body.assignmentId) {
-      if (!mongoose.Types.ObjectId.isValid(body.assignmentId)) {
-        const error = new Error("Assigned work item is invalid.");
-        error.status = 400;
-        throw error;
-      }
-      submissionAssignment = await AssignmentModel.findOne({
-        _id: body.assignmentId,
+    if (!submissionAssignment) {
+      submissionAssignment = await resolveSubmissionAssignment({
+        requestedAssignmentId: body.assignmentId,
         organizationId,
         userId: user.userId,
         propertyName: property.name,
-        status: "scheduled",
+        AssignmentModel,
       });
-      if (!submissionAssignment) {
-        const error = new Error("Assigned work item not found.");
-        error.status = 404;
-        throw error;
-      }
     }
     templateSnapshot = createTemplateSnapshot(result.effectiveTemplate);
     const invalidChoice = templateSnapshot.fields.find((field) => (
@@ -326,6 +358,7 @@ module.exports = {
   cleanSubmissionData,
   normalizePhotoRequests,
   resolveCustomerContractorInvoiceSettings,
+  resolveSubmissionAssignment,
   createInspectionJob,
   finalizeInspectionJob,
   jobResponse,

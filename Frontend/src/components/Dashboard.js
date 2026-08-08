@@ -163,6 +163,7 @@ const handleRegionFilter = async () => {
   // ------------- STR user modal -------------
   const [showModal, setShowModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState("");
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
 
   // ------------- Profit Upload Status format -----------
   const [profitStatuses, setProfitStatuses] = useState({});
@@ -473,20 +474,24 @@ useEffect(() => {
     if (canGoPrev) setPageIndex((prev) => prev - 1);
   }
 
-  function openProperty(prop) {
+  function openProperty(prop, assignment = null) {
     if (isManagement) {
       navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
       return;
     }
+    const assignmentQuery = assignment?._id
+      ? `?assignmentId=${encodeURIComponent(assignment._id)}`
+      : "";
     if (prop.orgType === "STR") {
       setSelectedProperty(prop.name);
+      setSelectedAssignmentId(assignment?._id || "");
       setShowModal(true);
       return;
     }
     let formRoute = "/form";
     if (prop.orgType === "LTR") formRoute = "/long-term-rental-form";
     if (prop.orgType === "RES") formRoute = "/residential-form";
-    navigate(`${formRoute}/${encodeURIComponent(prop.name)}`);
+    navigate(`${formRoute}/${encodeURIComponent(prop.name)}${assignmentQuery}`);
   }
   // ======================
   // RENDER
@@ -540,10 +545,16 @@ useEffect(() => {
             setShowModal(false);
           }}
           onSubmitForm={() => {
-            navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}`);
+            const assignmentQuery = selectedAssignmentId
+              ? `?assignmentId=${encodeURIComponent(selectedAssignmentId)}`
+              : "";
+            navigate(`/short-term-rental-form/${encodeURIComponent(selectedProperty)}${assignmentQuery}`);
             setShowModal(false);
           }}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            setShowModal(false);
+            setSelectedAssignmentId("");
+          }}
         />
       )}
 

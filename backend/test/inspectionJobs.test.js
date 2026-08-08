@@ -6,6 +6,7 @@ const {
   cleanSubmissionData,
   normalizePhotoRequests,
   resolveCustomerContractorInvoiceSettings,
+  resolveSubmissionAssignment,
 } = require("../services/inspectionJobs");
 const {
   claimInspectionJob,
@@ -53,6 +54,66 @@ test("customer contractor invoice settings default to admin auto-submit and pres
     preference: "not_applicable",
     amountCents: null,
   });
+});
+
+test("inspection jobs recover one unambiguous scheduled assignment when the client omits its ID", async () => {
+  const expected = {
+    _id: "64f000000000000000000001",
+    fulfillment: { source: "customer_contractor" },
+  };
+  let receivedQuery;
+  let receivedSort;
+  let receivedLimit;
+  const AssignmentModel = {
+    find(query) {
+      receivedQuery = query;
+      return {
+        sort(sort) {
+          receivedSort = sort;
+          return this;
+        },
+        limit(limit) {
+          receivedLimit = limit;
+          return Promise.resolve([expected]);
+        },
+      };
+    },
+  };
+
+  const assignment = await resolveSubmissionAssignment({
+    organizationId: "org-1",
+    userId: "user-1",
+    propertyName: "Broadway Center",
+    AssignmentModel,
+  });
+
+  assert.equal(assignment, expected);
+  assert.deepEqual(receivedQuery, {
+    organizationId: "org-1",
+    userId: "user-1",
+    propertyName: "Broadway Center",
+    status: "scheduled",
+  });
+  assert.deepEqual(receivedSort, { startDate: 1, createdAt: 1 });
+  assert.equal(receivedLimit, 2);
+});
+
+test("inspection jobs do not guess when multiple scheduled assignments match", async () => {
+  const AssignmentModel = {
+    find() {
+      return {
+        sort() { return this; },
+        limit() { return Promise.resolve([{ _id: "one" }, { _id: "two" }]); },
+      };
+    },
+  };
+
+  assert.equal(await resolveSubmissionAssignment({
+    organizationId: "org-1",
+    userId: "user-1",
+    propertyName: "Broadway Center",
+    AssignmentModel,
+  }), null);
 });
 
 test("photo reservations enforce allowed fields and per-field limits", () => {
