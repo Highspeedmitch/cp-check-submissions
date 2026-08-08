@@ -49,7 +49,7 @@ Archiving is appropriate when a non-administrator has left the organization and 
 
 Afterlight removes the user's organization access and current property-manager or property-owner assignments, revokes their sessions, and moves the record to **Archived Users**. Completed assignments, submissions, and audit history remain available.
 
-Organization administrators cannot be archived from this directory. Resolve administrator succession through the administrator-seat workflow before changing that access.
+Organization administrators cannot be archived from this standard directory. Use **Manage access** in the **Administrator seats** section to remove an administrator or retain them in a non-administrator role. The workflow prevents self-removal and removal of the last active administrator.
 
 ## Restore a user
 

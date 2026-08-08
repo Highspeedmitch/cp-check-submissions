@@ -32,6 +32,7 @@ jest.mock("../services/notificationCenter", () => ({
   }),
 }));
 jest.mock("./ProspectAssessments", () => () => <div>Prospects view</div>);
+jest.mock("./PricingEstimator", () => () => <div>Pricing estimator view</div>);
 jest.mock("./PlatformResources", () => () => <div>Resources view</div>);
 jest.mock("./PlatformServiceBilling", () => () => <div>Billing view</div>);
 jest.mock("./PlatformServiceModelChanges", () => () => <div>Service models view</div>);
@@ -174,6 +175,16 @@ test("a platform error clears when navigating to another dashboard view", async 
   fireEvent.click(screen.getByRole("button", { name: "Resources & Payables" }));
   expect(await screen.findByText("Resources view")).toBeInTheDocument();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test("marketing tools navigation opens the pricing estimator", async () => {
+  renderDashboard();
+  await screen.findByRole("heading", { name: "Organizations" });
+
+  fireEvent.click(screen.getByRole("button", { name: "Pricing Estimator" }));
+
+  expect(await screen.findByText("Pricing estimator view")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Pricing Estimator" })).toBeInTheDocument();
 });
 
 test("platform administrators can configure secure email approval per organization", async () => {

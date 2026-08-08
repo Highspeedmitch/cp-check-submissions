@@ -4,6 +4,7 @@ import PageHeader from "./ui/PageHeader";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 import { api } from "../services/api";
 import AdminInvitationDialog from "./admin/AdminInvitationDialog";
+import AdministratorAccessDialog from "./admin/AdministratorAccessDialog";
 import LicenseIncreaseRequestDialog from "./admin/LicenseIncreaseRequestDialog";
 import ConfirmationDialog from "./ui/ConfirmationDialog";
 import {
@@ -50,6 +51,7 @@ export default function UserManagement() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
   const [adminInviteOpen, setAdminInviteOpen] = useState(false);
+  const [adminAccessTarget, setAdminAccessTarget] = useState(null);
   const [licenseRequestOpen, setLicenseRequestOpen] = useState(false);
   const [revokeInvitationTarget, setRevokeInvitationTarget] = useState(null);
 
@@ -270,6 +272,46 @@ export default function UserManagement() {
     }
   }
 
+  async function changeAdministratorAccess(administrator, {
+    disposition,
+    targetRole,
+    engagementType,
+    propertyIds: resultingPropertyIds,
+    reason,
+    currentPassword,
+    code,
+    passkey,
+  }) {
+    if (busyAction) return;
+    setBusyAction(`admin-access-${administrator._id}`);
+    setMessage("");
+    setError("");
+    try {
+      const verification = await api.post("/api/organization-security/grants", {
+        purpose: "remove_admin",
+        currentPassword,
+        code,
+        passkey,
+      });
+      const result = await api.post(`/api/admin-users/administrators/${administrator._id}/access`, {
+        disposition,
+        targetRole,
+        engagementType,
+        propertyIds: resultingPropertyIds,
+        reason,
+        adminActionGrant: verification.grant,
+      });
+      setMessage(result.message || "Administrator access changed.");
+      setAdminAccessTarget(null);
+      await load();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function requestAdditionalAdminLicense(payload) {
     if (busyAction) return;
     setBusyAction("request-admin-license");
@@ -333,12 +375,33 @@ export default function UserManagement() {
           )}
           {(data.administrators.length > 0 || data.adminInvitations.length > 0) && (
             <div className="beta-admin-seat-directory">
-              {data.administrators.map((administrator) => (
-                <div key={administrator._id} className="beta-admin-seat-person">
-                  <div><strong>{administrator.username || administrator.email}</strong><small>{administrator.email}</small></div>
-                  <span className={`beta-status ${administrator.accountStatus === "inactive" ? "declined" : "success"}`}>{administrator.accountStatus || "active"}</span>
-                </div>
-              ))}
+              {data.administrators.map((administrator) => {
+                const isCurrentAdministrator = String(administrator._id) === String(localStorage.getItem("userId"));
+                const isLastActiveAdministrator = administrator.accountStatus !== "inactive"
+                  && Number(data.adminSeats.active || 0) <= 1;
+                const platformProtected = administrator.platformRole === "platform_admin";
+                return (
+                  <div key={administrator._id} className="beta-admin-seat-person">
+                    <div><strong>{administrator.username || administrator.email}</strong><small>{administrator.email}</small></div>
+                    <div className="beta-card-actions">
+                      <span className={`beta-status ${administrator.accountStatus === "inactive" ? "declined" : "success"}`}>{administrator.accountStatus || "active"}</span>
+                      {isCurrentAdministrator ? (
+                        <small>Current administrator</small>
+                      ) : platformProtected ? (
+                        <small>Platform-protected</small>
+                      ) : (
+                        <button className="beta-button danger compact" type="button"
+                          aria-label={`Manage access for ${administrator.email}`}
+                          title={isLastActiveAdministrator ? "Invite and verify another administrator first." : undefined}
+                          disabled={Boolean(busyAction) || isLastActiveAdministrator}
+                          onClick={() => setAdminAccessTarget(administrator)}>
+                          Manage access
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
               {data.adminInvitations.map((invitation) => (
                 <div key={invitation._id} className="beta-admin-seat-person">
                   <div><strong>{invitation.email}</strong><small>Administrator invitation · {invitation.status}</small></div>
@@ -606,6 +669,15 @@ export default function UserManagement() {
         options={data.licenseOptions}
         onClose={() => setLicenseRequestOpen(false)}
         onSubmit={requestAdditionalAdminLicense}
+      />
+    )}
+    {adminAccessTarget && data.adminSeats && (
+      <AdministratorAccessDialog
+        administrator={adminAccessTarget}
+        adminSeats={data.adminSeats}
+        properties={data.properties}
+        onClose={() => setAdminAccessTarget(null)}
+        onSubmit={(payload) => changeAdministratorAccess(adminAccessTarget, payload)}
       />
     )}
     {revokeInvitationTarget && (

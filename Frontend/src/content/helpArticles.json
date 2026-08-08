@@ -188,6 +188,19 @@
     "keywords": ["1099", "bank", "contractor", "fixed amount", "form 8655", "gusto", "onboarding", "payment", "reconciliation", "w-9"]
   },
   {
+    "slug": "calculate-preliminary-service-pricing",
+    "title": "Calculate preliminary service pricing",
+    "summary": "Run a stateless internal pricing estimate for a prospective property or eligible nearby property cluster.",
+    "category": "Marketing tools",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "platformRoles": ["platform_admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "platform-use-pricing-estimator.md",
+    "estimatedTime": "1-2 min",
+    "keywords": ["bid", "calculate", "cluster", "cost", "discount", "estimate", "marketing", "nearby", "price", "pricing", "prospect", "quote", "square footage"]
+  },
+  {
     "slug": "request-a-service-model-change",
     "title": "Request a service plan change",
     "summary": "Ask Afterlight to review a service-model change, higher SaaS or Hybrid tier, or custom Tier 3 administrator capacity without directly changing the contract.",

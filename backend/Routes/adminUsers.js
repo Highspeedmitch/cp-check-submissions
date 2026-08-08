@@ -33,7 +33,10 @@ const {
 } = require("../services/licenseEntitlements");
 const { createLicensedAdminInvitations } = require("../services/licensedAdminInvitations");
 const { createLicensedOrganizationInvitation } = require("../services/licensedOrganizationInvitations");
-const { currentLicenseCapacity } = require("../services/licenseCapacity");
+const {
+  currentLicenseCapacity,
+  ORGANIZATION_ACCOUNT_SCOPE,
+} = require("../services/licenseCapacity");
 const {
   licensedCapacityErrorBody,
   reserveLicensedCapacity,
@@ -44,6 +47,7 @@ const {
   inferredCustomerEngagementType,
   normalizeOrganizationUserClassification,
 } = require("../services/organizationUserClassification");
+const { changeOrganizationAdministratorAccess } = require("../services/administratorAccess");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "client", "contractor", "cleaner"];
@@ -83,9 +87,10 @@ router.get("/", async (req, res) => {
       .sort({ createdAt: -1 }).lean(),
     User.find({
       organizationId: req.user.organizationId,
+      ...ORGANIZATION_ACCOUNT_SCOPE,
       role: "admin",
       organizationArchivedAt: null,
-    }).select("username email role accountStatus createdAt").sort({ username: 1 }).lean(),
+    }).select("username email role accountStatus platformRole createdAt").sort({ username: 1 }).lean(),
     OrganizationInvitation.find({
       organizationId: req.user.organizationId,
       role: "admin",
@@ -164,6 +169,38 @@ router.post("/admin-invitations", async (req, res) => {
   }
 });
 
+router.post("/administrators/:userId/access", async (req, res) => {
+  if (req.user.assumedOrganization) {
+    return res.status(403).json({ error: "Administrator access cannot be changed through assumed access." });
+  }
+  try {
+    const result = await changeOrganizationAdministratorAccess({
+      organizationId: req.user.organizationId,
+      actorUserId: req.user.userId,
+      targetUserId: req.params.userId,
+      disposition: req.body.disposition,
+      targetRole: req.body.targetRole,
+      engagementType: req.body.engagementType,
+      propertyIds: req.body.propertyIds,
+      reason: req.body.reason,
+      adminActionGrant: req.body.adminActionGrant,
+      ipAddress: req.ip || "",
+      userAgent: req.get("user-agent") || "",
+    });
+    return res.json({
+      ...result,
+      message: result.disposition === "archive"
+        ? "Administrator access removed and the account was archived."
+        : "Administrator access changed and existing sessions were revoked.",
+    });
+  } catch (error) {
+    console.error("Administrator access change error:", error);
+    return res.status(error.status || 500).json(
+      licensedCapacityErrorBody(error, "Unable to change administrator access.")
+    );
+  }
+});
+
 router.post("/admin-license-requests", async (req, res) => {
   if (req.user.assumedOrganization) {
     return res.status(403).json({ error: "License requests cannot be issued through assumed access." });
@@ -175,6 +212,7 @@ router.post("/admin-license-requests", async (req, res) => {
       Organization.findById(req.user.organizationId).lean(),
       User.find({
         organizationId: req.user.organizationId,
+        ...ORGANIZATION_ACCOUNT_SCOPE,
         role: "admin",
         organizationArchivedAt: null,
       }).select("role accountStatus organizationArchivedAt").lean(),

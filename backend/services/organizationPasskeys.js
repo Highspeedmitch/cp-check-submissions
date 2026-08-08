@@ -14,7 +14,7 @@ async function passkeyMatches(organization, passkey, purpose) {
 
   // Administrator invitations require the organization's configured passkey.
   // The legacy deployment-wide property passkeys must never authorize this action.
-  if (["invite_admin", "bulk_onboarding"].includes(purpose)) return false;
+  if (["invite_admin", "remove_admin", "bulk_onboarding"].includes(purpose)) return false;
 
   const legacy = purpose === "remove_property"
     ? process.env.REMOVE_PROPERTY_PASSKEY

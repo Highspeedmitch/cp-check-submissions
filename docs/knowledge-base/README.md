@@ -13,6 +13,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Prepare and reconcile customer invoices for Afterlight-delivered work | [Process Afterlight service invoices](platform-process-service-invoices.md) | 3-5 minutes |
 | Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
 | Configure and operate the Gusto contractor-payment workflow | [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md) | 12-20 minutes |
+| Calculate preliminary pricing for a prospect conversation | [Calculate preliminary service pricing](platform-use-pricing-estimator.md) | 1-2 minutes |
 
 ## Field Operators
 
