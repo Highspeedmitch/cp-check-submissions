@@ -33,7 +33,7 @@ function AssignmentSection({ assignments, properties, onOpenProperty, onNavigate
               )}
               <div className="beta-card-actions">
                 {property && (
-                  <button className="beta-button" onClick={() => onOpenProperty(property)}>
+                  <button className="beta-button" onClick={() => onOpenProperty(property, assignment)}>
                     Start Inspection
                   </button>
                 )}

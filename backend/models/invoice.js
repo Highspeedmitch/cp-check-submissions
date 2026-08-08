@@ -12,6 +12,11 @@ const InvoiceSchema = new mongoose.Schema({
     index: true,
   },
   invoiceNumber: { type: String, unique: true, sparse: true },
+  issuerSnapshot: {
+    type: { type: String, enum: ["afterlight", "customer_contractor", "customer_submitter"], default: "customer_submitter" },
+    name: { type: String, default: "" },
+    email: { type: String, default: "" },
+  },
   propertySnapshot: {
     name: String,
     propertyCode: String,
@@ -26,6 +31,15 @@ const InvoiceSchema = new mongoose.Schema({
   inspectionDate: { type: Date, required: true },
   amountCents: { type: Number, min: 0, default: null },
   amountSetBySubmitter: { type: Boolean, default: false },
+  automationSnapshot: {
+    customerContractorPreference: {
+      type: String,
+      enum: ["", "auto_submit", "review_first"],
+      default: "",
+    },
+    defaultAmountCents: { type: Number, min: 0, default: null },
+    snapshottedAt: { type: Date, default: null },
+  },
   platformPreparation: {
     preparedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     preparedAt: { type: Date, default: null },

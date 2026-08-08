@@ -97,6 +97,75 @@ function normalizePhotoRequests(requests, isAllowed) {
   });
 }
 
+function resolveCustomerContractorInvoiceSettings({
+  assignment,
+  property,
+  requestedPreference = "",
+}) {
+  const preference = String(requestedPreference || "").trim();
+  if (preference && !["auto_submit", "review_first"].includes(preference)) {
+    const error = new Error("Select a valid contractor invoice preference.");
+    error.status = 400;
+    throw error;
+  }
+  if (assignment?.fulfillment?.source !== "customer_contractor") {
+    return { preference: "not_applicable", amountCents: null };
+  }
+  const amountCents = Number.isInteger(property?.defaultInspectionAmountCents)
+    ? property.defaultInspectionAmountCents
+    : null;
+  const autoSubmitConfigured = Boolean(property?.autoSubmitCustomerContractorInvoices)
+    && amountCents > 0;
+  return {
+    preference: preference === "review_first"
+      ? "review_first"
+      : autoSubmitConfigured ? "auto_submit" : "review_first",
+    amountCents,
+  };
+}
+
+async function resolveSubmissionAssignment({
+  requestedAssignmentId,
+  organizationId,
+  userId,
+  propertyName,
+  AssignmentModel = Assignment,
+}) {
+  const query = {
+    organizationId,
+    userId,
+    propertyName,
+    status: "scheduled",
+  };
+  if (requestedAssignmentId) {
+    if (!mongoose.Types.ObjectId.isValid(requestedAssignmentId)) {
+      const error = new Error("Assigned work item is invalid.");
+      error.status = 400;
+      throw error;
+    }
+    const assignment = await AssignmentModel.findOne({
+      ...query,
+      _id: requestedAssignmentId,
+    });
+    if (!assignment) {
+      const error = new Error("Assigned work item not found.");
+      error.status = 404;
+      throw error;
+    }
+    return assignment;
+  }
+
+  let candidatesQuery = AssignmentModel.find(query);
+  if (typeof candidatesQuery.sort === "function") {
+    candidatesQuery = candidatesQuery.sort({ startDate: 1, createdAt: 1 });
+  }
+  if (typeof candidatesQuery.limit === "function") {
+    candidatesQuery = candidatesQuery.limit(2);
+  }
+  const candidates = await candidatesQuery;
+  return Array.isArray(candidates) && candidates.length === 1 ? candidates[0] : null;
+}
+
 function jobResponse(job, uploads = []) {
   return {
     jobId: job._id,
@@ -125,6 +194,7 @@ async function createInspectionJob({
   let submissionData = cleanSubmissionData(body.responses || {});
   let organizationId = user.organizationId;
   let resourceAssignment = null;
+  let submissionAssignment = null;
   let organization;
   let property;
   if (user.accountScope === "afterlight_resource") {
@@ -136,6 +206,7 @@ async function createInspectionJob({
       OrganizationModel,
     });
     resourceAssignment = context.assignment;
+    submissionAssignment = context.assignment;
     organization = context.organization;
     property = context.property;
     organizationId = organization._id;
@@ -156,6 +227,15 @@ async function createInspectionJob({
     });
     organization = result.organization;
     property = result.property;
+    if (!submissionAssignment) {
+      submissionAssignment = await resolveSubmissionAssignment({
+        requestedAssignmentId: body.assignmentId,
+        organizationId,
+        userId: user.userId,
+        propertyName: property.name,
+        AssignmentModel,
+      });
+    }
     templateSnapshot = createTemplateSnapshot(result.effectiveTemplate);
     const invalidChoice = templateSnapshot.fields.find((field) => (
       field.type === "yes_no_issue"
@@ -195,6 +275,11 @@ async function createInspectionJob({
   }
 
   const orgType = organization.orgType;
+  const customerContractorInvoiceSettings = resolveCustomerContractorInvoiceSettings({
+    assignment: submissionAssignment,
+    property,
+    requestedPreference: body.customerContractorInvoicePreference,
+  });
   submissionData.selectedProperty = property.name;
   submissionData.orgType = orgType;
   const customPhotoFields = new Set((property.customFields || []).map((field) => String(field.name)));
@@ -217,12 +302,14 @@ async function createInspectionJob({
       organizationId,
       userId: user.userId,
       propertyId: property._id,
-      assignmentId: resourceAssignment?._id || null,
+      assignmentId: submissionAssignment?._id || null,
       propertyName: property.name,
       orgType,
       idempotencyKey,
       submissionData,
       templateSnapshot,
+      customerContractorInvoicePreference: customerContractorInvoiceSettings.preference,
+      customerContractorInvoiceAmountCents: customerContractorInvoiceSettings.amountCents,
       photoUploads,
     });
   } catch (error) {
@@ -270,6 +357,8 @@ module.exports = {
   MAX_PHOTOS_PER_FIELD,
   cleanSubmissionData,
   normalizePhotoRequests,
+  resolveCustomerContractorInvoiceSettings,
+  resolveSubmissionAssignment,
   createInspectionJob,
   finalizeInspectionJob,
   jobResponse,

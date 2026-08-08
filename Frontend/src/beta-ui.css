@@ -546,6 +546,24 @@ select:focus-visible {
 .beta-settings-list { display: grid; gap: 14px; margin-top: 20px; }
 .beta-settings-card { padding-top: 18px; border-top: 1px solid var(--beta-border); }
 .beta-settings-card h3 { margin: 0 0 14px; }
+.beta-billing-auto-submit {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--beta-border);
+  border-radius: 10px;
+  background: var(--beta-subtle);
+  cursor: pointer;
+}
+.beta-billing-auto-submit.is-enabled {
+  border-color: color-mix(in srgb, var(--beta-blue) 52%, var(--beta-border));
+  background: var(--beta-soft-blue);
+}
+.beta-billing-auto-submit input { width: 18px; height: 18px; margin: 2px 0 0; flex: 0 0 auto; }
+.beta-billing-auto-submit span { display: grid; gap: 4px; min-width: 0; }
+.beta-billing-auto-submit strong { color: var(--beta-ink); }
+.beta-billing-auto-submit small { color: var(--beta-muted); font-weight: 400; line-height: 1.45; }
 .beta-link-button { display: inline-flex; align-items: center; min-height: 38px; padding: 0 10px; color: var(--beta-blue); font-size: 13px; font-weight: 700; text-decoration: none; }
 .beta-amount-input { width: 92px; margin: 0; }
 .beta-alert { margin: 10px 0 0; padding: 12px 14px; border-radius: 8px; background: var(--beta-surface); font-weight: 650; }
@@ -2690,7 +2708,7 @@ select:focus-visible {
   .platform-pricing-mode,
   .platform-pricing-property { grid-template-columns: 1fr; }
   .platform-pricing-actions { flex-direction: column-reverse; }
-  .platform-pricing-actions .beta-button { width: 100%; }
+  .platform-pricing-actions .beta-button { flex: 0 0 auto; width: 100%; }
   .platform-pricing-result > .beta-section-heading { align-items: stretch; flex-direction: column; }
   .platform-pricing-result > .beta-section-heading .beta-button { width: 100%; }
   .platform-pricing-metrics,

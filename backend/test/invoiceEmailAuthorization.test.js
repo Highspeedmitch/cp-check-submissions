@@ -36,7 +36,7 @@ test("email approval tokens are stored as hashes and tied to a review cycle", as
   assert.match(result.url, /billing\/email-approval#token=/);
 });
 
-test("secure links remain limited to managed invoices with automated AP email", () => {
+test("secure links support Afterlight and customer contractor invoices with automated AP email", () => {
   const organization = {
     serviceModel: "managed",
     billingCapabilities: { invoiceApprovalExperience: "secure_email_link" },
@@ -46,6 +46,11 @@ test("secure links remain limited to managed invoices with automated AP email", 
     propertySnapshot: { apMethod: "email", apEmail: "ap@client.example" },
   };
   assert.equal(secureEmailApprovalEligible(organization, invoice), true);
+  assert.equal(secureEmailApprovalEligible(organization, {
+    billingOwner: "customer_submitter",
+    fulfillmentSnapshot: { invoiceRouting: "customer_accounts_payable" },
+    propertySnapshot: { apMethod: "email", apEmail: "ap@client.example" },
+  }), true);
   assert.equal(secureEmailApprovalEligible(organization, {
     ...invoice,
     propertySnapshot: { apMethod: "portal", apEmail: "" },

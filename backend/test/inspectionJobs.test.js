@@ -5,6 +5,8 @@ const {
   MAX_PHOTOS_PER_FIELD,
   cleanSubmissionData,
   normalizePhotoRequests,
+  resolveCustomerContractorInvoiceSettings,
+  resolveSubmissionAssignment,
 } = require("../services/inspectionJobs");
 const {
   claimInspectionJob,
@@ -25,6 +27,93 @@ test("inspection job payloads only retain bounded string responses", () => {
     () => cleanSubmissionData({ "../invalid": "value" }),
     /invalid response field/
   );
+});
+
+test("customer contractor invoice settings default to admin auto-submit and preserve one-off review", () => {
+  const assignment = { fulfillment: { source: "customer_contractor" } };
+  const property = {
+    defaultInspectionAmountCents: 15000,
+    autoSubmitCustomerContractorInvoices: true,
+  };
+  assert.deepEqual(resolveCustomerContractorInvoiceSettings({ assignment, property }), {
+    preference: "auto_submit",
+    amountCents: 15000,
+  });
+  assert.deepEqual(resolveCustomerContractorInvoiceSettings({
+    assignment,
+    property,
+    requestedPreference: "review_first",
+  }), {
+    preference: "review_first",
+    amountCents: 15000,
+  });
+  assert.deepEqual(resolveCustomerContractorInvoiceSettings({
+    assignment: { fulfillment: { source: "customer_employee" } },
+    property,
+  }), {
+    preference: "not_applicable",
+    amountCents: null,
+  });
+});
+
+test("inspection jobs recover one unambiguous scheduled assignment when the client omits its ID", async () => {
+  const expected = {
+    _id: "64f000000000000000000001",
+    fulfillment: { source: "customer_contractor" },
+  };
+  let receivedQuery;
+  let receivedSort;
+  let receivedLimit;
+  const AssignmentModel = {
+    find(query) {
+      receivedQuery = query;
+      return {
+        sort(sort) {
+          receivedSort = sort;
+          return this;
+        },
+        limit(limit) {
+          receivedLimit = limit;
+          return Promise.resolve([expected]);
+        },
+      };
+    },
+  };
+
+  const assignment = await resolveSubmissionAssignment({
+    organizationId: "org-1",
+    userId: "user-1",
+    propertyName: "Broadway Center",
+    AssignmentModel,
+  });
+
+  assert.equal(assignment, expected);
+  assert.deepEqual(receivedQuery, {
+    organizationId: "org-1",
+    userId: "user-1",
+    propertyName: "Broadway Center",
+    status: "scheduled",
+  });
+  assert.deepEqual(receivedSort, { startDate: 1, createdAt: 1 });
+  assert.equal(receivedLimit, 2);
+});
+
+test("inspection jobs do not guess when multiple scheduled assignments match", async () => {
+  const AssignmentModel = {
+    find() {
+      return {
+        sort() { return this; },
+        limit() { return Promise.resolve([{ _id: "one" }, { _id: "two" }]); },
+      };
+    },
+  };
+
+  assert.equal(await resolveSubmissionAssignment({
+    organizationId: "org-1",
+    userId: "user-1",
+    propertyName: "Broadway Center",
+    AssignmentModel,
+  }), null);
 });
 
 test("photo reservations enforce allowed fields and per-field limits", () => {

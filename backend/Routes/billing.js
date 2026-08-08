@@ -34,6 +34,7 @@ const {
   afterlightServiceInvoiceScope,
 } = require("../services/serviceBilling");
 const { billingWorkspaceAccess } = require("../services/billingAccess");
+const { ensureInvoiceIssuerSnapshot } = require("../services/invoiceIssuer");
 
 const router = express.Router();
 
@@ -82,6 +83,7 @@ router.get("/properties", async (req, res) => {
       propertyCode: property.propertyCode,
       billingAddress: resolveBillingAddress(property),
       defaultInspectionAmountCents: property.defaultInspectionAmountCents,
+      autoSubmitCustomerContractorInvoices: Boolean(property.autoSubmitCustomerContractorInvoices),
       apMethod: property.apMethod,
       apEmail: property.apEmail,
       apPortal: property.apPortal,
@@ -109,7 +111,15 @@ router.put("/properties/:propertyId", async (req, res) => {
     }
     const property = organization.properties.id(req.params.propertyId);
     if (!property) return res.status(404).json({ error: "Property not found." });
-    const { propertyCode, billingAddress, defaultInspectionAmountCents, apMethod, apEmail, apPortal } = req.body;
+    const {
+      propertyCode,
+      billingAddress,
+      defaultInspectionAmountCents,
+      autoSubmitCustomerContractorInvoices,
+      apMethod,
+      apEmail,
+      apPortal,
+    } = req.body;
     if (!propertyCode || !billingAddress) {
       return res.status(400).json({ error: "Property code and billing address are required." });
     }
@@ -119,6 +129,15 @@ router.put("/properties/:propertyId", async (req, res) => {
     property.defaultInspectionAmountCents = Number.isInteger(defaultInspectionAmountCents)
       ? defaultInspectionAmountCents
       : null;
+    property.autoSubmitCustomerContractorInvoices = Boolean(
+      autoSubmitCustomerContractorInvoices
+    );
+    if (property.autoSubmitCustomerContractorInvoices
+      && !(property.defaultInspectionAmountCents > 0)) {
+      return res.status(400).json({
+        error: "Set a positive suggested amount before enabling automatic contractor invoices.",
+      });
+    }
     const normalizedApMethod = apMethod || "download";
     if (!["email", "portal", "download"].includes(normalizedApMethod)) {
       return res.status(400).json({ error: "Select a valid AP delivery method." });
@@ -136,6 +155,7 @@ router.put("/properties/:propertyId", async (req, res) => {
         propertyId: property._id,
         status: "unbilled",
         amountSetBySubmitter: { $ne: true },
+        "automationSnapshot.snapshottedAt": null,
         $or: [
           { amountCents: previousDefaultAmountCents },
           { amountCents: null },
@@ -329,6 +349,7 @@ router.post("/platform-service-invoices/:id/generate", requirePlatformAdmin, asy
       return res.status(400).json({ error: "Configure the property's billing code before generating the invoice." });
     }
     if (!invoice.invoiceNumber) invoice.invoiceNumber = `${invoice.propertySnapshot.propertyCode}-${Date.now()}`;
+    await ensureInvoiceIssuerSnapshot(invoice);
     const buffer = await generateInvoicePDF(invoice);
     const key = `${invoice.organizationId}/invoices/${uuidv4()}-${invoice.invoiceNumber}.pdf`;
     await s3.upload({
@@ -616,6 +637,7 @@ router.post("/:id/generate", async (req, res) => {
     if (!invoice.invoiceNumber) {
       invoice.invoiceNumber = `${invoice.propertySnapshot.propertyCode}-${Date.now()}`;
     }
+    await ensureInvoiceIssuerSnapshot(invoice);
     const buffer = await generateInvoicePDF(invoice);
     const key = `${req.user.organizationId}/invoices/${uuidv4()}-${invoice.invoiceNumber}.pdf`;
     await s3.upload({

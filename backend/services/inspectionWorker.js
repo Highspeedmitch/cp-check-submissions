@@ -31,7 +31,11 @@ const {
 const { resolveDirectSubmissionFulfillment } = require("./fulfillmentPolicy");
 const { ensureContractorEarning } = require("./contractorEarnings");
 const { billingOwnerForFulfillment } = require("./serviceBilling");
-const { prepareAfterlightServiceInvoiceForReview } = require("./invoiceReview");
+const {
+  prepareAfterlightServiceInvoiceForReview,
+  prepareCustomerContractorInvoiceForReview,
+} = require("./invoiceReview");
+const { issuerSnapshotForInvoice } = require("./invoiceIssuer");
 const { mergePropertyInspectionRecipients } = require("./propertyEmails");
 
 const DEFAULT_POLL_MS = 2000;
@@ -144,6 +148,15 @@ async function ensureSubmission(job, organization, property, assignment) {
   const fulfillmentSnapshot = submission.fulfillmentSnapshot || initialFulfillment;
   if (job.orgType === "COM" && fulfillmentSnapshot.invoiceRequired !== false) {
     const { policy } = await ensureOrganizationBillingPolicy(job.organizationId);
+    const billingOwner = billingOwnerForFulfillment(fulfillmentSnapshot);
+    const submitter = fulfillmentSnapshot.invoiceRouting === "customer_accounts_payable"
+      ? await User.findById(job.userId).select("username email billingProfile").lean()
+      : null;
+    const issuerSnapshot = issuerSnapshotForInvoice(
+      { billingOwner, fulfillmentSnapshot },
+      submitter || {}
+    );
+    const customerContractorAmount = job.customerContractorInvoiceAmountCents;
     await Invoice.findOneAndUpdate(
       { submissionId: submission._id },
       {
@@ -152,9 +165,19 @@ async function ensureSubmission(job, organization, property, assignment) {
           propertyId: property._id,
           submissionId: submission._id,
           submitterId: job.userId,
-          billingOwner: billingOwnerForFulfillment(fulfillmentSnapshot),
+          billingOwner,
+          issuerSnapshot,
           inspectionDate: submission.submittedAt,
-          amountCents: property.defaultInspectionAmountCents || null,
+          amountCents: fulfillmentSnapshot.invoiceRouting === "customer_accounts_payable"
+            ? customerContractorAmount ?? property.defaultInspectionAmountCents ?? null
+            : property.defaultInspectionAmountCents || null,
+          automationSnapshot: fulfillmentSnapshot.invoiceRouting === "customer_accounts_payable"
+            ? {
+              customerContractorPreference: job.customerContractorInvoicePreference || "review_first",
+              defaultAmountCents: customerContractorAmount ?? property.defaultInspectionAmountCents ?? null,
+              snapshottedAt: job.createdAt || new Date(),
+            }
+            : undefined,
           policySnapshot: createPolicySnapshot(policy),
           fulfillmentSnapshot,
           propertySnapshot: {
@@ -353,6 +376,15 @@ async function processInspectionJob(job) {
   if (submission.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing") {
     const invoice = await Invoice.findOne({ submissionId: submission._id });
     invoiceReviewResult = await prepareAfterlightServiceInvoiceForReview(invoice, {
+      inspectionPdf: {
+        filename: generated.fileName,
+        content: generated.pdfBuffer,
+      },
+    });
+  } else if (submission.fulfillmentSnapshot?.invoiceRouting === "customer_accounts_payable"
+    && job.customerContractorInvoicePreference === "auto_submit") {
+    const invoice = await Invoice.findOne({ submissionId: submission._id });
+    invoiceReviewResult = await prepareCustomerContractorInvoiceForReview(invoice, {
       inspectionPdf: {
         filename: generated.fileName,
         content: generated.pdfBuffer,

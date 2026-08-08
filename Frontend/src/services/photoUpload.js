@@ -119,11 +119,19 @@ function flattenPhotoGroups(photoGroups = {}) {
   );
 }
 
-function inspectionDraftIdentity({ property, orgType, assignmentId, responses, photos }) {
+function inspectionDraftIdentity({
+  property,
+  orgType,
+  assignmentId,
+  customerContractorInvoicePreference,
+  responses,
+  photos,
+}) {
   return JSON.stringify({
     property,
     orgType,
     assignmentId,
+    customerContractorInvoicePreference,
     responses,
     photos: photos.map(({ fieldName, file }) => ({
       fieldName,
@@ -187,6 +195,7 @@ export async function submitInspectionJob({
   responses,
   photoGroups,
   assignmentId = "",
+  customerContractorInvoicePreference = "",
   draft: offlineDraft = null,
   saveDraft = saveInspectionDraft,
   onProgress,
@@ -194,7 +203,14 @@ export async function submitInspectionJob({
 }) {
   const photos = flattenPhotoGroups(photoGroups);
   const context = submissionContext({ orgType, photoCount: photos.length });
-  const fingerprint = inspectionDraftIdentity({ property, orgType, assignmentId, responses, photos });
+  const fingerprint = inspectionDraftIdentity({
+    property,
+    orgType,
+    assignmentId,
+    customerContractorInvoicePreference,
+    responses,
+    photos,
+  });
   const uploadDraft = draftIdempotency(property, fingerprint);
   onProgress?.({ phase: "preparing", total: photos.length });
 
@@ -216,6 +232,9 @@ export async function submitInspectionJob({
       property,
       orgType,
       assignmentId: assignmentId || undefined,
+      ...(customerContractorInvoicePreference
+        ? { customerContractorInvoicePreference }
+        : {}),
       responses,
       idempotencyKey: uploadDraft.key,
       photos: photos.map(({ fieldName, file }) => ({ fieldName, fileName: file.name })),

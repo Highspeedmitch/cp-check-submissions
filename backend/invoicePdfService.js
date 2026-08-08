@@ -1,4 +1,5 @@
 const PDFDocument = require("pdfkit");
+const { invoiceIssuer } = require("./services/invoiceIssuer");
 const INVOICE_VENDOR_NAME = "Afterlight Inspections";
 
 function money(cents) {
@@ -7,10 +8,14 @@ function money(cents) {
 }
 
 function invoiceHeaderLines(invoice) {
+  const issuer = invoiceIssuer(invoice);
+  const deliveredViaAfterlight = issuer.type !== "afterlight";
   return [
     `Invoice: ${invoice.invoiceNumber}`,
     `Invoice date: ${new Date().toLocaleDateString("en-US")}`,
-    `From: ${INVOICE_VENDOR_NAME}`,
+    `From: ${issuer.name}`,
+    ...(issuer.email ? [`Vendor contact: ${issuer.email}`] : []),
+    ...(deliveredViaAfterlight ? ["Delivered via Afterlight"] : []),
   ];
 }
 

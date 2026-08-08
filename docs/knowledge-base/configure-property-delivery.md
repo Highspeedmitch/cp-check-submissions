@@ -35,6 +35,7 @@ Open **Billing**, expand **Commercial property billing settings**, and review ea
 - **Property code:** The customer's accounting or brokerage code.
 - **Billing address:** The address printed on customer-facing invoices.
 - **Suggested amount:** The default amount the customer will be billed for an inspection.
+- **Automatically submit Customer Contractor invoices at this amount:** Uses the suggested amount to generate and send contractor invoices for property-manager approval as soon as the inspection is submitted. Contractors can select **Review or change this invoice before sending** on the inspection form for a one-off adjustment.
 - **AP method:** Manual download, email, or AP portal.
 - **AP email or portal:** The destination used after invoice approval.
 

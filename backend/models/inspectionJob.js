@@ -35,6 +35,12 @@ const InspectionJobSchema = new mongoose.Schema({
   idempotencyKey: { type: String, required: true },
   submissionData: { type: mongoose.Schema.Types.Mixed, required: true },
   templateSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+  customerContractorInvoicePreference: {
+    type: String,
+    enum: ["not_applicable", "auto_submit", "review_first"],
+    default: "not_applicable",
+  },
+  customerContractorInvoiceAmountCents: { type: Number, min: 0, default: null },
   aiSummary: {
     type: createInspectionAiSummarySchema(),
     default: () => ({ status: "not_requested", mode: "off" }),
