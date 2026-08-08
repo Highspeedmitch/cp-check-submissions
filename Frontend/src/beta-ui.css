@@ -2708,7 +2708,7 @@ select:focus-visible {
   .platform-pricing-mode,
   .platform-pricing-property { grid-template-columns: 1fr; }
   .platform-pricing-actions { flex-direction: column-reverse; }
-  .platform-pricing-actions .beta-button { width: 100%; }
+  .platform-pricing-actions .beta-button { flex: 0 0 auto; width: 100%; }
   .platform-pricing-result > .beta-section-heading { align-items: stretch; flex-direction: column; }
   .platform-pricing-result > .beta-section-heading .beta-button { width: 100%; }
   .platform-pricing-metrics,
