@@ -45,6 +45,7 @@ const {
   createInvitation,
   resendInvitation,
 } = require("../services/organizationInvitations");
+const { estimateBidPricing } = require("../services/bidPricing");
 
 const router = express.Router();
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -90,6 +91,21 @@ router.get("/organizations", authenticateToken, requirePlatformAdmin, async (req
   } catch (error) {
     console.error("Platform metrics error:", error);
     return res.status(500).json({ error: "Unable to load platform metrics." });
+  }
+});
+
+router.post("/pricing-estimate", authenticateToken, requirePlatformAdmin, (req, res) => {
+  try {
+    return res.json(estimateBidPricing({
+      grossSquareFeet: req.body.grossSquareFeet,
+      propertyType: req.body.propertyType,
+      serviceFrequency: req.body.serviceFrequency,
+      hasKnownIssues: req.body.hasKnownIssues === true,
+    }));
+  } catch (error) {
+    return res.status(400).json({
+      error: error.message || "Unable to calculate the pricing estimate.",
+    });
   }
 });
 

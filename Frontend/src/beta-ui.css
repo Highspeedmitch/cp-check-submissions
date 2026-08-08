@@ -2628,5 +2628,35 @@ select:focus-visible {
 .invoice-email-approval-button { width: 100%; }
 .invoice-email-approval-help { margin: 18px auto 0; color: var(--beta-muted); font-size: 13px; line-height: 1.5; text-align: center; }
 .platform-organization-actions { display: grid; gap: 9px; margin-top: auto; }
+.platform-pricing-estimator { display: grid; gap: 18px; width: min(900px, 100%); }
+.platform-pricing-estimator > .beta-section-heading { margin-bottom: -4px; }
+.platform-pricing-disclaimer { margin: 0; }
+.platform-pricing-form { margin: 0; }
+.platform-pricing-known-issues { align-self: end; min-height: 44px; box-sizing: border-box; }
+.platform-pricing-actions { justify-content: flex-end; }
+.platform-pricing-actions .beta-button { width: auto; min-width: 145px; margin: 0; }
+.platform-pricing-result { display: grid; gap: 20px; margin: 0; }
+.platform-pricing-result > .beta-section-heading { margin: 0; }
+.platform-pricing-result > .beta-section-heading .beta-button { width: auto; margin: 0; }
+.platform-pricing-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.platform-pricing-metrics article { padding: 18px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); }
+.platform-pricing-metrics span { display: block; color: var(--beta-muted); font-size: 12px; font-weight: 750; }
+.platform-pricing-metrics strong { display: block; margin-top: 7px; color: var(--beta-ink); font-size: 28px; line-height: 1.1; }
+.platform-pricing-review { margin: 0; }
+.platform-pricing-review ul { margin: 8px 0 0; padding-left: 20px; }
+.platform-pricing-assumptions h3 { margin: 0 0 12px; font-size: 16px; }
+.platform-pricing-assumptions dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; overflow: hidden; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-border); }
+.platform-pricing-assumptions dl div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 14px; background: var(--beta-subtle); }
+.platform-pricing-assumptions dt { color: var(--beta-muted); font-size: 12px; font-weight: 700; }
+.platform-pricing-assumptions dd { margin: 0; color: var(--beta-ink); font-size: 13px; font-weight: 750; }
+
+@media (max-width: 620px) {
+  .platform-pricing-actions { flex-direction: column-reverse; }
+  .platform-pricing-actions .beta-button { width: 100%; }
+  .platform-pricing-result > .beta-section-heading { align-items: stretch; flex-direction: column; }
+  .platform-pricing-result > .beta-section-heading .beta-button { width: 100%; }
+  .platform-pricing-metrics,
+  .platform-pricing-assumptions dl { grid-template-columns: 1fr; }
+}
 .platform-organization-actions .beta-button { width: 100%; }
 .platform-capability-summary { color: var(--beta-muted); text-align: center; }

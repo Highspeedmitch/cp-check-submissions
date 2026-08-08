@@ -111,6 +111,7 @@ test("platform guidance is isolated from organization and assumed-access help", 
     "process-afterlight-service-invoices",
     "manage-resources-and-payables",
     "configure-gusto-contractor-payments",
+    "calculate-preliminary-service-pricing",
     "review-service-model-change-requests",
     "create-and-access-an-organization",
   ]);

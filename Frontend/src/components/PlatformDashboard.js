@@ -6,6 +6,7 @@ import { beginOktaLogin, oktaConfigured } from "../services/okta";
 import PageHeader from "./ui/PageHeader";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 import ProspectAssessments from "./ProspectAssessments";
+import PricingEstimator from "./PricingEstimator";
 import ThemeToggle from "./ui/ThemeToggle";
 import PlatformResources from "./PlatformResources";
 import PlatformServiceBilling from "./PlatformServiceBilling";
@@ -54,6 +55,7 @@ function PlatformNavigation({ open, activeView, notificationBadges, onClose, onV
           </button>
           <p className="beta-nav-label">Marketing tools</p>
           <button type="button" className={`beta-nav-item${activeView === "prospects" ? " active" : ""}`} onClick={() => go("prospects")}>Complimentary Reports</button>
+          <button type="button" className={`beta-nav-item${activeView === "pricing" ? " active" : ""}`} onClick={() => go("pricing")}>Pricing Estimator</button>
         </nav>
         <div className="platform-sidebar-footer">
           <p>Organization access is temporary, reason-gated, and audited.</p>
@@ -234,7 +236,7 @@ export default function PlatformDashboard() {
   const [message, setMessage] = useState("");
   const [activeView, setActiveView] = useState(() => {
     const requestedView = searchParams.get("view");
-    return ["overview", "billing", "resources", "service-models", "prospects"].includes(requestedView)
+    return ["overview", "billing", "resources", "service-models", "prospects", "pricing"].includes(requestedView)
       ? requestedView
       : "overview";
   });
@@ -251,9 +253,11 @@ export default function PlatformDashboard() {
       ? "manage-resources-and-payables"
       : activeView === "service-models"
         ? "review-service-model-change-requests"
-        : activeView === "overview"
-          ? "create-and-access-an-organization"
-          : "";
+        : activeView === "pricing"
+          ? "calculate-preliminary-service-pricing"
+          : activeView === "overview"
+            ? "create-and-access-an-organization"
+            : "";
   const activeNotificationTypes = activeView === "billing"
     ? NOTIFICATION_SECTIONS.platformBilling
     : activeView === "resources"
@@ -554,13 +558,13 @@ export default function PlatformDashboard() {
           <strong>Platform</strong><span className="beta-avatar" aria-hidden="true">A</span>
         </div>
         <PageHeader eyebrow="Platform administration"
-          title={activeView === "overview" ? "Organization Overview" : activeView === "billing" ? "Service Billing" : activeView === "resources" ? "Resources & Payables" : activeView === "service-models" ? "Service Plan Requests" : "Complimentary Reports"}
-          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization service-model and license-tier requests." : "Create and manage standalone property opportunity reports."}
+          title={activeView === "overview" ? "Organization Overview" : activeView === "billing" ? "Service Billing" : activeView === "resources" ? "Resources & Payables" : activeView === "service-models" ? "Service Plan Requests" : activeView === "pricing" ? "Pricing Estimator" : "Complimentary Reports"}
+          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization service-model and license-tier requests." : activeView === "pricing" ? "Calculate preliminary service pricing for prospective customer conversations." : "Create and manage standalone property opportunity reports."}
           actions={<ContextualHelpLink slug={helpSlug} />} />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}
 
-        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "resources" ? <PlatformResources /> : activeView === "service-models" ? <PlatformServiceModelChanges /> : !report ? (
+        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "pricing" ? <PricingEstimator /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "resources" ? <PlatformResources /> : activeView === "service-models" ? <PlatformServiceModelChanges /> : !report ? (
           <div className="beta-empty-state">Loading platform metrics...</div>
         ) : (
           <>
