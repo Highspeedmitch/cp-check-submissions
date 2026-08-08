@@ -255,9 +255,11 @@ export default function PlatformDashboard() {
         ? "review-service-model-change-requests"
         : activeView === "pricing"
           ? "calculate-preliminary-service-pricing"
-          : activeView === "overview"
-            ? "create-and-access-an-organization"
-            : "";
+          : activeView === "prospects"
+            ? "create-complimentary-prospect-reports"
+            : activeView === "overview"
+              ? "create-and-access-an-organization"
+              : "";
   const activeNotificationTypes = activeView === "billing"
     ? NOTIFICATION_SECTIONS.platformBilling
     : activeView === "resources"

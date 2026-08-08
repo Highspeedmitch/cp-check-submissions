@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { orderFieldsByKeys } from "../services/formFieldOrdering";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import PageHeader from "./ui/PageHeader";
 import SortableFieldList from "./ui/SortableFieldList";
 
@@ -173,6 +174,7 @@ export default function PropertyFormSettings() {
           eyebrow="Managed property settings"
           title={propertyDetails?.name || property}
           subtitle="Update property information and customize the inspection form."
+          actions={<ContextualHelpLink slug="manage-inspection-form-templates" />}
         />
 
         {loading && <div className="beta-empty-state">Loading form settings…</div>}

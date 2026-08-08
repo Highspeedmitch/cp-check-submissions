@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "./ui/PageHeader";
 import { NOTIFICATION_SECTIONS, useMarkNotificationsRead } from "../services/notificationCenter";
 import { api } from "../services/api";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 
 export default function BidRequests() {
   const navigate = useNavigate();
@@ -118,6 +119,7 @@ export default function BidRequests() {
         onBack={() => navigate("/dashboard")}
         title={role === "admin" ? "Bid Requests" : "Get A Bid"}
         subtitle={role === "admin" ? "Review and manage property service requests" : "Request service pricing for a new property"}
+        actions={<ContextualHelpLink slug="request-and-manage-property-bids" />}
       />
 
       {role === "property_manager" && (

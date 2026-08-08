@@ -6,8 +6,8 @@ Use property setup, Service Delivery, and commercial Billing settings to control
 
 ## Add a property
 
-1. From the Dashboard navigation, select **Add Property**.
-2. Enter the organization administrative action passkey when prompted.
+1. From the Dashboard navigation, select **Add Properties**.
+2. Select **Single property**, then enter the organization administrative action passkey when prompted.
 3. Enter the property name and physical address, then use **Geocode Address** to confirm its coordinates.
 4. Optionally assign a property manager.
 5. Choose **Organization Default** for Service Delivery Method unless this property needs a deliberate fulfillment override.
@@ -54,6 +54,17 @@ Invoices save a snapshot of the property billing route. Correcting a property se
 
 Afterlight rejects an additional address that duplicates an automatic property-manager recipient, including a duplicate that differs only by letter case. Leaving the additional list empty removes optional recipients; assigned property managers continue receiving reports automatically.
 
+## Remove a property from the active workspace
+
+Use removal only after confirming that the organization no longer manages the property. Before removal, resolve scheduled work and open invoices, download any records the organization must retain, and notify affected users.
+
+1. Open **Admin tools > Remove Property**.
+2. Select the exact property.
+3. Enter the organization administrative action passkey.
+4. Select **Confirm Removal**.
+
+Removal has no in-app undo and removes the property from active Dashboard navigation. Related historical records may no longer be reachable through the normal property workflow. Contact Afterlight support before removal when the organization needs a transition or retention plan. Short-term rental property information uses its dedicated access-management workflow instead of this removal control.
+
 ## If something goes wrong
 
 - **An expected manager is not an automatic recipient:** Open **Users**, confirm the person is an active property manager, and assign the property to them.
@@ -61,5 +72,6 @@ Afterlight rejects an additional address that duplicates an automatic property-m
 - **The Scheduler says the suggested amount is not configured:** Enter and save a Suggested amount in commercial Billing settings.
 - **An AP email fails:** Verify the property's AP method and destination, save the correction, and retry from the invoice review workflow.
 - **A fulfillment option has no eligible user:** Confirm the user or Afterlight resource is active and eligible for that property and date.
+- **A removed property is needed again:** Stop creating replacement records with the same name and contact Afterlight support to review the retained data and safest recovery path.
 
 [Back to the knowledge base](README.md)

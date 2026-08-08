@@ -34,6 +34,8 @@ Each result shows the submission date and time, **Submitted by**, **Date assigne
 1. Find the submission using its date and assignment details.
 2. Select **View PDF**. The report opens in a new browser tab.
 
+For an organization enabled for AI cover summaries, the first-page **General Observations** panel may contain a concise AI-generated summary and an accuracy disclaimer. Use it as an overview only. The detailed checklist responses, issue descriptions, and photos later in the report remain the authoritative inspection record. If summarization is unavailable, the report continues without a generated summary.
+
 Afterlight displays 10 records per page. When more than 10 records match, use **Previous** and **Next** below the results. The page summary shows the visible record range, total matching records, and current page.
 
 The property’s new-activity notification is marked read when you open its submission history.

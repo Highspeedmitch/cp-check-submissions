@@ -54,6 +54,7 @@ Making MFA optional for non-administrators does not remove the administrator req
 - **The code was already used:** Wait for the next six-digit code. Do not repeatedly submit the same code.
 - **A recovery code does not work:** Confirm it has not already been used and enter it exactly as saved.
 - **Enrollment expired:** Return to sign-in and start the enrollment prompt again.
+- **Organization policy shows Unavailable:** The deployment has not enabled Afterlight authenticator support, so the password field and policy action remain unavailable. Contact Afterlight support; an organization administrator cannot correct deployment configuration from the Security page.
 - **Authenticator verification is unavailable in the environment:** Contact Afterlight support. Do not send passwords, setup keys, QR codes, or recovery codes by email.
 
 [Back to the knowledge base](README.md)

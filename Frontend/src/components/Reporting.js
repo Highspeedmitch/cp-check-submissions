@@ -5,6 +5,7 @@ import {
 } from "../services/reportingPresentation";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import PageHeader from "./ui/PageHeader";
 
 function formatMinuteOfDay(value) {
@@ -181,11 +182,10 @@ export default function Reporting() {
           eyebrow={`Working on behalf of ${orgName}`}
           title="Reporting"
           subtitle="Property conditions, inspection activity, and field operator performance."
-          actions={(
-            <span className="beta-status">
-              {role === "admin" ? "Admin View" : "PM View"}
-            </span>
-          )}
+          actions={<>
+            <span className="beta-status">{role === "admin" ? "Admin View" : "PM View"}</span>
+            <ContextualHelpLink slug="review-portfolio-reporting" />
+          </>}
         />
 
         <div className="beta-toolbar beta-report-filters">
