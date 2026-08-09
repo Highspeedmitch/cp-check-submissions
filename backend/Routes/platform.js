@@ -45,7 +45,16 @@ const {
   createInvitation,
   resendInvitation,
 } = require("../services/organizationInvitations");
-const { estimateBidPricing, estimateClusterPricing } = require("../services/bidPricing");
+const {
+  estimateBidPricing,
+  estimateClusterPricing,
+  estimateRouteAwarePricing,
+} = require("../services/bidPricing");
+const {
+  operationsBaseFromEnvironment,
+  resolveOrganizationTravelContext,
+} = require("../services/platformPricingContext");
+const { createMapboxPricingClient } = require("../services/mapboxPricing");
 
 const router = express.Router();
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -94,29 +103,109 @@ router.get("/organizations", authenticateToken, requirePlatformAdmin, async (req
   }
 });
 
-router.post("/pricing-estimate", authenticateToken, requirePlatformAdmin, (req, res) => {
-  try {
-    if (req.body.pricingMode === "cluster") {
-      return res.json(estimateClusterPricing({
-        properties: req.body.properties,
+function createPricingLocationSearchHandler({
+  pricingClientResolver = () => createMapboxPricingClient(),
+  homeBaseResolver = operationsBaseFromEnvironment,
+} = {}) {
+  return async (req, res) => {
+    try {
+      const results = await pricingClientResolver().searchAddresses(req.body?.query, {
+        proximity: homeBaseResolver(),
+      });
+      return res.json({ results });
+    } catch (error) {
+      return res.status(error.status || 503).json({
+        error: error.message || "Unable to search for the property address.",
+      });
+    }
+  };
+}
+
+router.post(
+  "/pricing-locations",
+  authenticateToken,
+  requirePlatformAdmin,
+  createPricingLocationSearchHandler()
+);
+
+function createPricingEstimateHandler({
+  OrganizationModel = Organization,
+  homeBaseResolver = operationsBaseFromEnvironment,
+  routingClientResolver = () => createMapboxPricingClient(),
+} = {}) {
+  return async (req, res) => {
+    try {
+      if (req.body.pricingMode === "cluster") {
+        return res.json(estimateClusterPricing({
+          properties: req.body.properties,
+          serviceFrequency: req.body.serviceFrequency,
+          hasKnownIssues: req.body.hasKnownIssues === true,
+          withinHalfMile: req.body.withinHalfMile === true,
+          sameScheduledVisit: req.body.sameScheduledVisit === true,
+        }));
+      }
+      if (req.body.pricingMode === "route_aware") {
+        if (!req.body.organizationId) {
+          return res.status(400).json({ error: "Select an organization for portfolio-aware pricing." });
+        }
+        let organizationQuery = OrganizationModel.findById(req.body.organizationId);
+        if (organizationQuery?.select) {
+          organizationQuery = organizationQuery.select(
+            "name serviceModel fulfillmentPolicy properties._id properties.name properties.lat properties.lng properties.fulfillmentPolicy"
+          );
+        }
+        if (organizationQuery?.lean) organizationQuery = organizationQuery.lean();
+        let organization;
+        try {
+          organization = await organizationQuery;
+        } catch (lookupError) {
+          if (lookupError?.name === "CastError") {
+            return res.status(400).json({ error: "Select a valid organization." });
+          }
+          return res.status(500).json({ error: "Unable to load the organization pricing context." });
+        }
+        if (!organization) return res.status(404).json({ error: "Organization not found." });
+        const travelContext = await resolveOrganizationTravelContext({
+          organization,
+          candidate: req.body.candidate,
+          routeCommitment: req.body.routeCommitment,
+          homeBase: homeBaseResolver(),
+          routingClient: routingClientResolver(),
+        });
+        return res.json({
+          ...estimateRouteAwarePricing({
+            grossSquareFeet: req.body.grossSquareFeet,
+            propertyType: req.body.propertyType,
+            serviceFrequency: req.body.serviceFrequency,
+            hasKnownIssues: req.body.hasKnownIssues === true,
+            travelContext,
+          }),
+          organization: {
+            organizationId: String(organization._id || req.body.organizationId),
+            name: organization.name,
+          },
+        });
+      }
+      return res.json(estimateBidPricing({
+        grossSquareFeet: req.body.grossSquareFeet,
+        propertyType: req.body.propertyType,
         serviceFrequency: req.body.serviceFrequency,
         hasKnownIssues: req.body.hasKnownIssues === true,
-        withinHalfMile: req.body.withinHalfMile === true,
-        sameScheduledVisit: req.body.sameScheduledVisit === true,
       }));
+    } catch (error) {
+      return res.status(error.status || 400).json({
+        error: error.message || "Unable to calculate the pricing estimate.",
+      });
     }
-    return res.json(estimateBidPricing({
-      grossSquareFeet: req.body.grossSquareFeet,
-      propertyType: req.body.propertyType,
-      serviceFrequency: req.body.serviceFrequency,
-      hasKnownIssues: req.body.hasKnownIssues === true,
-    }));
-  } catch (error) {
-    return res.status(400).json({
-      error: error.message || "Unable to calculate the pricing estimate.",
-    });
-  }
-});
+  };
+}
+
+router.post(
+  "/pricing-estimate",
+  authenticateToken,
+  requirePlatformAdmin,
+  createPricingEstimateHandler()
+);
 
 router.post("/organizations", authenticateToken, requirePlatformAdmin, async (req, res) => {
   try {
@@ -499,3 +588,5 @@ router.post("/exit", authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.createPricingLocationSearchHandler = createPricingLocationSearchHandler;
+module.exports.createPricingEstimateHandler = createPricingEstimateHandler;

@@ -2,9 +2,9 @@
 
 **Audience:** Afterlight platform administrators
 
-Use **Marketing tools > Pricing Estimator** to calculate preliminary customer-facing service pricing for a single property or an eligible property cluster during a prospect conversation. The estimator uses the same versioned single-property formula as internal bid estimates, but it does not create a bid request, upload an attachment, notify a customer, or save prospect information.
+Use **Marketing tools > Pricing Estimator** to calculate preliminary customer-facing service pricing for a single property, an eligible property cluster, or a portfolio-aware property during a prospect conversation. The estimator uses the same versioned single-property formula as internal bid estimates, but it does not create a bid request, upload an attachment, notify a customer, or save prospect information.
 
-This tool estimates client pricing. It does not calculate Afterlight labor cost, contractor compensation, travel, overhead, profitability, or an approved customer quote.
+This tool estimates client pricing. Portfolio-aware mode includes a bounded operational travel adjustment, but the estimator does not calculate contractor compensation, total overhead, profitability, or an approved customer quote.
 
 ## Calculate an estimate
 
@@ -19,7 +19,7 @@ This tool estimates client pricing. It does not calculate Afterlight labor cost,
 
 Afterlight displays estimated pricing per visit and, when supported, estimated monthly pricing. It also displays the size basis, property modifier, expected visits per month, and frequency modifier used by the active formula version.
 
-Formula version 2 uses a $75 minimum per-visit estimate for an individual property before frequency pricing is applied.
+Formula version 3 uses a $50 minimum per-visit estimate for an individually priced property. Cluster calculations continue to price the primary property at its standalone amount and each eligible additional property at 50%.
 
 Select **Copy summary** to place a plain-language internal summary on your clipboard. Review and revise the wording before moving it into customer-facing material.
 
@@ -38,15 +38,33 @@ The result compares the combined cluster price with the total price of estimatin
 
 Cluster pricing is currently a Platform Admin planning capability. Property managers can continue to submit individual bid requests, but they cannot apply the cluster discount without platform review.
 
+## Calculate a portfolio-aware property
+
+Portfolio-aware pricing separates the property-work estimate from geographic adjustments. It can add a distance surcharge for travel beyond the included local round trip, then apply bounded route and portfolio-density credits when an Afterlight-serviced property fits efficiently into the existing organization portfolio.
+
+1. Select **Portfolio-aware property**.
+2. Select the organization whose portfolio should be evaluated.
+3. Enter the proposed property address and select **Find address**.
+4. Confirm the correct Mapbox address result. The estimator will not calculate until a result is confirmed.
+5. Select **Modeled portfolio route**, **Confirmed same-day route**, or **Standalone trip only**.
+6. Enter the property size, type, service frequency, and known concerns.
+7. Select **Calculate estimate**.
+
+Only organization properties assigned to an Afterlight fulfillment source and containing valid coordinates are included. Customer-employee and customer-contractor properties do not create an Afterlight route or density credit. Density uses distance decay and diminishing returns, so nearby locations help more while additional locations cannot reduce the estimate without limit.
+
+The estimator uses Mapbox's stable driving profile for road distance and travel time. It builds a nearest-neighbor portfolio route and measures the least-expensive insertion point for the proposed property. A modeled route receives less confidence than a same-day route you explicitly confirm. Half of the confidence-weighted travel savings is passed through as a route credit. Total credits and distance surcharges are capped, and the final result cannot fall below the $50 standalone minimum.
+
+If live road routing is unavailable or cannot connect every location, the calculation falls back to the bounded coordinate model and requires manual review. The factor breakdown identifies either **Road matrix** or **Coordinate fallback** and shows travel miles and minutes, portfolio density, nearest eligible property, route detour, confidence, and credits. The private operations-base coordinates and Mapbox token are configured only on the backend and are not returned to the browser.
+
 ## Understand manual-review warnings
 
-The estimator marks a result for manual review when the request includes an ad-hoc schedule, known site concerns, or another input outside the automatically supported pricing range. A flagged result is still a preliminary baseline; it is not approval to present that amount as a quote.
+The estimator marks a result for manual review when the request includes an ad-hoc schedule, known site concerns, a road-routing fallback, an unusually long trip, or another input outside the automatically supported pricing range. A flagged result is still a preliminary baseline; it is not approval to present that amount as a quote.
 
 For ad-hoc service, the tool provides a per-visit estimate but intentionally does not calculate monthly pricing.
 
 ## Protect prospect information
 
-- Do not enter names, email addresses, property addresses, access instructions, or other personal information. The calculation does not require them.
+- Do not enter names, email addresses, access instructions, or other personal information. Single-property and cluster calculations do not require an address. Portfolio-aware address results remain stateless and are used only for the current calculation.
 - Estimates are stateless and are not added to the bid repository.
 - Use **Reset** before beginning another prospect calculation.
 - Create a formal bid request through the customer workflow when supporting property information, review status, and retained history are required.

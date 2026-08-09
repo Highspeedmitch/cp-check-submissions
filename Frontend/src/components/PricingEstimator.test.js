@@ -7,7 +7,8 @@ jest.mock("../services/api", () => ({
 }));
 
 const weeklyEstimate = {
-  version: 2,
+  version: 3,
+  pricingMode: "single",
   estimatedPerVisitCents: 25000,
   estimatedMonthlyCents: 90000,
   requiresManualReview: false,
@@ -22,7 +23,7 @@ const weeklyEstimate = {
 };
 
 const clusterEstimate = {
-  version: 2,
+  version: 3,
   pricingMode: "cluster",
   estimatedPerVisitCents: 15000,
   estimatedMonthlyCents: 15000,
@@ -50,6 +51,58 @@ const clusterEstimate = {
     normalizedSquareFeet: 1500,
     complexityModifier: 1,
   })),
+};
+
+const routeAwareEstimate = {
+  version: 3,
+  pricingMode: "route_aware",
+  estimatedPerVisitCents: 21500,
+  estimatedMonthlyCents: 21500,
+  basePerVisitCents: 22500,
+  travelSurchargeCents: 0,
+  routeCreditCents: 431,
+  portfolioCreditCents: 588,
+  combinedCreditCents: 1019,
+  requiresManualReview: false,
+  manualReviewReasons: [],
+  inputs: {
+    normalizedSquareFeet: 18000,
+    complexityModifier: 1,
+    visitsPerMonth: 1,
+    frequencyMultiplier: 1,
+    minimumPerVisitCents: 5000,
+    travelPolicy: {
+      includedRoundTripMiles: 10,
+      includedRoundTripMinutes: 30,
+      maximumTravelSurchargeRate: 0.35,
+      routeSavingsPassThroughRate: 0.5,
+      maximumCombinedCreditRate: 0.2,
+    },
+  },
+  geography: {
+    method: "road_matrix",
+    provider: "mapbox",
+    profile: "mapbox/driving",
+    candidate: {
+      id: "address.1",
+      name: "100 Example Road, Tucson, Arizona 85710, United States",
+      lat: 32.22,
+      lng: -110.88,
+    },
+    home: { roundTripMiles: 8.6, roundTripMinutes: 20.64 },
+    portfolio: {
+      propertyCount: 2,
+      densityScore: 0.4356,
+      nearestPropertyDistanceMiles: 0.91,
+    },
+    route: {
+      confidence: 0.6,
+      additionalMiles: 1.04,
+      additionalMinutes: 2.5,
+      insertionAfterPropertyName: "Broadway Center",
+      insertionBeforePropertyName: "Tucson operations base",
+    },
+  },
 };
 
 beforeEach(() => {
@@ -164,6 +217,132 @@ test("calculates an eligible three-property cluster with a standalone comparison
   expect(screen.getAllByText("$150")).toHaveLength(2);
   expect(screen.getByText("Additional properties at 50%")).toBeInTheDocument();
   expect(screen.getByText("Primary")).toBeInTheDocument();
+});
+
+test("calculates a portfolio-aware estimate with backend geographic context", async () => {
+  api.post.mockImplementation((url) => {
+    if (url === "/api/platform/pricing-locations") {
+      return Promise.resolve({
+        results: [{
+          locationId: "address.1",
+          label: "100 Example Road, Tucson, Arizona 85710, United States",
+          lat: 32.22,
+          lng: -110.88,
+          confidence: "high",
+          accuracy: "rooftop",
+        }],
+      });
+    }
+    return Promise.resolve(routeAwareEstimate);
+  });
+  render(<PricingEstimator organizations={[{
+    organizationId: "organization-1",
+    name: "Example Organization",
+  }]} />);
+
+  fireEvent.click(screen.getByRole("radio", { name: /Portfolio-aware property/ }));
+  fireEvent.change(screen.getByLabelText("Organization"), {
+    target: { value: "organization-1" },
+  });
+  fireEvent.change(screen.getByLabelText("Proposed property address"), {
+    target: { value: "100 Example Road, Tucson, AZ" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Find address" }));
+  expect(await screen.findByText("100 Example Road, Tucson, Arizona 85710, United States"))
+    .toBeInTheDocument();
+  fireEvent.click(screen.getByRole("radio", { name: /100 Example Road/ }));
+  expect(screen.getByText(/Confirmed location:/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Gross square footage"), {
+    target: { value: "18000" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate estimate" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenNthCalledWith(
+    2,
+    "/api/platform/pricing-estimate",
+    {
+      pricingMode: "route_aware",
+      organizationId: "organization-1",
+      candidate: {
+        id: "address.1",
+        name: "100 Example Road, Tucson, Arizona 85710, United States",
+        lat: 32.22,
+        lng: -110.88,
+      },
+      routeCommitment: "modeled",
+      grossSquareFeet: 18000,
+      propertyType: "free_standing",
+      serviceFrequency: "monthly",
+      hasKnownIssues: false,
+    }
+  ));
+  expect(await screen.findByRole("heading", { name: "Portfolio-aware planning estimate" })).toBeInTheDocument();
+  expect(screen.getAllByText("$215")).toHaveLength(2);
+  expect(screen.getByText("Road matrix")).toBeInTheDocument();
+  expect(screen.getByText("8.6 mi · 20.64 min")).toBeInTheDocument();
+  expect(screen.getByText("Broadway Center → Tucson operations base")).toBeInTheDocument();
+  expect(screen.queryByText("Manual pricing review required")).not.toBeInTheDocument();
+});
+
+test("portfolio-aware pricing requires a confirmed address result", async () => {
+  render(<PricingEstimator organizations={[{
+    organizationId: "organization-1",
+    name: "Example Organization",
+  }]} />);
+  fireEvent.click(screen.getByRole("radio", { name: /Portfolio-aware property/ }));
+  fireEvent.change(screen.getByLabelText("Organization"), {
+    target: { value: "organization-1" },
+  });
+  fireEvent.change(screen.getByLabelText("Proposed property address"), {
+    target: { value: "100 Example Road, Tucson, AZ" },
+  });
+  fireEvent.change(screen.getByLabelText("Gross square footage"), {
+    target: { value: "18000" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate estimate" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Find and confirm the proposed property address before calculating."
+  );
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+test("portfolio-aware pricing labels a live-routing fallback for review", async () => {
+  api.post.mockImplementation((url) => {
+    if (url === "/api/platform/pricing-locations") {
+      return Promise.resolve({ results: [{
+        locationId: "address.1",
+        label: "100 Example Road, Tucson, Arizona",
+        lat: 32.22,
+        lng: -110.88,
+        confidence: "high",
+      }] });
+    }
+    return Promise.resolve({
+      ...routeAwareEstimate,
+      requiresManualReview: true,
+      manualReviewReasons: ["routing_provider_fallback"],
+      geography: { ...routeAwareEstimate.geography, method: "modeled_coordinates" },
+    });
+  });
+  render(<PricingEstimator organizations={[{
+    organizationId: "organization-1",
+    name: "Example Organization",
+  }]} />);
+  fireEvent.click(screen.getByRole("radio", { name: /Portfolio-aware property/ }));
+  fireEvent.change(screen.getByLabelText("Organization"), {
+    target: { value: "organization-1" },
+  });
+  fireEvent.change(screen.getByLabelText("Proposed property address"), {
+    target: { value: "100 Example Road, Tucson, AZ" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Find address" }));
+  fireEvent.click(await screen.findByRole("radio", { name: /100 Example Road/ }));
+  fireEvent.change(screen.getByLabelText("Gross square footage"), {
+    target: { value: "18000" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate estimate" }));
+  expect(await screen.findByText("Coordinate fallback")).toBeInTheDocument();
+  expect(screen.getByText(/Live road routing was unavailable/)).toBeInTheDocument();
 });
 
 test("formats a copyable summary without persisting prospect information", () => {

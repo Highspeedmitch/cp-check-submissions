@@ -19,8 +19,18 @@ const BidRequestSchema = new mongoose.Schema({
   pricingEstimate: {
     type: {
       version: { type: Number, required: true },
+      pricingMode: {
+        type: String,
+        enum: ["single", "cluster", "route_aware"],
+        default: "single",
+      },
       estimatedPerVisitCents: { type: Number, required: true, min: 0 },
       estimatedMonthlyCents: { type: Number, default: null, min: 0 },
+      basePerVisitCents: { type: Number, default: null, min: 0 },
+      travelSurchargeCents: { type: Number, default: null, min: 0 },
+      routeCreditCents: { type: Number, default: null, min: 0 },
+      portfolioCreditCents: { type: Number, default: null, min: 0 },
+      combinedCreditCents: { type: Number, default: null, min: 0 },
       requiresManualReview: { type: Boolean, default: false },
       manualReviewReasons: [{ type: String }],
       inputs: {
@@ -29,7 +39,10 @@ const BidRequestSchema = new mongoose.Schema({
         visitsPerMonth: Number,
         frequencyMultiplier: Number,
         knownIssuesProvided: Boolean,
+        minimumPerVisitCents: Number,
+        travelPolicy: { type: mongoose.Schema.Types.Mixed, default: null },
       },
+      geography: { type: mongoose.Schema.Types.Mixed, default: null },
     },
     select: false,
   },

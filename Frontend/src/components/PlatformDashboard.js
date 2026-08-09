@@ -570,7 +570,7 @@ export default function PlatformDashboard() {
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}
 
-        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "pricing" ? <PricingEstimator /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "finance" ? <PlatformFinancialOverview /> : activeView === "resources" ? <PlatformResources /> : activeView === "service-models" ? <PlatformServiceModelChanges /> : !report ? (
+        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "pricing" ? <PricingEstimator organizations={report?.organizations || []} /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "finance" ? <PlatformFinancialOverview /> : activeView === "resources" ? <PlatformResources /> : activeView === "service-models" ? <PlatformServiceModelChanges /> : !report ? (
           <div className="beta-empty-state">Loading platform metrics...</div>
         ) : (
           <>

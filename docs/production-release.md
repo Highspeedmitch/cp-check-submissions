@@ -58,6 +58,14 @@ Production workflow capabilities also require:
 Keep the VAPID key pair stable after launch. Rotating it forces browsers and
 installed PWAs to subscribe again.
 
+Portfolio-aware pricing configuration:
+
+- set `AFTERLIGHT_PRICING_HOME_LAT` and `AFTERLIGHT_PRICING_HOME_LNG` on the API web service to the reviewed operations-base coordinates;
+- set `MAPBOX_ACCESS_TOKEN` on the API web service to a dedicated Mapbox token for server-side Geocoding v6 and Matrix API requests;
+- keep those values backend-only. Do not add the private base address or coordinates to frontend configuration or source control;
+- without both valid home coordinates, single-property and cluster pricing remain available while portfolio-aware estimates fail closed with a configuration warning;
+- when Mapbox is unavailable, portfolio-aware pricing falls back to the coordinate model and requires manual review.
+
 Optional identity controls:
 
 - set `TOTP_MFA_ENABLED=true` with a base64-encoded 32-byte

@@ -4,6 +4,7 @@ const {
   roundTo25,
   estimateBidPricing,
   estimateClusterPricing,
+  estimateRouteAwarePricing,
 } = require("../services/bidPricing");
 
 test("rounds estimates to the nearest twenty-five dollars", () => {
@@ -50,7 +51,8 @@ test("the final per-visit estimate never falls below the minimum", () => {
     propertyType: "individual_suite",
     serviceFrequency: "monthly",
   });
-  assert.equal(estimate.estimatedPerVisitCents, 7500);
+  assert.equal(estimate.estimatedPerVisitCents, 5000);
+  assert.equal(estimate.inputs.minimumPerVisitCents, 5000);
 });
 
 test("clusters retain the primary property and discount each additional property by half", () => {
@@ -64,7 +66,7 @@ test("clusters retain the primary property and discount each additional property
     withinHalfMile: true,
     sameScheduledVisit: true,
   });
-  assert.equal(estimate.version, 2);
+  assert.equal(estimate.version, 3);
   assert.equal(estimate.pricingMode, "cluster");
   assert.equal(estimate.standalonePerVisitCents, 22500);
   assert.equal(estimate.estimatedPerVisitCents, 15000);
@@ -153,4 +155,107 @@ test("rejects invalid pricing inputs", () => {
     propertyType: "free_standing",
     serviceFrequency: "monthly",
   }), /positive number/);
+});
+
+test("route-aware pricing adds only travel beyond the included local trip", () => {
+  const estimate = estimateRouteAwarePricing({
+    grossSquareFeet: 18000,
+    propertyType: "free_standing",
+    serviceFrequency: "monthly",
+    travelContext: {
+      method: "road_matrix",
+      home: { roundTripMiles: 20, roundTripMinutes: 60 },
+      portfolio: { densityScore: 0 },
+      route: { confidence: 0, additionalMiles: 20, additionalMinutes: 60 },
+    },
+  });
+  assert.equal(estimate.version, 3);
+  assert.equal(estimate.pricingMode, "route_aware");
+  assert.equal(estimate.basePerVisitCents, 22500);
+  assert.equal(estimate.travelSurchargeCents, 2200);
+  assert.equal(estimate.estimatedPerVisitCents, 24500);
+  assert.equal(estimate.requiresManualReview, false);
+});
+
+test("confirmed route fit and portfolio density reduce marginal travel cost", () => {
+  const estimate = estimateRouteAwarePricing({
+    grossSquareFeet: 18000,
+    propertyType: "free_standing",
+    serviceFrequency: "monthly",
+    travelContext: {
+      method: "road_matrix",
+      home: { roundTripMiles: 20, roundTripMinutes: 60 },
+      portfolio: { densityScore: 0.8, propertyCount: 4 },
+      route: { confidence: 1, additionalMiles: 1, additionalMinutes: 3 },
+    },
+  });
+  assert.equal(estimate.travelSurchargeCents, 2200);
+  assert.equal(estimate.routeCreditCents, 2090);
+  assert.equal(estimate.portfolioCreditCents, 1800);
+  assert.equal(estimate.combinedCreditCents, 3890);
+  assert.equal(estimate.estimatedPerVisitCents, 21000);
+});
+
+test("route and density credits remain bounded and cannot break the fifty-dollar floor", () => {
+  const estimate = estimateRouteAwarePricing({
+    grossSquareFeet: 1500,
+    propertyType: "individual_suite",
+    serviceFrequency: "monthly",
+    travelContext: {
+      method: "road_matrix",
+      home: { roundTripMiles: 1, roundTripMinutes: 3 },
+      portfolio: { densityScore: 1, propertyCount: 10 },
+      route: { confidence: 1, additionalMiles: 0, additionalMinutes: 0 },
+    },
+  });
+  assert.equal(estimate.basePerVisitCents, 5000);
+  assert.equal(estimate.combinedCreditCents, 0);
+  assert.equal(estimate.estimatedPerVisitCents, 5000);
+});
+
+test("modeled coordinate routing is transparent and requires manual review", () => {
+  const estimate = estimateRouteAwarePricing({
+    grossSquareFeet: 18000,
+    propertyType: "free_standing",
+    serviceFrequency: "weekly",
+    travelContext: {
+      method: "modeled_coordinates",
+      home: { roundTripMiles: 8, roundTripMinutes: 20 },
+      portfolio: { densityScore: 0.5, propertyCount: 2 },
+      route: { confidence: 0.6, additionalMiles: 1, additionalMinutes: 3 },
+    },
+  });
+  assert.equal(estimate.estimatedPerVisitCents, 21500);
+  assert.equal(estimate.estimatedMonthlyCents, 77500);
+  assert.deepEqual(estimate.manualReviewReasons, ["modeled_route_data"]);
+});
+
+test("provider fallback is distinguished from an intentionally modeled route", () => {
+  const estimate = estimateRouteAwarePricing({
+    grossSquareFeet: 18000,
+    propertyType: "free_standing",
+    serviceFrequency: "monthly",
+    travelContext: {
+      method: "modeled_coordinates",
+      providerFallback: { code: "PRICING_ROUTING_TIMEOUT" },
+      home: { roundTripMiles: 8, roundTripMinutes: 20 },
+      portfolio: { densityScore: 0 },
+      route: { confidence: 0, additionalMiles: 8, additionalMinutes: 20 },
+    },
+  });
+  assert.deepEqual(estimate.manualReviewReasons, ["routing_provider_fallback"]);
+});
+
+test("route-aware pricing rejects missing and malformed travel metrics", () => {
+  assert.throws(() => estimateRouteAwarePricing({
+    grossSquareFeet: 18000,
+    propertyType: "free_standing",
+    serviceFrequency: "monthly",
+  }), /travel context/);
+  assert.throws(() => estimateRouteAwarePricing({
+    grossSquareFeet: 18000,
+    propertyType: "free_standing",
+    serviceFrequency: "monthly",
+    travelContext: { home: { roundTripMiles: -1, roundTripMinutes: 20 } },
+  }), /non-negative/);
 });
