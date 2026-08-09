@@ -2229,25 +2229,48 @@ select:focus-visible {
 .beta-scheduler-calendar-panel .rbc-day-bg:hover,
 .beta-scheduler-calendar-panel .rbc-selected-cell { background: var(--beta-soft-blue); }
 .beta-scheduler-calendar-panel .rbc-off-range-bg { background: var(--beta-subtle); }
-.beta-scheduler-calendar-panel .rbc-date-cell { padding: 7px 8px 3px 0; color: var(--beta-ink); font-size: 12px; font-weight: 750; }
+.beta-scheduler-calendar-panel .rbc-date-cell {
+  min-width: 0;
+  overflow: hidden;
+  padding: 7px 8px 3px 0;
+  color: var(--beta-ink);
+  font-size: 12px;
+  font-weight: 750;
+}
 .beta-calendar-date-header {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  padding-left: 4px;
+  overflow: hidden;
 }
 .beta-scheduler-calendar-panel .beta-calendar-date-button {
-  flex: 0 0 auto;
+  flex: 0 0 25px;
+  width: 25px;
   min-width: 25px;
   min-height: 25px;
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  line-height: 1;
 }
+.beta-scheduler-calendar-panel .beta-calendar-date-button:hover { background: var(--beta-soft-blue); color: var(--beta-ink); }
 .beta-calendar-day-count {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  flex: 0 1 auto;
   width: auto;
+  max-width: calc(100% - 31px);
   min-width: 0;
   min-height: 24px;
   margin: 0;
@@ -2261,7 +2284,9 @@ select:focus-visible {
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
+  overflow: hidden;
 }
+.beta-calendar-day-count-label { overflow: hidden; text-overflow: ellipsis; }
 .beta-calendar-day-count:hover,
 .beta-calendar-day-count:focus-visible { border-color: var(--beta-blue); background: color-mix(in srgb, var(--beta-blue) 18%, var(--beta-surface)); }
 .beta-scheduler-calendar-panel .rbc-off-range { color: var(--beta-muted); opacity: .58; }
@@ -2309,10 +2334,14 @@ select:focus-visible {
 .beta-calendar-day-panel {
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   width: min(460px, 94vw);
-  height: 100%;
-  overflow: auto;
-  padding: 26px;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 26px 26px max(26px, env(safe-area-inset-bottom));
   background: var(--beta-surface);
   box-shadow: -18px 0 50px rgba(0, 0, 0, .24);
 }
@@ -2328,6 +2357,13 @@ select:focus-visible {
 .beta-calendar-day-panel-header p { margin: 0; color: var(--beta-muted); }
 .beta-calendar-day-panel-header .beta-dialog-close { display: grid; flex: 0 0 auto; }
 .beta-calendar-day-events { display: grid; gap: 9px; }
+.beta-calendar-day-panel > .beta-calendar-day-events {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
 .beta-calendar-day-event {
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr) auto;
@@ -2364,12 +2400,15 @@ select:focus-visible {
   text-align: center;
 }
 .beta-calendar-day-panel-actions {
+  flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
   margin-top: auto;
-  padding-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--beta-border);
+  background: var(--beta-surface);
 }
-.beta-calendar-day-panel-actions .beta-button { width: auto; margin: 0; }
+.beta-calendar-day-panel-actions .beta-button { width: 100%; margin: 0; }
 .beta-scheduler-editor-overlay {
   position: fixed;
   inset: 0;
@@ -2496,8 +2535,8 @@ select:focus-visible {
   .beta-scheduler-calendar-panel .rbc-row-content { min-width: 0; }
   .beta-scheduler-calendar-panel .rbc-header { min-height: 34px; overflow: hidden; padding: 9px 2px; font-size: 9px; text-overflow: ellipsis; }
   .beta-scheduler-calendar-panel .rbc-date-cell { overflow: hidden; padding-right: 4px; font-size: 11px; text-overflow: ellipsis; }
-  .beta-calendar-date-header { gap: 3px; }
-  .beta-scheduler-calendar-panel .beta-calendar-date-button { min-width: 20px; min-height: 20px; }
+  .beta-calendar-date-header { gap: 3px; padding-left: 2px; }
+  .beta-scheduler-calendar-panel .beta-calendar-date-button { flex-basis: 20px; width: 20px; min-width: 20px; min-height: 20px; }
   .beta-calendar-day-count { min-width: 20px; min-height: 20px; justify-content: center; padding: 2px 5px; font-size: 9px; }
   .beta-calendar-day-count-label { display: none; }
   .beta-scheduler-calendar-panel .rbc-event { min-width: 0; min-height: 20px; padding: 3px 4px; }
