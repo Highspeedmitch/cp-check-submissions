@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { DndProvider } from "react-dnd";
@@ -47,8 +47,61 @@ function AssignmentEvent({ event }) {
   );
 }
 
+function MonthDateHeader({ date, events, label, onOpenDay }) {
+  const assignmentCount = events.filter((event) => calendarEventOccursOnDay(event, date)).length;
+  const formattedDate = moment(date).format("dddd, MMMM D");
+
+  const openDay = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenDay(date);
+  };
+
+  return (
+    <div className="beta-calendar-date-header" onMouseDown={(event) => event.stopPropagation()}>
+      <button type="button" className="rbc-button-link beta-calendar-date-button"
+        aria-label={`View assignments for ${formattedDate}`} onClick={openDay}>
+        {label}
+      </button>
+      {assignmentCount > 0 && (
+        <button type="button" className="beta-calendar-day-count"
+          aria-label={`View ${assignmentCount} assignment${assignmentCount === 1 ? "" : "s"} on ${formattedDate}`}
+          onClick={openDay}>
+          <span>{assignmentCount}</span>
+          <span className="beta-calendar-day-count-label">
+            assignment{assignmentCount === 1 ? "" : "s"}
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DayAssignmentList({ events, onSelectEvent }) {
+  if (!events.length) {
+    return <p className="beta-calendar-day-empty">No assignments are scheduled for this day.</p>;
+  }
+
+  return (
+    <div className="beta-calendar-day-events">
+      {events.map((event) => (
+        <button type="button" className={`beta-calendar-day-event ${event.tone || "customer"}`}
+          key={event._id} onClick={() => onSelectEvent(event)}
+          aria-label={`Edit ${event.propertyName || event.title} assignment`}>
+          <i aria-hidden="true" />
+          <span>
+            <strong>{event.propertyName || event.title}</strong>
+            <small>{event.assigneeLabel || "Open assignment"}</small>
+          </span>
+          <b aria-hidden="true">›</b>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function SchedulerCalendar({
-  events,
+  events = [],
   onEventDrop,
   onSelectEvent,
   onSelectSlot,
@@ -58,7 +111,10 @@ export default function SchedulerCalendar({
   legend = [],
 }) {
   const [isCompact, setIsCompact] = useState(compactViewport);
+  const [calendarView, setCalendarView] = useState("month");
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const dayPanelCloseRef = useRef(null);
+  const selectedDay = selectedSlot?.start || null;
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
@@ -69,17 +125,72 @@ export default function SchedulerCalendar({
     return () => media.removeEventListener?.("change", update);
   }, []);
 
-  const selectedEvents = useMemo(() => selectedSlot
-    ? events.filter((event) => calendarEventOccursOnDay(event, selectedSlot.start))
-    : [], [events, selectedSlot]);
+  useEffect(() => {
+    if (!selectedDay || isCompact) return undefined;
+    dayPanelCloseRef.current?.focus();
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setSelectedSlot(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isCompact, selectedDay]);
+
+  const selectedEvents = useMemo(() => selectedDay
+    ? events.filter((event) => calendarEventOccursOnDay(event, selectedDay))
+    : [], [events, selectedDay]);
+
+  const openDay = useCallback((date) => {
+    const start = new Date(date);
+    setSelectedSlot({
+      start,
+      end: moment(start).add(1, "day").toDate(),
+      slots: [start],
+      action: "select",
+    });
+  }, []);
 
   const selectSlot = (slot) => {
+    const isSingleMonthDay = calendarView === "month"
+      && (slot.slots
+        ? slot.slots.length === 1
+        : moment(slot.end).startOf("day").diff(moment(slot.start).startOf("day"), "days") === 1);
+
     if (isCompact) {
       setSelectedSlot(slot);
       return;
     }
+    if (isSingleMonthDay) {
+      openDay(slot.start);
+      return;
+    }
     onSelectSlot(slot);
   };
+
+  const changeView = (nextView) => {
+    setCalendarView(nextView);
+    if (nextView !== "month") setSelectedSlot(null);
+  };
+
+  const createAssignmentForDay = () => {
+    const slot = selectedSlot;
+    setSelectedSlot(null);
+    onSelectSlot(slot);
+  };
+
+  const editAssignmentFromDay = (event) => {
+    setSelectedSlot(null);
+    onSelectEvent(event);
+  };
+
+  const monthDateHeader = useCallback((props) => (
+    <MonthDateHeader {...props} events={events} onOpenDay={openDay} />
+  ), [events, openDay]);
+
+  const calendarComponents = useMemo(() => ({
+    toolbar: CalendarToolbar,
+    event: AssignmentEvent,
+    month: { dateHeader: monthDateHeader },
+  }), [monthDateHeader]);
 
   const eventStyle = (event) => ({
     className: `beta-calendar-event ${event.tone || "customer"}`,
@@ -91,7 +202,7 @@ export default function SchedulerCalendar({
         <div>
           <span className="beta-eyebrow">Visual scheduling</span>
           <h2 id="visual-schedule-title">Assignment calendar</h2>
-          <p>Select a date or drag across a range to begin an assignment.</p>
+          <p>Select a date to review its assignments, or drag across a range to create one.</p>
         </div>
         <div className="beta-scheduler-calendar-actions">
           {showHistory && <button type="button" className="beta-button secondary" onClick={onHistory}>
@@ -112,39 +223,64 @@ export default function SchedulerCalendar({
           startAccessor="start"
           endAccessor="end"
           views={["month", "week", "agenda"]}
-          defaultView="month"
+          view={calendarView}
+          onView={changeView}
           selectable
           resizable={false}
-          popup
+          popup={false}
+          doShowMoreDrillDown={false}
           longPressThreshold={250}
           onEventDrop={onEventDrop}
           onSelectEvent={onSelectEvent}
           onSelectSlot={selectSlot}
+          onShowMore={(overflowEvents, date) => openDay(date)}
           eventPropGetter={eventStyle}
-          components={{ toolbar: CalendarToolbar, event: AssignmentEvent }}
+          components={calendarComponents}
         />
       </DndProvider>
 
-      {isCompact && selectedSlot && (
+      {isCompact && selectedDay && (
         <div className="beta-calendar-mobile-day" aria-live="polite">
           <div className="beta-calendar-mobile-day-heading">
             <div>
-              <strong>{moment(selectedSlot.start).format("dddd, MMMM D")}</strong>
+              <strong>{moment(selectedDay).format("dddd, MMMM D")}</strong>
               <span>{selectedEvents.length
                 ? `${selectedEvents.length} assignment${selectedEvents.length === 1 ? "" : "s"}`
                 : "No assignments scheduled"}</span>
             </div>
-            <button type="button" className="beta-button compact" onClick={() => onSelectSlot(selectedSlot)}>
+            <button type="button" className="beta-button compact" onClick={createAssignmentForDay}>
               + Create Assignment
             </button>
           </div>
-          {selectedEvents.map((event) => (
-            <button type="button" className="beta-calendar-mobile-event" key={event._id}
-              onClick={() => onSelectEvent(event)}>
-              <strong>{event.propertyName || event.title}</strong>
-              <span>{event.assigneeLabel || "Open assignment"}</span>
-            </button>
-          ))}
+          <DayAssignmentList events={selectedEvents} onSelectEvent={editAssignmentFromDay} />
+        </div>
+      )}
+
+      {!isCompact && selectedDay && (
+        <div className="beta-calendar-day-overlay"
+          onMouseDown={(event) => event.target === event.currentTarget && setSelectedSlot(null)}>
+          <section className="beta-calendar-day-panel" role="dialog" aria-modal="true"
+            aria-labelledby="calendar-day-panel-title">
+            <div className="beta-calendar-day-panel-header">
+              <div>
+                <span className="beta-eyebrow">Daily schedule</span>
+                <h2 id="calendar-day-panel-title">{moment(selectedDay).format("dddd, MMMM D")}</h2>
+                <p>{selectedEvents.length
+                  ? `${selectedEvents.length} assignment${selectedEvents.length === 1 ? "" : "s"} scheduled`
+                  : "No assignments scheduled"}</p>
+              </div>
+              <button ref={dayPanelCloseRef} type="button" className="beta-dialog-close"
+                aria-label="Close daily schedule" onClick={() => setSelectedSlot(null)}>×</button>
+            </div>
+
+            <DayAssignmentList events={selectedEvents} onSelectEvent={editAssignmentFromDay} />
+
+            <div className="beta-calendar-day-panel-actions">
+              <button type="button" className="beta-button" onClick={createAssignmentForDay}>
+                + Create Assignment
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </section>

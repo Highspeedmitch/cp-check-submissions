@@ -2230,6 +2230,40 @@ select:focus-visible {
 .beta-scheduler-calendar-panel .rbc-selected-cell { background: var(--beta-soft-blue); }
 .beta-scheduler-calendar-panel .rbc-off-range-bg { background: var(--beta-subtle); }
 .beta-scheduler-calendar-panel .rbc-date-cell { padding: 7px 8px 3px 0; color: var(--beta-ink); font-size: 12px; font-weight: 750; }
+.beta-calendar-date-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+.beta-scheduler-calendar-panel .beta-calendar-date-button {
+  flex: 0 0 auto;
+  min-width: 25px;
+  min-height: 25px;
+  border-radius: 999px;
+}
+.beta-calendar-day-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  min-width: 0;
+  min-height: 24px;
+  margin: 0;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--beta-blue) 40%, var(--beta-border));
+  border-radius: 999px;
+  background: var(--beta-soft-blue);
+  color: var(--beta-blue);
+  box-shadow: none;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.beta-calendar-day-count:hover,
+.beta-calendar-day-count:focus-visible { border-color: var(--beta-blue); background: color-mix(in srgb, var(--beta-blue) 18%, var(--beta-surface)); }
 .beta-scheduler-calendar-panel .rbc-off-range { color: var(--beta-muted); opacity: .58; }
 .beta-scheduler-calendar-panel .rbc-today { background: color-mix(in srgb, var(--beta-blue) 10%, var(--beta-surface)); }
 .beta-scheduler-calendar-panel .rbc-today .rbc-button-link {
@@ -2256,12 +2290,86 @@ select:focus-visible {
 .beta-calendar-event-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .beta-calendar-event-copy strong { font-size: 11px; }
 .beta-calendar-event-copy span { margin-top: 2px; opacity: .86; font-size: 9px; }
+.beta-scheduler-calendar-panel .rbc-month-view .rbc-event { min-height: 22px; padding-block: 3px; }
+.beta-scheduler-calendar-panel .rbc-month-view .beta-calendar-event-copy span { display: none; }
 .beta-scheduler-calendar-panel .rbc-show-more { margin-left: 4px; background: transparent; color: var(--beta-blue); font-size: 11px; font-weight: 800; }
 .beta-scheduler-calendar-panel .rbc-slot-selection { border-radius: 6px; background: color-mix(in srgb, var(--beta-blue) 76%, transparent); }
 .beta-scheduler-calendar-panel .rbc-agenda-view table { color: var(--beta-ink); }
 .beta-scheduler-calendar-panel .rbc-agenda-view table thead > tr > th,
 .beta-scheduler-calendar-panel .rbc-agenda-view table tbody > tr > td { padding: 10px 12px; border-color: var(--beta-border); }
 .beta-calendar-mobile-day { display: none; }
+.beta-calendar-day-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1250;
+  display: flex;
+  justify-content: flex-end;
+  background: var(--beta-overlay);
+}
+.beta-calendar-day-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 94vw);
+  height: 100%;
+  overflow: auto;
+  padding: 26px;
+  background: var(--beta-surface);
+  box-shadow: -18px 0 50px rgba(0, 0, 0, .24);
+}
+.beta-calendar-day-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.beta-calendar-day-panel-header > div { min-width: 0; }
+.beta-calendar-day-panel-header h2 { margin: 4px 0; font-size: 25px; }
+.beta-calendar-day-panel-header p { margin: 0; color: var(--beta-muted); }
+.beta-calendar-day-panel-header .beta-dialog-close { display: grid; flex: 0 0 auto; }
+.beta-calendar-day-events { display: grid; gap: 9px; }
+.beta-calendar-day-event {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 13px;
+  border: 1px solid var(--beta-border);
+  border-radius: 9px;
+  background: var(--beta-control);
+  color: var(--beta-ink);
+  box-shadow: none;
+  text-align: left;
+}
+.beta-calendar-day-event:hover { border-color: var(--beta-blue); background: var(--beta-soft-blue); box-shadow: none; }
+.beta-calendar-day-event i { width: 9px; height: 9px; border-radius: 999px; background: var(--beta-blue); }
+.beta-calendar-day-event.afterlight i { background: var(--beta-success); }
+.beta-calendar-day-event.legacy i { background: var(--beta-muted); }
+.beta-calendar-day-event.cleaning i { background: #8b5cf6; }
+.beta-calendar-day-event span { min-width: 0; }
+.beta-calendar-day-event strong,
+.beta-calendar-day-event small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.beta-calendar-day-event small { margin-top: 3px; color: var(--beta-muted); font-size: 12px; }
+.beta-calendar-day-event b { color: var(--beta-blue); font-size: 21px; line-height: 1; }
+.beta-calendar-day-empty {
+  margin: 0;
+  padding: 20px;
+  border: 1px dashed var(--beta-border);
+  border-radius: 9px;
+  background: var(--beta-subtle);
+  color: var(--beta-muted);
+  text-align: center;
+}
+.beta-calendar-day-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 24px;
+}
+.beta-calendar-day-panel-actions .beta-button { width: auto; margin: 0; }
 .beta-scheduler-editor-overlay {
   position: fixed;
   inset: 0;
@@ -2388,6 +2496,10 @@ select:focus-visible {
   .beta-scheduler-calendar-panel .rbc-row-content { min-width: 0; }
   .beta-scheduler-calendar-panel .rbc-header { min-height: 34px; overflow: hidden; padding: 9px 2px; font-size: 9px; text-overflow: ellipsis; }
   .beta-scheduler-calendar-panel .rbc-date-cell { overflow: hidden; padding-right: 4px; font-size: 11px; text-overflow: ellipsis; }
+  .beta-calendar-date-header { gap: 3px; }
+  .beta-scheduler-calendar-panel .beta-calendar-date-button { min-width: 20px; min-height: 20px; }
+  .beta-calendar-day-count { min-width: 20px; min-height: 20px; justify-content: center; padding: 2px 5px; font-size: 9px; }
+  .beta-calendar-day-count-label { display: none; }
   .beta-scheduler-calendar-panel .rbc-event { min-width: 0; min-height: 20px; padding: 3px 4px; }
   .beta-calendar-event-copy strong { font-size: 9px; }
   .beta-calendar-event-copy span { display: none; }
@@ -2406,22 +2518,7 @@ select:focus-visible {
   .beta-calendar-mobile-day-heading span { display: block; }
   .beta-calendar-mobile-day-heading span { margin-top: 3px; color: var(--beta-muted); font-size: 12px; }
   .beta-calendar-mobile-day-heading .beta-button { width: auto; min-width: 0; margin: 0; padding: 8px 10px; white-space: nowrap; }
-  .beta-calendar-mobile-event {
-    display: grid;
-    gap: 3px;
-    width: 100%;
-    min-height: 0;
-    margin: 0;
-    padding: 10px 11px;
-    border: 1px solid var(--beta-border);
-    border-left: 3px solid var(--beta-blue);
-    border-radius: 8px;
-    background: var(--beta-surface);
-    color: var(--beta-ink);
-    box-shadow: none;
-    text-align: left;
-  }
-  .beta-calendar-mobile-event span { overflow: hidden; color: var(--beta-muted); font-size: 12px; text-overflow: ellipsis; }
+  .beta-calendar-mobile-day .beta-calendar-day-event { padding: 10px 11px; background: var(--beta-surface); }
   .beta-scheduler-editor-overlay { align-items: flex-end; }
   .beta-scheduler-editor {
     width: 100%;

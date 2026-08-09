@@ -15,10 +15,11 @@ From the Dashboard navigation, open **Scheduler**. The page shows current assign
 Choose the way you prefer to begin:
 
 1. Select **+ New Assignment** to open a blank assignment editor.
-2. On a desktop or tablet with a wide screen, select a calendar date to prefill the start date, or drag across several dates to prefill a date range.
-3. On a compact mobile screen, select a date first. Scheduler displays that day's assignments; select **+ Create Assignment** to open the editor for that date.
+2. In **Month** view, select a date, its assignment count, or **+ more** to open that day's complete schedule. Select an assignment to edit it, or select **+ Create Assignment** to open the editor with that date prefilled.
+3. On a desktop or tablet with a wide screen, drag across several calendar dates to open the editor with that date range prefilled.
+4. On a compact mobile screen, the selected day's schedule appears below the calendar with the same edit and create actions.
 
-Use **Month**, **Week**, or **Agenda** to change the calendar view. **Today** returns to the current date.
+Every populated date in Month view displays its total assignment count even when the calendar only has room to preview some of the assignments. Use **Month**, **Week**, or **Agenda** to change the calendar view. **Today** returns to the current date.
 
 ## Create an assignment
 
@@ -46,7 +47,7 @@ SaaS organizations can create new assignments only for customer employees or cus
 
 ## Change or cancel an assignment
 
-1. Select the assignment on the calendar. The editor opens with its saved property, user, fulfillment, dates, and instructions.
+1. Select the assignment on the calendar or from the Month view's daily schedule. The editor opens with its saved property, user, fulfillment, dates, and instructions.
 2. Change the permitted fields and select **Update Assignment**. Afterlight notifies the affected assignee when work is rescheduled or reassigned.
 3. To remove it from future work, select **Cancel Assignment** and confirm. Cancellation retains an audit record and notifies the assignee.
 
