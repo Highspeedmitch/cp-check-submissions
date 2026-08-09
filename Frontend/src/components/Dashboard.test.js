@@ -27,6 +27,25 @@ const property = {
   emails: [],
 };
 
+const monthlyAssignmentCoverage = {
+  period: {
+    key: "2026-08",
+    label: "August 2026",
+    monthName: "August",
+    timezone: "America/Phoenix",
+  },
+  summary: {
+    scheduledPropertyCount: 1,
+    totalPropertyCount: 1,
+    statusCounts: { unscheduled: 0, scheduled: 1, completed: 0, missed: 0 },
+  },
+  properties: [{
+    propertyId: property._id,
+    propertyName: property.name,
+    status: "scheduled",
+  }],
+};
+
 function token() {
   return `header.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`;
 }
@@ -55,7 +74,9 @@ test("the Setup Guide deep link opens the property addition choices", async () =
 
 beforeEach(() => {
   localStorage.clear();
-  api.get.mockResolvedValue([]);
+  api.get.mockImplementation(async (path) => (
+    path === "/api/assignments/monthly-status" ? monthlyAssignmentCoverage : []
+  ));
   api.post.mockResolvedValue({ grant: "test-grant" });
   api.put.mockResolvedValue({ property: { ...property, emails: [] } });
   global.fetch = jest.fn(async (url) => {
@@ -80,6 +101,8 @@ test("admin dashboard renders one property card with admin management actions", 
   expect(screen.getByRole("button", { name: "Manage Emails" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Manage Details" })).toBeInTheDocument();
   expect(screen.getByText("Unassigned")).toHaveClass("declined");
+  expect(screen.getByText("Properties Scheduled for August: 1/1")).toBeInTheDocument();
+  expect(screen.getByLabelText("August 2026 schedule: Scheduled")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "External Connections" })).not.toBeInTheDocument();
   expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
 });
@@ -92,6 +115,8 @@ test("property manager retains managed-property actions without admin email cont
   expect(screen.getByRole("button", { name: "View Submissions" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Manage Details" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Manage Emails" })).not.toBeInTheDocument();
+  expect(screen.getByText("Properties Scheduled for August: 1/1")).toBeInTheDocument();
+  expect(screen.getByLabelText("August 2026 schedule: Scheduled")).toBeInTheDocument();
 });
 
 test("submitter retains a single inspection action", async () => {
@@ -103,6 +128,21 @@ test("submitter retains a single inspection action", async () => {
   expect(screen.getByRole("button", { name: "External Connections" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Connect My Calendar" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Manage Details" })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Current month scheduling coverage")).not.toBeInTheDocument();
+});
+
+test("management dashboards show an unavailable state instead of false unscheduled statuses", async () => {
+  const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+  api.get.mockImplementation(async (path) => {
+    if (path === "/api/assignments/monthly-status") throw new Error("Network unavailable");
+    return [];
+  });
+
+  renderDashboard("admin");
+
+  expect(await screen.findByText("Monthly scheduling coverage is temporarily unavailable.")).toBeInTheDocument();
+  expect(screen.queryByLabelText(/schedule:/i)).not.toBeInTheDocument();
+  consoleError.mockRestore();
 });
 
 test("admin can update property inspection recipients through the extracted dialog", async () => {

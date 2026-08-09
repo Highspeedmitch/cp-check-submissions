@@ -15,6 +15,10 @@ const {
   resolveAssignmentAssignee,
   deployedSchedulerResources,
 } = require("../services/resourceScheduling");
+const {
+  buildMonthlyAssignmentCoverage,
+  currentAssignmentMonth,
+} = require("../services/monthlyAssignmentCoverage");
 const authenticateToken = require("../middleware/authenticateToken");
 
 function assignmentDate(value, label) {
@@ -73,6 +77,7 @@ function createAssignmentHandlers({
   managedPropertiesForUser = managedProperties,
   resolveAssignee = resolveAssignmentAssignee,
   schedulerResources = deployedSchedulerResources,
+  currentTime = () => new Date(),
 } = {}) {
   const isManagement = (user) => ["admin", "property_manager"].includes(user.role);
 
@@ -242,6 +247,42 @@ function createAssignmentHandlers({
     } catch (error) {
       console.error("Error fetching assignments:", error);
       return res.status(500).json({ error: "Server error fetching assignments" });
+    }
+  }
+
+  async function monthlyAssignmentCoverage(req, res) {
+    try {
+      if (!isManagement(req.user)) {
+        return res.status(403).json({ error: "Management access required." });
+      }
+
+      const organization = await OrganizationModel.findById(req.user.organizationId);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
+
+      const properties = managedPropertiesForUser(organization, req.user) || [];
+      const period = currentAssignmentMonth(organization.reportingTimezone, currentTime());
+      const propertyNames = properties.map((property) => property.name);
+      let assignments = [];
+
+      if (propertyNames.length) {
+        let assignmentQuery = AssignmentModel.find({
+          organizationId: req.user.organizationId,
+          propertyName: { $in: propertyNames },
+          status: { $in: ["scheduled", "completed"] },
+          startDate: { $lt: period.end },
+          endDate: { $gte: period.start },
+        });
+        if (typeof assignmentQuery.select === "function") {
+          assignmentQuery = assignmentQuery.select("propertyName startDate endDate status completedAt");
+        }
+        if (typeof assignmentQuery.lean === "function") assignmentQuery = assignmentQuery.lean();
+        assignments = await assignmentQuery;
+      }
+
+      return res.json(buildMonthlyAssignmentCoverage({ properties, assignments, period }));
+    } catch (error) {
+      console.error("Error fetching monthly assignment coverage:", error);
+      return res.status(500).json({ error: "Unable to load monthly assignment coverage." });
     }
   }
 
@@ -596,6 +637,7 @@ function createAssignmentHandlers({
   return {
     createAssignment,
     listAssignments,
+    monthlyAssignmentCoverage,
     listAssignmentHistory,
     listSchedulerUsers,
     deleteAssignment,
@@ -611,6 +653,7 @@ function createAssignmentRouter(
   const handlers = createAssignmentHandlers(dependencies);
   router.post("/assignments", routeAuthentication, handlers.createAssignment);
   router.get("/assignments", routeAuthentication, handlers.listAssignments);
+  router.get("/assignments/monthly-status", routeAuthentication, handlers.monthlyAssignmentCoverage);
   router.get("/assignments/history", routeAuthentication, handlers.listAssignmentHistory);
   router.get("/users", routeAuthentication, handlers.listSchedulerUsers);
   router.delete(

@@ -59,7 +59,7 @@
     "orgTypes": ["COM", "STR", "LTR", "RES"],
     "file": "property-manager-review-submissions.md",
     "estimatedTime": "1-2 min",
-    "keywords": ["history", "inspection", "manager", "pdf", "property", "report", "submissions"]
+    "keywords": ["completed", "history", "inspection", "manager", "missed", "monthly schedule", "pdf", "property", "report", "scheduled", "submissions", "unscheduled"]
   },
   {
     "slug": "review-portfolio-reporting",

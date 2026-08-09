@@ -14,6 +14,19 @@ Use a property’s submission history to open completed inspection reports. Prop
 
 You can use **Search** and **Region** in the navigation to narrow a long property list.
 
+## Review monthly scheduling coverage
+
+The management Dashboard shows **Properties Scheduled for [Month]: X/Y** above the property cards. Organization administrators see coverage across every organization property. Property managers see coverage only across the properties assigned to them. Searching or filtering the visible cards does not change this portfolio total.
+
+Each property card displays its current-month scheduling state beneath the management badge:
+
+- **Unscheduled:** No non-canceled assignment covers the property during the current month.
+- **Scheduled:** At least one assignment remains due today or later.
+- **Completed:** The property's current-month assignments have all been completed.
+- **Missed:** At least one scheduled assignment has passed its inclusive end date without completion. Missed takes priority when a property has multiple assignments requiring attention.
+
+Completed and missed properties remain included in the top scheduled-property count because they received scheduled coverage during the month. Canceled assignments do not count. The status is recalculated from Scheduler activity when the Dashboard loads, while it remains open, and when you return to it. At the start of a new calendar month, Afterlight evaluates only assignments covering that new month; no manual reset is required.
+
 ## Filter the history
 
 ![Illustrated submission history showing a date-range filter and View PDF links](images/property-submissions.svg)
@@ -47,6 +60,8 @@ For trends across multiple submissions, return to the Dashboard and open **Repor
 - **No submissions are shown:** Increase the date range, clear one or more filters, and confirm that you opened the correct property.
 - **A recent inspection is missing:** Its report may still be processing. Wait a few minutes, then refresh the page.
 - **Assignment details say Not recorded:** The inspection may have been submitted directly or may predate assignment-history linking. The completed report remains valid.
+- **Monthly scheduling coverage is unavailable:** Refresh the Dashboard. Afterlight does not display an Unscheduled badge when it cannot verify Scheduler data.
+- **A property says Missed after work was performed:** Confirm that the inspection was submitted from the matching assignment. A completed report linked to that assignment updates the scheduling state automatically.
 - **View PDF does not open:** Allow pop-ups for Afterlight or open the link in a new tab.
 - **The property is missing from your Dashboard:** Ask an organization administrator to verify that you are assigned as a property manager for that property.
 

@@ -1,5 +1,5 @@
 // Dashboard.js
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { logoutSession } from "../services/session";
@@ -159,6 +159,46 @@ const handleRegionFilter = async () => {
 
   // ------------ Scheduler Flow -----------
   const [assignments, setAssignments] = useState([]);
+  const [monthlyAssignmentCoverage, setMonthlyAssignmentCoverage] = useState(null);
+  const [monthlyAssignmentCoverageError, setMonthlyAssignmentCoverageError] = useState("");
+
+  useEffect(() => {
+    if (!token || !isManagement) {
+      setMonthlyAssignmentCoverage(null);
+      setMonthlyAssignmentCoverageError("");
+      return undefined;
+    }
+
+    let active = true;
+    const loadMonthlyAssignmentCoverage = async () => {
+      try {
+        const result = await api.get("/api/assignments/monthly-status");
+        if (!active || !result?.summary || !Array.isArray(result?.properties)) return;
+        setMonthlyAssignmentCoverage(result);
+        setMonthlyAssignmentCoverageError("");
+      } catch (requestError) {
+        if (!active) return;
+        console.error("Error fetching monthly assignment coverage:", requestError);
+        setMonthlyAssignmentCoverageError("Monthly scheduling coverage is temporarily unavailable.");
+      }
+    };
+
+    loadMonthlyAssignmentCoverage();
+    const refreshInterval = window.setInterval(loadMonthlyAssignmentCoverage, 60_000);
+    window.addEventListener("focus", loadMonthlyAssignmentCoverage);
+    return () => {
+      active = false;
+      window.clearInterval(refreshInterval);
+      window.removeEventListener("focus", loadMonthlyAssignmentCoverage);
+    };
+  }, [isManagement, token]);
+
+  const monthlyAssignmentStatusByProperty = useMemo(() => Object.fromEntries(
+    (monthlyAssignmentCoverage?.properties || []).map((property) => [
+      property.propertyName,
+      property,
+    ])
+  ), [monthlyAssignmentCoverage]);
 
   // ------------- STR user modal -------------
   const [showModal, setShowModal] = useState(false);
@@ -577,6 +617,24 @@ useEffect(() => {
           )}
         />
 
+        {isManagement && monthlyAssignmentCoverage?.summary && (
+          <section className="beta-monthly-assignment-summary"
+            aria-label="Current month scheduling coverage">
+            <div>
+              <span className="beta-eyebrow">Current month schedule</span>
+              <strong>
+                Properties Scheduled for {monthlyAssignmentCoverage.period?.monthName
+                  || monthlyAssignmentCoverage.period?.label}: {monthlyAssignmentCoverage.summary.scheduledPropertyCount}/{monthlyAssignmentCoverage.summary.totalPropertyCount}
+              </strong>
+            </div>
+            <span>Updates automatically as assignments are scheduled, completed, or missed.</span>
+          </section>
+        )}
+
+        {isManagement && monthlyAssignmentCoverageError && !monthlyAssignmentCoverage && (
+          <p className="beta-alert notice" role="status">{monthlyAssignmentCoverageError}</p>
+        )}
+
         {!isManagement && (
           <AssignmentSection
             assignments={assignments}
@@ -601,6 +659,8 @@ useEffect(() => {
               orgType={adminOrgType}
               notificationBadges={notificationBadges}
               profitStatuses={profitStatuses}
+              monthlyAssignmentStatuses={monthlyAssignmentStatusByProperty}
+              monthlyAssignmentMonth={monthlyAssignmentCoverage?.period?.label || "Current month"}
               onOpenProperty={openProperty}
               onManageEmails={openPropertyEmailModal}
               onManageDetails={(property) =>
