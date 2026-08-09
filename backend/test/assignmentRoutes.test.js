@@ -341,7 +341,12 @@ test("Afterlight contractor assignments retain deployment and immutable compensa
         return {
           serviceModel: "managed",
           fulfillmentPolicy: { defaultSource: "afterlight_contractor", version: 2 },
-          properties: [{ _id: "property-1", name: "Broadway Center", fulfillmentPolicy: { defaultSource: null } }],
+          properties: [{
+            _id: "property-1",
+            name: "Broadway Center",
+            defaultInspectionAmountCents: 18500,
+            fulfillmentPolicy: { defaultSource: null },
+          }],
         };
       },
     },
@@ -368,6 +373,9 @@ test("Afterlight contractor assignments retain deployment and immutable compensa
   assert.equal(res.statusCode, 200);
   assert.equal(savedAssignment.resourceProfileId, "resource-1");
   assert.equal(savedAssignment.resourceDeploymentId, "deployment-1");
+  assert.equal(savedAssignment.customerChargeSnapshot.amountCents, 18500);
+  assert.equal(savedAssignment.customerChargeSnapshot.billingOwner, "afterlight_platform");
+  assert.equal(res.body.assignment.customerChargeSnapshot, undefined);
   assert.equal(savedAssignment.compensationSnapshot, snapshot);
   assert.equal(res.body.assignment.compensationSnapshot, undefined);
   assert.equal(notification.route, "/resource");

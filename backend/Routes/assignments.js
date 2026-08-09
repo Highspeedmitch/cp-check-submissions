@@ -19,6 +19,7 @@ const {
   buildMonthlyAssignmentCoverage,
   currentAssignmentMonth,
 } = require("../services/monthlyAssignmentCoverage");
+const { customerChargeSnapshotForAssignment } = require("../services/serviceBilling");
 const authenticateToken = require("../middleware/authenticateToken");
 
 function assignmentDate(value, label) {
@@ -55,6 +56,7 @@ function tenantAssignmentResult(assignment) {
     value.userId = populatedAssignee._id;
   }
   delete value.compensationSnapshot;
+  delete value.customerChargeSnapshot;
   return value;
 }
 
@@ -159,6 +161,7 @@ function createAssignmentHandlers({
         resourceProfileId: assignee.resourceProfileId,
         resourceDeploymentId: assignee.resourceDeploymentId,
         compensationSnapshot: assignee.compensationSnapshot,
+        customerChargeSnapshot: customerChargeSnapshotForAssignment({ fulfillment, property }),
         assignedBy: req.user.userId,
       });
       await assignment.save();
@@ -523,6 +526,7 @@ function createAssignmentHandlers({
           changes.resourceProfileId = existing.resourceProfileId;
           changes.resourceDeploymentId = existing.resourceDeploymentId;
           changes.compensationSnapshot = existing.compensationSnapshot;
+          changes.customerChargeSnapshot = existing.customerChargeSnapshot;
         } else {
           if (existingAfterlightAssignment
             && !serviceModelAllowsAfterlightResources(organization)
@@ -551,6 +555,12 @@ function createAssignmentHandlers({
           changes.compensationSnapshot = retainsAgreedRate
             ? existing.compensationSnapshot
             : assignee.compensationSnapshot;
+          const retainsCustomerRate = sameProperty
+            && existing.customerChargeSnapshot?.snapshottedAt
+            && !hasFulfillmentOverride;
+          changes.customerChargeSnapshot = retainsCustomerRate
+            ? existing.customerChargeSnapshot
+            : customerChargeSnapshotForAssignment({ fulfillment, property });
         }
         if (hasFulfillmentOverride) {
           await FulfillmentAuditModel.create({

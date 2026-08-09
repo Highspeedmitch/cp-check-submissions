@@ -35,6 +35,7 @@ jest.mock("./ProspectAssessments", () => () => <div>Prospects view</div>);
 jest.mock("./PricingEstimator", () => () => <div>Pricing estimator view</div>);
 jest.mock("./PlatformResources", () => () => <div>Resources view</div>);
 jest.mock("./PlatformServiceBilling", () => () => <div>Billing view</div>);
+jest.mock("./PlatformFinancialOverview", () => () => <div>Financial overview view</div>);
 jest.mock("./PlatformServiceModelChanges", () => () => <div>Service models view</div>);
 jest.mock("./ui/ThemeToggle", () => () => <button type="button">Theme</button>);
 
@@ -185,6 +186,16 @@ test("marketing tools navigation opens the pricing estimator", async () => {
 
   expect(await screen.findByText("Pricing estimator view")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Pricing Estimator" })).toBeInTheDocument();
+});
+
+test("platform navigation opens the private financial overview", async () => {
+  renderDashboard();
+  await screen.findByRole("heading", { name: "Organizations" });
+
+  fireEvent.click(screen.getByRole("button", { name: "Financial Overview" }));
+
+  expect(await screen.findByText("Financial overview view")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Financial Overview" })).toBeInTheDocument();
 });
 
 test("platform administrators can configure secure email approval per organization", async () => {
