@@ -2359,10 +2359,16 @@ select:focus-visible {
 .beta-calendar-day-events { display: grid; gap: 9px; }
 .beta-calendar-day-panel > .beta-calendar-day-events {
   flex: 1 1 auto;
+  align-content: start;
+  grid-auto-rows: max-content;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 2px;
+}
+.beta-calendar-day-panel .beta-calendar-day-event {
+  height: 66px;
+  min-height: 66px;
 }
 .beta-calendar-day-event {
   display: grid;
