@@ -80,17 +80,20 @@ test("platform pricing estimation reuses the bid pricing contract without persis
   const res = response();
   pricingRoute().stack[2].handle({
     body: {
-      grossSquareFeet: 18000,
+      grossSquareFeet: 40000,
       propertyType: "strip_mall",
-      serviceFrequency: "weekly",
+      serviceFrequency: "monthly",
       hasKnownIssues: false,
+      includeManagedServiceFee: true,
     },
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.version, 3);
-  assert.equal(res.body.estimatedPerVisitCents, 25000);
-  assert.equal(res.body.estimatedMonthlyCents, 90000);
+  assert.equal(res.body.version, 4);
+  assert.equal(res.body.estimatedPerVisitCents, 20000);
+  assert.equal(res.body.estimatedMonthlyCents, 20000);
+  assert.equal(res.body.managedService.baseMonthlyFeeCents, 50000);
+  assert.equal(res.body.managedService.estimatedContractMonthlyCents, 70000);
   assert.equal(res.body.requiresManualReview, false);
 });
 
@@ -112,8 +115,8 @@ test("platform pricing estimation calculates eligible property clusters", () => 
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.pricingMode, "cluster");
-  assert.equal(res.body.standalonePerVisitCents, 22500);
-  assert.equal(res.body.estimatedPerVisitCents, 15000);
+  assert.equal(res.body.standalonePerVisitCents, 15000);
+  assert.equal(res.body.estimatedPerVisitCents, 10000);
 });
 
 test("platform pricing estimation returns safe validation errors", () => {
@@ -190,7 +193,7 @@ test("platform pricing estimation derives road-matrix portfolio context on the b
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.version, 3);
+  assert.equal(res.body.version, 4);
   assert.equal(res.body.pricingMode, "route_aware");
   assert.equal(res.body.organization.name, "Example Organization");
   assert.equal(res.body.geography.portfolio.propertyCount, 1);

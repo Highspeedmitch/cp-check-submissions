@@ -15,11 +15,14 @@ This tool estimates client pricing. Portfolio-aware mode includes a bounded oper
 5. Select **Free standing**, **Strip mall**, or **Individual suite**.
 6. Select **Monthly**, **Weekly**, or **Ad-hoc** service.
 7. Select **Known site concerns are expected** when the prospect has identified issues that may affect scope.
-8. Select **Calculate estimate**.
+8. Select **Include the organization-level $500 managed-service base in this quote** only when preparing a new or repriced managed-service agreement. Leave it off when adding a property to an organization that already pays the base.
+9. Select **Calculate estimate**.
 
-Afterlight displays estimated pricing per visit and, when supported, estimated monthly pricing. It also displays the size basis, property modifier, expected visits per month, and frequency modifier used by the active formula version.
+Afterlight displays estimated pricing per visit and, when supported, the monthly visit-service subtotal. When the managed-service base is included, it also displays the $500 organization-level base and the combined monthly contract total. The base is applied once per organization, never once per property.
 
-Formula version 3 uses a $50 minimum per-visit estimate for an individually priced property. Cluster calculations continue to price the primary property at its standalone amount and each eligible additional property at 50%.
+Formula version 4 replaces the earlier square-root size formula with a diminishing-marginal-cost retail-center curve calibrated to these per-visit benchmarks: $50 at 1,500 square feet, $125 at 18,000 square feet, $200 at 40,000 square feet, and $250 at 78,000 square feet. Values between the benchmarks are linearly interpolated; larger properties continue at the final marginal rate and still trigger manual review above 250,000 square feet. These anchors represent strip-mall or retail-center work. Free-standing properties and individual suites retain lower relative complexity modifiers.
+
+The $50 minimum remains the floor for an individually priced, non-cluster property. Cluster calculations continue to price the primary property at its standalone amount and each eligible additional property at 50%.
 
 Select **Copy summary** to place a plain-language internal summary on your clipboard. Review and revise the wording before moving it into customer-facing material.
 
@@ -32,7 +35,8 @@ Cluster pricing shares visit overhead across distinct nearby properties. The hig
 3. Select the shared service frequency.
 4. Confirm that every property is within 0.5 mile of the primary property.
 5. Confirm that every property will be serviced during the same scheduled visit.
-6. Select **Calculate estimate**.
+6. Choose whether this quote should include the organization-level managed-service base.
+7. Select **Calculate estimate**.
 
 The result compares the combined cluster price with the total price of estimating every property independently. Distance alone does not qualify properties for cluster pricing. Properties with different service schedules or separate visits must be estimated independently.
 
@@ -48,7 +52,8 @@ Portfolio-aware pricing separates the property-work estimate from geographic adj
 4. Confirm the correct Mapbox address result. The estimator will not calculate until a result is confirmed.
 5. Select **Modeled portfolio route**, **Confirmed same-day route**, or **Standalone trip only**.
 6. Enter the property size, type, service frequency, and known concerns.
-7. Select **Calculate estimate**.
+7. Choose whether this quote should include the organization-level managed-service base.
+8. Select **Calculate estimate**.
 
 Only organization properties assigned to an Afterlight fulfillment source and containing valid coordinates are included. Customer-employee and customer-contractor properties do not create an Afterlight route or density credit. Density uses distance decay and diminishing returns, so nearby locations help more while additional locations cannot reduce the estimate without limit.
 

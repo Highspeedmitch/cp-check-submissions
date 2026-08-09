@@ -23,6 +23,7 @@ function emptyForm(pricingMode = "single") {
     routeCommitment: "modeled",
     serviceFrequency: "monthly",
     hasKnownIssues: false,
+    includeManagedServiceFee: false,
     withinHalfMile: false,
     sameScheduledVisit: false,
     properties: pricingMode === "cluster"
@@ -64,7 +65,17 @@ function formatMultiplier(value) {
 function monthlySummary(estimate) {
   return estimate.estimatedMonthlyCents == null
     ? "Monthly pricing requires manual review"
-    : `${formatCurrency(estimate.estimatedMonthlyCents)} estimated monthly`;
+    : `${formatCurrency(estimate.estimatedMonthlyCents)} estimated monthly for visit service`;
+}
+
+function managedServiceSummary(estimate) {
+  if (!estimate.managedService) return null;
+  if (!estimate.managedService.includedInContractTotal) {
+    return `${formatCurrency(estimate.managedService.baseMonthlyFeeCents)} organization-level managed-service base not included.`;
+  }
+  return estimate.managedService.estimatedContractMonthlyCents == null
+    ? `${formatCurrency(estimate.managedService.baseMonthlyFeeCents)} organization-level managed-service base included; contract monthly total requires manual review.`
+    : `${formatCurrency(estimate.managedService.baseMonthlyFeeCents)} organization-level managed-service base included; ${formatCurrency(estimate.managedService.estimatedContractMonthlyCents)} estimated contract total per month.`;
 }
 
 export function estimateSummaryText(form, estimate) {
@@ -73,20 +84,22 @@ export function estimateSummaryText(form, estimate) {
       `Afterlight cluster planning estimate: ${estimate.inputs.propertyCount} properties, ${form.serviceFrequency.replaceAll("_", "-")} service.`,
       `${formatCurrency(estimate.estimatedPerVisitCents)} combined per visit; ${monthlySummary(estimate)}.`,
       `${formatCurrency(estimate.clusterDiscountPerVisitCents)} per-visit savings against ${formatCurrency(estimate.standalonePerVisitCents)} standalone.`,
+      managedServiceSummary(estimate),
       estimate.requiresManualReview
         ? "Manual pricing review required before presenting a quote."
         : "No automatic manual-review flags were identified.",
-    ].join(" ");
+    ].filter(Boolean).join(" ");
   }
   if (estimate.pricingMode === "route_aware") {
     return [
       `Afterlight portfolio-aware planning estimate for ${form.proposedAddress || "the proposed property"}.`,
       `${formatCurrency(estimate.estimatedPerVisitCents)} estimated per visit; ${monthlySummary(estimate)}.`,
       `${formatCurrency(estimate.travelSurchargeCents)} travel adjustment and ${formatCurrency(estimate.combinedCreditCents)} portfolio/route credit.`,
+      managedServiceSummary(estimate),
       estimate.requiresManualReview
         ? "Manual pricing review required before presenting a quote."
         : "No automatic manual-review flags were identified.",
-    ].join(" ");
+    ].filter(Boolean).join(" ");
   }
   const property = form.properties?.[0] || form;
   const propertyType = property.propertyType.replaceAll("_", " ");
@@ -94,10 +107,11 @@ export function estimateSummaryText(form, estimate) {
   return [
     `Afterlight planning estimate: ${Number(property.grossSquareFeet).toLocaleString()} sq ft ${propertyType}, ${frequency} service.`,
     `${formatCurrency(estimate.estimatedPerVisitCents)} estimated per visit; ${monthlySummary(estimate)}.`,
+    managedServiceSummary(estimate),
     estimate.requiresManualReview
       ? "Manual pricing review required before presenting a quote."
       : "No automatic manual-review flags were identified.",
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 }
 
 export default function PricingEstimator({ organizations = [] }) {
@@ -244,6 +258,7 @@ export default function PricingEstimator({ organizations = [] }) {
         hasKnownIssues: form.hasKnownIssues,
         withinHalfMile: form.withinHalfMile,
         sameScheduledVisit: form.sameScheduledVisit,
+        includeManagedServiceFee: form.includeManagedServiceFee,
       }
       : routeAwareMode ? {
         pricingMode: "route_aware",
@@ -259,11 +274,13 @@ export default function PricingEstimator({ organizations = [] }) {
         propertyType: properties[0].propertyType,
         serviceFrequency: form.serviceFrequency,
         hasKnownIssues: form.hasKnownIssues,
+        includeManagedServiceFee: form.includeManagedServiceFee,
       } : {
         grossSquareFeet: properties[0].grossSquareFeet,
         propertyType: properties[0].propertyType,
         serviceFrequency: form.serviceFrequency,
         hasKnownIssues: form.hasKnownIssues,
+        includeManagedServiceFee: form.includeManagedServiceFee,
       };
     try {
       setEstimate(await api.post("/api/platform/pricing-estimate", payload));
@@ -455,6 +472,17 @@ export default function PricingEstimator({ organizations = [] }) {
           </label>
         </div>
 
+        <fieldset className="platform-pricing-eligibility">
+          <legend>Managed-service agreement</legend>
+          <p>The base applies once per organization, not once per property.</p>
+          <label className="beta-template-checkbox">
+            <input type="checkbox" checked={form.includeManagedServiceFee}
+              onChange={(event) => update("includeManagedServiceFee", event.target.checked)} />
+            Include the organization-level $500 managed-service base in this quote
+          </label>
+          <p>Leave this off when pricing an added property for an organization that already pays the monthly base.</p>
+        </fieldset>
+
         {clusterMode && (
           <fieldset className="platform-pricing-eligibility">
             <legend>Cluster eligibility</legend>
@@ -507,11 +535,25 @@ export default function PricingEstimator({ organizations = [] }) {
               <strong>{formatCurrency(estimate.estimatedPerVisitCents)}</strong>
             </article>
             <article>
-              <span>{estimate.pricingMode === "cluster" ? "Combined monthly" : "Estimated monthly"}</span>
+              <span>{estimate.pricingMode === "cluster" ? "Combined visit-service monthly" : "Visit-service monthly"}</span>
               <strong>{estimate.estimatedMonthlyCents == null
                 ? "Manual review"
                 : formatCurrency(estimate.estimatedMonthlyCents)}</strong>
             </article>
+            {estimate.managedService?.includedInContractTotal && (
+              <>
+                <article>
+                  <span>Managed-service base</span>
+                  <strong>{formatCurrency(estimate.managedService.baseMonthlyFeeCents)}</strong>
+                </article>
+                <article>
+                  <span>Contract monthly total</span>
+                  <strong>{estimate.managedService.estimatedContractMonthlyCents == null
+                    ? "Manual review"
+                    : formatCurrency(estimate.managedService.estimatedContractMonthlyCents)}</strong>
+                </article>
+              </>
+            )}
             {estimate.pricingMode === "cluster" && (
               <>
                 <article>
@@ -617,6 +659,7 @@ export default function PricingEstimator({ organizations = [] }) {
             ) : estimate.pricingMode === "route_aware" ? (
               <dl>
                 <div><dt>Standalone minimum</dt><dd>{formatCurrency(estimate.inputs.minimumPerVisitCents)}</dd></div>
+                <div><dt>Retail-center size benchmark</dt><dd>{formatCurrency(estimate.inputs.sizeBenchmarkPerVisitCents)}</dd></div>
                 <div><dt>Included round trip</dt><dd>{estimate.inputs.travelPolicy.includedRoundTripMiles} mi / {estimate.inputs.travelPolicy.includedRoundTripMinutes} min</dd></div>
                 <div><dt>Route savings passed through</dt><dd>{Math.round(estimate.inputs.travelPolicy.routeSavingsPassThroughRate * 100)}%</dd></div>
                 <div><dt>Maximum travel surcharge</dt><dd>{Math.round(estimate.inputs.travelPolicy.maximumTravelSurchargeRate * 100)}%</dd></div>
@@ -626,10 +669,17 @@ export default function PricingEstimator({ organizations = [] }) {
             ) : (
               <dl>
                 <div><dt>Pricing size basis</dt><dd>{Number(estimate.inputs.normalizedSquareFeet).toLocaleString()} sq ft</dd></div>
+                <div><dt>Retail-center size benchmark</dt><dd>{formatCurrency(estimate.inputs.sizeBenchmarkPerVisitCents)}</dd></div>
                 <div><dt>Property modifier</dt><dd>{formatMultiplier(estimate.inputs.complexityModifier)}</dd></div>
                 <div><dt>Visits per month</dt><dd>{estimate.inputs.visitsPerMonth}</dd></div>
                 <div><dt>Frequency modifier</dt><dd>{formatMultiplier(estimate.inputs.frequencyMultiplier)}</dd></div>
               </dl>
+            )}
+            {estimate.managedService && (
+              <p>
+                Managed-service base: {formatCurrency(estimate.managedService.baseMonthlyFeeCents)} per organization per month
+                {estimate.managedService.includedInContractTotal ? " (included once in the contract total)." : " (not included in this estimate)."}
+              </p>
             )}
           </div>
         </section>

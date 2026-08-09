@@ -18,9 +18,26 @@ test("estimates a monthly free-standing property", () => {
     propertyType: "free_standing",
     serviceFrequency: "monthly",
   });
-  assert.equal(estimate.estimatedPerVisitCents, 22500);
-  assert.equal(estimate.estimatedMonthlyCents, 22500);
+  assert.equal(estimate.estimatedPerVisitCents, 10000);
+  assert.equal(estimate.estimatedMonthlyCents, 10000);
   assert.equal(estimate.requiresManualReview, false);
+});
+
+test("matches the supplied retail-center size benchmarks", () => {
+  [
+    [18000, 12500],
+    [40000, 20000],
+    [78000, 25000],
+  ].forEach(([grossSquareFeet, expectedCents]) => {
+    const estimate = estimateBidPricing({
+      grossSquareFeet,
+      propertyType: "strip_mall",
+      serviceFrequency: "monthly",
+    });
+    assert.equal(estimate.estimatedPerVisitCents, expectedCents);
+    assert.equal(estimate.inputs.sizeBenchmarkPerVisitCents, expectedCents);
+    assert.equal(estimate.inputs.benchmarkPropertyType, "strip_mall");
+  });
 });
 
 test("applies property complexity and weekly frequency", () => {
@@ -29,9 +46,9 @@ test("applies property complexity and weekly frequency", () => {
     propertyType: "strip_mall",
     serviceFrequency: "weekly",
   });
-  assert.equal(estimate.estimatedPerVisitCents, 25000);
-  assert.equal(estimate.estimatedMonthlyCents, 90000);
-  assert.equal(estimate.inputs.complexityModifier, 1.15);
+  assert.equal(estimate.estimatedPerVisitCents, 12500);
+  assert.equal(estimate.estimatedMonthlyCents, 45000);
+  assert.equal(estimate.inputs.complexityModifier, 1);
 });
 
 test("ad-hoc work has no monthly estimate and requires review", () => {
@@ -65,13 +82,19 @@ test("clusters retain the primary property and discount each additional property
     serviceFrequency: "monthly",
     withinHalfMile: true,
     sameScheduledVisit: true,
+    includeManagedServiceFee: true,
   });
-  assert.equal(estimate.version, 3);
+  assert.equal(estimate.version, 4);
   assert.equal(estimate.pricingMode, "cluster");
-  assert.equal(estimate.standalonePerVisitCents, 22500);
-  assert.equal(estimate.estimatedPerVisitCents, 15000);
-  assert.equal(estimate.estimatedMonthlyCents, 15000);
-  assert.equal(estimate.clusterDiscountPerVisitCents, 7500);
+  assert.equal(estimate.standalonePerVisitCents, 15000);
+  assert.equal(estimate.estimatedPerVisitCents, 10000);
+  assert.equal(estimate.estimatedMonthlyCents, 10000);
+  assert.equal(estimate.clusterDiscountPerVisitCents, 5000);
+  assert.deepEqual(estimate.managedService, {
+    baseMonthlyFeeCents: 50000,
+    includedInContractTotal: true,
+    estimatedContractMonthlyCents: 60000,
+  });
   assert.equal(estimate.inputs.primaryPropertyIndex, 0);
   assert.equal(estimate.inputs.additionalPropertyMultiplier, 0.5);
 });
@@ -90,10 +113,10 @@ test("clusters use the most expensive property as the undiscounted primary", () 
   assert.equal(estimate.inputs.primaryPropertyIndex, 1);
   assert.deepEqual(
     estimate.properties.map((property) => property.standalonePerVisitCents),
-    [7500, 25000, 22500]
+    [5000, 12500, 10000]
   );
-  assert.equal(estimate.estimatedPerVisitCents, 40000);
-  assert.equal(estimate.standalonePerVisitCents, 55000);
+  assert.equal(estimate.estimatedPerVisitCents, 20000);
+  assert.equal(estimate.standalonePerVisitCents, 27500);
 });
 
 test("cluster pricing requires explicit proximity and same-visit eligibility", () => {
@@ -145,7 +168,7 @@ test("known issues flag the baseline estimate for manual review", () => {
     serviceFrequency: "monthly",
     hasKnownIssues: true,
   });
-  assert.equal(estimate.estimatedMonthlyCents, 22500);
+  assert.equal(estimate.estimatedMonthlyCents, 10000);
   assert.deepEqual(estimate.manualReviewReasons, ["known_issues"]);
 });
 
@@ -169,11 +192,11 @@ test("route-aware pricing adds only travel beyond the included local trip", () =
       route: { confidence: 0, additionalMiles: 20, additionalMinutes: 60 },
     },
   });
-  assert.equal(estimate.version, 3);
+  assert.equal(estimate.version, 4);
   assert.equal(estimate.pricingMode, "route_aware");
-  assert.equal(estimate.basePerVisitCents, 22500);
+  assert.equal(estimate.basePerVisitCents, 10000);
   assert.equal(estimate.travelSurchargeCents, 2200);
-  assert.equal(estimate.estimatedPerVisitCents, 24500);
+  assert.equal(estimate.estimatedPerVisitCents, 12000);
   assert.equal(estimate.requiresManualReview, false);
 });
 
@@ -190,10 +213,10 @@ test("confirmed route fit and portfolio density reduce marginal travel cost", ()
     },
   });
   assert.equal(estimate.travelSurchargeCents, 2200);
-  assert.equal(estimate.routeCreditCents, 2090);
-  assert.equal(estimate.portfolioCreditCents, 1800);
-  assert.equal(estimate.combinedCreditCents, 3890);
-  assert.equal(estimate.estimatedPerVisitCents, 21000);
+  assert.equal(estimate.routeCreditCents, 2000);
+  assert.equal(estimate.portfolioCreditCents, 0);
+  assert.equal(estimate.combinedCreditCents, 2000);
+  assert.equal(estimate.estimatedPerVisitCents, 10000);
 });
 
 test("route and density credits remain bounded and cannot break the fifty-dollar floor", () => {
@@ -225,9 +248,25 @@ test("modeled coordinate routing is transparent and requires manual review", () 
       route: { confidence: 0.6, additionalMiles: 1, additionalMinutes: 3 },
     },
   });
-  assert.equal(estimate.estimatedPerVisitCents, 21500);
-  assert.equal(estimate.estimatedMonthlyCents, 77500);
+  assert.equal(estimate.estimatedPerVisitCents, 9500);
+  assert.equal(estimate.estimatedMonthlyCents, 34000);
   assert.deepEqual(estimate.manualReviewReasons, ["modeled_route_data"]);
+});
+
+test("adds the managed-service base once without changing the visit estimate", () => {
+  const estimate = estimateBidPricing({
+    grossSquareFeet: 40000,
+    propertyType: "strip_mall",
+    serviceFrequency: "monthly",
+    includeManagedServiceFee: true,
+  });
+  assert.equal(estimate.estimatedPerVisitCents, 20000);
+  assert.equal(estimate.estimatedMonthlyCents, 20000);
+  assert.deepEqual(estimate.managedService, {
+    baseMonthlyFeeCents: 50000,
+    includedInContractTotal: true,
+    estimatedContractMonthlyCents: 70000,
+  });
 });
 
 test("provider fallback is distinguished from an intentionally modeled route", () => {

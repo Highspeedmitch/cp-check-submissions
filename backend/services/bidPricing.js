@@ -1,8 +1,16 @@
-const ESTIMATE_VERSION = 3;
+const ESTIMATE_VERSION = 4;
 const MINIMUM_PER_VISIT = 50;
+const MANAGED_SERVICE_BASE_MONTHLY_CENTS = 50000;
 const MAX_CLUSTER_PROPERTIES = 10;
 const CLUSTER_DISTANCE_MILES = 0.5;
 const ADDITIONAL_PROPERTY_MULTIPLIER = 0.5;
+
+const SIZE_PRICE_ANCHORS = Object.freeze([
+  Object.freeze({ squareFeet: 1500, perVisitDollars: 50 }),
+  Object.freeze({ squareFeet: 18000, perVisitDollars: 125 }),
+  Object.freeze({ squareFeet: 40000, perVisitDollars: 200 }),
+  Object.freeze({ squareFeet: 78000, perVisitDollars: 250 }),
+]);
 
 const ROUTE_AWARE_POLICY = Object.freeze({
   includedRoundTripMiles: 10,
@@ -20,9 +28,9 @@ const ROUTE_AWARE_POLICY = Object.freeze({
 });
 
 const PROPERTY_COMPLEXITY = Object.freeze({
-  free_standing: 1,
-  strip_mall: 1.15,
-  individual_suite: 0.85,
+  free_standing: 0.87,
+  strip_mall: 1,
+  individual_suite: 0.74,
 });
 
 const SERVICE_VISITS = Object.freeze({
@@ -39,6 +47,34 @@ function roundCents(amountCents, incrementCents = 500) {
   return Math.round(amountCents / incrementCents) * incrementCents;
 }
 
+function benchmarkSizePrice(squareFeet) {
+  const normalizedSize = Math.max(SIZE_PRICE_ANCHORS[0].squareFeet, Number(squareFeet));
+  let upperAnchorIndex = SIZE_PRICE_ANCHORS.findIndex(
+    (anchor) => normalizedSize <= anchor.squareFeet
+  );
+  if (upperAnchorIndex < 0) upperAnchorIndex = SIZE_PRICE_ANCHORS.length - 1;
+  if (upperAnchorIndex === 0) return SIZE_PRICE_ANCHORS[0].perVisitDollars;
+
+  const upperAnchor = SIZE_PRICE_ANCHORS[upperAnchorIndex];
+  const lowerAnchor = SIZE_PRICE_ANCHORS[upperAnchorIndex - 1];
+  const position = (normalizedSize - lowerAnchor.squareFeet)
+    / (upperAnchor.squareFeet - lowerAnchor.squareFeet);
+  return lowerAnchor.perVisitDollars
+    + (position * (upperAnchor.perVisitDollars - lowerAnchor.perVisitDollars));
+}
+
+function managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee) {
+  const includedInContractTotal = includeManagedServiceFee === true;
+  return {
+    baseMonthlyFeeCents: MANAGED_SERVICE_BASE_MONTHLY_CENTS,
+    includedInContractTotal,
+    estimatedContractMonthlyCents: estimatedMonthlyCents == null
+      ? null
+      : estimatedMonthlyCents
+        + (includedInContractTotal ? MANAGED_SERVICE_BASE_MONTHLY_CENTS : 0),
+  };
+}
+
 function nonNegativeNumber(value, label) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) {
@@ -52,6 +88,7 @@ function estimateBidPricing({
   propertyType,
   serviceFrequency,
   hasKnownIssues = false,
+  includeManagedServiceFee = false,
 }) {
   const squareFeet = Number(grossSquareFeet);
   if (!Number.isFinite(squareFeet) || squareFeet <= 0) {
@@ -67,7 +104,7 @@ function estimateBidPricing({
   const normalizedSize = Math.max(1500, squareFeet);
   const complexityModifier = PROPERTY_COMPLEXITY[propertyType];
   const visitsPerMonth = SERVICE_VISITS[serviceFrequency];
-  const sizeBase = Math.max(MINIMUM_PER_VISIT, 225 * Math.sqrt(normalizedSize / 18000));
+  const sizeBase = benchmarkSizePrice(normalizedSize);
   const estimatedPerVisit = roundTo25(Math.max(
     MINIMUM_PER_VISIT,
     sizeBase * complexityModifier
@@ -85,13 +122,16 @@ function estimateBidPricing({
   if (serviceFrequency === "ad_hoc") manualReviewReasons.push("ad_hoc_frequency");
   if (hasKnownIssues) manualReviewReasons.push("known_issues");
 
+  const estimatedMonthlyCents = serviceFrequency === "ad_hoc"
+    ? null
+    : roundTo25(estimatedPerVisit * frequencyMultiplier) * 100;
+
   return {
     version: ESTIMATE_VERSION,
     pricingMode: "single",
     estimatedPerVisitCents: estimatedPerVisit * 100,
-    estimatedMonthlyCents: serviceFrequency === "ad_hoc"
-      ? null
-      : roundTo25(estimatedPerVisit * frequencyMultiplier) * 100,
+    estimatedMonthlyCents,
+    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee),
     requiresManualReview: manualReviewReasons.length > 0,
     manualReviewReasons,
     inputs: {
@@ -101,6 +141,8 @@ function estimateBidPricing({
       frequencyMultiplier,
       knownIssuesProvided: Boolean(hasKnownIssues),
       minimumPerVisitCents: MINIMUM_PER_VISIT * 100,
+      sizeBenchmarkPerVisitCents: Math.round(sizeBase * 100),
+      benchmarkPropertyType: "strip_mall",
     },
   };
 }
@@ -111,6 +153,7 @@ function estimateClusterPricing({
   hasKnownIssues = false,
   withinHalfMile = false,
   sameScheduledVisit = false,
+  includeManagedServiceFee = false,
 }) {
   if (!Array.isArray(properties) || properties.length < 2) {
     throw new Error("A cluster must include at least two properties.");
@@ -191,6 +234,7 @@ function estimateClusterPricing({
     pricingMode: "cluster",
     estimatedPerVisitCents,
     estimatedMonthlyCents,
+    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee),
     standalonePerVisitCents,
     standaloneMonthlyCents,
     clusterDiscountPerVisitCents: standalonePerVisitCents - estimatedPerVisitCents,
@@ -220,6 +264,7 @@ function estimateRouteAwarePricing({
   hasKnownIssues = false,
   travelContext,
   policy = ROUTE_AWARE_POLICY,
+  includeManagedServiceFee = false,
 }) {
   if (!travelContext || typeof travelContext !== "object" || Array.isArray(travelContext)) {
     throw new Error("Route-aware pricing requires a travel context.");
@@ -322,6 +367,7 @@ function estimateRouteAwarePricing({
     pricingMode: "route_aware",
     estimatedPerVisitCents,
     estimatedMonthlyCents,
+    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee),
     basePerVisitCents,
     travelSurchargeCents,
     routeCreditCents,
@@ -355,14 +401,17 @@ function estimateRouteAwarePricing({
 module.exports = {
   ESTIMATE_VERSION,
   MINIMUM_PER_VISIT,
+  MANAGED_SERVICE_BASE_MONTHLY_CENTS,
   MAX_CLUSTER_PROPERTIES,
   CLUSTER_DISTANCE_MILES,
   ADDITIONAL_PROPERTY_MULTIPLIER,
   ROUTE_AWARE_POLICY,
   PROPERTY_COMPLEXITY,
+  SIZE_PRICE_ANCHORS,
   SERVICE_VISITS,
   roundTo25,
   roundCents,
+  benchmarkSizePrice,
   estimateBidPricing,
   estimateClusterPricing,
   estimateRouteAwarePricing,
