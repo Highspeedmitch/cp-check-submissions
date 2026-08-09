@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   formatInspectionIssuePercent,
   inspectionIssueCoverageLabel,
 } from "../services/reportingPresentation";
-import { useNavigate } from "react-router-dom";
-import { api } from "../services/api";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { api, apiUrl } from "../services/api";
 import ContextualHelpLink from "./help/ContextualHelpLink";
 import PageHeader from "./ui/PageHeader";
+import { useMarkNotificationsRead } from "../services/notificationCenter";
 
 function formatMinuteOfDay(value) {
   if (!Number.isFinite(value)) return "N/A";
@@ -136,8 +137,201 @@ function AdminReportingSection() {
   return null;
 }
 
+function monthlyStatusLabel(status) {
+  return ({
+    queued: "Queued",
+    processing: "Preparing",
+    completed: "Ready",
+    failed: "Needs attention",
+  })[status] || status;
+}
+
+function monthDelta(value, label) {
+  const amount = Number(value || 0);
+  if (!amount) return `No monthly change in ${label}`;
+  return `${amount > 0 ? "+" : ""}${amount} ${label} from prior month`;
+}
+
+async function downloadMonthlySummary(report) {
+  const response = await fetch(apiUrl(report.downloadUrl), {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "Unable to download the monthly portfolio summary.");
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = `${report.periodLabel} Portfolio Summary.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+function MonthlySummaryCard({ report, showRecipient, onDownload, busy }) {
+  const metrics = report.metrics;
+  return (
+    <article className="beta-card beta-monthly-summary-card">
+      <div className="beta-monthly-summary-heading">
+        <div>
+          <p className="beta-eyebrow">{report.periodLabel}</p>
+          <h3>Executive Portfolio Summary</h3>
+          {showRecipient && <p>Prepared for {report.recipient?.name || report.recipient?.email}</p>}
+        </div>
+        <span className={`beta-status beta-monthly-status ${report.status}`}>{monthlyStatusLabel(report.status)}</span>
+      </div>
+
+      {report.status === "failed" && (
+        <p className="beta-alert error">{report.lastError || "This summary could not be prepared."}</p>
+      )}
+      {report.status !== "completed" && report.status !== "failed" && (
+        <p className="beta-monthly-progress">Afterlight is aggregating the reporting snapshot and preparing the PDF.</p>
+      )}
+      {report.status === "completed" && metrics && (
+        <>
+          <div className="beta-monthly-metrics" aria-label={`${report.periodLabel} portfolio metrics`}>
+            <div><span>Reports</span><strong>{metrics.submissionCount}</strong><small>{monthDelta(report.comparison?.submissionCountDelta, "reports")}</small></div>
+            <div><span>Coverage</span><strong>{metrics.propertiesWithSubmissionsCount}/{metrics.managedPropertyCount}</strong><small>Managed properties with reports</small></div>
+            <div><span>With issues</span><strong>{metrics.inspectionsWithIssuesPercent}%</strong><small>{metrics.inspectionsWithIssuesCount} of {metrics.reportableSubmissionCount} reportable</small></div>
+            <div><span>Issue records</span><strong>{metrics.totalIssueOccurrences}</strong><small>{monthDelta(report.comparison?.totalIssueOccurrencesDelta, "records")}</small></div>
+          </div>
+          <p className="beta-monthly-narrative">{report.narrative?.executiveSummary}</p>
+          <div className="beta-monthly-summary-footer">
+            <div>
+              <strong>{report.propertyCount} managed {report.propertyCount === 1 ? "property" : "properties"}</strong>
+              <small>
+                {report.emailSentAt
+                  ? `Emailed ${new Date(report.emailSentAt).toLocaleDateString()}`
+                  : report.mode === "preview" ? "DEV preview - email not sent" : "Available in Afterlight"}
+              </small>
+            </div>
+            <button
+              type="button"
+              className="beta-button compact"
+              disabled={busy}
+              onClick={() => onDownload(report)}
+            >
+              Download PDF
+            </button>
+          </div>
+        </>
+      )}
+    </article>
+  );
+}
+
+function MonthlySummaries({ role }) {
+  const [data, setData] = useState({ feature: { mode: "off", enabled: false }, items: [] });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const load = useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) setLoading(true);
+    try {
+      const result = await api.get("/api/reporting/monthly-summaries");
+      setData(result);
+      setError("");
+    } catch (requestError) {
+      if (!quiet) setError(requestError.message || "Unable to load monthly summaries.");
+    } finally {
+      if (!quiet) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!data.items.some((item) => ["queued", "processing"].includes(item.status))) return undefined;
+    const timer = window.setInterval(() => load({ quiet: true }), 5000);
+    return () => window.clearInterval(timer);
+  }, [data.items, load]);
+
+  const generate = async () => {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const report = await api.post("/api/reporting/monthly-summaries", {});
+      setMessage(`${report.periodLabel} was queued for preparation.`);
+      await load({ quiet: true });
+    } catch (requestError) {
+      setError(requestError.message || "Unable to prepare the monthly summary.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const download = async (report) => {
+    setBusy(true);
+    setError("");
+    try {
+      await downloadMonthlySummary(report);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="beta-monthly-summaries">
+      <div className="beta-section-heading beta-monthly-intro">
+        <div>
+          <p className="beta-eyebrow">Monthly archive</p>
+          <h2>Executive Portfolio Summaries</h2>
+          <p>
+            Each snapshot covers the prior calendar month and the properties assigned to its recipient.
+            Reports are for property-management review and are not automatically shared with owners.
+          </p>
+        </div>
+        {!loading && data.feature.enabled && (
+          <button type="button" className="beta-button compact" disabled={busy} onClick={generate}>
+            {busy ? "Working..." : "Prepare previous month"}
+          </button>
+        )}
+      </div>
+
+      {!loading && data.feature.mode === "preview" && (
+        <p className="beta-alert notice">DEV preview is active. Reports are generated and stored, but monthly email delivery is disabled.</p>
+      )}
+      {!loading && !data.feature.enabled && (
+        <p className="beta-alert notice">Monthly portfolio summaries are not enabled for this deployment.</p>
+      )}
+      {message && <p className="beta-alert success" role="status">{message}</p>}
+      {error && <p className="beta-alert error" role="alert">{error}</p>}
+      {loading && <div className="beta-empty-state" role="status">Loading monthly summaries...</div>}
+      {!loading && !data.items.length && (
+        <div className="beta-empty-state">
+          No monthly portfolio summaries are available yet. The first automatic report is created after an enabled month closes.
+        </div>
+      )}
+      {!loading && data.items.length > 0 && (
+        <div className="beta-monthly-summary-list">
+          {data.items.map((report) => (
+            <MonthlySummaryCard
+              key={report._id}
+              report={report}
+              showRecipient={role === "admin"}
+              onDownload={download}
+              busy={busy}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Reporting() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const role = localStorage.getItem("role") || "user";
   const orgName = localStorage.getItem("orgName") || "Your Organization";
   const [months, setMonths] = useState("12");
@@ -146,8 +340,17 @@ export default function Reporting() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const activeView = searchParams.get("view") === "monthly" ? "monthly" : "live";
+  useMarkNotificationsRead(
+    activeView === "monthly" ? ["monthly_portfolio_summary_ready"] : [],
+    "/reporting?view=monthly"
+  );
 
   useEffect(() => {
+    if (activeView !== "live") {
+      setLoading(false);
+      return undefined;
+    }
     let active = true;
     const params = new URLSearchParams({ months });
     if (propertyId) params.set("propertyId", propertyId);
@@ -165,7 +368,7 @@ export default function Reporting() {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [months, propertyId, userId]);
+  }, [activeView, months, propertyId, userId]);
 
   const propertyOptions = report?.filterOptions?.properties || [];
   const userOptions = report?.filterOptions?.users || [];
@@ -188,6 +391,28 @@ export default function Reporting() {
           </>}
         />
 
+        <div className="beta-report-view-tabs" role="tablist" aria-label="Reporting views">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === "live"}
+            className={activeView === "live" ? "active" : ""}
+            onClick={() => setSearchParams({})}
+          >
+            Live Reporting
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === "monthly"}
+            className={activeView === "monthly" ? "active" : ""}
+            onClick={() => setSearchParams({ view: "monthly" })}
+          >
+            Monthly Summaries
+          </button>
+        </div>
+
+        {activeView === "monthly" ? <MonthlySummaries role={role} /> : <>
         <div className="beta-toolbar beta-report-filters">
           <label className="beta-form-field">
             Date Range
@@ -273,6 +498,7 @@ export default function Reporting() {
             <SubmitterActivity submitters={report.submitters} />
           </>
         )}
+        </>}
       </main>
     </div>
   );

@@ -145,7 +145,12 @@ export default function DashboardNavigation({
               label="Workspace"
               expanded={sections.workspace}
               onToggle={() => toggleSection("workspace")}
-              badge={badgeTotal(notificationBadges.dashboard, notificationBadges.billing, notificationBadges.bids)}
+              badge={badgeTotal(
+                notificationBadges.dashboard,
+                notificationBadges.reporting,
+                notificationBadges.billing,
+                notificationBadges.bids
+              )}
             >
               <NavButton active={activeRoute === "dashboard"} badge={notificationBadges.dashboard} onClick={() => go(dashboardRoute)}>Dashboard</NavButton>
               {open && (
@@ -157,7 +162,12 @@ export default function DashboardNavigation({
                 <NavButton active={activeRoute === "external-connections"} onClick={() => go("/external-connections")}>External Connections</NavButton>
               )}
               {isManagement && (
-                <NavButton onClick={() => go("/reporting")}>Reporting</NavButton>
+                <NavButton
+                  badge={notificationBadges.reporting}
+                  onClick={() => go(notificationBadges.reporting ? "/reporting?view=monthly" : "/reporting")}
+                >
+                  Reporting
+                </NavButton>
               )}
               {isManagement && (
                 <NavButton onClick={() => go("/scheduler")}>Scheduler</NavButton>

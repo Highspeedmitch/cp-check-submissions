@@ -128,3 +128,19 @@ test("keeps logout outside the independently scrolling navigation content", () =
   expect(logout.closest(".beta-sidebar-scroll")).toBeNull();
   expect(container.querySelector(".beta-sidebar-scroll")).not.toBeNull();
 });
+
+test("opens the monthly archive when Reporting has an unread summary", () => {
+  render(
+    <MemoryRouter>
+      <DashboardNavigation
+        {...defaults}
+        role="property_manager"
+        accountScope="organization"
+        notificationBadges={{ reporting: 1 }}
+      />
+    </MemoryRouter>
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: /Reporting/ }));
+  expect(defaults.navigate).toHaveBeenCalledWith("/reporting?view=monthly");
+});

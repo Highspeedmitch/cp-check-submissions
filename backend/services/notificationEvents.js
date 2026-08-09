@@ -268,6 +268,16 @@ function bidRequestStatusChanged(request) {
   };
 }
 
+function monthlyPortfolioSummaryReady(report) {
+  return {
+    type: "monthly_portfolio_summary_ready",
+    title: "Monthly portfolio summary ready",
+    body: `${report.periodLabel} portfolio reporting is ready to review.`,
+    route: "/reporting?view=monthly",
+    entityId: report._id,
+  };
+}
+
 module.exports = {
   inspectionSubmitted,
   assignmentCompleted,
@@ -288,4 +298,5 @@ module.exports = {
   bidRequestSubmitted,
   bidRequestReceived,
   bidRequestStatusChanged,
+  monthlyPortfolioSummaryReady,
 };

@@ -74,6 +74,16 @@ Optional inspection AI controls:
 
 See [inspection-processing.md](inspection-processing.md) for the rollout modes, 300-character contract, disclaimer, IAM scope, and QA cases.
 
+Optional monthly portfolio summary controls:
+
+- leave `MONTHLY_PORTFOLIO_SUMMARY_MODE=off` until recipient scope, metrics, narrative, and PDF layout pass DEV QA;
+- use `MONTHLY_PORTFOLIO_SUMMARY_MODE=preview` with an exact `MONTHLY_PORTFOLIO_SUMMARY_ORGANIZATION_ALLOWLIST` match to generate in-app/PDF previews without email;
+- use `MONTHLY_PORTFOLIO_SUMMARY_MODE=live` only after controlled email-delivery QA;
+- optionally configure `MONTHLY_PORTFOLIO_SUMMARY_MODEL_ID` and `MONTHLY_PORTFOLIO_SUMMARY_TIMEOUT_MS`;
+- run the worker with `RUN_MONTHLY_PORTFOLIO_SUMMARY_WORKER=true` in the background service. After that worker is healthy, set it to `false` in the web service to avoid redundant polling.
+
+The backend identity needs least-privilege `bedrock:InvokeModel`, `s3:PutObject`, and `s3:GetObject` access for the configured model and `portfolio-summaries/` bucket prefix. See [monthly-portfolio-summaries.md](monthly-portfolio-summaries.md) for architecture, snapshot semantics, rollout, and QA.
+
 Firebase credentials are not required for PWA Web Push. The current Gusto
 handoff is manual and does not require a Gusto API credential.
 
@@ -277,6 +287,7 @@ response.
   their historical properties and zero active organization users. Confirm one
   retired organization identity cannot enter its organization workspace.
 - Confirm public registration remains disabled.
+- When monthly portfolio summaries are enabled, prepare the previous month in preview mode, verify the recipient's property scope and PDF, and confirm no preview email is sent. Before live rollout, complete one controlled recipient-only email test.
 
 ## 9. Rollback
 

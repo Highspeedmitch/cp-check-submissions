@@ -16,6 +16,7 @@ test("groups only unread notifications into their destination sections", () => {
     dashboard: 2,
     billing: 2,
     bids: 1,
+    reporting: 0,
     resources: 0,
     serviceModels: 0,
     platformBilling: 0,
@@ -37,11 +38,20 @@ test("separates platform billing events and groups new operational notifications
     dashboard: 1,
     billing: 1,
     bids: 0,
+    reporting: 0,
     resources: 2,
     serviceModels: 3,
     platformBilling: 1,
     platformOrganizations: 0,
   });
+});
+
+test("groups ready monthly portfolio summaries into reporting", () => {
+  const grouped = groupUnreadNotifications([
+    { type: "monthly_portfolio_summary_ready", readAt: null },
+  ]);
+  expect(grouped.reporting).toBe(1);
+  expect(grouped.dashboard).toBe(0);
 });
 
 test("routes organization-level platform requests to the overview badge", () => {

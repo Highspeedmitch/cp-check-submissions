@@ -9,6 +9,7 @@ const { createApp } = require("./app");
 const { purgeExpiredProspectAssessments } = require("./services/prospectRetention");
 const { ensureAssignmentSchedulingIndex } = require("./services/assignmentIndexes");
 const CalendarFeedSubscription = require("./models/calendarFeedSubscription");
+const MonthlyPortfolioSummary = require("./models/monthlyPortfolioSummary");
 
 const PROSPECT_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -42,10 +43,15 @@ async function startServer() {
     console.log("Assignment scheduling index migrated to scheduled-only uniqueness.");
   }
   await CalendarFeedSubscription.createIndexes();
+  await MonthlyPortfolioSummary.createIndexes();
 
   if (String(process.env.RUN_INSPECTION_WORKER || "true").toLowerCase() !== "false") {
     require("./services/inspectionWorker").startInspectionWorker();
     console.log("Inspection job worker started in the web process.");
+  }
+  if (String(process.env.RUN_MONTHLY_PORTFOLIO_SUMMARY_WORKER || "true").toLowerCase() !== "false") {
+    require("./services/monthlyPortfolioSummaryWorker").startMonthlyPortfolioSummaryWorker();
+    console.log("Monthly portfolio summary worker started in the web process.");
   }
 
   const port = process.env.PORT || 10000;

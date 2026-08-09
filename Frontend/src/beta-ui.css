@@ -1033,6 +1033,92 @@ select:focus-visible {
 .beta-report-issue-row > strong { text-align: right; }
 .beta-report-table-wrap { overflow-x: auto; }
 .beta-report-table-wrap .beta-data-table { min-width: 720px; }
+.beta-report-view-tabs {
+  display: inline-flex;
+  gap: 5px;
+  margin-top: 18px;
+  padding: 5px;
+  border: 1px solid var(--beta-border);
+  border-radius: 10px;
+  background: var(--beta-control);
+}
+.beta-report-view-tabs button {
+  width: auto;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--beta-muted);
+  box-shadow: none;
+}
+.beta-report-view-tabs button.active {
+  background: var(--beta-surface);
+  color: var(--beta-ink);
+  box-shadow: 0 1px 4px rgba(12, 28, 45, .12);
+}
+.beta-monthly-summaries { margin-top: 24px; }
+.beta-monthly-intro { align-items: flex-start; }
+.beta-monthly-intro > div { max-width: 760px; }
+.beta-monthly-intro .beta-button { width: auto; flex: 0 0 auto; margin: 0; }
+.beta-monthly-summary-list { display: grid; gap: 16px; margin-top: 18px; }
+.beta-monthly-summary-card { display: grid; gap: 18px; }
+.beta-monthly-summary-heading,
+.beta-monthly-summary-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.beta-monthly-summary-heading h3 { margin: 4px 0; font-size: 21px; }
+.beta-monthly-summary-heading p:not(.beta-eyebrow) { margin: 0; color: var(--beta-muted); }
+.beta-monthly-status { flex: 0 0 auto; }
+.beta-monthly-status.processing,
+.beta-monthly-status.queued { background: var(--beta-warning-bg); color: var(--beta-warning); }
+.beta-monthly-status.completed { background: var(--beta-success-bg); color: var(--beta-success); }
+.beta-monthly-status.failed { background: var(--beta-danger-bg); color: var(--beta-danger); }
+.beta-monthly-progress { margin: 0; color: var(--beta-muted); }
+.beta-monthly-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--beta-border);
+  border-radius: 10px;
+}
+.beta-monthly-metrics > div { display: grid; gap: 5px; padding: 14px; }
+.beta-monthly-metrics > div + div { border-left: 1px solid var(--beta-border); }
+.beta-monthly-metrics span,
+.beta-monthly-metrics small { color: var(--beta-muted); }
+.beta-monthly-metrics span { font-size: 12px; font-weight: 700; }
+.beta-monthly-metrics strong { font-size: 23px; }
+.beta-monthly-metrics small { font-size: 11px; }
+.beta-monthly-narrative {
+  margin: 0;
+  padding: 15px 17px;
+  border-left: 3px solid var(--beta-blue);
+  background: var(--beta-soft-blue);
+  color: var(--beta-ink);
+  line-height: 1.55;
+}
+.beta-monthly-summary-footer { align-items: center; }
+.beta-monthly-summary-footer > div { display: grid; gap: 4px; }
+.beta-monthly-summary-footer small { color: var(--beta-muted); }
+.beta-monthly-summary-footer .beta-button { width: auto; margin: 0; }
+
+@media (max-width: 760px) {
+  .beta-report-view-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .beta-report-view-tabs button { width: 100%; }
+  .beta-monthly-intro,
+  .beta-monthly-summary-heading,
+  .beta-monthly-summary-footer { display: grid; }
+  .beta-monthly-intro .beta-button,
+  .beta-monthly-summary-footer .beta-button { width: 100%; }
+  .beta-monthly-metrics { grid-template-columns: 1fr 1fr; }
+  .beta-monthly-metrics > div + div { border-left: 0; }
+  .beta-monthly-metrics > div:nth-child(even) { border-left: 1px solid var(--beta-border); }
+  .beta-monthly-metrics > div:nth-child(n + 3) { border-top: 1px solid var(--beta-border); }
+}
 
 /* Registration */
 .beta-auth-page {
