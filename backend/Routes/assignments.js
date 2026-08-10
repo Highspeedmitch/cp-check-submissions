@@ -384,7 +384,7 @@ function createAssignmentHandlers({
           routeVersion: route.version || 1,
           routeStopIndex: stopIndex,
           routeStopCount: resolvedStops.length,
-        })), { session });
+        })), { session, ordered: true });
 
         routeRun.stops.forEach((stop, stopIndex) => {
           stop.assignmentId = assignments[stopIndex]._id;
