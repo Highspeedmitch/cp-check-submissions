@@ -84,7 +84,7 @@ test("clusters retain the primary property and discount each additional property
     sameScheduledVisit: true,
     includeManagedServiceFee: true,
   });
-  assert.equal(estimate.version, 4);
+  assert.equal(estimate.version, 5);
   assert.equal(estimate.pricingMode, "cluster");
   assert.equal(estimate.standalonePerVisitCents, 15000);
   assert.equal(estimate.estimatedPerVisitCents, 10000);
@@ -192,7 +192,7 @@ test("route-aware pricing adds only travel beyond the included local trip", () =
       route: { confidence: 0, additionalMiles: 20, additionalMinutes: 60 },
     },
   });
-  assert.equal(estimate.version, 4);
+  assert.equal(estimate.version, 5);
   assert.equal(estimate.pricingMode, "route_aware");
   assert.equal(estimate.basePerVisitCents, 10000);
   assert.equal(estimate.travelSurchargeCents, 2200);
@@ -213,10 +213,61 @@ test("confirmed route fit and portfolio density reduce marginal travel cost", ()
     },
   });
   assert.equal(estimate.travelSurchargeCents, 2200);
-  assert.equal(estimate.routeCreditCents, 2000);
-  assert.equal(estimate.portfolioCreditCents, 0);
-  assert.equal(estimate.combinedCreditCents, 2000);
-  assert.equal(estimate.estimatedPerVisitCents, 10000);
+  assert.equal(estimate.routeCreditCents, 6720);
+  assert.equal(estimate.portfolioCreditCents, 480);
+  assert.equal(estimate.combinedCreditCents, 7200);
+  assert.equal(estimate.estimatedPerVisitCents, 5000);
+  assert.equal(estimate.geography.route.fitScore, 0.96);
+  assert.equal(estimate.geography.route.pricingBand, "direct_route");
+});
+
+test("a direct modeled insertion reaches the marginal market-price band", () => {
+  const estimate = estimateRouteAwarePricing({
+    grossSquareFeet: 50000,
+    propertyType: "strip_mall",
+    serviceFrequency: "monthly",
+    travelContext: {
+      method: "road_matrix",
+      home: { roundTripMiles: 12, roundTripMinutes: 34.75 },
+      portfolio: { densityScore: 0.65, propertyCount: 9 },
+      route: {
+        commitment: "modeled",
+        confidence: 0.6,
+        additionalMiles: 0.2,
+        additionalMinutes: 2,
+      },
+    },
+  });
+  assert.equal(estimate.basePerVisitCents, 22500);
+  assert.equal(estimate.estimatedPerVisitCents, 7000);
+  assert.equal(estimate.routeCreditCents, 14084);
+  assert.equal(estimate.portfolioCreditCents, 1625);
+  assert.equal(estimate.geography.route.fitScore, 0.9936);
+  assert.equal(estimate.geography.route.commitmentFactor, 0.9);
+  assert.equal(estimate.geography.route.pricingBand, "direct_route");
+});
+
+test("portfolio density retains marginal utility without a route commitment", () => {
+  const estimate = estimateRouteAwarePricing({
+    grossSquareFeet: 50000,
+    propertyType: "strip_mall",
+    serviceFrequency: "monthly",
+    travelContext: {
+      method: "road_matrix",
+      home: { roundTripMiles: 12, roundTripMinutes: 34.75 },
+      portfolio: { densityScore: 1, propertyCount: 9 },
+      route: {
+        commitment: "none",
+        confidence: 0,
+        additionalMiles: 12,
+        additionalMinutes: 34.75,
+      },
+    },
+  });
+  assert.equal(estimate.routeCreditCents, 0);
+  assert.equal(estimate.portfolioCreditCents, 2500);
+  assert.equal(estimate.estimatedPerVisitCents, 20500);
+  assert.equal(estimate.geography.route.pricingBand, "standard_route");
 });
 
 test("route and density credits remain bounded and cannot break the fifty-dollar floor", () => {
@@ -248,8 +299,10 @@ test("modeled coordinate routing is transparent and requires manual review", () 
       route: { confidence: 0.6, additionalMiles: 1, additionalMinutes: 3 },
     },
   });
-  assert.equal(estimate.estimatedPerVisitCents, 9500);
-  assert.equal(estimate.estimatedMonthlyCents, 34000);
+  assert.equal(estimate.estimatedPerVisitCents, 9000);
+  assert.equal(estimate.estimatedMonthlyCents, 32500);
+  assert.equal(estimate.geography.route.fitScore, 0);
+  assert.equal(estimate.geography.route.pricingBand, "standard_route");
   assert.deepEqual(estimate.manualReviewReasons, ["modeled_route_data"]);
 });
 

@@ -89,7 +89,7 @@ test("platform pricing estimation reuses the bid pricing contract without persis
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.version, 4);
+  assert.equal(res.body.version, 5);
   assert.equal(res.body.estimatedPerVisitCents, 20000);
   assert.equal(res.body.estimatedMonthlyCents, 20000);
   assert.equal(res.body.managedService.baseMonthlyFeeCents, 50000);
@@ -193,7 +193,7 @@ test("platform pricing estimation derives road-matrix portfolio context on the b
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.version, 4);
+  assert.equal(res.body.version, 5);
   assert.equal(res.body.pricingMode, "route_aware");
   assert.equal(res.body.organization.name, "Example Organization");
   assert.equal(res.body.geography.portfolio.propertyCount, 1);

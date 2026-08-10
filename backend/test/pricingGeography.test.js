@@ -44,6 +44,7 @@ test("modeled route finds a low-detour insertion and ignores invalid portfolio c
   assert.equal(context.method, "modeled_coordinates");
   assert.equal(context.portfolio.propertyCount, 2);
   assert.equal(context.route.confidence, 1);
+  assert.deepEqual(context.route.modeledStopNames, ["B", "A"]);
   assert.ok(context.route.additionalMiles < context.home.roundTripMiles);
   assert.equal(context.candidate.name, "Candidate");
 });
@@ -106,6 +107,7 @@ test("road matrices drive home travel, portfolio distance, and route insertion",
   assert.equal(context.route.insertionAfterPropertyName, "A");
   assert.equal(context.route.insertionBeforePropertyName, "B");
   assert.equal(context.route.confidence, 0.6);
+  assert.deepEqual(context.route.modeledStopNames, ["A", "B"]);
   assert.equal(context.home.lat, undefined);
 });
 

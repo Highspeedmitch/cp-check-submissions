@@ -7,7 +7,7 @@ jest.mock("../services/api", () => ({
 }));
 
 const weeklyEstimate = {
-  version: 4,
+  version: 5,
   pricingMode: "single",
   estimatedPerVisitCents: 12500,
   estimatedMonthlyCents: 45000,
@@ -29,7 +29,7 @@ const weeklyEstimate = {
 };
 
 const clusterEstimate = {
-  version: 4,
+  version: 5,
   pricingMode: "cluster",
   estimatedPerVisitCents: 10000,
   estimatedMonthlyCents: 10000,
@@ -65,20 +65,20 @@ const clusterEstimate = {
 };
 
 const routeAwareEstimate = {
-  version: 4,
+  version: 5,
   pricingMode: "route_aware",
-  estimatedPerVisitCents: 9500,
-  estimatedMonthlyCents: 9500,
+  estimatedPerVisitCents: 5000,
+  estimatedMonthlyCents: 5000,
   managedService: {
     baseMonthlyFeeCents: 50000,
     includedInContractTotal: false,
-    estimatedContractMonthlyCents: 9500,
+    estimatedContractMonthlyCents: 5000,
   },
   basePerVisitCents: 10000,
   travelSurchargeCents: 0,
-  routeCreditCents: 431,
-  portfolioCreditCents: 261,
-  combinedCreditCents: 692,
+  routeCreditCents: 5000,
+  portfolioCreditCents: 0,
+  combinedCreditCents: 5000,
   requiresManualReview: false,
   manualReviewReasons: [],
   inputs: {
@@ -93,7 +93,9 @@ const routeAwareEstimate = {
       includedRoundTripMinutes: 30,
       maximumTravelSurchargeRate: 0.35,
       routeSavingsPassThroughRate: 0.5,
-      maximumCombinedCreditRate: 0.2,
+      maximumRouteFitCreditRate: 0.7,
+      maximumPortfolioCreditRate: 0.15,
+      maximumCombinedCreditRate: 0.8,
     },
   },
   geography: {
@@ -114,8 +116,13 @@ const routeAwareEstimate = {
     },
     route: {
       confidence: 0.6,
+      commitment: "modeled",
+      fitScore: 0.9567,
+      commitmentFactor: 0.9,
+      pricingBand: "direct_route",
       additionalMiles: 1.04,
       additionalMinutes: 2.5,
+      modeledStopNames: ["Broadway Center", "San Clemente"],
       insertionAfterPropertyName: "Broadway Center",
       insertionBeforePropertyName: "Tucson operations base",
     },
@@ -332,10 +339,13 @@ test("calculates a portfolio-aware estimate with backend geographic context", as
     }
   ));
   expect(await screen.findByRole("heading", { name: "Portfolio-aware planning estimate" })).toBeInTheDocument();
-  expect(screen.getAllByText("$95")).toHaveLength(2);
+  expect(within(screen.getByText("Estimated per visit").closest("article"))
+    .getByText("$50")).toBeInTheDocument();
   expect(screen.getByText("Road matrix")).toBeInTheDocument();
   expect(screen.getByText("8.6 mi · 20.64 min")).toBeInTheDocument();
+  expect(screen.getByText("96% · Direct-route marginal price")).toBeInTheDocument();
   expect(screen.getByText("Broadway Center → Tucson operations base")).toBeInTheDocument();
+  expect(screen.getByText("Broadway Center → San Clemente")).toBeInTheDocument();
   expect(screen.queryByText("Manual pricing review required")).not.toBeInTheDocument();
 });
 

@@ -1,4 +1,4 @@
-const ESTIMATE_VERSION = 4;
+const ESTIMATE_VERSION = 5;
 const MINIMUM_PER_VISIT = 50;
 const MANAGED_SERVICE_BASE_MONTHLY_CENTS = 50000;
 const MAX_CLUSTER_PROPERTIES = 10;
@@ -19,9 +19,13 @@ const ROUTE_AWARE_POLICY = Object.freeze({
   travelLaborCentsPerHour: 3000,
   maximumTravelSurchargeRate: 0.35,
   routeSavingsPassThroughRate: 0.5,
-  maximumPortfolioCreditRate: 0.1,
+  maximumRouteFitCreditRate: 0.7,
+  modeledRouteCommitmentFactor: 0.9,
+  routeFitZeroCreditMiles: 5,
+  routeFitZeroCreditMinutes: 25,
+  maximumPortfolioCreditRate: 0.15,
   maximumPortfolioCreditCents: 2500,
-  maximumCombinedCreditRate: 0.2,
+  maximumCombinedCreditRate: 0.8,
   manualReviewRoundTripMiles: 60,
   manualReviewRoundTripMinutes: 90,
   finalRoundingCents: 500,
@@ -73,6 +77,34 @@ function managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee) {
       : estimatedMonthlyCents
         + (includedInContractTotal ? MANAGED_SERVICE_BASE_MONTHLY_CENTS : 0),
   };
+}
+
+function calculateRouteFitScore({
+  method,
+  additionalMiles,
+  additionalMinutes,
+  policy = ROUTE_AWARE_POLICY,
+}) {
+  if (method !== "road_matrix") return 0;
+  const milesRatio = Math.min(1, Math.max(0, additionalMiles) / policy.routeFitZeroCreditMiles);
+  const minutesRatio = Math.min(
+    1,
+    Math.max(0, additionalMinutes) / policy.routeFitZeroCreditMinutes
+  );
+  return Math.min(1 - (milesRatio ** 2), 1 - (minutesRatio ** 2));
+}
+
+function routeCommitmentFactor(route, routeConfidence, policy = ROUTE_AWARE_POLICY) {
+  if (route?.commitment === "none" || routeConfidence <= 0) return 0;
+  if (route?.commitment === "confirmed" || routeConfidence >= 1) return 1;
+  return policy.modeledRouteCommitmentFactor;
+}
+
+function routePricingBand(routeFitScore, commitmentFactor) {
+  const effectiveFit = routeFitScore * commitmentFactor;
+  if (effectiveFit >= 0.75) return "direct_route";
+  if (effectiveFit >= 0.35) return "near_route";
+  return "standard_route";
 }
 
 function nonNegativeNumber(value, label) {
@@ -323,23 +355,41 @@ function estimateRouteAwarePricing({
       * policy.routeSavingsPassThroughRate
   );
 
+  const fitScore = calculateRouteFitScore({
+    method: travelContext.method,
+    additionalMiles: additionalRouteMiles,
+    additionalMinutes: additionalRouteMinutes,
+    policy,
+  });
+  const commitmentFactor = routeCommitmentFactor(route, routeConfidence, policy);
+  const routeFitCreditCents = Math.round(
+    basePerVisitCents
+      * policy.maximumRouteFitCreditRate
+      * fitScore
+      * commitmentFactor
+  );
+  const uncappedRouteCreditCents = Math.max(
+    calculatedRouteCreditCents,
+    routeFitCreditCents
+  );
+
   const densityScore = Math.min(1, Math.max(0, Number(portfolio.densityScore || 0)));
   const maximumPortfolioCreditCents = Math.min(
     policy.maximumPortfolioCreditCents,
     Math.round(basePerVisitCents * policy.maximumPortfolioCreditRate)
   );
   const portfolioCreditCents = Math.round(
-    maximumPortfolioCreditCents * densityScore * routeConfidence
+    maximumPortfolioCreditCents * densityScore
   );
   const maximumCombinedCreditCents = Math.round(
     basePerVisitCents * policy.maximumCombinedCreditRate
   );
   const combinedCreditCents = Math.min(
-    calculatedRouteCreditCents + portfolioCreditCents,
+    uncappedRouteCreditCents + portfolioCreditCents,
     maximumCombinedCreditCents,
     Math.max(0, basePerVisitCents + travelSurchargeCents - (MINIMUM_PER_VISIT * 100))
   );
-  const routeCreditCents = Math.min(calculatedRouteCreditCents, combinedCreditCents);
+  const routeCreditCents = Math.min(uncappedRouteCreditCents, combinedCreditCents);
 
   const estimatedPerVisitCents = roundCents(Math.max(
     MINIMUM_PER_VISIT * 100,
@@ -391,8 +441,13 @@ function estimateRouteAwarePricing({
       route: {
         ...route,
         confidence: routeConfidence,
+        fitScore: Number(fitScore.toFixed(4)),
+        commitmentFactor,
+        pricingBand: routePricingBand(fitScore, commitmentFactor),
         standaloneTravelCostCents,
         incrementalCostCents: incrementalRouteCostCents,
+        travelSavingsCreditCents: calculatedRouteCreditCents,
+        routeFitCreditCents,
       },
     },
   };
@@ -412,6 +467,9 @@ module.exports = {
   roundTo25,
   roundCents,
   benchmarkSizePrice,
+  calculateRouteFitScore,
+  routeCommitmentFactor,
+  routePricingBand,
   estimateBidPricing,
   estimateClusterPricing,
   estimateRouteAwarePricing,

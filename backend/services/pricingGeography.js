@@ -230,6 +230,9 @@ function buildModeledTravelContext({
       commitment: routeCommitment,
       confidence,
       modeledStopCount: normalizedProperties.length,
+      modeledStopNames: route.slice(1, -1).map(
+        (property) => property.name || "Portfolio property"
+      ),
       insertionIndex: insertion?.insertionIndex ?? null,
       insertionAfterPropertyId: insertion?.afterPropertyId ?? null,
       insertionAfterPropertyName: insertion?.afterPropertyName ?? null,
@@ -392,6 +395,9 @@ function buildRoadMatrixTravelContext({
       commitment: routeCommitment,
       confidence,
       modeledStopCount: locations.portfolioProperties.length,
+      modeledStopNames: route.slice(1, -1).map(
+        (stop) => stop.point.name || "Portfolio property"
+      ),
       insertionIndex: insertion?.insertionIndex ?? null,
       insertionAfterPropertyId: insertion?.afterPropertyId ?? null,
       insertionAfterPropertyName: insertion?.afterPropertyName ?? null,

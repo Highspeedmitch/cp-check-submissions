@@ -49,6 +49,12 @@ const PROPERTY_TYPE_LABELS = Object.freeze({
   individual_suite: "Individual suite",
 });
 
+const ROUTE_PRICING_BAND_LABELS = Object.freeze({
+  direct_route: "Direct-route marginal price",
+  near_route: "Near-route price",
+  standard_route: "Standard route price",
+});
+
 function formatCurrency(cents) {
   if (!Number.isFinite(Number(cents))) return "Not calculated";
   return new Intl.NumberFormat("en-US", {
@@ -95,6 +101,7 @@ export function estimateSummaryText(form, estimate) {
       `Afterlight portfolio-aware planning estimate for ${form.proposedAddress || "the proposed property"}.`,
       `${formatCurrency(estimate.estimatedPerVisitCents)} estimated per visit; ${monthlySummary(estimate)}.`,
       `${formatCurrency(estimate.travelSurchargeCents)} travel adjustment and ${formatCurrency(estimate.combinedCreditCents)} portfolio/route credit.`,
+      `Route classification: ${ROUTE_PRICING_BAND_LABELS[estimate.geography?.route?.pricingBand] || "Standard route price"}.`,
       managedServiceSummary(estimate),
       estimate.requiresManualReview
         ? "Manual pricing review required before presenting a quote."
@@ -629,7 +636,11 @@ export default function PricingEstimator({ organizations = [] }) {
                 <div><dt>Portfolio density</dt><dd>{Math.round(estimate.geography.portfolio.densityScore * 100)}%</dd></div>
                 <div><dt>Best modeled detour</dt><dd>{estimate.geography.route.additionalMiles} mi · {estimate.geography.route.additionalMinutes} min</dd></div>
                 <div><dt>Route confidence</dt><dd>{Math.round(estimate.geography.route.confidence * 100)}%</dd></div>
+                <div><dt>Route fit</dt><dd>{Math.round((estimate.geography.route.fitScore || 0) * 100)}% · {ROUTE_PRICING_BAND_LABELS[estimate.geography.route.pricingBand] || "Standard route price"}</dd></div>
                 <div><dt>Insertion point</dt><dd>{estimate.geography.route.insertionAfterPropertyName || "Operations base"} → {estimate.geography.route.insertionBeforePropertyName || "Operations base"}</dd></div>
+                <div><dt>Modeled portfolio order</dt><dd>{estimate.geography.route.modeledStopNames?.length
+                  ? estimate.geography.route.modeledStopNames.join(" → ")
+                  : "No eligible portfolio stops"}</dd></div>
                 <div><dt>Credit detail</dt><dd>{formatCurrency(estimate.routeCreditCents)} route · {formatCurrency(estimate.portfolioCreditCents)} density</dd></div>
               </dl>
             </div>
@@ -662,6 +673,8 @@ export default function PricingEstimator({ organizations = [] }) {
                 <div><dt>Retail-center size benchmark</dt><dd>{formatCurrency(estimate.inputs.sizeBenchmarkPerVisitCents)}</dd></div>
                 <div><dt>Included round trip</dt><dd>{estimate.inputs.travelPolicy.includedRoundTripMiles} mi / {estimate.inputs.travelPolicy.includedRoundTripMinutes} min</dd></div>
                 <div><dt>Route savings passed through</dt><dd>{Math.round(estimate.inputs.travelPolicy.routeSavingsPassThroughRate * 100)}%</dd></div>
+                <div><dt>Maximum direct-route credit</dt><dd>{Math.round((estimate.inputs.travelPolicy.maximumRouteFitCreditRate || 0) * 100)}%</dd></div>
+                <div><dt>Maximum portfolio-density credit</dt><dd>{Math.round(estimate.inputs.travelPolicy.maximumPortfolioCreditRate * 100)}%</dd></div>
                 <div><dt>Maximum travel surcharge</dt><dd>{Math.round(estimate.inputs.travelPolicy.maximumTravelSurchargeRate * 100)}%</dd></div>
                 <div><dt>Maximum combined credit</dt><dd>{Math.round(estimate.inputs.travelPolicy.maximumCombinedCreditRate * 100)}%</dd></div>
                 <div><dt>Visits per month</dt><dd>{estimate.inputs.visitsPerMonth}</dd></div>
