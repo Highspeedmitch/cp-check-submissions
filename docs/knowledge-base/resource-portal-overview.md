@@ -30,6 +30,8 @@ Each card under **My Assignments** shows:
 - Any special assignment instructions.
 - Contractors only: the agreed **Assignment compensation**.
 
+A grouped route assignment appears as one **ROUTE assignment** card with the suggested stop order. Open each stop from that grouped card as work is completed. Route grouping does not combine pricing, invoices, inspection records, or contractor earnings; those remain attached to the constituent property assignments.
+
 Review the compensation and instructions before beginning work. The displayed compensation is saved with that assignment and does not change merely because a default contractor rate changes later.
 
 ## Start work or get directions

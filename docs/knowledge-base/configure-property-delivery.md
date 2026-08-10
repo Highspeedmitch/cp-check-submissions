@@ -9,13 +9,16 @@ Use property setup, Service Delivery, and commercial Billing settings to control
 1. From the Dashboard navigation, select **Add Properties**.
 2. Select **Single property**, then enter the organization administrative action passkey when prompted.
 3. Enter the property name and physical address, then use **Geocode Address** to confirm its coordinates.
-4. Optionally assign a property manager.
-5. Choose **Organization Default** for Service Delivery Method unless this property needs a deliberate fulfillment override.
-6. Enter any additional inspection recipients. Assigned property managers are handled automatically after the property is created.
-7. For a commercial property, enter its billing address and property code, then review the suggested amount and AP delivery method.
-8. Select **Create Property**.
+4. In **Region**, select an existing suggestion or type a new named region. Saving the property creates that region option; there is no separate region-creation screen.
+5. Optionally assign a property manager.
+6. Choose **Organization Default** for Service Delivery Method unless this property needs a deliberate fulfillment override.
+7. Enter any additional inspection recipients. Assigned property managers are handled automatically after the property is created.
+8. For a commercial property, enter its billing address and property code, then review the suggested amount and AP delivery method.
+9. Select **Create Property**.
 
 The organization default keeps the property aligned with future organization-policy changes. A property override applies only to assignments created afterward; existing assignments keep their saved fulfillment and billing route.
+
+A named region makes the property eligible for an administrator-created route but does not add it automatically. To change an existing property's region, select **Manage Details**, edit **Region** under **Property details**, and select **Save Property Details**. Remove the property from any active route before changing its region. See [Manage property regions and routes](manage-property-regions-routes.md).
 
 ## Manage fulfillment for future assignments
 

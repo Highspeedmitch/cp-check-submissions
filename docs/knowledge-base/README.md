@@ -62,6 +62,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Invite, edit, archive, or restore non-administrator users | [Manage organization users and access](manage-organization-users.md) | 4-8 minutes |
 | Onboard a customer employee or customer contractor | [Onboard customer employees and contractors as Field Operators](onboard-customer-field-operators.md) | 3-5 minutes |
 | Configure property fulfillment, billing, AP, and inspection recipients | [Configure property delivery and inspection recipients](configure-property-delivery.md) | 5-10 minutes |
+| Create property regions and ordered routes | [Manage property regions and routes](manage-property-regions-routes.md) | 4-8 minutes |
 | Configure organization and property inspection fields and order | [Manage inspection form templates and field order](manage-inspection-form-templates.md) | 4-8 minutes |
 | Request a service-model or license-tier change | [Request a service plan change](organization-request-service-model-change.md) | 3-5 minutes |
 | Schedule work for a Field Operator or deployed resource | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |

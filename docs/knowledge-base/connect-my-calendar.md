@@ -12,6 +12,8 @@ The feed follows your Afterlight identity, not one organization. If you are auth
 
 The feed includes the property name, assignment type, dates, property address when available, current status, and a link back to Afterlight. It does not include compensation, invoices, access instructions, one-time requests, checklist answers, photos, or internal notes.
 
+A route assignment appears as one grouped calendar entry labeled **ROUTE** with its route name and stop count. Its constituent properties are not published as separate calendar events.
+
 ## Create and copy your private link
 
 1. Open the organization Dashboard or Afterlight Resource Portal.

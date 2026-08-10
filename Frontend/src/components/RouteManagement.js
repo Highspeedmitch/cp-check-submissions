@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import PageHeader from "./ui/PageHeader";
 
 const EMPTY_ROUTE = { name: "", region: "", propertyIds: [] };
@@ -194,7 +195,10 @@ export default function RouteManagement() {
           eyebrow="Organization administration"
           title="Regions & Routes"
           subtitle="Build ordered, reusable groups of nearby properties for scheduling and work access."
-          actions={<button type="button" className="beta-button" onClick={startNew}>+ New route</button>}
+          actions={<>
+            <ContextualHelpLink slug="manage-property-regions-routes" />
+            <button type="button" className="beta-button" onClick={startNew}>+ New route</button>
+          </>}
         />
 
         {message && <p className="beta-alert success" role="status">{message}</p>}

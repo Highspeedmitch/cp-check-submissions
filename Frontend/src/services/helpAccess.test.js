@@ -35,6 +35,7 @@ test("filters help articles by exact role and organization type", () => {
     "review-portfolio-reporting",
     "manage-inspection-form-templates",
     "create-a-scheduler-assignment",
+    "manage-property-regions-routes",
     "request-and-manage-property-bids",
     "request-a-service-model-change",
     "enable-notifications",

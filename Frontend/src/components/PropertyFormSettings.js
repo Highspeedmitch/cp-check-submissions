@@ -182,7 +182,10 @@ export default function PropertyFormSettings() {
           eyebrow="Managed property settings"
           title={propertyDetails?.name || property}
           subtitle="Update property information and customize the inspection form."
-          actions={<ContextualHelpLink slug="manage-inspection-form-templates" />}
+          actions={<>
+            <ContextualHelpLink slug="manage-property-regions-routes" label="Regions & routes help" />
+            <ContextualHelpLink slug="manage-inspection-form-templates" label="Form template help" />
+          </>}
         />
 
         {loading && <div className="beta-empty-state">Loading form settings…</div>}

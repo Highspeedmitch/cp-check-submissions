@@ -4,7 +4,7 @@
 
 **Current access:** Administrators across their organization; property managers for properties assigned to them
 
-Use Scheduler to review upcoming property work, create assignments for eligible organization users or deployed Afterlight resources, and manage schedule changes from a visual calendar.
+Use Scheduler to review upcoming property work, create individual-property or grouped route assignments for eligible organization users or deployed Afterlight resources, and manage schedule changes from a visual calendar.
 
 ## Open the assignment editor
 
@@ -35,6 +35,22 @@ Complete the numbered areas shown in the illustration:
 Afterlight sends the assignee an in-app or push notification when available. Organization users see the work on their Dashboard. Afterlight resources see it in the Resource Portal. Only Afterlight 1099 contractor assignments include snapshotted compensation and create a contractor earning after completion.
 
 Some legacy organization workflows also display a **Visit Type** field with **QA Check**, **Maintenance**, and **Cleaning** options. Choose the visit type before selecting the assignee.
+
+## Create a route assignment
+
+An organization administrator must first create the route under **Regions & Routes**. See [Manage property regions and routes](manage-property-regions-routes.md).
+
+1. Open the assignment editor and select **Route** under **Assignment type**.
+2. Select the active route and review its ordered stop preview.
+3. Review **Fulfillment**. If the route's properties have different defaults, choose one allowed fulfillment source for the grouped assignment.
+4. Choose an assignee who is eligible for every current route stop.
+5. Set the service date or date range and add any route-wide one-time instructions.
+6. Review each property's suggested client amount. Pricing and billing settings remain per property.
+7. Select **Create ROUTE Assignment**.
+
+Afterlight displays the route as one grouped calendar item and sends one clearly labeled **ROUTE** assignment notification containing multiple stops. The grouped work is backed by individual property assignments so inspection completion, customer billing, AP routing, and contractor compensation remain per property. A service night that continues after midnight belongs to its starting service date.
+
+Recurring route service is not yet available; create each route service date separately.
 
 ## Understand fulfillment choices
 
@@ -75,6 +91,9 @@ Organization administrators see history across their organization. Property mana
 - **An Afterlight employee or owner is missing:** Confirm that **Afterlight staff** is selected and that the resource relationship and deployment are active for the property and selected date.
 - **No Afterlight fulfillment choices appear:** SaaS plans use only customer employees and customer-managed contractors. Existing Afterlight work may still appear as retained work when it was scheduled before a service-model transition.
 - **The assignment overlaps:** Choose different dates or edit the existing scheduled assignment for that property.
+- **The Route option is unavailable:** Ask an organization administrator to create an active route containing two to six properties.
+- **A route assignee is missing:** Confirm that the user's property/route scope or the resource deployment covers every current route stop.
+- **A route uses mixed fulfillment defaults:** Choose one permitted fulfillment source for the complete route assignment and review the routing summary before saving.
 - **The assignment is created but the user did not receive a push:** Ask them to sign in and check **My Assignments** or the Resource Portal.
 - **The suggested client amount is not configured:** Ask an organization administrator to save the property's Suggested amount under commercial Billing settings.
 - **A property manager cannot select the property:** An organization administrator must assign that property to the manager before they can schedule its work.

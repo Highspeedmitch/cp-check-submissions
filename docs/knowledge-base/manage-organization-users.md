@@ -2,7 +2,7 @@
 
 **Audience:** Commercial organization administrators
 
-Use **User Management** to invite people, assign roles and properties, suspend access, and retain former-user history without deleting operational records.
+Use **User Management** to invite people, assign roles and future property or route scope, suspend access, and retain former-user history without deleting operational records.
 
 Administrator access is managed separately in the **Administrator seats** section at the top of the page. See [Invite organization administrators and manage licensed seats](manage-administrator-seats.md) when the new person needs full organization access.
 
@@ -15,7 +15,7 @@ Administrator access is managed separately in the **Administrator seats** sectio
    - **Customer Employee** for an organization employee whose work does not create an invoice;
    - **Customer Contractor** for an organization-managed contractor whose work can route an invoice to customer accounts payable; or
    - **Not scheduled** for a property manager or property owner who should not appear as an assignee.
-5. For a property manager or property owner, select the properties they may access.
+5. Under **Future work scope**, use **Properties** and **Routes** to select individual property access, route access, or both. Property owners continue to use individual property ownership only.
 6. Select **Send Invitation**.
 
 Use **Field Operator** as the role for a customer employee or customer contractor whose primary responsibility is completing inspections. The assignment type is deliberately separate from access. See [Onboard customer employees and contractors as Field Operators](onboard-customer-field-operators.md).
@@ -30,8 +30,10 @@ If email delivery fails, the invitation remains in the pending list so you can r
 
 1. Keep **Current users** selected and search by name, email, or role when needed.
 2. Select the user.
-3. Review their name, email, role, assignment type, account status, and property assignments.
+3. Review their name, email, role, assignment type, account status, and future work scope.
 4. Make the required changes and select **Save Changes**.
+
+Route access includes every current stop and follows future route edits. If a user has individual access to every property in an active route, Afterlight shows that route as included automatically. Selecting a route grants access to all of its current properties without removing any separately selected property access. See [Manage property regions and routes](manage-property-regions-routes.md).
 
 Changing account details or access invalidates the user's existing sessions. Ask the user to sign in again after a role, status, or property-access change.
 
@@ -68,6 +70,7 @@ Restoration preserves the previous active or inactive account status. An inactiv
 - **Archiving is refused:** Reassign or cancel the user's scheduled assignments, then try again.
 - **A restored user cannot sign in:** Check whether the preserved account status is inactive, then send a password reset if needed.
 - **A property is missing after restoration:** Reassign it from the user's current profile. Restoration does not recreate former property access.
+- **A route is included but cannot be unchecked:** The user already has individual access to every stop. Remove the relevant direct property access if the route should no longer be included automatically.
 - **You need to add another administrator:** Use **Administrator seats**, not the standard user invitation form.
 
 [Back to the knowledge base](README.md)

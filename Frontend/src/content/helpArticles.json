@@ -98,6 +98,18 @@
     "keywords": ["admin", "property manager", "assignment", "calendar", "dates", "schedule", "scheduler", "user"]
   },
   {
+    "slug": "manage-property-regions-routes",
+    "title": "Manage property regions and routes",
+    "summary": "Create property-derived regions, build ordered routes, and understand route-driven access, scheduling, deployments, and pricing.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "manage-property-regions-routes.md",
+    "estimatedTime": "4-8 min",
+    "keywords": ["access", "assignment", "deployment", "field operator", "pricing", "property", "region", "route", "route order", "scheduler", "scope", "stops"]
+  },
+  {
     "slug": "request-and-manage-property-bids",
     "title": "Request and manage a property service bid",
     "summary": "Submit preliminary property-service information, review internal pricing, and manage active or archived bid requests.",
@@ -238,7 +250,7 @@
   {
     "slug": "calculate-preliminary-service-pricing",
     "title": "Calculate preliminary service pricing",
-    "summary": "Run a stateless single-property, cluster, or portfolio-aware pricing estimate with transparent geographic factors.",
+    "summary": "Run a stateless single-property, cluster, or route-aware pricing estimate with transparent geographic factors.",
     "category": "Marketing tools",
     "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
     "platformRoles": ["platform_admin"],
