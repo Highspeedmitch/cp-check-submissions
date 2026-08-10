@@ -1,3 +1,5 @@
+const { normalizeRegion } = require("./routeScopes");
+
 function normalizePropertyDetails(input, orgType) {
   const name = String(input.name || "").trim();
   const propertyCode = String(input.propertyCode || "").trim();
@@ -8,6 +10,7 @@ function normalizePropertyDetails(input, orgType) {
   const lng = input.lng === "" || input.lng === null || input.lng === undefined
     ? Number.NaN
     : Number(input.lng);
+  const region = normalizeRegion(input.region);
 
   if (!name || name.length > 120) {
     throw new Error("Property name is required and must be 120 characters or fewer.");
@@ -25,7 +28,7 @@ function normalizePropertyDetails(input, orgType) {
     throw new Error("Enter a valid longitude.");
   }
 
-  return { name, propertyCode, physicalAddress, lat, lng };
+  return { name, propertyCode, physicalAddress, lat, lng, region };
 }
 
 module.exports = { normalizePropertyDetails };

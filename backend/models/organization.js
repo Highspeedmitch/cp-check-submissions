@@ -81,6 +81,11 @@ const PropertySchema = new mongoose.Schema({
   // Optionally store an array of client user IDs who own this property
   clientOwners: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   propertyManagers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  // Field-operator work eligibility is intentionally separate from property
+  // management and ownership. Legacy organizations continue to use their
+  // previous behavior until an administrator explicitly configures a user's
+  // work scope.
+  fieldOperators: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   inspectionTemplateOverride: {
     omittedFieldKeys: { type: [String], default: [] },
     fieldOrder: { type: [String], default: [] },
@@ -107,6 +112,29 @@ const PropertySchema = new mongoose.Schema({
     updatedAt: { type: Date, default: null },
   },
 });
+
+const ServiceRouteSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, maxlength: 120 },
+  region: { type: String, required: true, trim: true, maxlength: 100 },
+  propertyIds: {
+    type: [mongoose.Schema.Types.ObjectId],
+    default: [],
+    validate: {
+      validator: (value) => Array.isArray(value) && value.length >= 2 && value.length <= 6,
+      message: "A route must contain between 2 and 6 properties.",
+    },
+  },
+  assignedUserIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  status: {
+    type: String,
+    enum: ["active", "archived"],
+    default: "active",
+  },
+  version: { type: Number, min: 1, default: 1 },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  archivedAt: { type: Date, default: null },
+}, { timestamps: true });
 
 const OrganizationOnboardingSchema = new mongoose.Schema({
   status: {
@@ -172,6 +200,10 @@ const OrganizationSchema = new mongoose.Schema({
     required: true 
   },
   properties: { type: [PropertySchema], default: [] },
+  routes: { type: [ServiceRouteSchema], default: [] },
+  // Once a field operator is configured through the new work-scope editor,
+  // this marker prevents the broader legacy property-access fallback.
+  workScopeConfiguredUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   serviceModel: {
     type: String,
     enum: ["platform", "managed", "hybrid"],

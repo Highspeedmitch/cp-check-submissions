@@ -15,6 +15,7 @@ const {
   issueEmailApprovalAuthorization,
   secureEmailApprovalEligible,
 } = require("./invoiceEmailAuthorization");
+const { effectivePropertyManagerIds } = require("./routeScopes");
 
 function escapeHtml(value) {
   return String(value || "")
@@ -37,14 +38,12 @@ async function assignedPropertyManagers(
   { OrganizationModel = Organization, UserModel = User } = {}
 ) {
   const organization = await OrganizationModel.findById(organizationId)
-    .select("properties._id properties.propertyManagers")
+    .select("properties._id properties.propertyManagers routes.propertyIds routes.assignedUserIds routes.status")
     .lean();
   const property = (organization?.properties || []).find(
     (item) => item._id.toString() === invoice.propertyId.toString()
   );
-  const assignedIds = [...new Set(
-    (property?.propertyManagers || []).map((id) => id.toString())
-  )];
+  const assignedIds = effectivePropertyManagerIds(organization, property);
   if (!assignedIds.length) return [];
 
   return UserModel.find({

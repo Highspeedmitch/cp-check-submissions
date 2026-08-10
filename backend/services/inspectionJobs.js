@@ -267,7 +267,7 @@ async function createInspectionJob({
       error.status = 404;
       throw error;
     }
-    if (!resourceAssignment && !canAccessProperty(property, user)) {
+    if (!resourceAssignment && !canAccessProperty(property, user, organization)) {
       const error = new Error("You do not manage this property.");
       error.status = 403;
       throw error;

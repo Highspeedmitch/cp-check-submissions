@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const moment = require("moment-timezone");
+const { effectivePropertyIdsForUser } = require("./routeScopes");
 const {
   BedrockRuntimeClient,
   ConverseCommand,
@@ -80,10 +81,11 @@ function propertiesForPortfolioRecipient(organization, recipient) {
   const properties = Array.isArray(organization?.properties) ? organization.properties : [];
   if (recipient?.role === "admin") return properties;
   if (recipient?.role !== "property_manager") return [];
-  const recipientId = String(recipient._id || recipient.userId || "");
-  return properties.filter((property) => (
-    (property.propertyManagers || []).some((managerId) => String(managerId) === recipientId)
-  ));
+  const effectiveIds = new Set(effectivePropertyIdsForUser(organization, {
+    ...recipient,
+    userId: recipient.userId || recipient._id,
+  }));
+  return properties.filter((property) => effectiveIds.has(String(property._id)));
 }
 
 function portfolioPropertySnapshots(properties) {

@@ -102,6 +102,58 @@ test("calendar output uses stable all-day events, safe text, and explicit cancel
   assert.doesNotMatch(calendar, /compensation|invoice|access instruction|one-time|checklist|internal note/i);
 });
 
+test("route assignments publish one clearly grouped calendar event", () => {
+  const base = {
+    userId: "user-1",
+    organizationId: "org-1",
+    routeRunId: "route-run-1",
+    routeId: "route-1",
+    routeName: "Tucson - East/Central",
+    routeStopCount: 2,
+    startDate: new Date("2026-08-10T06:30:00.000Z"),
+    endDate: new Date("2026-08-11T08:00:00.000Z"),
+    status: "scheduled",
+    calendarSequence: 1,
+  };
+  const calendar = buildAssignmentCalendar({
+    assignments: [
+      { ...base, _id: "a1", propertyName: "Spanish Trail Plaza", routeStopIndex: 0 },
+      { ...base, _id: "a2", propertyName: "Broadway Center", routeStopIndex: 1 },
+    ],
+    generatedAt: new Date("2026-08-01T00:00:00.000Z"),
+  });
+  const unfolded = calendar.replace(/\r\n /g, "");
+
+  assert.equal((calendar.match(/BEGIN:VEVENT/g) || []).length, 1);
+  assert.match(unfolded, /UID:route-route-run-1@afterlightinspections\.com/);
+  assert.match(unfolded, /SUMMARY:ROUTE: Tucson - East\/Central \(2 stops\)/);
+  assert.match(unfolded, /1\. Spanish Trail Plaza/);
+  assert.match(unfolded, /2\. Broadway Center/);
+  assert.doesNotMatch(calendar, /UID:assignment-a[12]/);
+});
+
+test("a partially completed route that is canceled clears its grouped calendar event", () => {
+  const base = {
+    userId: "user-1",
+    organizationId: "org-1",
+    routeRunId: "route-run-1",
+    routeName: "Tucson - East/Central",
+    routeStopCount: 2,
+    startDate: new Date("2026-08-10T06:30:00.000Z"),
+    endDate: new Date("2026-08-11T08:00:00.000Z"),
+    calendarSequence: 2,
+  };
+  const calendar = buildAssignmentCalendar({
+    assignments: [
+      { ...base, _id: "a1", propertyName: "Spanish Trail Plaza", routeStopIndex: 0, status: "completed" },
+      { ...base, _id: "a2", propertyName: "Broadway Center", routeStopIndex: 1, status: "canceled" },
+    ],
+    generatedAt: new Date("2026-08-01T00:00:00.000Z"),
+  });
+
+  assert.match(calendar, /STATUS:CANCELLED/);
+});
+
 test("a valid feed queries assignments only for its user across organizations", async () => {
   let assignmentQuery;
   let lastAccessUpdate;

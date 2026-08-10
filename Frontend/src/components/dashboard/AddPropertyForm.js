@@ -7,6 +7,7 @@ const initialForm = {
   lat: "",
   lng: "",
   address: "",
+  region: "Uncategorized",
   billingAddress: "",
   propertyCode: "",
   defaultAmount: "",
@@ -35,6 +36,7 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [propertyManagers, setPropertyManagers] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [organizationDefaultSource, setOrganizationDefaultSource] = useState("");
   const formRef = useRef(null);
 
@@ -43,6 +45,12 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
       formRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    api.get("/api/properties/regions")
+      .then((data) => setRegions(Array.isArray(data) ? data : data.regions || []))
+      .catch(() => setRegions([]));
   }, []);
 
   useEffect(() => {
@@ -137,6 +145,23 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
         <label className="beta-form-field full">
           Physical Property Address (will geocode)
           <input type="text" value={form.address} onChange={setField("address")} />
+        </label>
+        <label className="beta-form-field full">
+          Region
+          <input
+            type="text"
+            list="property-region-options"
+            value={form.region}
+            onChange={setField("region")}
+            maxLength={100}
+            placeholder="Example: Tucson - East/Central"
+          />
+          <datalist id="property-region-options">
+            {regions.map((region) => <option key={region} value={region} />)}
+          </datalist>
+          <small className="beta-field-help">
+            A named region makes this property eligible for an administrator-created route. Region alone does not add it to one.
+          </small>
         </label>
         <label className="beta-form-field">
           Assign to property manager (optional)

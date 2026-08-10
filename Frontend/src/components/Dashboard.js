@@ -446,6 +446,7 @@ useEffect(() => {
       await api.post("/api/admin/add-property", {
         adminActionGrant: addPropertyGrant,
         name: form.name,
+        region: String(form.region || "").trim() || "Uncategorized",
         emails: emailsArray,
         lat: parseFloat(form.lat) || 0,
         lng: parseFloat(form.lng) || 0,

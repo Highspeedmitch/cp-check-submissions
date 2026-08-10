@@ -33,6 +33,9 @@ test("assignment router preserves the existing scheduler API paths", () => {
 
   assert.deepEqual(routes, [
     { path: "/assignments", methods: ["post"] },
+    { path: "/route-runs", methods: ["post"] },
+    { path: "/route-runs/:id", methods: ["put"] },
+    { path: "/route-runs/:id", methods: ["delete"] },
     { path: "/assignments", methods: ["get"] },
     { path: "/assignments/monthly-status", methods: ["get"] },
     { path: "/assignments/history", methods: ["get"] },
@@ -682,7 +685,14 @@ test("scheduler user lookup retains organization and role filters", async () => 
     query: { roles: "all" },
   }, res);
 
-  assert.deepEqual(res.body, users);
+  assert.deepEqual(res.body, [{
+    ...users[0],
+    propertyIds: [],
+    directPropertyIds: [],
+    routeIds: [],
+    eligibleRouteIds: [],
+    workScopeConfigured: false,
+  }]);
   assert.equal(userQuery.organizationId, "org-1");
   assert.deepEqual(userQuery.role, {
     $in: ["user", "contractor", "cleaner", "property_manager", "client"],
@@ -715,7 +725,14 @@ test("SaaS scheduler lookup returns tenant workers without querying Afterlight d
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, users);
+  assert.deepEqual(res.body, [{
+    ...users[0],
+    propertyIds: [],
+    directPropertyIds: [],
+    routeIds: [],
+    eligibleRouteIds: [],
+    workScopeConfigured: false,
+  }]);
   assert.equal(schedulerLookupAttempted, false);
 });
 
@@ -803,6 +820,7 @@ test("assignment updates remain scoped to the authenticated organization", async
     _id: "assignment-1",
     organizationId: "org-1",
     status: "scheduled",
+    routeRunId: null,
   });
   assert.deepEqual(res.body, { success: true, assignment: updated });
 });
@@ -980,6 +998,7 @@ test("assignment cancellation remains scoped and publishes a calendar revision",
     _id: "assignment-1",
     organizationId: "org-1",
     status: "scheduled",
+    routeRunId: null,
   });
   assert.equal(cancelUpdate.$set.status, "canceled");
   assert.equal(cancelUpdate.$set.canceledBy, "admin-1");
@@ -1090,4 +1109,87 @@ test("assignment updates discard tenant, audit, and completion fields from reque
     $set: { notes: "Gate code confirmed" },
     $inc: { calendarSequence: 1 },
   });
+});
+
+test("route scheduling snapshots ordered per-property work under one grouped run", async () => {
+  let createdAssignments;
+  let createdRouteRun;
+  let notification;
+  const organization = {
+    _id: "org-1",
+    serviceModel: "managed",
+    fulfillmentPolicy: { defaultSource: "afterlight_staff", version: 1 },
+    properties: [
+      { _id: "property-1", name: "Spanish Trail Plaza", region: "Tucson East", fieldOperators: ["user-1"], defaultInspectionAmountCents: 5000 },
+      { _id: "property-2", name: "Broadway Center", region: "Tucson East", fieldOperators: ["user-1"], defaultInspectionAmountCents: 6000 },
+    ],
+    routes: [{
+      _id: "route-1",
+      name: "Tucson - East/Central",
+      region: "Tucson East",
+      propertyIds: ["property-1", "property-2"],
+      assignedUserIds: [],
+      version: 3,
+      status: "active",
+    }],
+    workScopeConfiguredUsers: ["user-1"],
+  };
+  const handlers = createAssignmentHandlers({
+    OrganizationModel: { async findById() { return organization; } },
+    AssignmentModel: {
+      async find() { return []; },
+      async create(assignments) {
+        createdAssignments = assignments.map((assignment, index) => ({
+          ...assignment,
+          _id: `assignment-${index + 1}`,
+        }));
+        return createdAssignments;
+      },
+    },
+    RouteRunModel: {
+      async create([routeRun]) {
+        createdRouteRun = {
+          ...routeRun,
+          _id: "route-run-1",
+          async save() {},
+        };
+        return [createdRouteRun];
+      },
+    },
+    resolveAssignee: async () => ({
+      userId: "user-1",
+      resourceProfileId: null,
+      resourceDeploymentId: null,
+      compensationSnapshot: undefined,
+    }),
+    transactionRunner: async (work) => work(null),
+    notifyUser: async (payload) => { notification = payload; },
+  });
+  const res = response();
+
+  await handlers.createRouteRun({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    body: {
+      routeId: "route-1",
+      userId: "user-1",
+      eventType: "QA Check",
+      startDate: "2026-08-10T23:30:00-07:00",
+      endDate: "2026-08-11T01:00:00-07:00",
+    },
+    get: () => "",
+  }, res);
+
+  assert.equal(res.statusCode, 201);
+  assert.equal(createdRouteRun.serviceDate, "2026-08-10");
+  assert.equal(createdRouteRun.routeVersion, 3);
+  assert.deepEqual(createdAssignments.map((assignment) => assignment.propertyName), [
+    "Spanish Trail Plaza",
+    "Broadway Center",
+  ]);
+  assert.deepEqual(createdAssignments.map((assignment) => assignment.routeStopIndex), [0, 1]);
+  assert.ok(createdAssignments.every((assignment) => assignment.routeStopCount === 2));
+  assert.ok(createdAssignments.every((assignment) => assignment.routeRunId === "route-run-1"));
+  assert.deepEqual(createdAssignments.map((assignment) => assignment.customerChargeSnapshot.amountCents), [5000, 6000]);
+  assert.equal(notification.type, "route_assignment_created");
+  assert.match(notification.body, /ROUTE assignment with 2 stops/i);
 });

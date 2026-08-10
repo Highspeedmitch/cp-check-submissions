@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 import { api } from "../services/api";
@@ -222,7 +222,12 @@ test("valid admin passkey opens the reducer-backed add property form", async () 
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-  expect(await screen.findByRole("heading", { name: "Add New Property" })).toBeInTheDocument();
+  const propertyForm = (await screen.findByRole("heading", { name: "Add New Property" }))
+    .closest(".add-property-form");
+  expect(propertyForm).toBeInTheDocument();
+  expect(within(propertyForm).getByLabelText(/^Region/)).toHaveValue("Uncategorized");
+  expect(within(propertyForm).getByLabelText(/^Region/)).toHaveAttribute("maxlength", "100");
+  expect(within(propertyForm).getByText(/Region alone does not add it to one/)).toBeInTheDocument();
   expect(
     await screen.findByRole("option", { name: "Pat Manager (pat@example.com)" })
   ).toBeInTheDocument();

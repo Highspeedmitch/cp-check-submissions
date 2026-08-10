@@ -39,6 +39,8 @@ export default function PropertyFormSettings() {
   const [geocoding, setGeocoding] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [regions, setRegions] = useState([]);
+  const isAdmin = localStorage.getItem("role") === "admin";
 
   useEffect(() => {
     api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective`)
@@ -52,6 +54,12 @@ export default function PropertyFormSettings() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [property]);
+
+  useEffect(() => {
+    api.get("/api/properties/regions")
+      .then((data) => setRegions(Array.isArray(data) ? data : data.regions || []))
+      .catch(() => setRegions([]));
+  }, []);
 
   const geocodeAddress = async () => {
     if (!propertyDetails?.physicalAddress || geocoding) return;
@@ -198,6 +206,26 @@ export default function PropertyFormSettings() {
                 <label className="beta-form-field">Property code
                   <input value={propertyDetails?.propertyCode || ""}
                     onChange={(event) => setPropertyDetails({ ...propertyDetails, propertyCode: event.target.value })} />
+                </label>
+                <label className="beta-form-field full">Region
+                  <input
+                    value={propertyDetails?.region || "Uncategorized"}
+                    list="property-settings-region-options"
+                    maxLength={100}
+                    disabled={!isAdmin}
+                    onChange={(event) => setPropertyDetails({
+                      ...propertyDetails,
+                      region: event.target.value,
+                    })}
+                  />
+                  <datalist id="property-settings-region-options">
+                    {regions.map((region) => <option key={region} value={region} />)}
+                  </datalist>
+                  <small className="beta-field-help">
+                    {isAdmin
+                      ? "A named region makes the property eligible for route enrollment. Properties in an active route must be removed from it before changing regions."
+                      : "Only an organization administrator can change a property's region."}
+                  </small>
                 </label>
                 <label className="beta-form-field full">Physical property address
                   <input value={propertyDetails?.physicalAddress || ""}

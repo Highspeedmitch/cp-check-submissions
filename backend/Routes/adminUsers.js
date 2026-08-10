@@ -49,6 +49,12 @@ const {
   normalizeOrganizationUserClassification,
 } = require("../services/organizationUserClassification");
 const { changeOrganizationAdministratorAccess } = require("../services/administratorAccess");
+const {
+  OPERATIONAL_ROLES,
+  routeResult,
+  userScope,
+  validateScopeSelection,
+} = require("../services/routeScopes");
 
 const router = express.Router();
 const editableRoles = ["user", "property_manager", "client", "contractor", "cleaner"];
@@ -84,7 +90,7 @@ router.get("/", async (req, res) => {
       organizationId: req.user.organizationId,
       role: { $ne: "admin" },
       status: { $in: ["pending", "expired"] },
-    }).select("email role engagementType propertyIds status expiresAt lastSentAt createdAt")
+    }).select("email role engagementType propertyIds routeIds status expiresAt lastSentAt createdAt")
       .sort({ createdAt: -1 }).lean(),
     User.find({
       organizationId: req.user.organizationId,
@@ -110,8 +116,16 @@ router.get("/", async (req, res) => {
         return { ...user, submissionCount, assignmentCount };
       }))
     : users;
+  const usersWithScope = usersWithStats.map((user) => ({
+    ...user,
+    propertyIds: userScope(organization, user).directPropertyIds,
+    routeIds: userScope(organization, user).directRouteIds,
+    effectivePropertyIds: userScope(organization, user).effectivePropertyIds,
+    eligibleRouteIds: userScope(organization, user).eligibleRouteIds,
+    workScopeConfigured: userScope(organization, user).configured,
+  }));
   res.json({
-    users: usersWithStats,
+    users: usersWithScope,
     invitations,
     administrators,
     adminInvitations,
@@ -127,9 +141,13 @@ router.get("/", async (req, res) => {
     properties: organization.properties.map((property) => ({
       _id: property._id,
       name: property.name,
+      region: property.region || "Uncategorized",
       propertyManagers: property.propertyManagers || [],
       clientOwners: property.clientOwners || [],
+      fieldOperators: property.fieldOperators || [],
     })),
+    routes: (organization.routes || []).filter((route) => route.status !== "archived")
+      .map((route) => routeResult(organization, route)),
   });
 });
 
@@ -339,6 +357,7 @@ router.post("/invitations", async (req, res) => {
       role,
       engagementType: req.body.engagementType,
       propertyIds: req.body.propertyIds || [],
+      routeIds: req.body.routeIds || [],
       invitedBy: req.user.userId,
       ipAddress: req.ip || "",
       userAgent: req.get("user-agent") || "",
@@ -350,6 +369,7 @@ router.post("/invitations", async (req, res) => {
         role: result.invitation.role,
         engagementType: inferredCustomerEngagementType(result.invitation),
         propertyIds: result.invitation.propertyIds,
+        routeIds: result.invitation.routeIds,
         status: result.invitation.status,
         expiresAt: result.invitation.expiresAt,
         lastSentAt: result.invitation.lastSentAt,
@@ -444,6 +464,7 @@ router.put("/:userId", async (req, res) => {
       billingProfile = {},
       accountStatus,
       propertyIds = [],
+      routeIds = [],
     } = req.body;
     const normalizedAccountStatus = normalizeAccountStatus(accountStatus);
     if (!username?.trim() || !email?.trim()) {
@@ -464,12 +485,18 @@ router.put("/:userId", async (req, res) => {
     if (duplicate) return res.status(409).json({ error: "That email is already in use." });
 
     const organization = await Organization.findById(req.user.organizationId);
-    const validPropertyIds = new Set(organization.properties.map((property) => property._id.toString()));
-    const assignedIds = new Set(propertyIds.map(String));
-    if ([...assignedIds].some((id) => !validPropertyIds.has(id))) {
-      return res.status(400).json({ error: "One or more properties are outside this organization." });
+    let scopeSelection;
+    try {
+      scopeSelection = validateScopeSelection(organization, {
+        role: classification.role,
+        propertyIds,
+        routeIds,
+      });
+    } catch (scopeError) {
+      return res.status(400).json({ error: scopeError.message });
     }
-    if (!["property_manager", "client"].includes(classification.role)) assignedIds.clear();
+    const assignedIds = new Set(scopeSelection.propertyIds);
+    const assignedRouteIds = new Set(scopeSelection.routeIds);
 
     const before = {
       username: user.username,
@@ -503,14 +530,35 @@ router.put("/:userId", async (req, res) => {
             .filter((id) => id.toString() !== currentUser._id.toString());
           property.clientOwners = (property.clientOwners || [])
             .filter((id) => id.toString() !== currentUser._id.toString());
+          property.fieldOperators = (property.fieldOperators || [])
+            .filter((id) => id.toString() !== currentUser._id.toString());
           if (assignedIds.has(property._id.toString())) {
-            const assignmentField = classification.role === "client" ? "clientOwners" : "propertyManagers";
+            const assignmentField = classification.role === "client"
+              ? "clientOwners"
+              : classification.role === "property_manager"
+                ? "propertyManagers"
+                : OPERATIONAL_ROLES.has(classification.role)
+                  ? "fieldOperators"
+                  : null;
+            if (!assignmentField) return;
             property[assignmentField].push(currentUser._id);
             if (classification.role === "property_manager") {
               property.emails = withoutAutomaticPropertyEmails(property.emails, [email]);
             }
           }
         });
+        (currentOrganization.routes || []).forEach((route) => {
+          route.assignedUserIds = (route.assignedUserIds || [])
+            .filter((id) => id.toString() !== currentUser._id.toString());
+          if (route.status !== "archived" && assignedRouteIds.has(route._id.toString())) {
+            route.assignedUserIds.push(currentUser._id);
+          }
+        });
+        currentOrganization.workScopeConfiguredUsers = (currentOrganization.workScopeConfiguredUsers || [])
+          .filter((id) => id.toString() !== currentUser._id.toString());
+        if (OPERATIONAL_ROLES.has(classification.role)) {
+          currentOrganization.workScopeConfiguredUsers.push(currentUser._id);
+        }
         currentUser.username = username.trim();
         currentUser.email = email.trim().toLowerCase();
         currentUser.role = classification.role;
@@ -539,6 +587,7 @@ router.put("/:userId", async (req, res) => {
               accountStatus: normalizedAccountStatus,
             },
             propertyIds: [...assignedIds],
+            routeIds: [...assignedRouteIds],
           },
         }], { session });
         return currentUser;

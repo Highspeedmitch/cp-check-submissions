@@ -19,6 +19,7 @@ const OrganizationInvitationSchema = new mongoose.Schema({
     default: null,
   },
   propertyIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  routeIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
   tokenHash: { type: String, required: true, unique: true, select: false },
   status: {
     type: String,

@@ -3,6 +3,7 @@ const Organization = require("../models/organization");
 const ResourceProfile = require("../models/resourceProfile");
 const ResourceDeployment = require("../models/resourceDeployment");
 const PlatformAudit = require("../models/platformAudit");
+const { findRoute } = require("./routeScopes");
 
 function operationError(message, status) {
   const error = new Error(message);
@@ -35,6 +36,8 @@ async function updateResourceDeploymentScope({
   deploymentId,
   organizationId,
   propertyIds,
+  routeIds,
+  scopeMode,
   rateOverrideCents,
   actorUserId,
   audit = {},
@@ -46,6 +49,13 @@ async function updateResourceDeploymentScope({
 }) {
   if (!organizationId) throw operationError("Select an eligible managed or hybrid organization.", 400);
   const requestedIds = cleanIds(propertyIds);
+  const requestedRouteIds = cleanIds(routeIds);
+  const requestedScopeMode = scopeMode === "all" || scopeMode === "selected"
+    ? scopeMode
+    : (requestedIds.length || requestedRouteIds.length) ? "selected" : "all";
+  if (requestedScopeMode === "selected" && !requestedIds.length && !requestedRouteIds.length) {
+    throw operationError("Select at least one property or route for a selected deployment scope.", 400);
+  }
   const requestedRateOverride = validCents(rateOverrideCents, { optional: true });
   const session = await startSession();
   let updatedDeployment;
@@ -77,6 +87,11 @@ async function updateResourceDeploymentScope({
       if (requestedIds.some((propertyId) => !validPropertyIds.has(propertyId))) {
         throw operationError("One or more selected properties do not belong to this organization.", 400);
       }
+      if (requestedRouteIds.some((routeId) => !findRoute(organization, routeId))) {
+        throw operationError("One or more selected routes do not belong to this organization or are archived.", 400);
+      }
+      const savedPropertyIds = requestedScopeMode === "all" ? [] : requestedIds;
+      const savedRouteIds = requestedScopeMode === "all" ? [] : requestedRouteIds;
 
       const effectiveRateOverride = resource.resourceType === "contractor"
         ? requestedRateOverride
@@ -88,7 +103,9 @@ async function updateResourceDeploymentScope({
 
       organizationChanged = String(deployment.organizationId) !== String(organization._id);
       if (!organizationChanged) {
-        deployment.propertyIds = requestedIds;
+        deployment.propertyIds = savedPropertyIds;
+        deployment.routeIds = savedRouteIds;
+        deployment.scopeMode = requestedScopeMode;
         deployment.rateOverrideCents = effectiveRateOverride;
         deployment.updatedBy = actorUserId;
         await deployment.save({ session });
@@ -107,7 +124,9 @@ async function updateResourceDeploymentScope({
 
         const movedAt = new Date();
         if (destination) {
-          destination.propertyIds = requestedIds;
+          destination.propertyIds = savedPropertyIds;
+          destination.routeIds = savedRouteIds;
+          destination.scopeMode = requestedScopeMode;
           destination.status = deployment.status;
           destination.rateOverrideCents = effectiveRateOverride;
           destination.startsAt = movedAt;
@@ -118,7 +137,9 @@ async function updateResourceDeploymentScope({
           [destination] = await ResourceDeploymentModel.create([{
             resourceProfileId: deployment.resourceProfileId,
             organizationId: organization._id,
-            propertyIds: requestedIds,
+            propertyIds: savedPropertyIds,
+            routeIds: savedRouteIds,
+            scopeMode: requestedScopeMode,
             status: deployment.status,
             rateOverrideCents: effectiveRateOverride,
             startsAt: movedAt,
@@ -147,7 +168,9 @@ async function updateResourceDeploymentScope({
           previousOrganizationId: deployment.organizationId,
           organizationId: organization._id,
           organizationChanged,
-          propertyIds: requestedIds,
+          propertyIds: savedPropertyIds,
+          routeIds: savedRouteIds,
+          scopeMode: requestedScopeMode,
         },
       }], { session });
     });

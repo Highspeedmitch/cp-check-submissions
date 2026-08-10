@@ -217,15 +217,16 @@ test("archiving a current resource requires a reason and uses the dedicated life
   expect(await screen.findByText("Resource archived.")).toBeInTheDocument();
 });
 
-test("eligible properties remain hidden until an organization is selected", async () => {
+test("future scheduling scope remains hidden until an organization is selected", async () => {
   render(<PlatformResources />);
 
   await screen.findByRole("heading", { name: "Deploy a Resource" });
-  expect(screen.queryByLabelText("Eligible properties")).not.toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "Future scheduling scope" })).not.toBeInTheDocument();
 
   fireEvent.change(screen.getByLabelText("Managed or hybrid organization"), { target: { value: "org-1" } });
-  expect(screen.getByLabelText("Eligible properties")).toBeInTheDocument();
-  expect(screen.getByRole("option", { name: "Property A" })).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: /All organization properties/ })).toBeChecked();
+  fireEvent.click(screen.getByRole("radio", { name: /Selected properties and routes/ }));
+  expect(screen.getByRole("checkbox", { name: /Property A/ })).toBeInTheDocument();
 });
 
 test("deployment records expose responsive labels inside the deployment panel", async () => {
@@ -235,7 +236,7 @@ test("deployment records expose responsive labels inside the deployment panel", 
   const panel = heading.closest("section");
   const table = within(panel).getByRole("table");
   const resourceCell = within(table).getByText("Alpha Resource").closest("td");
-  const scopeCell = within(table).getByText("Property A").closest("td");
+  const scopeCell = within(table).getByText("Properties: Property A").closest("td");
 
   expect(panel).toHaveClass("platform-resource-deployment-panel");
   expect(table).toHaveClass("platform-resource-deployment-table");
@@ -285,22 +286,61 @@ test("current deployments can move organizations and change eligible property sc
   expect(screen.getByLabelText("Resource")).toBeDisabled();
   expect(screen.getByLabelText("Managed or hybrid organization")).toHaveValue("org-1");
   expect(screen.getByLabelText("Contractor pay override")).toHaveValue(90);
-  expect([...screen.getByLabelText("Eligible properties").selectedOptions].map((option) => option.value)).toEqual(["property-1"]);
+  expect(screen.getByRole("radio", { name: /Selected properties and routes/ })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: /Property A/ })).toBeChecked();
 
   fireEvent.change(screen.getByLabelText("Managed or hybrid organization"), { target: { value: "org-2" } });
-  const propertySelect = screen.getByLabelText("Eligible properties");
-  screen.getByRole("option", { name: "Property B" }).selected = true;
-  fireEvent.change(propertySelect);
+  fireEvent.click(screen.getByRole("radio", { name: /Selected properties and routes/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /Property B/ }));
   fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
 
   await waitFor(() => expect(api.put).toHaveBeenCalledWith(
     "/api/platform-resources/deployments/deployment-1/scope",
     {
       organizationId: "org-2",
+      scopeMode: "selected",
       propertyIds: ["property-2"],
+      routeIds: [],
       rateOverrideCents: 9000,
     }
   ));
   expect(await screen.findByText(/Resource moved to the new organization/)).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Deploy a Resource" })).toBeInTheDocument();
+});
+
+test("a resource deployment can use a route as dynamic future scope", async () => {
+  api.get.mockResolvedValue({
+    ...dashboard,
+    organizations: dashboard.organizations.map((organization) => organization._id === "org-1"
+      ? {
+        ...organization,
+        routes: [{
+          _id: "route-1",
+          name: "Tucson - Central Route",
+          region: "Tucson - Central",
+          status: "active",
+          propertyIds: ["property-1"],
+        }],
+      }
+      : organization),
+  });
+  render(<PlatformResources />);
+
+  await screen.findByRole("heading", { name: "Deploy a Resource" });
+  fireEvent.change(screen.getByLabelText("Active resource"), { target: { value: "resource-1" } });
+  fireEvent.change(screen.getByLabelText("Managed or hybrid organization"), { target: { value: "org-1" } });
+  fireEvent.click(screen.getByRole("radio", { name: /Selected properties and routes/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /Tucson - Central Route/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Save Deployment" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/platform-resources/resources/resource-1/deployments",
+    {
+      organizationId: "org-1",
+      scopeMode: "selected",
+      propertyIds: [],
+      routeIds: ["route-1"],
+      rateOverrideCents: null,
+    }
+  ));
 });

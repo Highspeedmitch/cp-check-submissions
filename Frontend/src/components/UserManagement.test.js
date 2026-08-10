@@ -387,7 +387,7 @@ test("invites a Field Operator with a separate Customer Contractor assignment ty
   fireEvent.change(screen.getByLabelText("Email address"), {
     target: { value: "operator@example.com" },
   });
-  fireEvent.change(screen.getByLabelText(/^Assignment type/), {
+  fireEvent.change(screen.getByLabelText(/^Engagement type/), {
     target: { value: "customer_contractor" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Send Invitation" }));
@@ -399,7 +399,42 @@ test("invites a Field Operator with a separate Customer Contractor assignment ty
       role: "user",
       engagementType: "customer_contractor",
       propertyIds: [],
+      routeIds: [],
     }
+  ));
+});
+
+test("an invitation can grant dynamic future scope through a route", async () => {
+  api.get.mockResolvedValue({
+    ...currentDirectory,
+    properties: [{ ...properties[0], region: "Tucson - Central" }],
+    routes: [{
+      _id: "route-1",
+      name: "Tucson - Central Route",
+      region: "Tucson - Central",
+      status: "active",
+      propertyIds: ["property-1"],
+    }],
+  });
+  renderManagement();
+  await screen.findByText("Current Submitter");
+  fireEvent.click(screen.getByRole("button", { name: "Invite User" }));
+  fireEvent.change(screen.getByLabelText("Email address"), {
+    target: { value: "route.operator@example.com" },
+  });
+  fireEvent.click(screen.getByRole("tab", { name: "Routes" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /Tucson - Central Route/ }));
+
+  expect(screen.getByText(/Effective access: 1 property/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Send Invitation" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/admin-users/invitations",
+    expect.objectContaining({
+      email: "route.operator@example.com",
+      propertyIds: [],
+      routeIds: ["route-1"],
+    })
   ));
 });
 

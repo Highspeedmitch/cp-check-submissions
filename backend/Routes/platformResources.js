@@ -14,6 +14,7 @@ const { createInvitation, normalizeInvitationEmail } = require("../services/orga
 const { ensureWorkforceOrganization } = require("../services/workforceOrganization");
 const { buildPayoutLines, newBatchNumber } = require("../services/contractorPayouts");
 const { updateResourceDeploymentScope } = require("../services/resourceDeployments");
+const { findRoute } = require("../services/routeScopes");
 const { sendSystemEmail } = require("../services/systemEmail");
 const { buildFrontendUrl } = require("../utils/frontendUrls");
 const {
@@ -129,11 +130,11 @@ router.get("/dashboard", async (_req, res) => {
       ResourceProfile.find({ archivedAt: null })
         .populate("userId", "username email accountStatus")
         .sort({ displayName: 1 }).lean(),
-      ResourceDeployment.find().populate("organizationId", "name serviceModel properties._id properties.name").sort({ createdAt: -1 }).lean(),
+      ResourceDeployment.find().populate("organizationId", "name serviceModel properties._id properties.name properties.region routes._id routes.name routes.region routes.propertyIds routes.status").sort({ createdAt: -1 }).lean(),
       Organization.find({
         workspaceType: { $ne: "afterlight_workforce" },
         serviceModel: { $in: ["managed", "hybrid"] },
-      }).select("name serviceModel properties._id properties.name").sort({ name: 1 }).lean(),
+      }).select("name serviceModel properties._id properties.name properties.region routes._id routes.name routes.region routes.propertyIds routes.status").sort({ name: 1 }).lean(),
       ContractorEarning.find().populate("resourceProfileId", "displayName email gusto")
         .populate("organizationId", "name").sort({ earnedAt: -1 }).limit(250).lean(),
       ContractorPayoutBatch.find().sort({ createdAt: -1 }).limit(100).lean(),
@@ -438,10 +439,22 @@ router.post("/resources/:resourceId/deployments", async (req, res) => {
     if (resource.status !== "active") return res.status(400).json({ error: "Only active resources can be deployed." });
     if (!organization) return res.status(400).json({ error: "Select an eligible managed or hybrid organization." });
     const requestedIds = cleanList(req.body.propertyIds, 500);
+    const requestedRouteIds = cleanList(req.body.routeIds, 500);
+    const scopeMode = req.body.scopeMode === "all" || req.body.scopeMode === "selected"
+      ? req.body.scopeMode
+      : (requestedIds.length || requestedRouteIds.length) ? "selected" : "all";
+    if (scopeMode === "selected" && !requestedIds.length && !requestedRouteIds.length) {
+      return res.status(400).json({ error: "Select at least one property or route." });
+    }
     const validIds = new Set((organization.properties || []).map((property) => String(property._id)));
     if (requestedIds.some((id) => !validIds.has(id))) {
       return res.status(400).json({ error: "One or more selected properties do not belong to this organization." });
     }
+    if (requestedRouteIds.some((routeId) => !findRoute(organization, routeId))) {
+      return res.status(400).json({ error: "One or more selected routes do not belong to this organization or are archived." });
+    }
+    const savedPropertyIds = scopeMode === "all" ? [] : requestedIds;
+    const savedRouteIds = scopeMode === "all" ? [] : requestedRouteIds;
     const rateOverrideCents = validCents(req.body.rateOverrideCents, { optional: true });
     if (resource.resourceType === "contractor"
       && (rateOverrideCents ?? resource.defaultRateCents) <= 0) {
@@ -456,7 +469,9 @@ router.post("/resources/:resourceId/deployments", async (req, res) => {
       { resourceProfileId: resource._id, organizationId: organization._id },
       {
         $set: {
-          propertyIds: requestedIds,
+          propertyIds: savedPropertyIds,
+          routeIds: savedRouteIds,
+          scopeMode,
           status: "active",
           rateOverrideCents: resource.resourceType === "contractor" ? rateOverrideCents : null,
           startsAt,
@@ -475,7 +490,9 @@ router.post("/resources/:resourceId/deployments", async (req, res) => {
         resourceProfileId: resource._id,
         resourceType: resource.resourceType,
         deploymentId: deployment._id,
-        propertyIds: requestedIds,
+        propertyIds: savedPropertyIds,
+        routeIds: savedRouteIds,
+        scopeMode,
       },
     });
     return res.status(201).json(deployment);
@@ -491,6 +508,8 @@ router.put("/deployments/:deploymentId/scope", async (req, res) => {
       deploymentId: req.params.deploymentId,
       organizationId: req.body.organizationId,
       propertyIds: req.body.propertyIds,
+      routeIds: req.body.routeIds,
+      scopeMode: req.body.scopeMode,
       rateOverrideCents: req.body.rateOverrideCents,
       actorUserId: req.user.userId,
       audit: {

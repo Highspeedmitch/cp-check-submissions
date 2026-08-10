@@ -196,6 +196,7 @@ export default function DashboardNavigation({
                 )}
                 <NavButton onClick={onAddProperty}>Add Properties</NavButton>
                 {orgType === "COM" && <NavButton onClick={() => go("/admin/users")}>Users</NavButton>}
+                <NavButton active={activeRoute === "routes"} onClick={() => go("/admin/routes")}>Regions &amp; Routes</NavButton>
                 {orgType === "COM" && <NavButton onClick={() => go("/organization-form-settings")}>Form Template</NavButton>}
                 <NavButton badge={notificationBadges.serviceModels} onClick={() => go("/service-delivery")}>Service Delivery</NavButton>
                 <NavButton onClick={() => go("/organization-security")}>Security</NavButton>

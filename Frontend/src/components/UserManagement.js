@@ -22,13 +22,103 @@ const EMPTY_INVITATION = {
   role: "user",
   engagementType: "customer_employee",
   propertyIds: [],
+  routeIds: [],
 };
+
+const ROUTE_SCOPE_ROLES = ["property_manager", "user", "contractor", "cleaner"];
+const PROPERTY_SCOPE_ROLES = [...ROUTE_SCOPE_ROLES, "client"];
+
+function WorkScopeSelector({
+  role,
+  properties,
+  routes,
+  propertyIds,
+  routeIds,
+  view,
+  onView,
+  onToggleProperty,
+  onToggleRoute,
+}) {
+  if (!PROPERTY_SCOPE_ROLES.includes(role)) return null;
+  if (role === "client") {
+    return (
+      <fieldset className="beta-property-access">
+        <legend>Owned properties</legend>
+        {properties.length ? properties.map((property) => (
+          <label key={property._id}>
+            <input type="checkbox" checked={propertyIds.includes(property._id)}
+              onChange={(event) => onToggleProperty(property._id, event.target.checked)} />
+            <span><strong>{property.name}</strong><small>{property.region || "Uncategorized"}</small></span>
+          </label>
+        )) : <small>No properties have been configured yet.</small>}
+      </fieldset>
+    );
+  }
+
+  const selectedRoutePropertyIds = new Set(routes
+    .filter((route) => routeIds.includes(String(route._id)))
+    .flatMap((route) => route.propertyIds || []).map(String));
+  const effectivePropertyIds = new Set([...propertyIds.map(String), ...selectedRoutePropertyIds]);
+
+  return (
+    <fieldset className="beta-property-access beta-work-scope">
+      <legend>Future work scope</legend>
+      <p>Assign individual properties, routes, or both. Route access includes every current stop and follows future route edits.</p>
+      <div className="beta-scope-tabs" role="tablist" aria-label="Work scope assignment type">
+        <button type="button" role="tab" aria-selected={view === "properties"}
+          className={view === "properties" ? "active" : ""} onClick={() => onView("properties")}>Properties</button>
+        <button type="button" role="tab" aria-selected={view === "routes"}
+          className={view === "routes" ? "active" : ""} onClick={() => onView("routes")}>Routes</button>
+      </div>
+      {view === "properties" ? (
+        <div className="beta-scope-options" role="tabpanel">
+          {properties.length ? properties.map((property) => {
+            const directlySelected = propertyIds.includes(property._id);
+            const includedByRoute = !directlySelected && selectedRoutePropertyIds.has(String(property._id));
+            return (
+              <label key={property._id}>
+                <input type="checkbox" checked={directlySelected}
+                  onChange={(event) => onToggleProperty(property._id, event.target.checked)} />
+                <span><strong>{property.name}</strong><small>{includedByRoute
+                  ? "Included by a selected route"
+                  : property.region || "Uncategorized"}</small></span>
+              </label>
+            );
+          }) : <small>No properties have been configured yet.</small>}
+        </div>
+      ) : (
+        <div className="beta-scope-options" role="tabpanel">
+          {routes.length ? routes.map((route) => {
+            const directlySelected = routeIds.includes(String(route._id));
+            const automaticallyIncluded = !directlySelected
+              && (route.propertyIds || []).length > 0
+              && (route.propertyIds || []).every((propertyId) => effectivePropertyIds.has(String(propertyId)));
+            return (
+              <label key={route._id}>
+                <input type="checkbox" checked={directlySelected || automaticallyIncluded}
+                  disabled={automaticallyIncluded}
+                  onChange={(event) => onToggleRoute(String(route._id), event.target.checked)} />
+                <span><strong>{route.name}</strong><small>{automaticallyIncluded
+                  ? "Included automatically because every stop is covered"
+                  : `${route.region} · ${(route.propertyIds || []).length} stops`}</small></span>
+              </label>
+            );
+          }) : <small>No active routes have been configured yet.</small>}
+        </div>
+      )}
+      <small className="beta-work-scope-summary">
+        Effective access: {effectivePropertyIds.size} propert{effectivePropertyIds.size === 1 ? "y" : "ies"} · {routeIds.length} explicitly selected route{routeIds.length === 1 ? "" : "s"}
+      </small>
+    </fieldset>
+  );
+}
 
 export default function UserManagement() {
   const navigate = useNavigate();
   const [data, setData] = useState({
     users: [],
     properties: [],
+    routes: [],
     invitations: [],
     administrators: [],
     adminInvitations: [],
@@ -40,6 +130,9 @@ export default function UserManagement() {
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState(null);
   const [propertyIds, setPropertyIds] = useState([]);
+  const [routeIds, setRouteIds] = useState([]);
+  const [scopeView, setScopeView] = useState("properties");
+  const [inviteScopeView, setInviteScopeView] = useState("properties");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -86,6 +179,7 @@ export default function UserManagement() {
     setSelectedId("");
     setDraft(null);
     setPropertyIds([]);
+    setRouteIds([]);
     setArchiveOpen(false);
     setArchiveReason("");
     setUserSearch("");
@@ -101,9 +195,11 @@ export default function UserManagement() {
       accountStatus: user.accountStatus || "active",
     } : null);
     const assignmentField = user?.role === "client" ? "clientOwners" : "propertyManagers";
-    setPropertyIds(user ? data.properties
+    setPropertyIds(user ? (user.propertyIds || data.properties
       .filter((property) => (property[assignmentField] || []).some((id) => id === userId))
-      .map((property) => property._id) : []);
+      .map((property) => property._id)).map(String) : []);
+    setRouteIds(user ? (user.routeIds || []).map(String) : []);
+    setScopeView("properties");
     setMessage("");
     setError("");
     setArchiveOpen(false);
@@ -155,7 +251,7 @@ export default function UserManagement() {
     setMessage("");
     setError("");
     try {
-      await api.put(`/api/admin-users/${selectedId}`, { ...draft, propertyIds });
+      await api.put(`/api/admin-users/${selectedId}`, { ...draft, propertyIds, routeIds });
       setMessage("User updated. Their existing sessions have been invalidated.");
       await load();
     } catch (err) {
@@ -192,6 +288,21 @@ export default function UserManagement() {
       propertyIds: checked
         ? [...current.propertyIds, propertyId]
         : current.propertyIds.filter((id) => id !== propertyId),
+    }));
+  }
+
+  function toggleRoute(routeId, checked) {
+    setRouteIds(checked
+      ? [...new Set([...routeIds, routeId])]
+      : routeIds.filter((id) => id !== routeId));
+  }
+
+  function toggleInvitationRoute(routeId, checked) {
+    setInviteDraft((current) => ({
+      ...current,
+      routeIds: checked
+        ? [...new Set([...(current.routeIds || []), routeId])]
+        : (current.routeIds || []).filter((id) => id !== routeId),
     }));
   }
 
@@ -471,14 +582,16 @@ export default function UserManagement() {
                     role,
                     engagementType: role === "user" ? "customer_employee" : "",
                     propertyIds: [],
+                    routeIds: [],
                   });
+                  setInviteScopeView("properties");
                 }}>
                   {ORGANIZATION_ROLE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </label>
-              <label className="beta-form-field">Assignment type
+              <label className="beta-form-field">Engagement type
                 <select
                   value={inviteDraft.engagementType || ""}
                   onChange={(event) => setInviteDraft({ ...inviteDraft, engagementType: event.target.value })}
@@ -492,18 +605,17 @@ export default function UserManagement() {
                 <small>Customer employees do not create invoices. Customer contractors route to customer accounts payable.</small>
               </label>
             </div>
-            {["property_manager", "client"].includes(inviteDraft.role) && (
-              <fieldset className="beta-property-access">
-                <legend>{inviteDraft.role === "client" ? "Owned properties" : "Managed properties"}</legend>
-                {data.properties.length ? data.properties.map((property) => (
-                  <label key={property._id}>
-                    <input type="checkbox" checked={inviteDraft.propertyIds.includes(property._id)}
-                      onChange={(event) => toggleInvitationProperty(property._id, event.target.checked)} />
-                    {property.name}
-                  </label>
-                )) : <small>No properties have been configured yet.</small>}
-              </fieldset>
-            )}
+            <WorkScopeSelector
+              role={inviteDraft.role}
+              properties={data.properties}
+              routes={data.routes || []}
+              propertyIds={inviteDraft.propertyIds || []}
+              routeIds={inviteDraft.routeIds || []}
+              view={inviteScopeView}
+              onView={setInviteScopeView}
+              onToggleProperty={toggleInvitationProperty}
+              onToggleRoute={toggleInvitationRoute}
+            />
             <button className="beta-button" type="submit" disabled={Boolean(busyAction)}>
               {busyAction === "invite" ? "Sending..." : "Send Invitation"}
             </button>
@@ -592,6 +704,8 @@ export default function UserManagement() {
                 <select value={draft.role} onChange={(e) => {
                   const role = e.target.value;
                   setPropertyIds([]);
+                  setRouteIds([]);
+                  setScopeView("properties");
                   setDraft({
                     ...draft,
                     role,
@@ -603,7 +717,7 @@ export default function UserManagement() {
                   ))}
                 </select>
               </label>
-              <label className="beta-form-field">Assignment type
+              <label className="beta-form-field">Engagement type
                 <select
                   value={draft.engagementType || ""}
                   onChange={(e) => setDraft({ ...draft, engagementType: e.target.value })}
@@ -641,18 +755,17 @@ export default function UserManagement() {
               )}
               </div>
 
-              {["property_manager", "client"].includes(draft.role) && (
-                <fieldset className="beta-property-access">
-                  <legend>{draft.role === "client" ? "Owned Properties" : "Managed Properties"}</legend>
-                  {data.properties.map((property) => (
-                    <label key={property._id}>
-                      <input type="checkbox" checked={propertyIds.includes(property._id)}
-                        onChange={(e) => toggleProperty(property._id, e.target.checked)} />
-                      {property.name}
-                    </label>
-                  ))}
-                </fieldset>
-              )}
+              <WorkScopeSelector
+                role={draft.role}
+                properties={data.properties}
+                routes={data.routes || []}
+                propertyIds={propertyIds}
+                routeIds={routeIds}
+                view={scopeView}
+                onView={setScopeView}
+                onToggleProperty={toggleProperty}
+                onToggleRoute={toggleRoute}
+              />
 
               <div className="beta-card-actions">
                 <button className="beta-button" disabled={Boolean(busyAction) || (roleRequiresCustomerEngagement(draft.role) && !draft.engagementType)} onClick={save}>

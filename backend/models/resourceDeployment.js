@@ -14,6 +14,12 @@ const ResourceDeploymentSchema = new mongoose.Schema({
     index: true,
   },
   propertyIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  routeIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  scopeMode: {
+    type: String,
+    enum: ["all", "selected", null],
+    default: null,
+  },
   status: {
     type: String,
     enum: ["active", "paused", "ended"],

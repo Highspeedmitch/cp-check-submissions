@@ -12,6 +12,7 @@ const {
   claimInspectionJob,
   deliverInspectionEmail,
   deliverInspectionEmailWithReviewFallback,
+  refreshRouteRunStatus,
   recordJobFailure,
 } = require("../services/inspectionWorker");
 
@@ -267,4 +268,26 @@ test("an unavailable invoice review email retains the checklist-only fallback", 
   assert.equal(result.sent, true);
   assert.equal(result.delivery, "standalone");
   assert.equal(standaloneDeliveries, 1);
+});
+
+test("route run status follows completion of its per-property assignments", async () => {
+  let update;
+  const status = await refreshRouteRunStatus("route-run-1", {
+    AssignmentModel: {
+      async find() {
+        return [{ status: "completed" }, { status: "scheduled" }];
+      },
+    },
+    RouteRunModel: {
+      async updateOne(query, changes) {
+        update = { query, changes };
+      },
+    },
+  });
+
+  assert.equal(status, "in_progress");
+  assert.deepEqual(update, {
+    query: { _id: "route-run-1", status: { $ne: "canceled" } },
+    changes: { $set: { status: "in_progress" } },
+  });
 });

@@ -11,6 +11,7 @@ const { currentLicenseCapacity } = require("./licenseCapacity");
 const { reserveLicensedCapacity } = require("./licensedCapacityOperations");
 const { sendSystemEmail } = require("./systemEmail");
 const { normalizeOrganizationUserClassification } = require("./organizationUserClassification");
+const { validateScopeSelection } = require("./routeScopes");
 
 function invitationError(message, status = 400, code = "") {
   const error = new Error(message);
@@ -25,6 +26,7 @@ async function createLicensedOrganizationInvitation({
   role,
   engagementType = null,
   propertyIds = [],
+  routeIds = [],
   invitedBy,
   ipAddress = "",
   userAgent = "",
@@ -52,12 +54,15 @@ async function createLicensedOrganizationInvitation({
     ...(transactionRunner ? { transactionRunner } : {}),
     capacityOptions: { UserModel, InvitationModel },
     work: async ({ organization, session }) => {
-      const validPropertyIds = new Set((organization.properties || []).map((property) => String(property._id)));
-      const normalizedPropertyIds = ["property_manager", "client"].includes(classification.role)
-        ? [...new Set((propertyIds || []).map(String))]
-        : [];
-      if (normalizedPropertyIds.some((id) => !validPropertyIds.has(id))) {
-        throw invitationError("One or more selected properties are outside this organization.");
+      let scope;
+      try {
+        scope = validateScopeSelection(organization, {
+          role: classification.role,
+          propertyIds,
+          routeIds,
+        });
+      } catch (scopeError) {
+        throw invitationError(scopeError.message);
       }
 
       const created = await createInvitationRecord({
@@ -65,7 +70,8 @@ async function createLicensedOrganizationInvitation({
         email,
         role: classification.role,
         engagementType: classification.engagementType,
-        propertyIds: normalizedPropertyIds,
+        propertyIds: scope.propertyIds,
+        routeIds: scope.routeIds,
         invitedBy,
         inviterScope: "organization",
         deliver: false,
@@ -83,6 +89,8 @@ async function createLicensedOrganizationInvitation({
           email: created.invitation.email,
           role: classification.role,
           engagementType: classification.engagementType,
+          propertyIds: scope.propertyIds,
+          routeIds: scope.routeIds,
         },
         ipAddress,
         userAgent,

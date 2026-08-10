@@ -39,6 +39,7 @@ const InvoiceReview = lazy(() => import("./components/InvoiceReview"));
 const InvoiceEmailApproval = lazy(() => import("./components/InvoiceEmailApproval"));
 const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
+const RouteManagement = lazy(() => import("./components/RouteManagement"));
 const BulkOnboarding = lazy(() => import("./components/BulkOnboarding"));
 const Reporting = lazy(() => import("./components/Reporting"));
 const PlatformDashboard = lazy(() => import("./components/PlatformDashboard"));
@@ -300,6 +301,7 @@ function App() {
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
       <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />
       <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
+      <Route path="/admin/routes" element={user && role === "admin" ? <RouteManagement /> : <Navigate to="/" />} />
       <Route path="/admin/bulk-onboarding" element={
         user && role === "admin" && !assumedOrganization
           ? <BulkOnboarding />

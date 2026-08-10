@@ -10,6 +10,7 @@ const { purgeExpiredProspectAssessments } = require("./services/prospectRetentio
 const { ensureAssignmentSchedulingIndex } = require("./services/assignmentIndexes");
 const CalendarFeedSubscription = require("./models/calendarFeedSubscription");
 const MonthlyPortfolioSummary = require("./models/monthlyPortfolioSummary");
+const RouteRun = require("./models/routeRun");
 
 const PROSPECT_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -44,6 +45,7 @@ async function startServer() {
   }
   await CalendarFeedSubscription.createIndexes();
   await MonthlyPortfolioSummary.createIndexes();
+  await RouteRun.createIndexes();
 
   if (String(process.env.RUN_INSPECTION_WORKER || "true").toLowerCase() !== "false") {
     require("./services/inspectionWorker").startInspectionWorker();

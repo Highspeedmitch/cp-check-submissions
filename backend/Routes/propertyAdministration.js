@@ -14,6 +14,7 @@ const {
   validateFulfillmentSource,
   propertyDefaultSource,
 } = require("../services/fulfillmentPolicy");
+const { activeRoutes, normalizeRegion, routePropertyIds } = require("../services/routeScopes");
 
 const router = express.Router();
 
@@ -92,7 +93,7 @@ router.post("/add-property", async (req, res) => {
             updatedBy: fulfillmentOverride ? req.user.userId : null,
             updatedAt: fulfillmentOverride ? new Date() : null,
           },
-          region,
+          region: normalizeRegion(region),
           ...(isCOM && {
             propertyCode: propertyCode.trim(),
             physicalAddress: physicalAddress.trim(),
@@ -173,7 +174,7 @@ router.put("/edit-property/:propertyName", async (req, res) => {
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
-    if (!canAccessProperty(property, req.user)) {
+    if (!canAccessProperty(property, req.user, organization)) {
       return res.status(403).json({ error: "You do not manage this property." });
     }
     if (organization.orgType !== "STR") {
@@ -185,7 +186,17 @@ router.put("/edit-property/:propertyName", async (req, res) => {
       : property.customFields;
     property.maintenanceInfo = req.body.maintenanceInfo || property.maintenanceInfo;
     property.generalInfo = req.body.generalInfo || property.generalInfo;
-    property.region = req.body.region || property.region;
+    const nextRegion = normalizeRegion(req.body.region ?? property.region);
+    const containingRoute = activeRoutes(organization).find((route) =>
+      routePropertyIds(route).includes(String(property._id))
+    );
+    if (containingRoute
+      && normalizeRegion(property.region).toLowerCase() !== nextRegion.toLowerCase()) {
+      return res.status(409).json({
+        error: `Remove this property from ${containingRoute.name} before changing its region.`,
+      });
+    }
+    property.region = nextRegion;
     await organization.save();
     return res.json({ success: true, message: "Property updated successfully" });
   } catch (error) {
@@ -215,6 +226,15 @@ router.delete("/property/:propertyName", async (req, res) => {
     const propertyIndex = organization.properties.findIndex((property) => property.name === propertyName);
     if (propertyIndex === -1) {
       return res.status(404).json({ error: "Property not found" });
+    }
+    const property = organization.properties[propertyIndex];
+    const containingRoute = activeRoutes(organization).find((route) =>
+      routePropertyIds(route).includes(String(property._id))
+    );
+    if (containingRoute) {
+      return res.status(409).json({
+        error: `Remove this property from ${containingRoute.name} before removing the property.`,
+      });
     }
     organization.properties.splice(propertyIndex, 1);
     await organization.save();

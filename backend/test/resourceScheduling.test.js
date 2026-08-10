@@ -180,6 +180,9 @@ test("scheduler resources expose deployment scope without internal contractor ra
     resourceProfileId: "resource-1",
     resourceDeploymentId: "deployment-1",
     propertyIds: ["property-1"],
+    directPropertyIds: ["property-1"],
+    routeIds: [],
+    scopeMode: "selected",
   }]);
 });
 

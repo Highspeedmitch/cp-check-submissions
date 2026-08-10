@@ -64,15 +64,28 @@ async function archiveOrganizationUser({
   const organization = await OrganizationModel.findById(organizationId);
   if (!organization) throw operationError("Organization not found.", 404, "ORGANIZATION_NOT_FOUND");
   const removedPropertyIds = [];
+  const removedRouteIds = [];
   for (const property of organization.properties || []) {
     const managed = (property.propertyManagers || []).some((id) => String(id) === String(user._id));
     const owned = (property.clientOwners || []).some((id) => String(id) === String(user._id));
-    if (managed || owned) removedPropertyIds.push(String(property._id));
+    const operational = (property.fieldOperators || []).some((id) => String(id) === String(user._id));
+    if (managed || owned || operational) removedPropertyIds.push(String(property._id));
     property.propertyManagers = (property.propertyManagers || [])
       .filter((id) => String(id) !== String(user._id));
     property.clientOwners = (property.clientOwners || [])
       .filter((id) => String(id) !== String(user._id));
+    property.fieldOperators = (property.fieldOperators || [])
+      .filter((id) => String(id) !== String(user._id));
   }
+  for (const route of organization.routes || []) {
+    if ((route.assignedUserIds || []).some((id) => String(id) === String(user._id))) {
+      removedRouteIds.push(String(route._id));
+    }
+    route.assignedUserIds = (route.assignedUserIds || [])
+      .filter((id) => String(id) !== String(user._id));
+  }
+  organization.workScopeConfiguredUsers = (organization.workScopeConfiguredUsers || [])
+    .filter((id) => String(id) !== String(user._id));
 
   user.organizationArchivedAt = now;
   user.organizationArchivedBy = actorUserId;
@@ -93,11 +106,12 @@ async function archiveOrganizationUser({
         role: user.role,
         accountStatus: user.accountStatus,
         removedPropertyIds,
+        removedRouteIds,
         archivedAt: now,
       },
     }),
   ]);
-  return { user, removedPropertyIds };
+  return { user, removedPropertyIds, removedRouteIds };
 }
 
 async function restoreOrganizationUser({
