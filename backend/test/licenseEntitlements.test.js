@@ -14,6 +14,18 @@ test("SaaS and hybrid tiers include two, three, and five administrator seats", (
   assert.equal(resolveLicenseEntitlements({ serviceModel: "hybrid", license: { tier: "tier_3" } }).adminLimit, 5);
 });
 
+test("service plans expose their recurring organization fees", () => {
+  assert.equal(resolveLicenseEntitlements({ serviceModel: "platform", license: { tier: "tier_1" } }).recurringMonthlyFeeCents, 30000);
+  assert.equal(resolveLicenseEntitlements({ serviceModel: "platform", license: { tier: "tier_2" } }).recurringMonthlyFeeCents, 70000);
+  assert.equal(resolveLicenseEntitlements({ serviceModel: "hybrid", license: { tier: "tier_3" } }).recurringMonthlyFeeCents, 100000);
+
+  const managed = resolveLicenseEntitlements({ serviceModel: "managed" });
+  assert.equal(managed.recurringMonthlyFeeCents, 50000);
+  assert.equal(managed.currency, "USD");
+  assert.equal(managed.visitChargesBilledSeparately, true);
+  assert.equal(resolveLicenseEntitlements({ serviceModel: "platform" }).visitChargesBilledSeparately, false);
+});
+
 test("managed service administrator seats are unmetered", () => {
   const entitlements = resolveLicenseEntitlements({
     serviceModel: "managed",

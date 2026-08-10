@@ -351,6 +351,9 @@ export default function UserManagement() {
               <p className="beta-eyebrow">{data.adminSeats.planLabel}</p>
               <h2 id="administrator-seats-title">Administrator seats</h2>
               <p>{data.adminSeats.active} active administrator{data.adminSeats.active === 1 ? "" : "s"} · {data.adminSeats.pending} invitation{data.adminSeats.pending === 1 ? "" : "s"} pending</p>
+              {data.license?.recurringMonthlyFeeCents != null && Number.isFinite(Number(data.license.recurringMonthlyFeeCents)) && (
+                <p>{new Intl.NumberFormat("en-US", { style: "currency", currency: data.license.currency || "USD", maximumFractionDigits: 0 }).format(data.license.recurringMonthlyFeeCents / 100)}/month organization fee</p>
+              )}
             </div>
             {(data.adminSeats.unmetered || data.adminSeats.remaining > 0) ? (
               <button className="beta-button compact" type="button" onClick={() => setAdminInviteOpen(true)}>

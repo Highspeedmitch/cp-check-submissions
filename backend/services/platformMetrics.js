@@ -4,6 +4,7 @@ const Submission = require("../models/submission");
 const BidRequest = require("../models/bidRequest");
 const Invoice = require("../models/invoice");
 const OrganizationInvitation = require("../models/organizationInvitation");
+const { resolveLicenseEntitlements } = require("./licenseEntitlements");
 
 function countMap(rows) {
   return new Map(rows.map((row) => [String(row._id), row.count]));
@@ -27,6 +28,7 @@ async function getPlatformOrganizationMetrics({
         name: 1,
         orgType: 1,
         serviceModel: 1,
+        license: 1,
         onboarding: 1,
         security: 1,
         billingCapabilities: 1,
@@ -86,11 +88,16 @@ async function getPlatformOrganizationMetrics({
   }]));
   const rows = organizations.map((organization) => {
     const id = String(organization._id);
+    const entitlements = resolveLicenseEntitlements(organization);
     return {
       organizationId: id,
       name: organization.name,
       orgType: organization.orgType,
       serviceModel: organization.serviceModel || "managed",
+      planLabel: entitlements.label,
+      recurringMonthlyFeeCents: entitlements.recurringMonthlyFeeCents,
+      currency: entitlements.currency,
+      visitChargesBilledSeparately: entitlements.visitChargesBilledSeparately,
       propertyCount: organization.propertyCount || 0,
       emailApPropertyCount: organization.emailApPropertyCount || 0,
       invoiceApprovalExperience:

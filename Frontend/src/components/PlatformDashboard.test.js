@@ -53,6 +53,10 @@ const report = {
     name: "PICOR",
     orgType: "COM",
     serviceModel: "managed",
+    planLabel: "Managed service",
+    recurringMonthlyFeeCents: 50000,
+    currency: "USD",
+    visitChargesBilledSeparately: true,
     propertyCount: 5,
     emailApPropertyCount: 4,
     invoiceApprovalExperience: "authenticated_portal",
@@ -84,6 +88,13 @@ beforeEach(() => {
   api.get.mockResolvedValue(report);
   beginOktaLogin.mockResolvedValue(undefined);
   window.prompt = jest.fn(() => "Development and support");
+});
+
+test("organization cards expose the contracted recurring plan price", async () => {
+  renderDashboard();
+
+  expect(await screen.findByText("Managed service")).toBeInTheDocument();
+  expect(screen.getByText("$500/month organization fee + separate visit charges")).toBeInTheDocument();
 });
 
 test("stale Admin View access opens an authenticator dialog and retries after verification", async () => {

@@ -41,6 +41,8 @@ const serviceModelChangeRequestSchema = new mongoose.Schema({
     requestedPropertyLimit: { type: Number, min: 0, default: null },
     currentAfterlightPortfolioMinimumPercent: { type: Number, min: 0, max: 100, default: null },
     requestedAfterlightPortfolioMinimumPercent: { type: Number, min: 0, max: 100, default: null },
+    currentRecurringMonthlyFeeCents: { type: Number, min: 0, default: null },
+    requestedRecurringMonthlyFeeCents: { type: Number, min: 0, default: null },
     activeAdministratorCount: { type: Number, min: 0, default: 0 },
     pendingAdministratorCount: { type: Number, min: 0, default: 0 },
     activeUserCount: { type: Number, min: 0, default: 0 },

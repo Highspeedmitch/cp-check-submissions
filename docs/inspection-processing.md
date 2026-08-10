@@ -40,6 +40,12 @@ The model is limited to 128 output tokens, and the application independently enf
 
 The backend AWS identity requires `bedrock:InvokeModel` for the selected inference profile and its routed foundation model. For the default US geographic Nova Micro profile, scope access to the profile used by the application and `arn:aws:bedrock:*::foundation-model/amazon.nova-micro-v1:0`. Do not grant `bedrock:*`. Leave Bedrock model invocation logging disabled unless its CloudWatch or S3 destination is encrypted and access-restricted, because invocation logging contains full prompts and responses.
 
+### Complimentary platform reports
+
+Platform Administration > Marketing tools > Complimentary Reports uses the same Bedrock model, timeout, prompt contract, rendering modes, and non-blocking PDF fallback. These reports are platform-admin-only marketing artifacts and do not belong to a customer organization, so `INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST` is not applied to this route. The `INSPECTION_AI_SUMMARY_MODE` kill switch still applies.
+
+The prospect summary source is de-identified before invocation. Bedrock receives normalized opportunity results, issue descriptions, and narrative observations only. It does not receive the prospect name, property address, photos, user identity, billing data, or credentials.
+
 Before enabling `dev-preview`, confirm the model profile is available from the configured `AWS_REGION`, then submit reports covering no findings, multiple findings, missing descriptions, maximum-length narrative text, and the maximum 18 condition rows. Production must remain `off` until the reviewed DEV sample meets the factuality and layout acceptance criteria.
 
 ## S3 CORS

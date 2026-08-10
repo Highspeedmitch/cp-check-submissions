@@ -13,6 +13,7 @@ const authenticateToken = require("../middleware/authenticateToken");
 const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const s3 = require("../awsConfig");
 const { generateProspectAssessmentPDF } = require("../prospectPdfService");
+const { ensureProspectAssessmentSummary } = require("../services/inspectionSummary");
 const {
   defaultProspectFields,
   validateProspectFields,
@@ -385,7 +386,8 @@ router.put("/prospect-template", authenticateToken, requirePlatformAdmin, async 
     const name = String(req.body.name || "").trim();
     const title = String(req.body.title || "").trim();
     if (!name || !title) return res.status(400).json({ error: "Template name and title are required." });
-    const fields = validateProspectFields(req.body.fields || []);
+    const template = await getProspectTemplate();
+    const fields = validateProspectFields(req.body.fields || [], template.fields);
     for (const identityKey of ["businessName", "propertyAddress"]) {
       const identityField = fields.find((field) => field.key === identityKey);
       if (!identityField) {
@@ -394,7 +396,6 @@ router.put("/prospect-template", authenticateToken, requirePlatformAdmin, async 
       identityField.locked = true;
       if (identityKey === "propertyAddress") identityField.required = true;
     }
-    const template = await getProspectTemplate();
     template.name = name;
     template.title = title;
     template.fields = fields;
@@ -411,7 +412,7 @@ router.get("/prospect-assessments", authenticateToken, requirePlatformAdmin, asy
   try {
     await purgeExpiredProspectAssessments();
     const assessments = await ProspectAssessment.find({ expiresAt: { $gt: new Date() } })
-      .select("businessName propertyAddress pdfFileName createdAt expiresAt")
+      .select("businessName propertyAddress pdfFileName createdAt expiresAt aiSummary.status aiSummary.mode")
       .sort({ createdAt: -1 })
       .lean();
     return res.json(assessments);
@@ -470,7 +471,12 @@ router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
         imageBuffer: file.buffer,
       }));
       const assessmentData = { businessName, propertyAddress, responses, templateSnapshot: snapshot, createdAt };
-      const pdfBuffer = await generateProspectAssessmentPDF({ assessment: assessmentData, photoBuffers });
+      const summaryResult = await ensureProspectAssessmentSummary(assessmentData);
+      const pdfBuffer = await generateProspectAssessmentPDF({
+        assessment: assessmentData,
+        photoBuffers,
+        coverSummary: summaryResult.coverSummary,
+      });
       const safeName = (businessName || propertyAddress)
         .replace(/[^a-z0-9]+/gi, "-")
         .replace(/^-|-$/g, "")

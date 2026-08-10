@@ -9,6 +9,16 @@ const TIER_LABELS = {
 function limitSummary(limits) {
   return `${limits.adminLimit} administrators, ${limits.userLimit} users, ${limits.propertyLimit} properties`;
 }
+
+function monthlyPrice(cents) {
+  if (cents == null || !Number.isFinite(Number(cents))) return "Not configured";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(Number(cents) / 100);
+}
+
 export default function LicenseIncreaseRequestDialog({ license, options, onClose, onSubmit }) {
   const availableTiers = useMemo(() => {
     const tiers = options?.tiers || [];
@@ -99,7 +109,7 @@ export default function LicenseIncreaseRequestDialog({ license, options, onClose
         </p>
         <div className="beta-dialog-note beta-license-request-current">
           <strong>{license.label}</strong>
-          <p>Current capacity: {limitSummary(license)}</p>
+          <p>{monthlyPrice(license.recurringMonthlyFeeCents)}/month · Current capacity: {limitSummary(license)}</p>
         </div>
         {customCapacity ? (
           <label className="beta-field" htmlFor="requested-administrator-capacity">
@@ -117,7 +127,7 @@ export default function LicenseIncreaseRequestDialog({ license, options, onClose
               onChange={(event) => { setRequestedTier(event.target.value); setError(""); }}>
               {availableTiers.map((tier) => (
                 <option key={tier} value={tier}>
-                  {TIER_LABELS[tier]} · {limitSummary(options.tierLimits[tier])}
+                  {TIER_LABELS[tier]} · {monthlyPrice(options.tierRecurringMonthlyPricesCents?.[tier])}/month · {limitSummary(options.tierLimits[tier])}
                   {license.serviceModel === "hybrid" ? ` · ${options.hybridPortfolioMinimums[tier]}% Afterlight minimum` : ""}
                 </option>
               ))}

@@ -339,6 +339,8 @@ function createServiceModelChangeHandlers({
           requestedPropertyLimit: requestedEntitlements.propertyLimit,
           currentAfterlightPortfolioMinimumPercent: currentEntitlements.afterlightPortfolioMinimumPercent,
           requestedAfterlightPortfolioMinimumPercent: requestedEntitlements.afterlightPortfolioMinimumPercent,
+          currentRecurringMonthlyFeeCents: currentEntitlements.recurringMonthlyFeeCents,
+          requestedRecurringMonthlyFeeCents: requestedEntitlements.recurringMonthlyFeeCents,
           ...usage,
         },
         messages: [{
@@ -360,6 +362,7 @@ function createServiceModelChangeHandlers({
           currentLicenseTier,
           requestedLicenseTier,
           requestedAdminLimit: requestedEntitlements.adminLimit,
+          requestedRecurringMonthlyFeeCents: requestedEntitlements.recurringMonthlyFeeCents,
           proposedEffectiveDate: request.proposedEffectiveDate,
         },
       });
@@ -712,6 +715,12 @@ function createServiceModelChangeHandlers({
           requestedAfterlightPortfolioMinimumPercent:
             appliedEntitlements?.afterlightPortfolioMinimumPercent
               ?? request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent
+              ?? null,
+          currentRecurringMonthlyFeeCents:
+            request.organizationSnapshot?.currentRecurringMonthlyFeeCents ?? null,
+          requestedRecurringMonthlyFeeCents:
+            appliedEntitlements?.recurringMonthlyFeeCents
+              ?? request.organizationSnapshot?.requestedRecurringMonthlyFeeCents
               ?? null,
           endedResourceDeploymentCount,
           revokedEmailApprovalAuthorizationCount,

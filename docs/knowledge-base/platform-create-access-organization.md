@@ -16,19 +16,21 @@ Before creating the workspace, confirm the customer's legal operating name, orga
    - **Hybrid:** Customer-operated default with property-level or assignment-level Afterlight coverage when configured.
 4. For Full-stack SaaS or Hybrid, select the contracted **License tier**:
 
-   | Tier | Administrators | Users | Properties |
-   | --- | ---: | ---: | ---: |
-   | Tier 1 | 2 | 5 | 10 |
-   | Tier 2 | 3 | 20 | 50 |
-   | Tier 3 | 5 | 50 | 250 |
+   | Tier | Monthly organization fee | Administrators | Users | Properties | Hybrid portfolio minimum |
+   | --- | ---: | ---: | ---: | ---: | ---: |
+   | Tier 1 | $300 | 2 | 5 | 10 | 15% |
+   | Tier 2 | $700 | 3 | 20 | 50 | 12% |
+   | Tier 3 | $1,000 | 5 | 50 | 250 | 10% |
 
-   Managed service administrator seats are not metered and no license-tier selection appears.
+   Managed service is $500 per month plus property visit costs. Its administrator seats are not metered and no license-tier selection appears. The Hybrid percentage is the minimum share of the monthly portfolio assigned to Afterlight, not a percentage surcharge.
 5. Confirm the **Default fulfillment** selection. Change the model-derived default only when the approved operating plan requires it, then select **Continue**.
 6. Enter the designated **Administrator email** and select **Continue**.
 7. Under **Review and launch**, verify every value. Use the corresponding **Edit** control if anything is incorrect.
 8. Select **Launch Organization** once.
 
 The wizard saves an unfinished draft in the current browser. Select **Save and close** when you need to continue later, or **Start over** to discard the draft. No organization or invitation is created before **Launch Organization**.
+
+Launching records the selected contract plan and price in the organization experience. It does not yet create an organization-level recurring invoice; complete corporate billing setup separately.
 
 Afterlight creates the workspace and a secure, single-use invitation for its first organization administrator. For a metered agreement, that pending invitation reserves the first administrator seat. If delivery fails, the organization remains created and the invitation remains pending. Find the organization card and select **Resend invitation** instead of creating the organization again.
 

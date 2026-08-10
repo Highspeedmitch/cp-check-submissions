@@ -80,6 +80,8 @@ test("service model request schema retains the review workflow", () => {
   assert.equal(ServiceModelChangeRequest.schema.path("organizationId").options.index, true);
   assert.deepEqual(ServiceModelChangeRequest.schema.path("changeType").enumValues, ["service_model", "license_tier", "custom_capacity"]);
   assert.equal(ServiceModelChangeRequest.schema.path("changeType").defaultValue, "service_model");
+  assert.equal(ServiceModelChangeRequest.schema.path("organizationSnapshot.currentRecurringMonthlyFeeCents").options.min, 0);
+  assert.equal(ServiceModelChangeRequest.schema.path("organizationSnapshot.requestedRecurringMonthlyFeeCents").options.min, 0);
 });
 
 test("organization administrators submit a non-mutating request and notify platform admins", async () => {
@@ -135,11 +137,14 @@ test("organization administrators submit a non-mutating request and notify platf
   assert.equal(createdRequest.organizationSnapshot.propertyOverrideCount, 1);
   assert.equal(createdRequest.organizationSnapshot.requestedAdminLimit, 2);
   assert.equal(createdRequest.organizationSnapshot.requestedUserLimit, 5);
+  assert.equal(createdRequest.organizationSnapshot.currentRecurringMonthlyFeeCents, 50000);
+  assert.equal(createdRequest.organizationSnapshot.requestedRecurringMonthlyFeeCents, 30000);
   assert.equal(createdRequest.organizationSnapshot.pendingAdministratorCount, 1);
   assert.equal(createdRequest.notification.platformEmailSentAt.toISOString(), "2026-08-03T12:00:00.000Z");
   assert.equal(emailDetails.organization, org);
   assert.equal(emailDetails.requester, requester);
   assert.equal(platformAudit.action, "service_model_change_requested");
+  assert.equal(platformAudit.metadata.requestedRecurringMonthlyFeeCents, 30000);
   assert.equal(platformNotification.event.type, "service_model_change_requested");
   assert.equal(platformNotification.contextOrganizationId, "org-1");
   assert.equal(res.body.emailDelivered, true);

@@ -22,15 +22,15 @@ export const ORGANIZATION_TYPES = {
 export const SERVICE_MODELS = {
   platform: {
     label: "Full-stack SaaS",
-    description: "The customer operates inspections with its own employees and contractors.",
+    description: "The customer operates inspections with its own employees and contractors. $300-$1,000/month by tier.",
   },
   managed: {
     label: "Managed service",
-    description: "Afterlight supplies and coordinates the default inspection workforce.",
+    description: "Afterlight supplies and coordinates the default inspection workforce. $500/month plus per-visit costs.",
   },
   hybrid: {
     label: "Hybrid",
-    description: "Customer and Afterlight resources can share fulfillment responsibility.",
+    description: "Customer and Afterlight resources can share fulfillment responsibility. $300-$1,000/month by tier plus Afterlight visit costs.",
   },
 };
 
@@ -41,9 +41,9 @@ export const SERVICE_MODEL_DEFAULTS = {
 };
 
 export const LICENSE_TIERS = {
-  tier_1: { label: "Tier 1", limits: "2 administrators, 5 users, 10 properties" },
-  tier_2: { label: "Tier 2", limits: "3 administrators, 20 users, 50 properties" },
-  tier_3: { label: "Tier 3", limits: "5 administrators, 50 users, 250 properties" },
+  tier_1: { label: "Tier 1", monthlyPrice: "$300/month", hybridMinimum: "15% Afterlight minimum", limits: "2 administrators, 5 users, 10 properties" },
+  tier_2: { label: "Tier 2", monthlyPrice: "$700/month", hybridMinimum: "12% Afterlight minimum", limits: "3 administrators, 20 users, 50 properties" },
+  tier_3: { label: "Tier 3", monthlyPrice: "$1,000/month", hybridMinimum: "10% Afterlight minimum", limits: "5 administrators, 50 users, 250 properties" },
 };
 
 export const FULFILLMENT_SOURCES = {
@@ -237,10 +237,12 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
                 <label className="beta-form-field platform-onboarding-license-tier">License tier
                   <select value={draft.licenseTier} onChange={(event) => update("licenseTier", event.target.value)}>
                     {Object.entries(LICENSE_TIERS).map(([value, tier]) => (
-                      <option key={value} value={value}>{tier.label} - {tier.limits}</option>
+                      <option key={value} value={value}>
+                        {tier.label} - {tier.monthlyPrice} - {tier.limits}{draft.serviceModel === "hybrid" ? ` - ${tier.hybridMinimum}` : ""}
+                      </option>
                     ))}
                   </select>
-                  <small className="beta-field-help">Administrator invitations, users, and properties are enforced against these contracted limits.</small>
+                  <small className="beta-field-help">Administrator invitations, users, and properties are enforced against these contracted limits. Pricing is recorded as a contract term; organization-level recurring invoices are not generated yet.</small>
                 </label>
               )}
               <label className="beta-form-field platform-onboarding-default-source">Default fulfillment
@@ -277,8 +279,8 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
               <dl className="platform-onboarding-review">
                 <div><dt>Organization</dt><dd>{draft.name}</dd><button type="button" onClick={() => goToStep(0)}>Edit</button></div>
                 <div><dt>Type and timezone</dt><dd>{ORGANIZATION_TYPES[draft.orgType]} · {draft.reportingTimezone.replaceAll("_", " ")}</dd><button type="button" onClick={() => goToStep(0)}>Edit</button></div>
-                <div><dt>Service model</dt><dd>{SERVICE_MODELS[draft.serviceModel].label} · {FULFILLMENT_SOURCES[draft.defaultFulfillmentSource]}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>
-                {draft.serviceModel !== "managed" && <div><dt>License tier</dt><dd>{LICENSE_TIERS[draft.licenseTier].label} · {LICENSE_TIERS[draft.licenseTier].limits}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>}
+                <div><dt>Service model</dt><dd>{SERVICE_MODELS[draft.serviceModel].label} · {draft.serviceModel === "managed" ? "$500/month + visit costs · " : ""}{FULFILLMENT_SOURCES[draft.defaultFulfillmentSource]}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>
+                {draft.serviceModel !== "managed" && <div><dt>License tier</dt><dd>{LICENSE_TIERS[draft.licenseTier].label} · {LICENSE_TIERS[draft.licenseTier].monthlyPrice} · {LICENSE_TIERS[draft.licenseTier].limits}{draft.serviceModel === "hybrid" ? ` · ${LICENSE_TIERS[draft.licenseTier].hybridMinimum}` : ""}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>}
                 <div><dt>Administrator</dt><dd>{draft.initialAdminEmail}</dd><button type="button" onClick={() => goToStep(2)}>Edit</button></div>
               </dl>
               <p className="beta-dialog-note">The launch is audited. The workspace remains intact if invitation delivery fails, and the invitation can be resent from its organization card.</p>

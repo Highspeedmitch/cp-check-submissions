@@ -52,6 +52,8 @@ const currentDirectory = {
     adminLimit: 2,
     userLimit: 5,
     propertyLimit: 10,
+    recurringMonthlyFeeCents: 30000,
+    currency: "USD",
     label: "Full Stack SaaS Tier 1",
   },
   licenseOptions: {
@@ -62,6 +64,7 @@ const currentDirectory = {
       tier_3: { adminLimit: 5, userLimit: 50, propertyLimit: 250 },
     },
     hybridPortfolioMinimums: { tier_1: 15, tier_2: 12, tier_3: 10 },
+    tierRecurringMonthlyPricesCents: { tier_1: 30000, tier_2: 70000, tier_3: 100000 },
   },
 };
 const archivedDirectory = {
@@ -150,6 +153,7 @@ test("administrator seat meter invites a second Tier 1 administrator through a s
   renderManagement();
 
   expect(await screen.findByText("1/2")).toBeInTheDocument();
+  expect(screen.getByText("$300/month organization fee")).toBeInTheDocument();
   expect(screen.getByRole("progressbar", { name: "1 of 2 administrator seats allocated" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Invite Administrator" }));
   fireEvent.change(screen.getByRole("textbox", { name: /Administrator email addresses/i }), {
@@ -179,6 +183,7 @@ test("a full administrator meter offers the license request path", async () => {
   expect(await screen.findByText("2/2")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Request Additional License" }));
   expect(screen.getByRole("dialog", { name: "Request a license tier increase" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Requested license tier").options[0]).toHaveTextContent("$700/month");
   fireEvent.change(screen.getByLabelText("Business reason and capacity context"), {
     target: { value: "We need another administrator for our growing portfolio." },
   });

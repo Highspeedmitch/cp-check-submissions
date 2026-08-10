@@ -200,6 +200,15 @@ function OrganizationCard({ organization, busy, onEnter, onManageCapabilities, o
         <span>{attentionCount ? `${attentionCount} workflow item${attentionCount === 1 ? "" : "s"} need attention` : "No pending workflow items"}</span>
         {attentionCount > 0 && <small>{organization.pendingBidCount} bids · {organization.pendingInvoiceCount} invoices</small>}
       </div>
+      <div className="platform-capability-summary">
+        <strong>{organization.planLabel || "Service plan"}</strong>
+        <span>
+          {organization.recurringMonthlyFeeCents != null && Number.isFinite(Number(organization.recurringMonthlyFeeCents))
+            ? `${new Intl.NumberFormat("en-US", { style: "currency", currency: organization.currency || "USD", maximumFractionDigits: 0 }).format(organization.recurringMonthlyFeeCents / 100)}/month organization fee`
+            : "Organization fee not configured"}
+          {organization.visitChargesBilledSeparately ? " + separate visit charges" : ""}
+        </span>
+      </div>
       {organization.pendingAdminInvitation && (
         <div className="platform-org-onboarding">
           <span>Administrator invitation {organization.pendingAdminInvitation.status === "expired" ? "expired" : "pending"}</span>

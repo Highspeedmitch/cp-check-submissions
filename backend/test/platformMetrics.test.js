@@ -17,7 +17,7 @@ test("platform metrics merge grouped tenant counts without per-organization quer
           security: { adminActionPasskeyHash: "hash" },
           onboarding: { status: "in_progress" },
         },
-        { _id: secondId, name: "Beta", orgType: "STR", propertyCount: 1 },
+        { _id: secondId, name: "Beta", orgType: "STR", serviceModel: "platform", license: { tier: "tier_2" }, propertyCount: 1 },
       ],
     },
     UserModel: { aggregate: async () => [{ _id: firstId, count: 3 }] },
@@ -44,10 +44,14 @@ test("platform metrics merge grouped tenant counts without per-organization quer
   assert.equal(result.summary.activeUserCount, 3);
   assert.equal(result.summary.recentSubmissionCount, 4);
   assert.equal(result.organizations[0].pendingBidCount, 1);
+  assert.equal(result.organizations[0].planLabel, "Managed service");
+  assert.equal(result.organizations[0].recurringMonthlyFeeCents, 50000);
   assert.equal(result.organizations[0].onboarding.requiredComplete, 3);
   assert.equal(result.organizations[1].activeUserCount, 0);
   assert.equal(result.summary.pendingAdminInviteCount, 1);
   assert.equal(result.organizations[1].pendingAdminInvitation.email, "admin@beta.example");
+  assert.equal(result.organizations[1].planLabel, "Full Stack SaaS Tier 2");
+  assert.equal(result.organizations[1].recurringMonthlyFeeCents, 70000);
   assert.equal(
     submissionPipeline[0].$match.submittedAt.$gte.toISOString(),
     "2026-06-29T12:00:00.000Z"

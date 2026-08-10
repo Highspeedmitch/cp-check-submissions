@@ -31,6 +31,7 @@ const {
   resolveLicenseEntitlements,
   summarizeAdminSeats,
 } = require("../services/licenseEntitlements");
+const { TIER_RECURRING_MONTHLY_PRICES_CENTS } = require("../services/servicePlanPricing");
 const { createLicensedAdminInvitations } = require("../services/licensedAdminInvitations");
 const { createLicensedOrganizationInvitation } = require("../services/licensedOrganizationInvitations");
 const {
@@ -121,6 +122,7 @@ router.get("/", async (req, res) => {
       tiers: LICENSE_TIERS,
       tierLimits: TIER_LIMITS,
       hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
+      tierRecurringMonthlyPricesCents: TIER_RECURRING_MONTHLY_PRICES_CENTS,
     },
     properties: organization.properties.map((property) => ({
       _id: property._id,

@@ -12,6 +12,7 @@ Platform administrators review organization requests to change a service model, 
    - current and requested plan;
    - requested effective date and business reason;
    - administrator, user, and property capacity before and after approval;
+   - recurring organization fee before and after approval;
    - current allocated users and administrators; and
    - conversation history and notification warnings.
 
@@ -31,6 +32,8 @@ Approval takes effect immediately. Afterlight:
 - when moving to SaaS, ends every active or paused Afterlight resource deployment for the organization;
 - records platform and fulfillment audit events; and
 - alerts the requesting administrator.
+
+Approval records the plan price but does not generate, change, or collect a recurring corporate invoice. Complete any contract and billing-provider changes through the approved billing process until recurring organization billing is automated.
 
 Existing assignments and invoices keep their saved fulfillment and billing routing. An ended deployment removes the resource from the organization's future staffing choices; it does not remove the resource from an assignment created before the transition. Moving back to Hybrid or Managed service does not automatically reactivate prior deployments. A platform administrator must deploy the appropriate resources again.
 

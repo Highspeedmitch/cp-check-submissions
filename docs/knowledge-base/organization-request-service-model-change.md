@@ -8,6 +8,20 @@ You must be signed in as an organization administrator. Gather the business reas
 
 Only one active service-plan request can exist for an organization at a time.
 
+## Plan pricing
+
+| Model and tier | Organization fee | Additional terms |
+| --- | ---: | --- |
+| Full-stack SaaS Tier 1 | $300/month | 2 administrators, 5 users, 10 properties |
+| Full-stack SaaS Tier 2 | $700/month | 3 administrators, 20 users, 50 properties |
+| Full-stack SaaS Tier 3 | $1,000/month | 5 administrators, 50 users, 250 properties |
+| Hybrid Tier 1 | $300/month | Same Tier 1 capacity, plus a 15% monthly portfolio minimum assigned to Afterlight |
+| Hybrid Tier 2 | $700/month | Same Tier 2 capacity, plus a 12% monthly portfolio minimum assigned to Afterlight |
+| Hybrid Tier 3 | $1,000/month | Same Tier 3 capacity, plus a 10% monthly portfolio minimum assigned to Afterlight |
+| Managed service | $500/month | Property visits are billed separately |
+
+The Service Delivery page displays contract pricing, but it does not currently generate a recurring organization invoice. Existing visit invoices remain separate.
+
 ## Request a service model change
 
 1. From the organization dashboard, open **Service Delivery**.
@@ -30,7 +44,7 @@ The **Increase license tier** section appears only for Full-stack SaaS and Hybri
 4. Enter the expected growth, current capacity need, and requested timing.
 5. Select **Request tier increase**.
 
-Tier 1 organizations can request Tier 2 or Tier 3. Tier 2 organizations can request Tier 3. For Hybrid organizations, the tier choices also show the contracted monthly portfolio minimum assigned to Afterlight: 15% for Tier 1, 12% for Tier 2, and 10% for Tier 3. Managed-service organizations do not see tier controls.
+Tier 1 organizations can request Tier 2 or Tier 3. Tier 2 organizations can request Tier 3. Each choice shows its monthly organization fee and capacity. For Hybrid organizations, the tier choices also show the contracted monthly portfolio minimum assigned to Afterlight: 15% for Tier 1, 12% for Tier 2, and 10% for Tier 3. Managed-service organizations do not see tier controls.
 
 ## Request custom Tier 3 administrator capacity
 

@@ -1,3 +1,5 @@
+const { resolveServicePlanPricing } = require("./servicePlanPricing");
+
 const LICENSE_TIERS = ["tier_1", "tier_2", "tier_3"];
 const METERED_SERVICE_MODELS = new Set(["platform", "hybrid"]);
 
@@ -43,6 +45,7 @@ function resolveLicenseEntitlements(organization = {}) {
   const configuredPropertyLimit = isPositiveInteger(organization.license?.propertyLimit)
     ? organization.license.propertyLimit
     : null;
+  const pricing = resolveServicePlanPricing(serviceModel, tier);
 
   return {
     serviceModel,
@@ -54,6 +57,7 @@ function resolveLicenseEntitlements(organization = {}) {
     afterlightPortfolioMinimumPercent: serviceModel === "hybrid"
       ? HYBRID_PORTFOLIO_MINIMUMS[tier]
       : null,
+    ...pricing,
     label: managed
       ? "Managed service"
       : `${serviceModel === "platform" ? "Full Stack SaaS" : "Hybrid"} Tier ${tier.slice(-1)}`,
@@ -109,6 +113,9 @@ function summarizeAdminSeatCounts({ organization, active = 0, pending = 0 }) {
     overLimit: limit === null ? false : allocated > limit,
     tier: entitlements.tier,
     planLabel: entitlements.label,
+    recurringMonthlyFeeCents: entitlements.recurringMonthlyFeeCents,
+    currency: entitlements.currency,
+    visitChargesBilledSeparately: entitlements.visitChargesBilledSeparately,
   };
 }
 

@@ -20,6 +20,10 @@ const {
   HYBRID_PORTFOLIO_MINIMUMS,
   resolveLicenseEntitlements,
 } = require("../services/licenseEntitlements");
+const {
+  TIER_RECURRING_MONTHLY_PRICES_CENTS,
+  MANAGED_SERVICE_BASE_MONTHLY_CENTS,
+} = require("../services/servicePlanPricing");
 
 const router = express.Router();
 
@@ -60,6 +64,9 @@ function serializeSettings(organization) {
         userLimit: entitlements.userLimit,
         propertyLimit: entitlements.propertyLimit,
         afterlightPortfolioMinimumPercent: entitlements.afterlightPortfolioMinimumPercent,
+        recurringMonthlyFeeCents: entitlements.recurringMonthlyFeeCents,
+        currency: entitlements.currency,
+        visitChargesBilledSeparately: entitlements.visitChargesBilledSeparately,
         planLabel: entitlements.label,
       },
     },
@@ -85,6 +92,8 @@ function serializeSettings(organization) {
       licenseTiers: LICENSE_TIERS,
       tierLimits: TIER_LIMITS,
       hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
+      tierRecurringMonthlyPricesCents: TIER_RECURRING_MONTHLY_PRICES_CENTS,
+      managedServiceBaseMonthlyCents: MANAGED_SERVICE_BASE_MONTHLY_CENTS,
       meteredServiceModels: [...METERED_SERVICE_MODELS],
     },
   };

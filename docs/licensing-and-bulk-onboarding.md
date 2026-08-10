@@ -1,5 +1,23 @@
 # Licensing enforcement and bulk onboarding
 
+## Contract pricing
+
+Organization-level recurring prices are defined in `backend/services/servicePlanPricing.js`:
+
+| Service model | Tier | Recurring organization fee | Additional service billing |
+| --- | --- | ---: | --- |
+| Full-stack SaaS | Tier 1 | $300/month | None by default |
+| Full-stack SaaS | Tier 2 | $700/month | None by default |
+| Full-stack SaaS | Tier 3 | $1,000/month | None by default |
+| Hybrid | Tier 1 | $300/month | Afterlight visits billed separately; 15% monthly portfolio minimum |
+| Hybrid | Tier 2 | $700/month | Afterlight visits billed separately; 12% monthly portfolio minimum |
+| Hybrid | Tier 3 | $1,000/month | Afterlight visits billed separately; 10% monthly portfolio minimum |
+| Managed service | Not tiered | $500/month | Property visits billed separately |
+
+The Hybrid percentage is the minimum share of the monthly portfolio assigned to Afterlight. It is not a percentage surcharge on the license fee.
+
+The service-plan interfaces display these contract terms and preserve the current and requested fee in each plan-change request. They do not yet create or collect an organization-level recurring invoice. Existing customer invoices remain tied to completed property visits.
+
 ## Licensed capacity
 
 backend/services/licenseCapacity.js is the canonical source for administrator, user, and property allocation.

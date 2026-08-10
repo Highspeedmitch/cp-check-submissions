@@ -137,6 +137,10 @@ test("serialized SaaS settings omit Afterlight fulfillment choices", () => {
   assert.equal(settings.properties[0].defaultSource, null);
   assert.equal(settings.properties[0].resolvedSource, "customer_employee");
   assert.equal(settings.properties[0].inheritsOrganizationDefault, true);
+  assert.equal(settings.organization.license.recurringMonthlyFeeCents, 30000);
+  assert.equal(settings.organization.license.currency, "USD");
+  assert.equal(settings.options.tierRecurringMonthlyPricesCents.tier_3, 100000);
+  assert.equal(settings.options.managedServiceBaseMonthlyCents, 50000);
 });
 
 test("SaaS administrators cannot set an Afterlight fulfillment default", async () => {

@@ -28,6 +28,7 @@ test("guides platform administrators through a reviewed organization launch", as
   expect(screen.getByText("Example Management")).toBeInTheDocument();
   expect(screen.getByText(/Hybrid · Customer employee/)).toBeInTheDocument();
   expect(screen.getByText(/Tier 2.*3 administrators/)).toBeInTheDocument();
+  expect(screen.getByText(/Tier 2.*\$700\/month.*12% Afterlight minimum/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Launch Organization" }));
 
   await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({

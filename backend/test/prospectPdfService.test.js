@@ -91,3 +91,32 @@ test("renders photo evidence attached to General Observations", async () => {
   assert.equal(pdf.subarray(0, 4).toString(), "%PDF");
   assert.ok(pdf.length > image.length);
 });
+
+test("renders a generated Bedrock summary on a complimentary report", async () => {
+  const pdf = await generateProspectAssessmentPDF({
+    assessment: {
+      businessName: "Sample Center",
+      propertyAddress: "100 Main Street, Phoenix, AZ",
+      createdAt: new Date("2026-08-09T12:00:00Z"),
+      responses: {
+        graffiti: "yes",
+        graffitiDescription: "Markings were observed near the loading area.",
+        generalObservations: "Manual field text.",
+      },
+      templateSnapshot: {
+        title: "Complimentary Exterior Property Assessment",
+        fields: [
+          { key: "graffiti", label: "Graffiti", type: "yes_no_issue" },
+          { key: "generalObservations", label: "General Observations", type: "textarea" },
+        ],
+      },
+    },
+    coverSummary: {
+      text: "Graffiti was observed near the loading area.",
+      disclaimer: "This summary is AI generated and may contain inaccuracies.",
+      aiGenerated: true,
+    },
+  });
+  assert.equal(pdf.subarray(0, 4).toString(), "%PDF");
+  assert.ok(pdf.length > 1000);
+});

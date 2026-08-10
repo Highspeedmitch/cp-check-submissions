@@ -79,14 +79,40 @@ function limitSummary(limits) {
   return `${limits.adminLimit} administrators, ${limits.userLimit} users, ${limits.propertyLimit} properties`;
 }
 
+function currencyAmount(cents, currency = "USD") {
+  if (cents == null || !Number.isFinite(Number(cents))) return "Not configured";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Number(cents) / 100);
+}
+
+function planMonthlyFee(settings, serviceModel, tier) {
+  return serviceModel === "managed"
+    ? settings.options.managedServiceBaseMonthlyCents
+    : settings.options.tierRecurringMonthlyPricesCents?.[tier];
+}
+
+function serviceModelOptionLabel(settings, serviceModel) {
+  if (serviceModel === "managed") {
+    return `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(settings.options.managedServiceBaseMonthlyCents)}/month + visit charges`;
+  }
+  const prices = Object.values(settings.options.tierRecurringMonthlyPricesCents || {});
+  return prices.length
+    ? `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(Math.min(...prices))}-${currencyAmount(Math.max(...prices))}/month by tier`
+    : SERVICE_MODEL_LABELS[serviceModel];
+}
+
 function tierOptionSummary(settings, serviceModel, tier) {
   const capacity = limitSummary(settings.options.tierLimits[tier]);
+  const monthlyFee = `${currencyAmount(planMonthlyFee(settings, serviceModel, tier))}/month`;
   const hybridMinimum = serviceModel === "hybrid"
     ? settings.options.hybridPortfolioMinimums?.[tier]
     : null;
   return hybridMinimum == null
-    ? capacity
-    : `${capacity}, ${hybridMinimum}% monthly portfolio minimum assigned to Afterlight`;
+    ? `${monthlyFee}, ${capacity}`
+    : `${monthlyFee}, ${capacity}, ${hybridMinimum}% monthly portfolio minimum assigned to Afterlight`;
 }
 
 export default function ServiceDeliverySettings() {
@@ -322,6 +348,17 @@ export default function ServiceDeliverySettings() {
                   {tieredOrganization && <span className="beta-status success">{LICENSE_TIER_LABELS[currentTier]}</span>}
                 </div>
               </div>
+              <div className="beta-dialog-note">
+                <strong>{currencyAmount(settings.organization.license.recurringMonthlyFeeCents, settings.organization.license.currency)}/month organization fee</strong>
+                <p>
+                  {settings.organization.serviceModel === "managed"
+                    ? "Managed-service property visits are billed separately in addition to this base fee."
+                    : settings.organization.serviceModel === "hybrid"
+                      ? "Afterlight-serviced visits are billed separately; the tier portfolio minimum remains part of the agreement."
+                      : "This recurring fee covers the Full-stack SaaS license."}
+                </p>
+                <small>Pricing here records the contracted plan. This page does not yet generate a recurring corporate invoice.</small>
+              </div>
               {activeRequest ? (
                 <div className="beta-service-model-request-summary">
                   <div className="beta-card-header">
@@ -356,7 +393,7 @@ export default function ServiceDeliverySettings() {
                         <select required value={requestDraft.requestedServiceModel}
                           onChange={(event) => selectRequestedServiceModel(event.target.value)}>
                           {settings.options.serviceModels.filter((model) => model !== settings.organization.serviceModel)
-                            .map((model) => <option key={model} value={model}>{SERVICE_MODEL_LABELS[model]}</option>)}
+                            .map((model) => <option key={model} value={model}>{serviceModelOptionLabel(settings, model)}</option>)}
                         </select>
                       </label>
                       {requestedModelUsesTiers && (

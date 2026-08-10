@@ -21,6 +21,9 @@ const settings = {
       adminLimit: null,
       userLimit: null,
       propertyLimit: null,
+      recurringMonthlyFeeCents: 50000,
+      currency: "USD",
+      visitChargesBilledSeparately: true,
       planLabel: "Managed service",
     },
     defaultSource: "afterlight_staff",
@@ -38,6 +41,8 @@ const settings = {
       tier_3: { adminLimit: 5, userLimit: 50, propertyLimit: 250 },
     },
     hybridPortfolioMinimums: { tier_1: 15, tier_2: 12, tier_3: 10 },
+    tierRecurringMonthlyPricesCents: { tier_1: 30000, tier_2: 70000, tier_3: 100000 },
+    managedServiceBaseMonthlyCents: 50000,
     fulfillmentSources: [
       "customer_employee",
       "customer_contractor",
@@ -140,6 +145,8 @@ test("managed-service organizations do not see license tier controls", async () 
   );
 
   expect(await screen.findByRole("heading", { name: "Service plan" })).toBeInTheDocument();
+  expect(screen.getByText("$500/month organization fee")).toBeInTheDocument();
+  expect(screen.getByText(/property visits are billed separately/i)).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Increase license tier" })).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Requested license tier")).not.toBeInTheDocument();
 });
@@ -187,6 +194,8 @@ test("a SaaS administrator can request only a higher license tier", async () => 
         adminLimit: 2,
         userLimit: 5,
         propertyLimit: 10,
+        recurringMonthlyFeeCents: 30000,
+        currency: "USD",
         planLabel: "Full Stack SaaS Tier 1",
       },
     },
@@ -221,6 +230,7 @@ test("a SaaS administrator can request only a higher license tier", async () => 
   expect(tierSelect.closest("form")).toHaveClass("beta-tier-request-form");
   expect(tierDate.closest("label")).toHaveClass("beta-contract-change-date");
   expect([...tierSelect.options].map(({ value }) => value)).toEqual(["tier_2", "tier_3"]);
+  expect(tierSelect.options[0]).toHaveTextContent("$700/month");
   fireEvent.change(tierSelect, { target: { value: "tier_3" } });
   fireEvent.change(tierDate, {
     target: { value: "2026-10-01" },

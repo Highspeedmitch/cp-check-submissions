@@ -337,6 +337,69 @@ async function ensureInspectionSummary(job, {
   }
 }
 
+async function ensureProspectAssessmentSummary(assessment, {
+  env = process.env,
+  client,
+  now = new Date(),
+} = {}) {
+  const mode = inspectionSummaryMode(env);
+  if (mode === "off") return { mode, summary: null, coverSummary: null };
+
+  const source = buildInspectionSummarySource(
+    assessment?.responses,
+    assessment?.templateSnapshot
+  );
+  const sourceHash = summarySourceHash(source);
+  const existing = storedSummary(assessment);
+  if (existing?.status === "generated" && existing.sourceHash === sourceHash && existing.text) {
+    return {
+      mode,
+      summary: existing,
+      coverSummary: coverSummaryFor(existing, mode),
+    };
+  }
+
+  try {
+    const generated = await invokeInspectionSummary(source, { env, client });
+    const summary = {
+      status: "generated",
+      mode,
+      text: generated.text,
+      modelId: generated.modelId,
+      promptVersion: SUMMARY_PROMPT_VERSION,
+      sourceHash,
+      inputTokens: generated.inputTokens,
+      outputTokens: generated.outputTokens,
+      latencyMs: generated.latencyMs,
+      attemptedAt: now,
+      generatedAt: now,
+      lastError: "",
+    };
+    assessment.aiSummary = summary;
+    return { mode, summary, coverSummary: coverSummaryFor(summary, mode) };
+  } catch (error) {
+    const summary = {
+      status: "failed",
+      mode,
+      text: "",
+      modelId: String(
+        env.INSPECTION_AI_SUMMARY_MODEL_ID || "us.amazon.nova-micro-v1:0"
+      ).trim(),
+      promptVersion: SUMMARY_PROMPT_VERSION,
+      sourceHash,
+      inputTokens: 0,
+      outputTokens: 0,
+      latencyMs: 0,
+      attemptedAt: now,
+      generatedAt: null,
+      lastError: cleanText(error?.message || "Prospect assessment summarization failed.", 500),
+    };
+    assessment.aiSummary = summary;
+    console.error("AI summary generation failed for a complimentary prospect assessment:", summary.lastError);
+    return { mode, summary, coverSummary: coverSummaryFor(summary, mode) };
+  }
+}
+
 module.exports = {
   SUMMARY_MAX_CHARACTERS,
   SUMMARY_MAX_TOKENS,
@@ -353,4 +416,5 @@ module.exports = {
   buildSummaryPrompt,
   invokeInspectionSummary,
   ensureInspectionSummary,
+  ensureProspectAssessmentSummary,
 };

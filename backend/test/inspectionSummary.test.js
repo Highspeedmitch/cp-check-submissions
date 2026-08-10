@@ -11,6 +11,7 @@ const {
   buildInspectionSummarySource,
   normalizeGeneratedSummary,
   ensureInspectionSummary,
+  ensureProspectAssessmentSummary,
 } = require("../services/inspectionSummary");
 
 function template() {
@@ -218,4 +219,50 @@ test("non-commercial reports do not purchase an unused cover summary", async () 
   assert.equal(result.coverSummary, null);
   assert.equal(inspectionJob.aiSummary, null);
   assert.equal(inspectionJob.saves, 0);
+});
+
+test("platform prospect reports generate from de-identified findings without an organization allowlist", async () => {
+  let commandInput;
+  const assessment = {
+    businessName: "Private Prospect Center",
+    propertyAddress: "99 Confidential Avenue",
+    responses: job().submissionData,
+    templateSnapshot: template(),
+    aiSummary: null,
+  };
+  const result = await ensureProspectAssessmentSummary(assessment, {
+    env: {
+      INSPECTION_AI_SUMMARY_MODE: "dev-preview",
+      INSPECTION_AI_SUMMARY_ORGANIZATION_ALLOWLIST: "A Different Organization",
+    },
+    client: {
+      async send(command) {
+        commandInput = command.input;
+        return {
+          stopReason: "end_turn",
+          output: { message: { content: [{ text: "Graffiti was observed near the west wall." }] } },
+          usage: { inputTokens: 120, outputTokens: 9 },
+          metrics: { latencyMs: 80 },
+        };
+      },
+    },
+    now: new Date("2026-08-09T12:00:00Z"),
+  });
+
+  const prompt = commandInput.messages[0].content[0].text;
+  assert.doesNotMatch(prompt, /Private Prospect Center|Confidential Avenue|Test Center|Private Street/);
+  assert.match(prompt, /Markings were observed near the west wall/);
+  assert.equal(assessment.aiSummary.status, "generated");
+  assert.equal(result.coverSummary.text, "Graffiti was observed near the west wall.");
+  assert.equal(result.coverSummary.disclaimer, SUMMARY_DISCLAIMER);
+});
+
+test("off mode does not invoke Bedrock for platform prospect reports", async () => {
+  const assessment = { responses: job().submissionData, templateSnapshot: template(), aiSummary: null };
+  const result = await ensureProspectAssessmentSummary(assessment, {
+    env: { INSPECTION_AI_SUMMARY_MODE: "off" },
+    client: { async send() { throw new Error("should not be called"); } },
+  });
+  assert.equal(result.coverSummary, null);
+  assert.equal(assessment.aiSummary, null);
 });

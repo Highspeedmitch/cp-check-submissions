@@ -29,6 +29,8 @@ const request = {
     requestedUserLimit: 5,
     currentPropertyLimit: 10,
     requestedPropertyLimit: 10,
+    currentRecurringMonthlyFeeCents: 30000,
+    requestedRecurringMonthlyFeeCents: 30000,
     activeAdministratorCount: 2,
     pendingAdministratorCount: 0,
     activeUserCount: 4,
@@ -61,6 +63,7 @@ test("platform administrators can review organization request details", async ()
   expect(screen.getByText("We need Afterlight overflow coverage.")).toBeInTheDocument();
   expect(screen.getByText("admin@picor.example", { exact: false })).toBeInTheDocument();
   expect(screen.getByText("9/1/2026")).toBeInTheDocument();
+  expect(screen.getByText("$300/month → $300/month")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Approve and apply" })).toBeInTheDocument();
 });
 
@@ -104,6 +107,8 @@ test("platform administrators see tier capacity changes without fulfillment side
       requestedPropertyLimit: 50,
       currentAfterlightPortfolioMinimumPercent: 15,
       requestedAfterlightPortfolioMinimumPercent: 12,
+      currentRecurringMonthlyFeeCents: 30000,
+      requestedRecurringMonthlyFeeCents: 70000,
     },
   }]);
 
@@ -114,6 +119,7 @@ test("platform administrators see tier capacity changes without fulfillment side
   expect(screen.getByText("5 → 20")).toBeInTheDocument();
   expect(screen.getByText("10 → 50")).toBeInTheDocument();
   expect(screen.getByText("15% → 12%")).toBeInTheDocument();
+  expect(screen.getByText("$300/month → $700/month")).toBeInTheDocument();
   expect(screen.getByText(/without changing fulfillment policy/)).toBeInTheDocument();
 });
 
