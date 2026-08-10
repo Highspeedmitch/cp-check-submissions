@@ -32,10 +32,26 @@ test("shows inspection help without contractor billing to a commercial employee"
   expect(screen.getByRole("heading", { name: "Enable and troubleshoot notifications" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Set up and recover authenticator verification" })).toBeInTheDocument();
 });
+test("shows billing guidance to a Customer Contractor Field Operator", () => {
+  localStorage.setItem("billingAccess", "true");
+  renderHelpCenter("user");
+
+  expect(screen.getByRole("heading", { name: "Prepare and send an invoice for approval" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Revise and resubmit a declined invoice" })).toBeInTheDocument();
+});
 test("omits commercial billing help for a short-term-rental submitter", () => {
   renderHelpCenter("contractor", "STR");
 
   expect(screen.getByRole("heading", { name: "Complete and submit an inspection" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /invoice/i })).not.toBeInTheDocument();
+});
+
+test("shows portal guidance to a short-term-rental property owner", () => {
+  renderHelpCenter("client", "STR");
+
+  expect(screen.getByRole("heading", {
+    name: "Use the short-term rental property owner portal",
+  })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: /invoice/i })).not.toBeInTheDocument();
 });
 
@@ -77,6 +93,9 @@ test("shows the platform operations guide to a platform administrator", () => {
   expect(screen.getByRole("heading", {
     name: "Create and securely access an organization",
   })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Create a complimentary prospect report",
+  })).toBeInTheDocument();
   expect(screen.queryByRole("heading", {
     name: "Create and manage a scheduler assignment",
   })).not.toBeInTheDocument();
@@ -99,6 +118,13 @@ test("hides platform service billing guidance from organization administrators",
   })).toBeInTheDocument();
   expect(screen.getByRole("heading", {
     name: "Configure property delivery and inspection recipients",
+  })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Review portfolio reporting" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Manage inspection form templates and field order",
+  })).toBeInTheDocument();
+  expect(screen.getByRole("heading", {
+    name: "Request and manage a property service bid",
   })).toBeInTheDocument();
 });
 

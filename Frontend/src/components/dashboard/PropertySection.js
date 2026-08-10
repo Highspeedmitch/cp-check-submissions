@@ -10,6 +10,8 @@ function PropertySection({
   orgType,
   notificationBadges,
   profitStatuses,
+  monthlyAssignmentStatuses = {},
+  monthlyAssignmentMonth,
   onOpenProperty,
   onManageEmails,
   onManageDetails,
@@ -45,6 +47,8 @@ function PropertySection({
               orgName={orgName}
               orgType={orgType}
               profitStatus={profitStatuses[property._id]}
+              monthlyAssignmentStatus={monthlyAssignmentStatuses[property.name]}
+              monthlyAssignmentMonth={monthlyAssignmentMonth}
               onOpen={onOpenProperty}
               onManageEmails={onManageEmails}
               onManageDetails={onManageDetails}

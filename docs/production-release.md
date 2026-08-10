@@ -58,6 +58,14 @@ Production workflow capabilities also require:
 Keep the VAPID key pair stable after launch. Rotating it forces browsers and
 installed PWAs to subscribe again.
 
+Portfolio-aware pricing configuration:
+
+- set `AFTERLIGHT_PRICING_HOME_LAT` and `AFTERLIGHT_PRICING_HOME_LNG` on the API web service to the reviewed operations-base coordinates;
+- set `MAPBOX_ACCESS_TOKEN` on the API web service to a dedicated Mapbox token for server-side Geocoding v6 and Matrix API requests;
+- keep those values backend-only. Do not add the private base address or coordinates to frontend configuration or source control;
+- without both valid home coordinates, single-property and cluster pricing remain available while portfolio-aware estimates fail closed with a configuration warning;
+- when Mapbox is unavailable, portfolio-aware pricing falls back to the coordinate model and requires manual review.
+
 Optional identity controls:
 
 - set `TOTP_MFA_ENABLED=true` with a base64-encoded 32-byte
@@ -73,6 +81,16 @@ Optional inspection AI controls:
 - `INSPECTION_AI_SUMMARY_TIMEOUT_MS` defaults to 8,000 milliseconds. Model failures remain non-blocking and produce a non-AI cover fallback.
 
 See [inspection-processing.md](inspection-processing.md) for the rollout modes, 300-character contract, disclaimer, IAM scope, and QA cases.
+
+Optional monthly portfolio summary controls:
+
+- leave `MONTHLY_PORTFOLIO_SUMMARY_MODE=off` until recipient scope, metrics, narrative, and PDF layout pass DEV QA;
+- use `MONTHLY_PORTFOLIO_SUMMARY_MODE=preview` with an exact `MONTHLY_PORTFOLIO_SUMMARY_ORGANIZATION_ALLOWLIST` match to generate in-app/PDF previews without email;
+- use `MONTHLY_PORTFOLIO_SUMMARY_MODE=live` only after controlled email-delivery QA;
+- optionally configure `MONTHLY_PORTFOLIO_SUMMARY_MODEL_ID` and `MONTHLY_PORTFOLIO_SUMMARY_TIMEOUT_MS`;
+- run the worker with `RUN_MONTHLY_PORTFOLIO_SUMMARY_WORKER=true` in the background service. After that worker is healthy, set it to `false` in the web service to avoid redundant polling.
+
+The backend identity needs least-privilege `bedrock:InvokeModel`, `s3:PutObject`, and `s3:GetObject` access for the configured model and `portfolio-summaries/` bucket prefix. See [monthly-portfolio-summaries.md](monthly-portfolio-summaries.md) for architecture, snapshot semantics, rollout, and QA.
 
 Firebase credentials are not required for PWA Web Push. The current Gusto
 handoff is manual and does not require a Gusto API credential.
@@ -277,6 +295,7 @@ response.
   their historical properties and zero active organization users. Confirm one
   retired organization identity cannot enter its organization workspace.
 - Confirm public registration remains disabled.
+- When monthly portfolio summaries are enabled, prepare the previous month in preview mode, verify the recipient's property scope and PDF, and confirm no preview email is sent. Before live rollout, complete one controlled recipient-only email test.
 
 ## 9. Rollback
 

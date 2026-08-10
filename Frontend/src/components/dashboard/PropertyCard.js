@@ -1,6 +1,13 @@
 import React from "react";
 import { format } from "date-fns";
 
+const MONTHLY_ASSIGNMENT_LABELS = {
+  unscheduled: "Unscheduled",
+  scheduled: "Scheduled",
+  completed: "Completed",
+  missed: "Missed",
+};
+
 function PropertyCard({
   property,
   isManagement,
@@ -10,6 +17,8 @@ function PropertyCard({
   orgName,
   orgType,
   profitStatus,
+  monthlyAssignmentStatus,
+  monthlyAssignmentMonth,
   onOpen,
   onManageEmails,
   onManageDetails,
@@ -19,6 +28,9 @@ function PropertyCard({
 }) {
   const isUnassigned =
     role === "admin" && (property.propertyManagers || []).length === 0;
+  const monthlyStatus = MONTHLY_ASSIGNMENT_LABELS[monthlyAssignmentStatus?.status]
+    ? monthlyAssignmentStatus.status
+    : "";
   return (
     <div className="beta-property-card">
       <div className="beta-card-header">
@@ -30,19 +42,27 @@ function PropertyCard({
               : "Property inspection checklist"}
           </p>
         </div>
-        <span className={`beta-status ${
-          hasNewActivity || isCompleted ? "completed" : isUnassigned ? "declined" : ""
-        }`}>
-          {hasNewActivity
-            ? "New!"
-            : isCompleted
-              ? "Completed"
-              : isUnassigned
-                ? "Unassigned"
-              : isManagement
-                ? "Managed"
-                : "Ready"}
-        </span>
+        <div className="beta-property-status-stack">
+          <span className={`beta-status ${
+            hasNewActivity || isCompleted ? "completed" : isUnassigned ? "declined" : ""
+          }`}>
+            {hasNewActivity
+              ? "New!"
+              : isCompleted
+                ? "Completed"
+                : isUnassigned
+                  ? "Unassigned"
+                : isManagement
+                  ? "Managed"
+                  : "Ready"}
+          </span>
+          {isManagement && monthlyStatus && (
+            <span className={`beta-status beta-monthly-assignment-status is-${monthlyStatus}`}
+              aria-label={`${monthlyAssignmentMonth || "Current month"} schedule: ${MONTHLY_ASSIGNMENT_LABELS[monthlyStatus]}`}>
+              {MONTHLY_ASSIGNMENT_LABELS[monthlyStatus]}
+            </span>
+          )}
+        </div>
       </div>
       <div className="beta-card-actions beta-property-actions">
         <button className="beta-button" onClick={() => onOpen(property)}>

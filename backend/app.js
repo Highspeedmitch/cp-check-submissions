@@ -68,6 +68,7 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
   app.use("/api/reporting", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/reporting"));
   app.use("/api/platform", require("./Routes/platform"));
   app.use("/api/platform-resources", require("./Routes/platformResources"));
+  app.use("/api/platform-finance", require("./Routes/platformFinance"));
   app.use("/api/resource-workspace", authenticateToken, require("./Routes/resourceWorkspace"));
   app.use("/api/calendar-feed", authenticateToken, require("./Routes/calendarFeed"));
   app.use("/api/client", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/ClientRoutes"));

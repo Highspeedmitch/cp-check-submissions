@@ -23,13 +23,19 @@ test("filters help articles by exact role and organization type", () => {
   expect(visibleHelpArticles({ role: "property_manager", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "review-an-invoice",
     "review-property-submissions",
+    "review-portfolio-reporting",
+    "manage-inspection-form-templates",
     "create-a-scheduler-assignment",
+    "request-and-manage-property-bids",
     "enable-notifications",
     "authenticator-verification",
   ]);
   expect(visibleHelpArticles({ role: "admin", orgType: "COM" }).map(({ slug }) => slug)).toEqual([
     "review-property-submissions",
+    "review-portfolio-reporting",
+    "manage-inspection-form-templates",
     "create-a-scheduler-assignment",
+    "request-and-manage-property-bids",
     "request-a-service-model-change",
     "enable-notifications",
     "manage-organization-users",
@@ -41,6 +47,7 @@ test("filters help articles by exact role and organization type", () => {
     "bulk-onboard-users-properties",
   ]);
   expect(visibleHelpArticles({ role: "client", orgType: "STR" }).map(({ slug }) => slug)).toEqual([
+    "use-short-term-rental-owner-portal",
     "enable-notifications",
     "authenticator-verification",
   ]);
@@ -54,6 +61,22 @@ test("filters help articles by exact role and organization type", () => {
     "use-the-resource-portal",
     "complete-a-resource-assignment",
     "understand-resource-earnings",
+    "enable-notifications",
+    "authenticator-verification",
+  ]);
+});
+
+test("shows customer-contractor billing guidance to normalized Field Operator accounts", () => {
+  expect(visibleHelpArticles({
+    role: "user",
+    orgType: "COM",
+    accountScope: "organization",
+    capabilities: ["customer_contractor_billing"],
+  }).map(({ slug }) => slug)).toEqual([
+    "complete-and-submit-an-inspection",
+    "prepare-and-send-an-invoice",
+    "revise-a-declined-invoice",
+    "connect-my-calendar",
     "enable-notifications",
     "authenticator-verification",
   ]);
@@ -112,6 +135,7 @@ test("platform guidance is isolated from organization and assumed-access help", 
     "manage-resources-and-payables",
     "configure-gusto-contractor-payments",
     "calculate-preliminary-service-pricing",
+    "create-complimentary-prospect-reports",
     "review-service-model-change-requests",
     "create-and-access-an-organization",
   ]);

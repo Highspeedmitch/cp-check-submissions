@@ -15,8 +15,15 @@ function emptyProperty() {
 function emptyForm(pricingMode = "single") {
   return {
     pricingMode,
+    organizationId: "",
+    proposedAddress: "",
+    candidateLocationId: "",
+    candidateLat: "",
+    candidateLng: "",
+    routeCommitment: "modeled",
     serviceFrequency: "monthly",
     hasKnownIssues: false,
+    includeManagedServiceFee: false,
     withinHalfMile: false,
     sameScheduledVisit: false,
     properties: pricingMode === "cluster"
@@ -31,12 +38,21 @@ const MANUAL_REVIEW_LABELS = Object.freeze({
   service_frequency: "The requested service frequency requires a manual pricing review.",
   ad_hoc_frequency: "Ad-hoc work requires a manually prepared monthly estimate.",
   known_issues: "Known property concerns may affect the final scope and pricing.",
+  modeled_route_data: "Road routing is not yet configured, so this estimate uses a coordinate-based route model.",
+  routing_provider_fallback: "Live road routing was unavailable, so this estimate uses the coordinate fallback and requires review.",
+  travel_distance: "The home-base trip exceeds the automatic travel range and requires review.",
 });
 
 const PROPERTY_TYPE_LABELS = Object.freeze({
   free_standing: "Free standing",
   strip_mall: "Strip mall",
   individual_suite: "Individual suite",
+});
+
+const ROUTE_PRICING_BAND_LABELS = Object.freeze({
+  direct_route: "Direct-route marginal price",
+  near_route: "Near-route price",
+  standard_route: "Standard route price",
 });
 
 function formatCurrency(cents) {
@@ -55,7 +71,17 @@ function formatMultiplier(value) {
 function monthlySummary(estimate) {
   return estimate.estimatedMonthlyCents == null
     ? "Monthly pricing requires manual review"
-    : `${formatCurrency(estimate.estimatedMonthlyCents)} estimated monthly`;
+    : `${formatCurrency(estimate.estimatedMonthlyCents)} estimated monthly for visit service`;
+}
+
+function managedServiceSummary(estimate) {
+  if (!estimate.managedService) return null;
+  if (!estimate.managedService.includedInContractTotal) {
+    return `${formatCurrency(estimate.managedService.baseMonthlyFeeCents)} organization-level managed-service base not included.`;
+  }
+  return estimate.managedService.estimatedContractMonthlyCents == null
+    ? `${formatCurrency(estimate.managedService.baseMonthlyFeeCents)} organization-level managed-service base included; contract monthly total requires manual review.`
+    : `${formatCurrency(estimate.managedService.baseMonthlyFeeCents)} organization-level managed-service base included; ${formatCurrency(estimate.managedService.estimatedContractMonthlyCents)} estimated contract total per month.`;
 }
 
 export function estimateSummaryText(form, estimate) {
@@ -64,10 +90,23 @@ export function estimateSummaryText(form, estimate) {
       `Afterlight cluster planning estimate: ${estimate.inputs.propertyCount} properties, ${form.serviceFrequency.replaceAll("_", "-")} service.`,
       `${formatCurrency(estimate.estimatedPerVisitCents)} combined per visit; ${monthlySummary(estimate)}.`,
       `${formatCurrency(estimate.clusterDiscountPerVisitCents)} per-visit savings against ${formatCurrency(estimate.standalonePerVisitCents)} standalone.`,
+      managedServiceSummary(estimate),
       estimate.requiresManualReview
         ? "Manual pricing review required before presenting a quote."
         : "No automatic manual-review flags were identified.",
-    ].join(" ");
+    ].filter(Boolean).join(" ");
+  }
+  if (estimate.pricingMode === "route_aware") {
+    return [
+      `Afterlight portfolio-aware planning estimate for ${form.proposedAddress || "the proposed property"}.`,
+      `${formatCurrency(estimate.estimatedPerVisitCents)} estimated per visit; ${monthlySummary(estimate)}.`,
+      `${formatCurrency(estimate.travelSurchargeCents)} travel adjustment and ${formatCurrency(estimate.combinedCreditCents)} portfolio/route credit.`,
+      `Route classification: ${ROUTE_PRICING_BAND_LABELS[estimate.geography?.route?.pricingBand] || "Standard route price"}.`,
+      managedServiceSummary(estimate),
+      estimate.requiresManualReview
+        ? "Manual pricing review required before presenting a quote."
+        : "No automatic manual-review flags were identified.",
+    ].filter(Boolean).join(" ");
   }
   const property = form.properties?.[0] || form;
   const propertyType = property.propertyType.replaceAll("_", " ");
@@ -75,19 +114,23 @@ export function estimateSummaryText(form, estimate) {
   return [
     `Afterlight planning estimate: ${Number(property.grossSquareFeet).toLocaleString()} sq ft ${propertyType}, ${frequency} service.`,
     `${formatCurrency(estimate.estimatedPerVisitCents)} estimated per visit; ${monthlySummary(estimate)}.`,
+    managedServiceSummary(estimate),
     estimate.requiresManualReview
       ? "Manual pricing review required before presenting a quote."
       : "No automatic manual-review flags were identified.",
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 }
 
-export default function PricingEstimator() {
+export default function PricingEstimator({ organizations = [] }) {
   const [form, setForm] = useState(() => emptyForm());
   const [estimate, setEstimate] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationResults, setLocationResults] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const clusterMode = form.pricingMode === "cluster";
+  const routeAwareMode = form.pricingMode === "route_aware";
 
   function clearResult() {
     setEstimate(null);
@@ -98,6 +141,56 @@ export default function PricingEstimator() {
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
     clearResult();
+  }
+
+  function updateAddress(value) {
+    setForm((current) => ({
+      ...current,
+      proposedAddress: value,
+      candidateLocationId: "",
+      candidateLat: "",
+      candidateLng: "",
+    }));
+    setLocationResults([]);
+    clearResult();
+  }
+
+  function chooseLocation(location) {
+    setForm((current) => ({
+      ...current,
+      proposedAddress: location.label,
+      candidateLocationId: location.locationId,
+      candidateLat: location.lat,
+      candidateLng: location.lng,
+    }));
+    setEstimate(null);
+    setError("");
+    setMessage("Property location confirmed.");
+  }
+
+  async function searchAddress() {
+    if (locationBusy || !form.proposedAddress.trim()) return;
+    setLocationBusy(true);
+    setLocationResults([]);
+    setEstimate(null);
+    setError("");
+    setMessage("");
+    try {
+      const result = await api.post("/api/platform/pricing-locations", {
+        query: form.proposedAddress,
+      });
+      const results = Array.isArray(result.results) ? result.results : [];
+      if (!results.length) {
+        setError("No matching property address was found. Refine the address and try again.");
+        return;
+      }
+      setLocationResults(results);
+      setMessage("Select the correct address before calculating the estimate.");
+    } catch (requestError) {
+      setError(requestError.message || "Unable to search for the property address.");
+    } finally {
+      setLocationBusy(false);
+    }
   }
 
   function updateMode(pricingMode) {
@@ -112,6 +205,7 @@ export default function PricingEstimator() {
           : [...current.properties, emptyProperty()]
         : [current.properties[0] || emptyProperty()],
     }));
+    setLocationResults([]);
     clearResult();
   }
 
@@ -146,6 +240,15 @@ export default function PricingEstimator() {
   async function calculate(event) {
     event.preventDefault();
     if (busy) return;
+    if (routeAwareMode && (
+      !form.candidateLocationId
+      || form.candidateLat === ""
+      || form.candidateLng === ""
+    )) {
+      setError("Find and confirm the proposed property address before calculating.");
+      setMessage("");
+      return;
+    }
     setBusy(true);
     setEstimate(null);
     setError("");
@@ -162,12 +265,29 @@ export default function PricingEstimator() {
         hasKnownIssues: form.hasKnownIssues,
         withinHalfMile: form.withinHalfMile,
         sameScheduledVisit: form.sameScheduledVisit,
+        includeManagedServiceFee: form.includeManagedServiceFee,
       }
-      : {
+      : routeAwareMode ? {
+        pricingMode: "route_aware",
+        organizationId: form.organizationId,
+        candidate: {
+          id: form.candidateLocationId,
+          name: form.proposedAddress,
+          lat: Number(form.candidateLat),
+          lng: Number(form.candidateLng),
+        },
+        routeCommitment: form.routeCommitment,
         grossSquareFeet: properties[0].grossSquareFeet,
         propertyType: properties[0].propertyType,
         serviceFrequency: form.serviceFrequency,
         hasKnownIssues: form.hasKnownIssues,
+        includeManagedServiceFee: form.includeManagedServiceFee,
+      } : {
+        grossSquareFeet: properties[0].grossSquareFeet,
+        propertyType: properties[0].propertyType,
+        serviceFrequency: form.serviceFrequency,
+        hasKnownIssues: form.hasKnownIssues,
+        includeManagedServiceFee: form.includeManagedServiceFee,
       };
     try {
       setEstimate(await api.post("/api/platform/pricing-estimate", payload));
@@ -180,6 +300,8 @@ export default function PricingEstimator() {
 
   function reset() {
     setForm(emptyForm());
+    setLocationResults([]);
+    setLocationBusy(false);
     clearResult();
   }
 
@@ -213,7 +335,7 @@ export default function PricingEstimator() {
         <fieldset className="platform-pricing-mode">
           <legend>Estimate type</legend>
           <label>
-            <input type="radio" name="pricing-mode" value="single" checked={!clusterMode}
+            <input type="radio" name="pricing-mode" value="single" checked={form.pricingMode === "single"}
               onChange={() => updateMode("single")} />
             <span><strong>Single property</strong><small>Calculate one property independently.</small></span>
           </label>
@@ -222,7 +344,80 @@ export default function PricingEstimator() {
               onChange={() => updateMode("cluster")} />
             <span><strong>Property cluster</strong><small>Share visit overhead across nearby properties.</small></span>
           </label>
+          <label>
+            <input type="radio" name="pricing-mode" value="route_aware" checked={routeAwareMode}
+              onChange={() => updateMode("route_aware")} />
+            <span><strong>Portfolio-aware property</strong><small>Model home-base travel, portfolio density, and route insertion.</small></span>
+          </label>
         </fieldset>
+
+        {routeAwareMode && (
+          <section className="platform-pricing-route-context" aria-labelledby="platform-pricing-route-title">
+            <div className="platform-pricing-property-heading">
+              <div>
+                <h3 id="platform-pricing-route-title">Portfolio and route context</h3>
+                <p>Confirm the Mapbox address result before calculating. Road distance and travel time are evaluated on the backend.</p>
+              </div>
+            </div>
+            <div className="beta-form-grid">
+              <label className="beta-form-field">
+                Organization
+                <select required value={form.organizationId}
+                  onChange={(event) => update("organizationId", event.target.value)}>
+                  <option value="">Select organization</option>
+                  {organizations.map((organization) => (
+                    <option value={organization.organizationId} key={organization.organizationId}>
+                      {organization.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="beta-form-field">
+                Route assumption
+                <select value={form.routeCommitment}
+                  onChange={(event) => update("routeCommitment", event.target.value)}>
+                  <option value="modeled">Modeled portfolio route</option>
+                  <option value="confirmed">Confirmed same-day route</option>
+                  <option value="none">Standalone trip only</option>
+                </select>
+              </label>
+            </div>
+            <div className="platform-pricing-address-search">
+              <label className="beta-form-field" htmlFor="platform-pricing-address">
+                Proposed property address
+                <input id="platform-pricing-address" type="text" required maxLength="240"
+                  value={form.proposedAddress}
+                  onChange={(event) => updateAddress(event.target.value)} />
+              </label>
+              <button type="button" className="beta-button secondary"
+                disabled={locationBusy || busy || !form.proposedAddress.trim()}
+                onClick={searchAddress}>
+                {locationBusy ? "Finding address..." : "Find address"}
+              </button>
+            </div>
+            {locationResults.length > 0 && (
+              <fieldset className="platform-pricing-location-results">
+                <legend>Confirm the proposed property</legend>
+                {locationResults.map((location) => (
+                  <label key={location.locationId}>
+                    <input type="radio" name="pricing-location"
+                      checked={form.candidateLocationId === location.locationId}
+                      onChange={() => chooseLocation(location)} />
+                    <span>
+                      <strong>{location.label}</strong>
+                      <small>Mapbox match: {location.confidence}</small>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
+            {form.candidateLocationId && (
+              <p className="platform-pricing-location-confirmed" role="status">
+                Confirmed location: {form.proposedAddress}
+              </p>
+            )}
+          </section>
+        )}
 
         <div className={clusterMode ? "platform-pricing-properties" : "beta-form-grid"}>
           {form.properties.map((property, index) => (
@@ -284,6 +479,17 @@ export default function PricingEstimator() {
           </label>
         </div>
 
+        <fieldset className="platform-pricing-eligibility">
+          <legend>Managed-service agreement</legend>
+          <p>The base applies once per organization, not once per property.</p>
+          <label className="beta-template-checkbox">
+            <input type="checkbox" checked={form.includeManagedServiceFee}
+              onChange={(event) => update("includeManagedServiceFee", event.target.checked)} />
+            Include the organization-level $500 managed-service base in this quote
+          </label>
+          <p>Leave this off when pricing an added property for an organization that already pays the monthly base.</p>
+        </fieldset>
+
         {clusterMode && (
           <fieldset className="platform-pricing-eligibility">
             <legend>Cluster eligibility</legend>
@@ -302,8 +508,9 @@ export default function PricingEstimator() {
         )}
 
         <div className="beta-card-actions platform-pricing-actions">
-          <button type="button" className="beta-button secondary" onClick={reset} disabled={busy}>Reset</button>
-          <button type="submit" className="beta-button" disabled={busy}>
+          <button type="button" className="beta-button secondary" onClick={reset}
+            disabled={busy || locationBusy}>Reset</button>
+          <button type="submit" className="beta-button" disabled={busy || locationBusy}>
             {busy ? "Calculating..." : "Calculate estimate"}
           </button>
         </div>
@@ -318,24 +525,42 @@ export default function PricingEstimator() {
             <div>
               <span className="beta-eyebrow">Formula version {estimate.version}</span>
               <h2 id="platform-pricing-result-title">
-                {estimate.pricingMode === "cluster" ? "Cluster planning estimate" : "Planning estimate"}
+                {estimate.pricingMode === "cluster"
+                  ? "Cluster planning estimate"
+                  : estimate.pricingMode === "route_aware"
+                    ? "Portfolio-aware planning estimate"
+                    : "Planning estimate"}
               </h2>
             </div>
             <button type="button" className="beta-button secondary compact" onClick={copySummary}>
               Copy summary
             </button>
           </div>
-          <div className={`platform-pricing-metrics${estimate.pricingMode === "cluster" ? " cluster" : ""}`}>
+          <div className={`platform-pricing-metrics${estimate.pricingMode === "cluster" ? " cluster" : estimate.pricingMode === "route_aware" ? " route-aware" : ""}`}>
             <article>
               <span>{estimate.pricingMode === "cluster" ? "Combined per visit" : "Estimated per visit"}</span>
               <strong>{formatCurrency(estimate.estimatedPerVisitCents)}</strong>
             </article>
             <article>
-              <span>{estimate.pricingMode === "cluster" ? "Combined monthly" : "Estimated monthly"}</span>
+              <span>{estimate.pricingMode === "cluster" ? "Combined visit-service monthly" : "Visit-service monthly"}</span>
               <strong>{estimate.estimatedMonthlyCents == null
                 ? "Manual review"
                 : formatCurrency(estimate.estimatedMonthlyCents)}</strong>
             </article>
+            {estimate.managedService?.includedInContractTotal && (
+              <>
+                <article>
+                  <span>Managed-service base</span>
+                  <strong>{formatCurrency(estimate.managedService.baseMonthlyFeeCents)}</strong>
+                </article>
+                <article>
+                  <span>Contract monthly total</span>
+                  <strong>{estimate.managedService.estimatedContractMonthlyCents == null
+                    ? "Manual review"
+                    : formatCurrency(estimate.managedService.estimatedContractMonthlyCents)}</strong>
+                </article>
+              </>
+            )}
             {estimate.pricingMode === "cluster" && (
               <>
                 <article>
@@ -345,6 +570,22 @@ export default function PricingEstimator() {
                 <article className="platform-pricing-savings">
                   <span>Cluster savings per visit</span>
                   <strong>{formatCurrency(estimate.clusterDiscountPerVisitCents)}</strong>
+                </article>
+              </>
+            )}
+            {estimate.pricingMode === "route_aware" && (
+              <>
+                <article>
+                  <span>Base property work</span>
+                  <strong>{formatCurrency(estimate.basePerVisitCents)}</strong>
+                </article>
+                <article>
+                  <span>Travel adjustment</span>
+                  <strong>{formatCurrency(estimate.travelSurchargeCents)}</strong>
+                </article>
+                <article className="platform-pricing-savings">
+                  <span>Portfolio and route credit</span>
+                  <strong>{formatCurrency(estimate.combinedCreditCents)}</strong>
                 </article>
               </>
             )}
@@ -374,6 +615,37 @@ export default function PricingEstimator() {
             </div>
           )}
 
+          {estimate.pricingMode === "route_aware" && (
+            <div className="platform-pricing-breakdown platform-pricing-route-breakdown">
+              <div className="platform-pricing-breakdown-heading">
+                <div>
+                  <h3>Geographic factor breakdown</h3>
+                  <p>Home-base location remains backend-only; this view exposes only operational travel metrics.</p>
+                </div>
+                <span className="beta-status configured">
+                  {estimate.geography.method === "road_matrix" ? "Road matrix" : "Coordinate fallback"}
+                </span>
+              </div>
+              <dl className="platform-pricing-route-factors">
+                <div><dt>Confirmed property</dt><dd>{estimate.geography.candidate?.name || form.proposedAddress}</dd></div>
+                <div><dt>Home round trip</dt><dd>{estimate.geography.home.roundTripMiles} mi · {estimate.geography.home.roundTripMinutes} min</dd></div>
+                <div><dt>Eligible portfolio</dt><dd>{estimate.geography.portfolio.propertyCount} properties</dd></div>
+                <div><dt>Nearest eligible property</dt><dd>{estimate.geography.portfolio.nearestPropertyDistanceMiles == null
+                  ? "None available"
+                  : `${estimate.geography.portfolio.nearestPropertyDistanceMiles} mi`}</dd></div>
+                <div><dt>Portfolio density</dt><dd>{Math.round(estimate.geography.portfolio.densityScore * 100)}%</dd></div>
+                <div><dt>Best modeled detour</dt><dd>{estimate.geography.route.additionalMiles} mi · {estimate.geography.route.additionalMinutes} min</dd></div>
+                <div><dt>Route confidence</dt><dd>{Math.round(estimate.geography.route.confidence * 100)}%</dd></div>
+                <div><dt>Route fit</dt><dd>{Math.round((estimate.geography.route.fitScore || 0) * 100)}% · {ROUTE_PRICING_BAND_LABELS[estimate.geography.route.pricingBand] || "Standard route price"}</dd></div>
+                <div><dt>Insertion point</dt><dd>{estimate.geography.route.insertionAfterPropertyName || "Operations base"} → {estimate.geography.route.insertionBeforePropertyName || "Operations base"}</dd></div>
+                <div><dt>Modeled portfolio order</dt><dd>{estimate.geography.route.modeledStopNames?.length
+                  ? estimate.geography.route.modeledStopNames.join(" → ")
+                  : "No eligible portfolio stops"}</dd></div>
+                <div><dt>Credit detail</dt><dd>{formatCurrency(estimate.routeCreditCents)} route · {formatCurrency(estimate.portfolioCreditCents)} density</dd></div>
+              </dl>
+            </div>
+          )}
+
           {estimate.requiresManualReview && (
             <div className="beta-alert warning platform-pricing-review" role="status">
               <strong>Manual pricing review required</strong>
@@ -395,13 +667,32 @@ export default function PricingEstimator() {
                 <div><dt>Visits per month</dt><dd>{estimate.inputs.visitsPerMonth}</dd></div>
                 <div><dt>Frequency modifier</dt><dd>{formatMultiplier(estimate.inputs.frequencyMultiplier)}</dd></div>
               </dl>
+            ) : estimate.pricingMode === "route_aware" ? (
+              <dl>
+                <div><dt>Standalone minimum</dt><dd>{formatCurrency(estimate.inputs.minimumPerVisitCents)}</dd></div>
+                <div><dt>Retail-center size benchmark</dt><dd>{formatCurrency(estimate.inputs.sizeBenchmarkPerVisitCents)}</dd></div>
+                <div><dt>Included round trip</dt><dd>{estimate.inputs.travelPolicy.includedRoundTripMiles} mi / {estimate.inputs.travelPolicy.includedRoundTripMinutes} min</dd></div>
+                <div><dt>Route savings passed through</dt><dd>{Math.round(estimate.inputs.travelPolicy.routeSavingsPassThroughRate * 100)}%</dd></div>
+                <div><dt>Maximum direct-route credit</dt><dd>{Math.round((estimate.inputs.travelPolicy.maximumRouteFitCreditRate || 0) * 100)}%</dd></div>
+                <div><dt>Maximum portfolio-density credit</dt><dd>{Math.round(estimate.inputs.travelPolicy.maximumPortfolioCreditRate * 100)}%</dd></div>
+                <div><dt>Maximum travel surcharge</dt><dd>{Math.round(estimate.inputs.travelPolicy.maximumTravelSurchargeRate * 100)}%</dd></div>
+                <div><dt>Maximum combined credit</dt><dd>{Math.round(estimate.inputs.travelPolicy.maximumCombinedCreditRate * 100)}%</dd></div>
+                <div><dt>Visits per month</dt><dd>{estimate.inputs.visitsPerMonth}</dd></div>
+              </dl>
             ) : (
               <dl>
                 <div><dt>Pricing size basis</dt><dd>{Number(estimate.inputs.normalizedSquareFeet).toLocaleString()} sq ft</dd></div>
+                <div><dt>Retail-center size benchmark</dt><dd>{formatCurrency(estimate.inputs.sizeBenchmarkPerVisitCents)}</dd></div>
                 <div><dt>Property modifier</dt><dd>{formatMultiplier(estimate.inputs.complexityModifier)}</dd></div>
                 <div><dt>Visits per month</dt><dd>{estimate.inputs.visitsPerMonth}</dd></div>
                 <div><dt>Frequency modifier</dt><dd>{formatMultiplier(estimate.inputs.frequencyMultiplier)}</dd></div>
               </dl>
+            )}
+            {estimate.managedService && (
+              <p>
+                Managed-service base: {formatCurrency(estimate.managedService.baseMonthlyFeeCents)} per organization per month
+                {estimate.managedService.includedInContractTotal ? " (included once in the contract total)." : " (not included in this estimate)."}
+              </p>
             )}
           </div>
         </section>

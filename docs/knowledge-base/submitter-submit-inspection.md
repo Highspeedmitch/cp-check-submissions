@@ -35,6 +35,8 @@ For some short-term rental properties, Afterlight first displays **Select an Act
 4. Attach clear, relevant photos when requested. You can attach up to six photos to each photo field and up to 15 photos across the complete inspection. Select files again to add more.
 5. Review the form, then select **Submit Checklist** once. The button is disabled while the app uploads photos and prepares the report.
 
+Afterlight saves an in-progress checklist draft on the current device and restores it when you return to the same property form. A device draft is a recovery aid, not a submitted inspection: it does not sync to another phone or browser and is removed after a successful submission.
+
 ## 3. Wait for confirmation
 
 Progress messages may say **Preparing secure photo uploads**, **Uploading photo**, **Photos uploaded**, or **Generating your inspection report**. Do not repeatedly select the submit button or close the page during the upload.
@@ -52,6 +54,7 @@ What happens next depends on how the work was assigned:
 - **A required field is highlighted:** Complete that field and submit again.
 - **A question asks for details or a photo:** Add the requested follow-up information. Some issue responses cannot be submitted without both.
 - **The upload stops:** Keep the page open, check your connection, and retry when the app displays an error.
+- **A recovered draft is outdated:** Review every restored answer and photo before submitting, or clear the fields you no longer intend to send.
 - **The property is missing:** Ask an organization administrator to confirm the property and assignment.
 - **You submitted the wrong information:** Contact the property manager or administrator. A completed inspection cannot be edited from the Dashboard.
 

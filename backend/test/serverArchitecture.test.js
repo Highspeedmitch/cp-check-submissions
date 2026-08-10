@@ -128,3 +128,17 @@ test("service model requests expose organization and platform review paths", () 
     { path: "/platform/:id/review", methods: ["post"] },
   ]);
 });
+
+test("reporting router exposes durable monthly portfolio summary paths", () => {
+  const inventory = routeInventory(require("../Routes/reporting"));
+  for (const route of [
+    { path: "/monthly-summaries", methods: ["get"] },
+    { path: "/monthly-summaries", methods: ["post"] },
+    { path: "/monthly-summaries/:summaryId/download", methods: ["get"] },
+  ]) {
+    assert.deepEqual(
+      inventory.find((candidate) => candidate.path === route.path && candidate.methods[0] === route.methods[0]),
+      route
+    );
+  }
+});

@@ -15,6 +15,11 @@ const {
   resolveAssignmentAssignee,
   deployedSchedulerResources,
 } = require("../services/resourceScheduling");
+const {
+  buildMonthlyAssignmentCoverage,
+  currentAssignmentMonth,
+} = require("../services/monthlyAssignmentCoverage");
+const { customerChargeSnapshotForAssignment } = require("../services/serviceBilling");
 const authenticateToken = require("../middleware/authenticateToken");
 
 function assignmentDate(value, label) {
@@ -51,6 +56,7 @@ function tenantAssignmentResult(assignment) {
     value.userId = populatedAssignee._id;
   }
   delete value.compensationSnapshot;
+  delete value.customerChargeSnapshot;
   return value;
 }
 
@@ -73,6 +79,7 @@ function createAssignmentHandlers({
   managedPropertiesForUser = managedProperties,
   resolveAssignee = resolveAssignmentAssignee,
   schedulerResources = deployedSchedulerResources,
+  currentTime = () => new Date(),
 } = {}) {
   const isManagement = (user) => ["admin", "property_manager"].includes(user.role);
 
@@ -154,6 +161,7 @@ function createAssignmentHandlers({
         resourceProfileId: assignee.resourceProfileId,
         resourceDeploymentId: assignee.resourceDeploymentId,
         compensationSnapshot: assignee.compensationSnapshot,
+        customerChargeSnapshot: customerChargeSnapshotForAssignment({ fulfillment, property }),
         assignedBy: req.user.userId,
       });
       await assignment.save();
@@ -242,6 +250,42 @@ function createAssignmentHandlers({
     } catch (error) {
       console.error("Error fetching assignments:", error);
       return res.status(500).json({ error: "Server error fetching assignments" });
+    }
+  }
+
+  async function monthlyAssignmentCoverage(req, res) {
+    try {
+      if (!isManagement(req.user)) {
+        return res.status(403).json({ error: "Management access required." });
+      }
+
+      const organization = await OrganizationModel.findById(req.user.organizationId);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
+
+      const properties = managedPropertiesForUser(organization, req.user) || [];
+      const period = currentAssignmentMonth(organization.reportingTimezone, currentTime());
+      const propertyNames = properties.map((property) => property.name);
+      let assignments = [];
+
+      if (propertyNames.length) {
+        let assignmentQuery = AssignmentModel.find({
+          organizationId: req.user.organizationId,
+          propertyName: { $in: propertyNames },
+          status: { $in: ["scheduled", "completed"] },
+          startDate: { $lt: period.end },
+          endDate: { $gte: period.start },
+        });
+        if (typeof assignmentQuery.select === "function") {
+          assignmentQuery = assignmentQuery.select("propertyName startDate endDate status completedAt");
+        }
+        if (typeof assignmentQuery.lean === "function") assignmentQuery = assignmentQuery.lean();
+        assignments = await assignmentQuery;
+      }
+
+      return res.json(buildMonthlyAssignmentCoverage({ properties, assignments, period }));
+    } catch (error) {
+      console.error("Error fetching monthly assignment coverage:", error);
+      return res.status(500).json({ error: "Unable to load monthly assignment coverage." });
     }
   }
 
@@ -482,6 +526,7 @@ function createAssignmentHandlers({
           changes.resourceProfileId = existing.resourceProfileId;
           changes.resourceDeploymentId = existing.resourceDeploymentId;
           changes.compensationSnapshot = existing.compensationSnapshot;
+          changes.customerChargeSnapshot = existing.customerChargeSnapshot;
         } else {
           if (existingAfterlightAssignment
             && !serviceModelAllowsAfterlightResources(organization)
@@ -510,6 +555,12 @@ function createAssignmentHandlers({
           changes.compensationSnapshot = retainsAgreedRate
             ? existing.compensationSnapshot
             : assignee.compensationSnapshot;
+          const retainsCustomerRate = sameProperty
+            && existing.customerChargeSnapshot?.snapshottedAt
+            && !hasFulfillmentOverride;
+          changes.customerChargeSnapshot = retainsCustomerRate
+            ? existing.customerChargeSnapshot
+            : customerChargeSnapshotForAssignment({ fulfillment, property });
         }
         if (hasFulfillmentOverride) {
           await FulfillmentAuditModel.create({
@@ -596,6 +647,7 @@ function createAssignmentHandlers({
   return {
     createAssignment,
     listAssignments,
+    monthlyAssignmentCoverage,
     listAssignmentHistory,
     listSchedulerUsers,
     deleteAssignment,
@@ -611,6 +663,7 @@ function createAssignmentRouter(
   const handlers = createAssignmentHandlers(dependencies);
   router.post("/assignments", routeAuthentication, handlers.createAssignment);
   router.get("/assignments", routeAuthentication, handlers.listAssignments);
+  router.get("/assignments/monthly-status", routeAuthentication, handlers.monthlyAssignmentCoverage);
   router.get("/assignments/history", routeAuthentication, handlers.listAssignmentHistory);
   router.get("/users", routeAuthentication, handlers.listSchedulerUsers);
   router.delete(

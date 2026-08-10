@@ -96,3 +96,5 @@ Remove the duplicate or correct the row before uploading again.
 **Preview changed**
 
 Someone changed the organization after your preview. Upload and review the CSV again so the final import uses current data and capacity.
+
+[Back to the knowledge base](README.md)

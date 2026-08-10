@@ -14,6 +14,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
 | Configure and operate the Gusto contractor-payment workflow | [Configure Gusto for Afterlight contractor payments](platform-configure-gusto.md) | 12-20 minutes |
 | Calculate preliminary pricing for a prospect conversation | [Calculate preliminary service pricing](platform-use-pricing-estimator.md) | 1-2 minutes |
+| Create a standalone exterior opportunity report for a prospect | [Create a complimentary prospect report](platform-create-complimentary-reports.md) | 5-10 minutes |
 
 ## Field Operators
 
@@ -26,7 +27,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Create an invoice after a commercial inspection | [Prepare and send an invoice for approval](submitter-submit-invoice.md) | 2-3 minutes |
 | Respond to property-manager feedback | [Revise and resubmit a declined invoice](submitter-revise-invoice.md) | 2-3 minutes |
 
-## Afterlight Resource Network contractors
+## Afterlight Resource Network users
 
 | Task | Article | Typical time |
 | --- | --- | --- |
@@ -37,6 +38,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Set up or recover authenticator verification | [Set up and recover authenticator verification](authenticator-verification.md) | 3-6 minutes |
 | Complete assigned work | [Complete an assigned contractor inspection](resource-complete-assignment.md) | 5-15 minutes |
 | Understand earnings and Gusto status | [Understand your contractor earnings](resource-understand-earnings.md) | 2-3 minutes |
+| Understand non-payable Resource Portal work | [Use the Resource Portal as Afterlight staff or owner](resource-owner-employee-work.md) | 2-3 minutes |
 
 ## Property managers
 
@@ -44,7 +46,10 @@ The screenshots are source-verified UI illustrations built from the current appl
 | --- | --- | --- |
 | Approve or return an invoice | [Review, approve, or decline an invoice](property-manager-review-invoice.md) | 2-5 minutes |
 | Open completed inspection reports | [Review inspection submissions for a property](property-manager-review-submissions.md) | 1-2 minutes |
+| Review inspection activity, issues, and Field Operator trends | [Review portfolio reporting](use-reporting-dashboard.md) | 2-4 minutes |
 | Schedule work and review assignment history | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
+| Configure a commercial property's inspection fields and order | [Manage inspection form templates and field order](manage-inspection-form-templates.md) | 4-8 minutes |
+| Request preliminary service pricing for a prospective property | [Request and manage a property service bid](request-and-manage-bids.md) | 3-6 minutes |
 | Enable or troubleshoot workflow alerts | [Enable and troubleshoot notifications](enable-notifications.md) | 2-4 minutes |
 | Set up or recover authenticator verification | [Set up and recover authenticator verification](authenticator-verification.md) | 3-6 minutes |
 
@@ -57,14 +62,26 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Invite, edit, archive, or restore non-administrator users | [Manage organization users and access](manage-organization-users.md) | 4-8 minutes |
 | Onboard a customer employee or customer contractor | [Onboard customer employees and contractors as Field Operators](onboard-customer-field-operators.md) | 3-5 minutes |
 | Configure property fulfillment, billing, AP, and inspection recipients | [Configure property delivery and inspection recipients](configure-property-delivery.md) | 5-10 minutes |
+| Configure organization and property inspection fields and order | [Manage inspection form templates and field order](manage-inspection-form-templates.md) | 4-8 minutes |
 | Request a service-model or license-tier change | [Request a service plan change](organization-request-service-model-change.md) | 3-5 minutes |
 | Schedule work for a Field Operator or deployed resource | [Create and manage a scheduler assignment](admin-create-assignment.md) | 2-3 minutes |
+| Review inspection activity, issues, and Field Operator trends | [Review portfolio reporting](use-reporting-dashboard.md) | 2-4 minutes |
+| Review and manage prospective-property bid requests | [Request and manage a property service bid](request-and-manage-bids.md) | 3-6 minutes |
+| Import users or properties from a reviewed CSV | [Bulk onboard users and properties with CSV](bulk-onboard-users-properties.md) | 4-10 minutes |
 | Enable or troubleshoot workflow alerts | [Enable and troubleshoot notifications](enable-notifications.md) | 2-4 minutes |
 | Set up or recover authenticator verification | [Set up and recover authenticator verification](authenticator-verification.md) | 3-6 minutes |
 
 > **Role note:** Organization administrators can manage Scheduler assignments across the organization. Property managers can manage assignments only for properties assigned to them.
 
 > **Contractor billing note:** Afterlight Resource Network contractors do not prepare customer invoices. Their earnings appear in the Resource Portal and are paid separately through Gusto.
+
+## Short-term rental property owners
+
+| Task | Article | Typical time |
+| --- | --- | --- |
+| Review assigned properties, property information, and profit statements | [Use the short-term rental property owner portal](use-short-term-rental-owner-portal.md) | 2-4 minutes |
+| Enable or troubleshoot workflow alerts | [Enable and troubleshoot notifications](enable-notifications.md) | 2-4 minutes |
+| Set up or recover authenticator verification | [Set up and recover authenticator verification](authenticator-verification.md) | 3-6 minutes |
 
 ## Invoice status quick reference
 
@@ -74,7 +91,9 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Awaiting PM Review | The invoice was sent to an assigned property manager. | Property manager |
 | Needs Revision | The property manager returned the invoice with a reason. | Field Operator, or Afterlight platform billing for Afterlight-delivered work |
 | Sending to AP | Approval and delivery are in progress. | No action unless an error appears |
-| AP delivery submitted | The property manager approved the invoice. Email delivery may still be queued with the provider. | Platform billing marks Afterlight service invoices paid only after customer payment is received; customer oversight handles customer-contractor invoices |
+| AP Email Queued | The email provider accepted the approved invoice for processing; mailbox delivery is not yet confirmed. | No action unless a later delivery failure appears |
+| Sent to AP | The approved invoice uses a portal or manual-delivery route recorded by Afterlight. | Customer oversight confirms the external AP step when applicable |
+| Delivered to AP | The email provider reported successful delivery to the AP destination. | Platform billing marks Afterlight service invoices paid only after customer payment is received; customer oversight handles customer-contractor invoices |
 | AP Delivery Failed | Approval succeeded, but AP delivery failed. | Property manager retries delivery |
 | Paid | Payment was recorded. | Property manager or administrator may archive it |
 

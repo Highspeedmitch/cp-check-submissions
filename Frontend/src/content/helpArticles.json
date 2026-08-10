@@ -16,7 +16,7 @@
     "title": "Prepare and send an invoice for approval",
     "summary": "Verify a commercial inspection invoice, generate its PDF, and send it to the assigned property manager.",
     "category": "Billing",
-    "roles": ["contractor", "cleaner"],
+    "roles": ["user", "contractor", "cleaner"],
     "accountScopes": ["organization"],
     "capabilities": ["customer_contractor_billing"],
     "orgTypes": ["COM"],
@@ -29,7 +29,7 @@
     "title": "Revise and resubmit a declined invoice",
     "summary": "Read the property manager's feedback, correct the invoice amount, and send a replacement for review.",
     "category": "Billing",
-    "roles": ["contractor", "cleaner"],
+    "roles": ["user", "contractor", "cleaner"],
     "accountScopes": ["organization"],
     "capabilities": ["customer_contractor_billing"],
     "orgTypes": ["COM"],
@@ -59,7 +59,31 @@
     "orgTypes": ["COM", "STR", "LTR", "RES"],
     "file": "property-manager-review-submissions.md",
     "estimatedTime": "1-2 min",
-    "keywords": ["history", "inspection", "manager", "pdf", "property", "report", "submissions"]
+    "keywords": ["completed", "history", "inspection", "manager", "missed", "monthly schedule", "pdf", "property", "report", "scheduled", "submissions", "unscheduled"]
+  },
+  {
+    "slug": "review-portfolio-reporting",
+    "title": "Review portfolio reporting",
+    "summary": "Filter inspection activity, issue trends, and Field Operator reporting across the properties available to you.",
+    "category": "Reporting",
+    "roles": ["admin", "property_manager"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "use-reporting-dashboard.md",
+    "estimatedTime": "2-4 min",
+    "keywords": ["activity", "average submission time", "field operator", "filters", "issues", "portfolio", "reporting", "trends"]
+  },
+  {
+    "slug": "manage-inspection-form-templates",
+    "title": "Manage inspection form templates and field order",
+    "summary": "Configure organization defaults and property overrides, then arrange unlocked inspection fields for new forms and PDFs.",
+    "category": "Organization administration",
+    "roles": ["admin", "property_manager"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM"],
+    "file": "manage-inspection-form-templates.md",
+    "estimatedTime": "4-8 min",
+    "keywords": ["drag", "field order", "form editor", "form template", "locked field", "manage details", "pdf order", "property override", "reorder"]
   },
   {
     "slug": "create-a-scheduler-assignment",
@@ -74,6 +98,18 @@
     "keywords": ["admin", "property manager", "assignment", "calendar", "dates", "schedule", "scheduler", "user"]
   },
   {
+    "slug": "request-and-manage-property-bids",
+    "title": "Request and manage a property service bid",
+    "summary": "Submit preliminary property-service information, review internal pricing, and manage active or archived bid requests.",
+    "category": "Bids",
+    "roles": ["admin", "property_manager"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM"],
+    "file": "request-and-manage-bids.md",
+    "estimatedTime": "3-6 min",
+    "keywords": ["approve", "archive", "attachment", "bid", "decline", "get a bid", "lot dimensions", "pricing", "prospect", "restore"]
+  },
+  {
     "slug": "connect-my-calendar",
     "title": "Connect My Calendar",
     "summary": "Subscribe to your authorized Afterlight assignments in Apple, Google, or Outlook Calendar with a private, revocable link.",
@@ -84,6 +120,18 @@
     "file": "connect-my-calendar.md",
     "estimatedTime": "3-5 min",
     "keywords": ["apple calendar", "assignments", "calendar", "connect", "google calendar", "outlook", "private link", "subscribe", "sync"]
+  },
+  {
+    "slug": "use-short-term-rental-owner-portal",
+    "title": "Use the short-term rental property owner portal",
+    "summary": "Review assigned properties, property information, organization contacts, and available profit statements.",
+    "category": "Getting started",
+    "roles": ["client"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["STR"],
+    "file": "use-short-term-rental-owner-portal.md",
+    "estimatedTime": "2-4 min",
+    "keywords": ["access instructions", "client", "contact", "owner", "profit statement", "property information", "short-term rental"]
   },
   {
     "slug": "resource-account-setup",
@@ -190,15 +238,28 @@
   {
     "slug": "calculate-preliminary-service-pricing",
     "title": "Calculate preliminary service pricing",
-    "summary": "Run a stateless internal pricing estimate for a prospective property or eligible nearby property cluster.",
+    "summary": "Run a stateless single-property, cluster, or portfolio-aware pricing estimate with transparent geographic factors.",
     "category": "Marketing tools",
     "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
     "platformRoles": ["platform_admin"],
     "accountScopes": ["organization"],
     "orgTypes": ["COM", "STR", "LTR", "RES"],
     "file": "platform-use-pricing-estimator.md",
-    "estimatedTime": "1-2 min",
-    "keywords": ["bid", "calculate", "cluster", "cost", "discount", "estimate", "marketing", "nearby", "price", "pricing", "prospect", "quote", "square footage"]
+    "estimatedTime": "2-4 min",
+    "keywords": ["bid", "calculate", "cluster", "cost", "density", "discount", "distance", "estimate", "marketing", "nearby", "portfolio", "price", "pricing", "prospect", "quote", "route", "square footage", "travel"]
+  },
+  {
+    "slug": "create-complimentary-prospect-reports",
+    "title": "Create a complimentary prospect report",
+    "summary": "Create, download, and manage short-lived standalone exterior opportunity reports for prospective customers.",
+    "category": "Marketing tools",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "platformRoles": ["platform_admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "platform-create-complimentary-reports.md",
+    "estimatedTime": "5-10 min",
+    "keywords": ["assessment", "complimentary report", "exterior", "marketing", "pdf", "photos", "prospect", "repository", "retention", "template"]
   },
   {
     "slug": "request-a-service-model-change",

@@ -112,5 +112,7 @@ To restore a record, select **Find archived resource**, open **View details**, r
 - **Activation is refused:** Link the Afterlight identity. For contractors, also complete Gusto onboarding before setting the Afterlight status to Active.
 - **Archiving is refused:** Reassign or cancel every scheduled assignment for the resource, then try again.
 - **A restored resource is still unavailable:** This is the safe default. Review and activate the resource, then reactivate or replace the appropriate deployment.
+
+[Back to the knowledge base](README.md)
 - **An earning is missing:** Confirm that the inspection was opened from the assigned Resource Portal card and successfully completed.
 - **A payout cannot be batched:** Every selected earning must be approved, and each contractor must have completed Gusto onboarding and a matching email.

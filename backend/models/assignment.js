@@ -35,6 +35,14 @@ const assignmentSchema = new mongoose.Schema({
     currency: { type: String, enum: ["USD"], default: null },
     snapshottedAt: { type: Date, default: null },
   },
+  customerChargeSnapshot: {
+    billingOwner: { type: String, enum: ["afterlight_platform"], default: null },
+    rateType: { type: String, enum: ["per_assignment"], default: null },
+    amountCents: { type: Number, min: 0, default: null },
+    currency: { type: String, enum: ["USD"], default: null },
+    source: { type: String, enum: ["property_default"], default: null },
+    snapshottedAt: { type: Date, default: null },
+  },
   notes: { type: String },
   oneTimeCheckRequest: { type: String, default: "" },
   fulfillment: {

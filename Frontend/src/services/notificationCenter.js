@@ -19,6 +19,7 @@ export const NOTIFICATION_SECTIONS = {
     "invoice_ap_delivery_failed",
   ],
   bids: ["bid_request_submitted", "bid_request_received", "bid_request_status_changed"],
+  reporting: ["monthly_portfolio_summary_ready"],
   resources: [
     "contractor_earning_created",
     "contractor_earning_approved",
@@ -88,6 +89,7 @@ export function useNotificationBadges(enabled = true) {
     dashboard: 0,
     billing: 0,
     bids: 0,
+    reporting: 0,
     resources: 0,
     serviceModels: 0,
     platformBilling: 0,

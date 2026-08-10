@@ -34,6 +34,7 @@ test("assignment router preserves the existing scheduler API paths", () => {
   assert.deepEqual(routes, [
     { path: "/assignments", methods: ["post"] },
     { path: "/assignments", methods: ["get"] },
+    { path: "/assignments/monthly-status", methods: ["get"] },
     { path: "/assignments/history", methods: ["get"] },
     { path: "/users", methods: ["get"] },
     { path: "/assignments/:id", methods: ["delete"] },
@@ -340,7 +341,12 @@ test("Afterlight contractor assignments retain deployment and immutable compensa
         return {
           serviceModel: "managed",
           fulfillmentPolicy: { defaultSource: "afterlight_contractor", version: 2 },
-          properties: [{ _id: "property-1", name: "Broadway Center", fulfillmentPolicy: { defaultSource: null } }],
+          properties: [{
+            _id: "property-1",
+            name: "Broadway Center",
+            defaultInspectionAmountCents: 18500,
+            fulfillmentPolicy: { defaultSource: null },
+          }],
         };
       },
     },
@@ -367,6 +373,9 @@ test("Afterlight contractor assignments retain deployment and immutable compensa
   assert.equal(res.statusCode, 200);
   assert.equal(savedAssignment.resourceProfileId, "resource-1");
   assert.equal(savedAssignment.resourceDeploymentId, "deployment-1");
+  assert.equal(savedAssignment.customerChargeSnapshot.amountCents, 18500);
+  assert.equal(savedAssignment.customerChargeSnapshot.billingOwner, "afterlight_platform");
+  assert.equal(res.body.assignment.customerChargeSnapshot, undefined);
   assert.equal(savedAssignment.compensationSnapshot, snapshot);
   assert.equal(res.body.assignment.compensationSnapshot, undefined);
   assert.equal(notification.route, "/resource");
@@ -440,6 +449,70 @@ test("ordinary users only list their own assignments", async () => {
     status: "scheduled",
     userId: "user-1",
   });
+});
+
+test("monthly assignment coverage is limited to a property manager's managed properties", async () => {
+  let assignmentQuery;
+  const handlers = createAssignmentHandlers({
+    currentTime: () => new Date("2026-08-09T15:00:00.000Z"),
+    OrganizationModel: {
+      async findById(id) {
+        assert.equal(id, "org-1");
+        return {
+          reportingTimezone: "America/Phoenix",
+          properties: [
+            { _id: "property-1", name: "Broadway Center" },
+            { _id: "property-2", name: "Hidden Property" },
+          ],
+        };
+      },
+    },
+    managedPropertiesForUser: () => [{ _id: "property-1", name: "Broadway Center" }],
+    AssignmentModel: {
+      find(query) {
+        assignmentQuery = query;
+        return {
+          select() { return this; },
+          async lean() {
+            return [{
+              propertyName: "Broadway Center",
+              status: "scheduled",
+              startDate: new Date("2026-08-14T00:00:00.000Z"),
+              endDate: new Date("2026-08-14T00:00:00.000Z"),
+            }];
+          },
+        };
+      },
+    },
+  });
+  const res = response();
+
+  await handlers.monthlyAssignmentCoverage({
+    user: { role: "property_manager", userId: "pm-1", organizationId: "org-1" },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(assignmentQuery.propertyName, { $in: ["Broadway Center"] });
+  assert.deepEqual(assignmentQuery.status, { $in: ["scheduled", "completed"] });
+  assert.equal(assignmentQuery.startDate.$lt.toISOString(), "2026-09-01T00:00:00.000Z");
+  assert.equal(assignmentQuery.endDate.$gte.toISOString(), "2026-08-01T00:00:00.000Z");
+  assert.equal(res.body.summary.scheduledPropertyCount, 1);
+  assert.equal(res.body.summary.totalPropertyCount, 1);
+  assert.deepEqual(res.body.properties.map(({ propertyName, status }) => ({ propertyName, status })), [
+    { propertyName: "Broadway Center", status: "scheduled" },
+  ]);
+});
+
+test("monthly assignment coverage rejects non-management users", async () => {
+  const handlers = createAssignmentHandlers();
+  const res = response();
+
+  await handlers.monthlyAssignmentCoverage({
+    user: { role: "user", userId: "user-1", organizationId: "org-1" },
+  }, res);
+
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(res.body, { error: "Management access required." });
 });
 
 test("assignment history returns a read-only audit view without contractor compensation", async () => {

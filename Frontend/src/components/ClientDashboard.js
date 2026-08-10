@@ -136,6 +136,7 @@ function ClientDashboard({ setUser }) {
         )}
 
         <button onClick={handleConsult}>Schedule Consult</button>
+        <button onClick={() => navigate("/help")}>Help Center</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
       </aside>
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import ContextualHelpLink from "./help/ContextualHelpLink";
 import PageHeader from "./ui/PageHeader";
 import SortableFieldList from "./ui/SortableFieldList";
 
@@ -70,7 +71,8 @@ export default function OrganizationFormSettings() {
       <main className="beta-page-shell">
         <PageHeader onBack={() => navigate("/dashboard")} eyebrow="Organization settings"
           title="Inspection Form Template"
-          subtitle="Define the default commercial inspection form inherited by every property." />
+          subtitle="Define the default commercial inspection form inherited by every property."
+          actions={<ContextualHelpLink slug="manage-inspection-form-templates" />} />
         {loading && <div className="beta-empty-state">Loading organization template…</div>}
         {error && <p className="beta-alert error">{error}</p>}
         {message && <p className="beta-alert success">{message}</p>}
