@@ -1621,6 +1621,50 @@ select:focus-visible {
 .platform-org-attention { display: grid; gap: 3px; min-height: 38px; margin-bottom: 16px; color: var(--beta-success); font-size: 12px; font-weight: 750; }
 .platform-org-attention.needs-attention { color: var(--beta-warning); }
 .platform-org-attention small { color: var(--beta-muted); font-size: 10px; font-weight: 600; }
+.platform-org-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px 14px;
+  margin: 0 0 15px;
+  padding: 11px 12px;
+  border: 1px solid var(--beta-border);
+  border-radius: 9px;
+  background: var(--beta-subtle);
+}
+.platform-org-plan-name,
+.platform-org-plan-fee { min-width: 0; }
+.platform-org-plan-name > span,
+.platform-org-plan-fee > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--beta-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.platform-org-plan-name > div { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.platform-org-plan strong { color: var(--beta-ink); font-size: 12px; line-height: 1.25; }
+.platform-org-plan-name small {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--beta-soft-blue);
+  color: var(--beta-blue-dark);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.platform-org-plan-fee { text-align: right; }
+.platform-org-plan-fee strong { white-space: nowrap; }
+.platform-org-plan p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: 7px;
+  border-top: 1px solid var(--beta-border);
+  color: var(--beta-muted);
+  font-size: 9px;
+  font-weight: 650;
+}
 .platform-org-onboarding { display: grid; gap: 2px; margin: -2px 0 15px; padding: 10px; border-radius: 8px; background: var(--beta-soft-blue); }
 .platform-org-onboarding span { color: var(--beta-blue-dark); font-size: 11px; font-weight: 800; }
 .platform-org-onboarding small { overflow: hidden; color: var(--beta-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
@@ -2012,9 +2056,9 @@ select:focus-visible {
 .platform-billing-filter { width: min(250px, 100%); }
 .platform-service-invoice-controls { max-width: 320px; }
 .platform-finance-heading { align-items: end; }
-.platform-finance-heading > div { max-width: 760px; }
-.platform-finance-month { width: min(220px, 100%); }
-.platform-finance-month input { min-height: 44px; }
+.platform-finance-heading > div { min-width: 0; max-width: 760px; }
+.platform-finance-month { width: min(220px, 100%); min-width: 0; max-width: 100%; }
+.platform-finance-month input { display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; }
 .platform-finance-metric-board { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .platform-finance-metric-board div { border-right: 1px solid var(--beta-border); border-bottom: 0; }
 .platform-finance-metric-board div:nth-child(4n) { border-right: 0; }
