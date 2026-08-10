@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { api } from "../services/api";
 
-const MAX_CLUSTER_PROPERTIES = 10;
+const MAX_ROUTE_PROPERTIES = 6;
+const MAX_CLUSTER_PROPERTIES = MAX_ROUTE_PROPERTIES;
 let nextPropertyId = 1;
 
 function emptyProperty() {
@@ -16,6 +17,7 @@ function emptyForm(pricingMode = "single") {
   return {
     pricingMode,
     organizationId: "",
+    routeId: "",
     proposedAddress: "",
     candidateLocationId: "",
     candidateLat: "",
@@ -97,10 +99,14 @@ export function estimateSummaryText(form, estimate) {
     ].filter(Boolean).join(" ");
   }
   if (estimate.pricingMode === "route_aware") {
+    const selectedRoute = estimate.geography?.route;
+    const routeScope = selectedRoute?.source === "saved_route"
+      ? `${selectedRoute.routeName} route${selectedRoute.routeRegion ? ` (${selectedRoute.routeRegion})` : ""}`
+      : "a standalone trip or new route";
     return [
-      `Afterlight portfolio-aware planning estimate for ${form.proposedAddress || "the proposed property"}.`,
+      `Afterlight route-aware planning estimate for ${form.proposedAddress || "the proposed property"} using ${routeScope}.`,
       `${formatCurrency(estimate.estimatedPerVisitCents)} estimated per visit; ${monthlySummary(estimate)}.`,
-      `${formatCurrency(estimate.travelSurchargeCents)} travel adjustment and ${formatCurrency(estimate.combinedCreditCents)} portfolio/route credit.`,
+      `${formatCurrency(estimate.travelSurchargeCents)} travel adjustment and ${formatCurrency(estimate.combinedCreditCents)} route/density credit.`,
       `Route classification: ${ROUTE_PRICING_BAND_LABELS[estimate.geography?.route?.pricingBand] || "Standard route price"}.`,
       managedServiceSummary(estimate),
       estimate.requiresManualReview
@@ -131,6 +137,13 @@ export default function PricingEstimator({ organizations = [] }) {
   const [message, setMessage] = useState("");
   const clusterMode = form.pricingMode === "cluster";
   const routeAwareMode = form.pricingMode === "route_aware";
+  const selectedOrganization = organizations.find(
+    (organization) => String(organization.organizationId) === String(form.organizationId)
+  );
+  const availableRoutes = selectedOrganization?.routes || [];
+  const selectedRoute = availableRoutes.find(
+    (route) => String(route.routeId) === String(form.routeId)
+  );
 
   function clearResult() {
     setEstimate(null);
@@ -140,6 +153,16 @@ export default function PricingEstimator({ organizations = [] }) {
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+    clearResult();
+  }
+
+  function updateOrganization(organizationId) {
+    setForm((current) => ({
+      ...current,
+      organizationId,
+      routeId: "",
+      routeCommitment: "modeled",
+    }));
     clearResult();
   }
 
@@ -270,13 +293,14 @@ export default function PricingEstimator({ organizations = [] }) {
       : routeAwareMode ? {
         pricingMode: "route_aware",
         organizationId: form.organizationId,
+        routeId: form.routeId || null,
         candidate: {
           id: form.candidateLocationId,
           name: form.proposedAddress,
           lat: Number(form.candidateLat),
           lng: Number(form.candidateLng),
         },
-        routeCommitment: form.routeCommitment,
+        routeCommitment: form.routeId ? form.routeCommitment : "none",
         grossSquareFeet: properties[0].grossSquareFeet,
         propertyType: properties[0].propertyType,
         serviceFrequency: form.serviceFrequency,
@@ -347,7 +371,7 @@ export default function PricingEstimator({ organizations = [] }) {
           <label>
             <input type="radio" name="pricing-mode" value="route_aware" checked={routeAwareMode}
               onChange={() => updateMode("route_aware")} />
-            <span><strong>Portfolio-aware property</strong><small>Model home-base travel, portfolio density, and route insertion.</small></span>
+            <span><strong>Route-aware property</strong><small>Price a saved route insertion or a standalone trip.</small></span>
           </label>
         </fieldset>
 
@@ -355,15 +379,15 @@ export default function PricingEstimator({ organizations = [] }) {
           <section className="platform-pricing-route-context" aria-labelledby="platform-pricing-route-title">
             <div className="platform-pricing-property-heading">
               <div>
-                <h3 id="platform-pricing-route-title">Portfolio and route context</h3>
-                <p>Confirm the Mapbox address result before calculating. Road distance and travel time are evaluated on the backend.</p>
+                <h3 id="platform-pricing-route-title">Route context</h3>
+                <p>Select the active route this property may join, or price it as a standalone trip/new route. Region by itself does not create a route credit.</p>
               </div>
             </div>
             <div className="beta-form-grid">
               <label className="beta-form-field">
                 Organization
                 <select required value={form.organizationId}
-                  onChange={(event) => update("organizationId", event.target.value)}>
+                  onChange={(event) => updateOrganization(event.target.value)}>
                   <option value="">Select organization</option>
                   {organizations.map((organization) => (
                     <option value={organization.organizationId} key={organization.organizationId}>
@@ -373,15 +397,39 @@ export default function PricingEstimator({ organizations = [] }) {
                 </select>
               </label>
               <label className="beta-form-field">
-                Route assumption
-                <select value={form.routeCommitment}
-                  onChange={(event) => update("routeCommitment", event.target.value)}>
-                  <option value="modeled">Modeled portfolio route</option>
-                  <option value="confirmed">Confirmed same-day route</option>
-                  <option value="none">Standalone trip only</option>
+                Pricing route
+                <select value={form.routeId} disabled={!form.organizationId}
+                  onChange={(event) => update("routeId", event.target.value)}>
+                  <option value="">Standalone trip / new route</option>
+                  {availableRoutes.map((route) => (
+                    <option value={route.routeId} key={route.routeId}
+                      disabled={route.stopCount >= MAX_ROUTE_PROPERTIES}>
+                      {route.name} ({route.stopCount}/{MAX_ROUTE_PROPERTIES} stops{route.region ? ` - ${route.region}` : ""})
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
+            {form.routeId ? (
+              <div className="beta-form-grid">
+                <label className="beta-form-field">
+                  Route confidence
+                  <select value={form.routeCommitment}
+                    onChange={(event) => update("routeCommitment", event.target.value)}>
+                    <option value="modeled">Modeled future route</option>
+                    <option value="confirmed">Confirmed same-day route</option>
+                  </select>
+                </label>
+                <p className="platform-pricing-location-confirmed" role="status">
+                  {selectedRoute?.name || "Selected route"} has {selectedRoute?.stopCount || 0} saved stops;
+                  the proposed property would become stop {(selectedRoute?.stopCount || 0) + 1} of {MAX_ROUTE_PROPERTIES}.
+                </p>
+              </div>
+            ) : (
+              <p className="platform-pricing-location-confirmed" role="status">
+                Standalone pricing receives no saved-route or route-density credit.
+              </p>
+            )}
             <div className="platform-pricing-address-search">
               <label className="beta-form-field" htmlFor="platform-pricing-address">
                 Proposed property address
@@ -528,7 +576,7 @@ export default function PricingEstimator({ organizations = [] }) {
                 {estimate.pricingMode === "cluster"
                   ? "Cluster planning estimate"
                   : estimate.pricingMode === "route_aware"
-                    ? "Portfolio-aware planning estimate"
+                    ? "Route-aware planning estimate"
                     : "Planning estimate"}
               </h2>
             </div>
@@ -584,7 +632,7 @@ export default function PricingEstimator({ organizations = [] }) {
                   <strong>{formatCurrency(estimate.travelSurchargeCents)}</strong>
                 </article>
                 <article className="platform-pricing-savings">
-                  <span>Portfolio and route credit</span>
+                  <span>Route and density credit</span>
                   <strong>{formatCurrency(estimate.combinedCreditCents)}</strong>
                 </article>
               </>
@@ -629,19 +677,22 @@ export default function PricingEstimator({ organizations = [] }) {
               <dl className="platform-pricing-route-factors">
                 <div><dt>Confirmed property</dt><dd>{estimate.geography.candidate?.name || form.proposedAddress}</dd></div>
                 <div><dt>Home round trip</dt><dd>{estimate.geography.home.roundTripMiles} mi · {estimate.geography.home.roundTripMinutes} min</dd></div>
-                <div><dt>Eligible portfolio</dt><dd>{estimate.geography.portfolio.propertyCount} properties</dd></div>
-                <div><dt>Nearest eligible property</dt><dd>{estimate.geography.portfolio.nearestPropertyDistanceMiles == null
+                <div><dt>Route scope</dt><dd>{estimate.geography.route.source === "saved_route"
+                  ? `${estimate.geography.route.routeName}${estimate.geography.route.routeRegion ? ` - ${estimate.geography.route.routeRegion}` : ""} (v${estimate.geography.route.routeVersion})`
+                  : "Standalone trip / new route"}</dd></div>
+                <div><dt>Saved route stops</dt><dd>{estimate.geography.route.stopCount} of {estimate.geography.route.maximumStops}</dd></div>
+                <div><dt>Nearest route property</dt><dd>{estimate.geography.portfolio.nearestPropertyDistanceMiles == null
                   ? "None available"
                   : `${estimate.geography.portfolio.nearestPropertyDistanceMiles} mi`}</dd></div>
-                <div><dt>Portfolio density</dt><dd>{Math.round(estimate.geography.portfolio.densityScore * 100)}%</dd></div>
-                <div><dt>Best modeled detour</dt><dd>{estimate.geography.route.additionalMiles} mi · {estimate.geography.route.additionalMinutes} min</dd></div>
+                <div><dt>Selected-route density</dt><dd>{Math.round(estimate.geography.portfolio.densityScore * 100)}%</dd></div>
+                <div><dt>Marginal route detour</dt><dd>{estimate.geography.route.additionalMiles} mi · {estimate.geography.route.additionalMinutes} min</dd></div>
                 <div><dt>Route confidence</dt><dd>{Math.round(estimate.geography.route.confidence * 100)}%</dd></div>
                 <div><dt>Route fit</dt><dd>{Math.round((estimate.geography.route.fitScore || 0) * 100)}% · {ROUTE_PRICING_BAND_LABELS[estimate.geography.route.pricingBand] || "Standard route price"}</dd></div>
                 <div><dt>Insertion point</dt><dd>{estimate.geography.route.insertionAfterPropertyName || "Operations base"} → {estimate.geography.route.insertionBeforePropertyName || "Operations base"}</dd></div>
-                <div><dt>Modeled portfolio order</dt><dd>{estimate.geography.route.modeledStopNames?.length
+                <div><dt>Saved route order</dt><dd>{estimate.geography.route.modeledStopNames?.length
                   ? estimate.geography.route.modeledStopNames.join(" → ")
-                  : "No eligible portfolio stops"}</dd></div>
-                <div><dt>Credit detail</dt><dd>{formatCurrency(estimate.routeCreditCents)} route · {formatCurrency(estimate.portfolioCreditCents)} density</dd></div>
+                  : "No saved route stops"}</dd></div>
+                <div><dt>Credit detail</dt><dd>{formatCurrency(estimate.routeCreditCents)} route · {formatCurrency(estimate.portfolioCreditCents)} selected-route density</dd></div>
               </dl>
             </div>
           )}

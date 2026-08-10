@@ -2,9 +2,9 @@
 
 **Audience:** Afterlight platform administrators
 
-Use **Marketing tools > Pricing Estimator** to calculate preliminary customer-facing service pricing for a single property, an eligible property cluster, or a portfolio-aware property during a prospect conversation. The estimator uses the same versioned single-property formula as internal bid estimates, but it does not create a bid request, upload an attachment, notify a customer, or save prospect information.
+Use **Marketing tools > Pricing Estimator** to calculate preliminary customer-facing service pricing for a single property, an eligible property cluster, or a route-aware property during a prospect conversation. The estimator uses the same versioned single-property formula as internal bid estimates, but it does not create a bid request, upload an attachment, notify a customer, or save prospect information.
 
-This tool estimates client pricing. Portfolio-aware mode includes a bounded operational travel adjustment, but the estimator does not calculate contractor compensation, total overhead, profitability, or an approved customer quote.
+This tool estimates client pricing. Route-aware mode includes a bounded operational travel adjustment, but the estimator does not calculate contractor compensation, total overhead, profitability, or an approved customer quote.
 
 ## Calculate an estimate
 
@@ -20,7 +20,7 @@ This tool estimates client pricing. Portfolio-aware mode includes a bounded oper
 
 Afterlight displays estimated pricing per visit and, when supported, the monthly visit-service subtotal. When the managed-service base is included, it also displays the $500 organization-level base and the combined monthly contract total. The base is applied once per organization, never once per property.
 
-Formula version 5 retains the diminishing-marginal-cost retail-center curve introduced in version 4. It is calibrated to these per-visit benchmarks: $50 at 1,500 square feet, $125 at 18,000 square feet, $200 at 40,000 square feet, and $250 at 78,000 square feet. Values between the benchmarks are linearly interpolated; larger properties continue at the final marginal rate and still trigger manual review above 250,000 square feet. These anchors represent strip-mall or retail-center work. Free-standing properties and individual suites retain lower relative complexity modifiers.
+Formula version 6 retains the diminishing-marginal-cost retail-center curve introduced in version 4. It is calibrated to these per-visit benchmarks: $50 at 1,500 square feet, $125 at 18,000 square feet, $200 at 40,000 square feet, and $250 at 78,000 square feet. Values between the benchmarks are linearly interpolated; larger properties continue at the final marginal rate and still trigger manual review above 250,000 square feet. These anchors represent strip-mall or retail-center work. Free-standing properties and individual suites retain lower relative complexity modifiers.
 
 The $50 minimum remains the floor for an individually priced, non-cluster property. Cluster calculations continue to price the primary property at its standalone amount and each eligible additional property at 50%.
 
@@ -29,6 +29,8 @@ Select **Copy summary** to place a plain-language internal summary on your clipb
 ## Calculate a property cluster
 
 Cluster pricing shares visit overhead across distinct nearby properties. The highest standalone per-visit estimate remains at full price. Each additional property is included at 50% of its standalone per-visit estimate, and the combined result is rounded to the nearest $25.
+
+A cluster may contain no more than six properties, matching the operational route limit. A seventh property must be priced as a separate cluster, route, or standalone visit.
 
 1. Select **Property cluster**.
 2. Enter the square footage and type for each property. Use **Add property** for clusters containing more than two properties.
@@ -42,26 +44,29 @@ The result compares the combined cluster price with the total price of estimatin
 
 Cluster pricing is currently a Platform Admin planning capability. Property managers can continue to submit individual bid requests, but they cannot apply the cluster discount without platform review.
 
-## Calculate a portfolio-aware property
+## Calculate a route-aware property
 
-Portfolio-aware pricing separates the property-work estimate from geographic adjustments. It can add a distance surcharge for travel beyond the included local round trip, then apply bounded route and portfolio-density credits when an Afterlight-serviced property fits efficiently into the existing organization portfolio.
+Route-aware pricing separates the property-work estimate from geographic adjustments. It can add a distance surcharge for travel beyond the included local round trip, then apply bounded route and density credits when an Afterlight-serviced property fits efficiently into a specific active organization route.
 
-1. Select **Portfolio-aware property**.
-2. Select the organization whose portfolio should be evaluated.
-3. Enter the proposed property address and select **Find address**.
-4. Confirm the correct Mapbox address result. The estimator will not calculate until a result is confirmed.
-5. Select **Modeled portfolio route**, **Confirmed same-day route**, or **Standalone trip only**.
-6. Enter the property size, type, service frequency, and known concerns.
-7. Choose whether this quote should include the organization-level managed-service base.
-8. Select **Calculate estimate**.
+1. Select **Route-aware property**.
+2. Select the organization.
+3. Select the active route the proposed property may join, or leave **Standalone trip / new route** selected.
+4. For a saved route, select **Modeled future route** or **Confirmed same-day route**. Use confirmed only when the proposed property and every saved route stop will be serviced during the same service date.
+5. Enter the proposed property address and select **Find address**.
+6. Confirm the correct Mapbox address result. The estimator will not calculate until a result is confirmed.
+7. Enter the property size, type, service frequency, and known concerns.
+8. Choose whether this quote should include the organization-level managed-service base.
+9. Select **Calculate estimate**.
 
-Only organization properties assigned to an Afterlight fulfillment source and containing valid coordinates are included. Customer-employee and customer-contractor properties do not create an Afterlight route or density credit. Density uses distance decay and diminishing returns, so nearby locations help more while additional locations cannot reduce the estimate without limit.
+Only properties already saved to the selected route, assigned to an Afterlight fulfillment source, and containing valid coordinates are included. Customer-employee and customer-contractor properties cannot be used as route-pricing stops. Region membership alone does not create a route or density credit. Standalone/new-route pricing deliberately receives no route or density credit.
 
-The estimator uses Mapbox's stable driving profile for road distance and travel time. It builds a nearest-neighbor portfolio route and measures the least-expensive insertion point for the proposed property. Formula version 5 converts the added detour miles and minutes into a route-fit score. A near-zero-detour stop can receive up to a 70% direct-route credit, while the modeled-route assumption retains a 10% confidence reserve. Portfolio-density credit is calculated independently and can contribute up to 15%. Combined credits are capped at 80%, distance surcharges remain bounded, and the final result cannot fall below the $50 standalone minimum.
+The estimator uses Mapbox's stable driving profile for road distance and travel time. It preserves the stop order saved by the organization administrator, wraps that route with the private operations base, and measures the least-expensive insertion point for the proposed property. Formula version 6 converts the added detour miles and minutes into a route-fit score. A near-zero-detour stop can receive up to a 70% direct-route credit, while the modeled-route assumption retains a 10% confidence reserve. Selected-route density credit is calculated independently and can contribute up to 15%. Combined credits are capped at 80%, distance surcharges remain bounded, and the final result cannot fall below the $50 standalone minimum.
 
-The result identifies **Direct-route marginal price**, **Near-route price**, or **Standard route price**. It also displays the modeled portfolio stop order, selected insertion leg, and route-fit percentage so the route assumption can be checked before presenting a quote. **Confirmed same-day route** increases pricing confidence but still uses the displayed system-generated route order; it does not currently accept a manually ordered route.
+The result identifies **Direct-route marginal price**, **Near-route price**, or **Standard route price**. It also snapshots and displays the selected route name, region, version, stop count, saved stop order, insertion leg, and route-fit percentage so the assumption can be checked before presenting a quote. Future estimates use the route's current membership and order after an administrator edits it; an already-calculated result retains the route snapshot used for that calculation.
 
-If live road routing is unavailable or cannot connect every location, the calculation falls back to the bounded coordinate model and requires manual review. Coordinate fallback does not qualify for the deep route-fit credit. The factor breakdown identifies either **Road matrix** or **Coordinate fallback** and shows travel miles and minutes, portfolio density, nearest eligible property, route detour, confidence, and credits. The private operations-base coordinates and Mapbox token are configured only on the backend and are not returned to the browser.
+An operational route can contain at most six properties. Routes already containing six stops are unavailable in the estimator because the proposed property cannot be inserted without exceeding that limit.
+
+If live road routing is unavailable or cannot connect every location, the calculation falls back to the bounded coordinate model and requires manual review. Coordinate fallback does not qualify for the deep route-fit credit. The factor breakdown identifies either **Road matrix** or **Coordinate fallback** and shows travel miles and minutes, selected-route density, nearest route property, route detour, confidence, and credits. The private operations-base coordinates and Mapbox token are configured only on the backend and are not returned to the browser.
 
 ## Understand manual-review warnings
 
@@ -71,7 +76,7 @@ For ad-hoc service, the tool provides a per-visit estimate but intentionally doe
 
 ## Protect prospect information
 
-- Do not enter names, email addresses, access instructions, or other personal information. Single-property and cluster calculations do not require an address. Portfolio-aware address results remain stateless and are used only for the current calculation.
+- Do not enter names, email addresses, access instructions, or other personal information. Single-property and cluster calculations do not require an address. Route-aware address results remain stateless and are used only for the current calculation.
 - Estimates are stateless and are not added to the bid repository.
 - Use **Reset** before beginning another prospect calculation.
 - Create a formal bid request through the customer workflow when supporting property information, review status, and retained history are required.

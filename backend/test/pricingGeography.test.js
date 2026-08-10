@@ -61,6 +61,23 @@ test("route confidence is zero without an eligible portfolio", () => {
   assert.equal(context.route.additionalMiles, context.home.roundTripMiles);
 });
 
+test("saved route pricing preserves administrator stop order", () => {
+  const context = buildModeledTravelContext({
+    homeBase: home,
+    candidate: { name: "Candidate", lat: 32.22, lng: -110.88 },
+    portfolioProperties: [
+      { id: "far", name: "Far first", lat: 32.10, lng: -111.10 },
+      { id: "near", name: "Near second", lat: 32.221, lng: -110.881 },
+    ],
+    routeCommitment: "modeled",
+    preservePortfolioOrder: true,
+    routeMetadata: { source: "saved_route", routeId: "route-1", routeVersion: 2 },
+  });
+  assert.deepEqual(context.route.modeledStopNames, ["Far first", "Near second"]);
+  assert.equal(context.route.routeId, "route-1");
+  assert.equal(context.route.routeVersion, 2);
+});
+
 test("route commitment validation rejects unsupported assumptions", () => {
   assert.throws(() => buildModeledTravelContext({
     homeBase: home,

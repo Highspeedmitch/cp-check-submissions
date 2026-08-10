@@ -5,10 +5,13 @@ const { getPlatformOrganizationMetrics } = require("../services/platformMetrics"
 test("platform metrics merge grouped tenant counts without per-organization queries", async () => {
   const firstId = "507f191e810c19729de860ea";
   const secondId = "507f191e810c19729de860eb";
+  let organizationPipeline;
   let submissionPipeline;
   const result = await getPlatformOrganizationMetrics({
     OrganizationModel: {
-      aggregate: async () => [
+      aggregate: async (pipeline) => {
+        organizationPipeline = pipeline;
+        return [
         {
           _id: firstId,
           name: "Alpha",
@@ -16,9 +19,14 @@ test("platform metrics merge grouped tenant counts without per-organization quer
           propertyCount: 2,
           security: { adminActionPasskeyHash: "hash" },
           onboarding: { status: "in_progress" },
+          routes: [
+            { _id: "route-active", name: "East", region: "Tucson East", propertyIds: ["one", "two"], status: "active", version: 3 },
+            { _id: "route-archived", name: "Old", propertyIds: ["one"], status: "archived" },
+          ],
         },
         { _id: secondId, name: "Beta", orgType: "STR", serviceModel: "platform", license: { tier: "tier_2" }, propertyCount: 1 },
-      ],
+        ];
+      },
     },
     UserModel: { aggregate: async () => [{ _id: firstId, count: 3 }] },
     SubmissionModel: {
@@ -47,11 +55,20 @@ test("platform metrics merge grouped tenant counts without per-organization quer
   assert.equal(result.organizations[0].planLabel, "Managed service");
   assert.equal(result.organizations[0].recurringMonthlyFeeCents, 50000);
   assert.equal(result.organizations[0].onboarding.requiredComplete, 3);
+  assert.deepEqual(result.organizations[0].routes, [{
+    routeId: "route-active",
+    name: "East",
+    region: "Tucson East",
+    version: 3,
+    stopCount: 2,
+    status: "active",
+  }]);
   assert.equal(result.organizations[1].activeUserCount, 0);
   assert.equal(result.summary.pendingAdminInviteCount, 1);
   assert.equal(result.organizations[1].pendingAdminInvitation.email, "admin@beta.example");
   assert.equal(result.organizations[1].planLabel, "Full Stack SaaS Tier 2");
   assert.equal(result.organizations[1].recurringMonthlyFeeCents, 70000);
+  assert.equal(organizationPipeline[1].$project.routes, 1);
   assert.equal(
     submissionPipeline[0].$match.submittedAt.$gte.toISOString(),
     "2026-06-29T12:00:00.000Z"

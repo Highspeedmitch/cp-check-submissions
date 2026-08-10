@@ -148,12 +148,12 @@ function createPricingEstimateHandler({
       }
       if (req.body.pricingMode === "route_aware") {
         if (!req.body.organizationId) {
-          return res.status(400).json({ error: "Select an organization for portfolio-aware pricing." });
+          return res.status(400).json({ error: "Select an organization for route-aware pricing." });
         }
         let organizationQuery = OrganizationModel.findById(req.body.organizationId);
         if (organizationQuery?.select) {
           organizationQuery = organizationQuery.select(
-            "name serviceModel fulfillmentPolicy properties._id properties.name properties.lat properties.lng properties.fulfillmentPolicy"
+            "name serviceModel fulfillmentPolicy properties._id properties.name properties.lat properties.lng properties.fulfillmentPolicy routes._id routes.name routes.region routes.propertyIds routes.status routes.version"
           );
         }
         if (organizationQuery?.lean) organizationQuery = organizationQuery.lean();
@@ -170,7 +170,8 @@ function createPricingEstimateHandler({
         const travelContext = await resolveOrganizationTravelContext({
           organization,
           candidate: req.body.candidate,
-          routeCommitment: req.body.routeCommitment,
+          routeId: req.body.routeId,
+          routeCommitment: req.body.routeId ? req.body.routeCommitment : "none",
           homeBase: homeBaseResolver(),
           routingClient: routingClientResolver(),
         });

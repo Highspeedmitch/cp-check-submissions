@@ -146,10 +146,11 @@ function preparePricingLocations({
   candidate,
   portfolioProperties = [],
   policy = DEFAULT_GEOGRAPHY_POLICY,
+  preservePortfolioOrder = false,
 }) {
   const normalizedHome = normalizePoint(homeBase, "Operations base");
   const normalizedCandidate = normalizePoint(candidate, "Proposed property");
-  const normalizedProperties = portfolioProperties
+  let normalizedProperties = portfolioProperties
     .map((property) => {
       try {
         return normalizePoint(property, "Portfolio property");
@@ -157,10 +158,14 @@ function preparePricingLocations({
         return null;
       }
     })
-    .filter(Boolean)
-    .sort((first, second) => haversineMiles(normalizedCandidate, first)
-      - haversineMiles(normalizedCandidate, second))
-    .slice(0, policy.maximumPortfolioProperties);
+    .filter(Boolean);
+  if (!preservePortfolioOrder) {
+    normalizedProperties = normalizedProperties.sort(
+      (first, second) => haversineMiles(normalizedCandidate, first)
+        - haversineMiles(normalizedCandidate, second)
+    );
+  }
+  normalizedProperties = normalizedProperties.slice(0, policy.maximumPortfolioProperties);
   return {
     homeBase: normalizedHome,
     candidate: normalizedCandidate,
@@ -179,12 +184,15 @@ function buildModeledTravelContext({
   portfolioProperties = [],
   routeCommitment = "modeled",
   policy = DEFAULT_GEOGRAPHY_POLICY,
+  preservePortfolioOrder = false,
+  routeMetadata = {},
 }) {
   const locations = preparePricingLocations({
     homeBase,
     candidate,
     portfolioProperties,
     policy,
+    preservePortfolioOrder,
   });
   const normalizedHome = locations.homeBase;
   const normalizedCandidate = locations.candidate;
@@ -194,7 +202,9 @@ function buildModeledTravelContext({
   const normalizedProperties = locations.portfolioProperties;
   const homeLeg = modeledLeg(normalizedHome, normalizedCandidate, policy);
   const density = portfolioDensity(normalizedCandidate, normalizedProperties, policy);
-  const route = nearestNeighborRoute(normalizedHome, normalizedProperties, policy);
+  const route = preservePortfolioOrder
+    ? [normalizedHome, ...normalizedProperties, normalizedHome]
+    : nearestNeighborRoute(normalizedHome, normalizedProperties, policy);
   const insertion = bestRouteInsertion(route, normalizedCandidate, policy);
   const confidence = !normalizedProperties.length || routeCommitment === "none"
     ? 0
@@ -227,6 +237,7 @@ function buildModeledTravelContext({
       })),
     },
     route: {
+      ...routeMetadata,
       commitment: routeCommitment,
       confidence,
       modeledStopCount: normalizedProperties.length,
@@ -320,6 +331,8 @@ function buildRoadMatrixTravelContext({
   routeCommitment = "modeled",
   matrix,
   policy = DEFAULT_GEOGRAPHY_POLICY,
+  preservePortfolioOrder = false,
+  routeMetadata = {},
 }) {
   if (!ROUTE_COMMITMENTS.has(routeCommitment)) {
     throw new Error("Select a valid route commitment.");
@@ -329,6 +342,7 @@ function buildRoadMatrixTravelContext({
     candidate,
     portfolioProperties,
     policy,
+    preservePortfolioOrder,
   });
   const points = [locations.homeBase, locations.candidate, ...locations.portfolioProperties];
   if (matrix?.distancesMeters?.length !== points.length
@@ -351,11 +365,20 @@ function buildRoadMatrixTravelContext({
     }),
     policy
   );
-  const route = roadMatrixRoute(
-    locations.homeBase,
-    locations.portfolioProperties,
-    matrix
-  );
+  const route = preservePortfolioOrder
+    ? [
+      { point: locations.homeBase, matrixIndex: 0 },
+      ...locations.portfolioProperties.map((property, index) => ({
+        point: property,
+        matrixIndex: index + 2,
+      })),
+      { point: locations.homeBase, matrixIndex: 0 },
+    ]
+    : roadMatrixRoute(
+      locations.homeBase,
+      locations.portfolioProperties,
+      matrix
+    );
   const insertion = bestRoadMatrixInsertion(route, matrix);
   const confidence = !locations.portfolioProperties.length || routeCommitment === "none"
     ? 0
@@ -392,6 +415,7 @@ function buildRoadMatrixTravelContext({
       })),
     },
     route: {
+      ...routeMetadata,
       commitment: routeCommitment,
       confidence,
       modeledStopCount: locations.portfolioProperties.length,

@@ -32,6 +32,7 @@ async function getPlatformOrganizationMetrics({
         onboarding: 1,
         security: 1,
         billingCapabilities: 1,
+        routes: 1,
         propertyCount: { $size: { $ifNull: ["$properties", []] } },
         emailApPropertyCount: {
           $size: {
@@ -107,6 +108,16 @@ async function getPlatformOrganizationMetrics({
       pendingBidCount: bidCounts.get(id) || 0,
       pendingInvoiceCount: invoiceCounts.get(id) || 0,
       pendingAdminInvitation: adminInvitations.get(id) || null,
+      routes: (organization.routes || [])
+        .filter((route) => route.status !== "archived")
+        .map((route) => ({
+          routeId: String(route._id),
+          name: route.name,
+          region: route.region,
+          version: Number(route.version) || 1,
+          stopCount: Array.isArray(route.propertyIds) ? route.propertyIds.length : 0,
+          status: route.status || "active",
+        })),
       onboarding: organization.onboarding ? {
         status: organization.onboarding.status || "invited",
         initiatedAt: organization.onboarding.initiatedAt || null,
