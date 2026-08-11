@@ -138,7 +138,7 @@ function OrganizationCapabilitiesDialog({ organization, busy, error, onClose, on
   }, [organization]);
   if (!organization) return null;
 
-  const supported = ["managed", "hybrid"].includes(organization.serviceModel);
+  const supported = ["boutique", "managed", "hybrid"].includes(organization.serviceModel);
   const incompleteApSetup = organization.emailApPropertyCount < organization.propertyCount;
   return (
     <div className="beta-dialog-overlay" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
@@ -161,7 +161,7 @@ function OrganizationCapabilitiesDialog({ organization, busy, error, onClose, on
             <option value="secure_email_link" disabled={!supported}>Secure email approval</option>
           </select>
         </label>
-        {!supported && <p className="beta-alert notice">Secure email approval is currently limited to Managed service and Hybrid organizations.</p>}
+        {!supported && <p className="beta-alert notice">Secure email approval is currently limited to Boutique, Managed service, and Hybrid organizations.</p>}
         {experience === "secure_email_link" && incompleteApSetup && (
           <p className="beta-alert notice">
             {organization.emailApPropertyCount} of {organization.propertyCount} properties currently have AP email delivery configured. Ineligible invoices will continue using standard Afterlight review.
@@ -183,8 +183,25 @@ function OrganizationCapabilitiesDialog({ organization, busy, error, onClose, on
   );
 }
 
+function organizationPlanPresentation(planLabel) {
+  const label = String(planLabel || "Service plan").trim();
+  const tierMatch = label.match(/^(.*)\s+(Tier\s+\d+)$/i);
+  return tierMatch
+    ? { delivery: tierMatch[1].trim(), tier: tierMatch[2] }
+    : { delivery: label, tier: "" };
+}
+
 function OrganizationCard({ organization, busy, onEnter, onManageCapabilities, onResendAdminInvite }) {
   const attentionCount = organization.pendingBidCount + organization.pendingInvoiceCount;
+  const plan = organizationPlanPresentation(organization.planLabel);
+  const monthlyFee = organization.recurringMonthlyFeeCents != null
+    && Number.isFinite(Number(organization.recurringMonthlyFeeCents))
+    ? new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: organization.currency || "USD",
+      maximumFractionDigits: 0,
+    }).format(organization.recurringMonthlyFeeCents / 100)
+    : "Not configured";
   return (
     <article className="platform-organization-card">
       <div className="platform-organization-card-header">
@@ -200,6 +217,21 @@ function OrganizationCard({ organization, busy, onEnter, onManageCapabilities, o
         <span>{attentionCount ? `${attentionCount} workflow item${attentionCount === 1 ? "" : "s"} need attention` : "No pending workflow items"}</span>
         {attentionCount > 0 && <small>{organization.pendingBidCount} bids · {organization.pendingInvoiceCount} invoices</small>}
       </div>
+      <section className="platform-org-plan" aria-label={`${organization.name} service plan`}>
+        <div className="platform-org-plan-name">
+          <span>Service delivery</span>
+          <div>
+            <strong>{plan.delivery}</strong>
+            {plan.tier && <small>{plan.tier}</small>}
+          </div>
+        </div>
+        <div className="platform-org-plan-fee">
+          <span>Organization fee</span>
+          <strong>{monthlyFee === "Not configured" ? monthlyFee : `${monthlyFee}/mo`}</strong>
+        </div>
+        {organization.visitChargesBilledSeparately
+          && <p>Per-visit charges billed separately</p>}
+      </section>
       {organization.pendingAdminInvitation && (
         <div className="platform-org-onboarding">
           <span>Administrator invitation {organization.pendingAdminInvitation.status === "expired" ? "expired" : "pending"}</span>

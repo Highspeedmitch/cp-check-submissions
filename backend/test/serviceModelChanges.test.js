@@ -19,6 +19,7 @@ function organization({ serviceModel = "managed", tier = null } = {}) {
   return {
     _id: "org-1",
     name: "Example Organization",
+    orgType: "COM",
     serviceModel,
     license: defaultStoredLicense(serviceModel, tier),
     fulfillmentPolicy: { defaultSource: "afterlight_staff", version: 4 },
@@ -80,6 +81,8 @@ test("service model request schema retains the review workflow", () => {
   assert.equal(ServiceModelChangeRequest.schema.path("organizationId").options.index, true);
   assert.deepEqual(ServiceModelChangeRequest.schema.path("changeType").enumValues, ["service_model", "license_tier", "custom_capacity"]);
   assert.equal(ServiceModelChangeRequest.schema.path("changeType").defaultValue, "service_model");
+  assert.equal(ServiceModelChangeRequest.schema.path("organizationSnapshot.currentRecurringMonthlyFeeCents").options.min, 0);
+  assert.equal(ServiceModelChangeRequest.schema.path("organizationSnapshot.requestedRecurringMonthlyFeeCents").options.min, 0);
 });
 
 test("organization administrators submit a non-mutating request and notify platform admins", async () => {
@@ -135,14 +138,95 @@ test("organization administrators submit a non-mutating request and notify platf
   assert.equal(createdRequest.organizationSnapshot.propertyOverrideCount, 1);
   assert.equal(createdRequest.organizationSnapshot.requestedAdminLimit, 2);
   assert.equal(createdRequest.organizationSnapshot.requestedUserLimit, 5);
+  assert.equal(createdRequest.organizationSnapshot.currentRecurringMonthlyFeeCents, 50000);
+  assert.equal(createdRequest.organizationSnapshot.requestedRecurringMonthlyFeeCents, 30000);
   assert.equal(createdRequest.organizationSnapshot.pendingAdministratorCount, 1);
   assert.equal(createdRequest.notification.platformEmailSentAt.toISOString(), "2026-08-03T12:00:00.000Z");
   assert.equal(emailDetails.organization, org);
   assert.equal(emailDetails.requester, requester);
   assert.equal(platformAudit.action, "service_model_change_requested");
+  assert.equal(platformAudit.metadata.requestedRecurringMonthlyFeeCents, 30000);
   assert.equal(platformNotification.event.type, "service_model_change_requested");
   assert.equal(platformNotification.contextOrganizationId, "org-1");
   assert.equal(res.body.emailDelivered, true);
+});
+
+test("Boutique service-model requests reject administrator and user capacity overages", async () => {
+  const cases = [
+    {
+      label: "administrator",
+      userCounts: { administrators: 1, users: 2 },
+      invitationCounts: { administrators: 1, users: 0 },
+    },
+    {
+      label: "user",
+      userCounts: { administrators: 1, users: 3 },
+      invitationCounts: { administrators: 0, users: 0 },
+    },
+  ];
+
+  for (const capacityCase of cases) {
+    const org = organization();
+    org.properties.forEach((property, index) => {
+      property.grossSquareFeet = 1200 + (index * 500);
+    });
+    let created = false;
+    const handlers = createServiceModelChangeHandlers({
+      OrganizationModel: { async findById() { return org; } },
+      UserModel: userModel(
+        { _id: "admin-1", email: "admin@example.com", username: "Admin" },
+        capacityCase.userCounts
+      ),
+      InvitationModel: invitationModel(capacityCase.invitationCounts),
+      RequestModel: {
+        async findOne() { return null; },
+        async create() { created = true; },
+      },
+    });
+    const res = response();
+
+    await handlers.createRequest(organizationRequest({
+      requestedServiceModel: "boutique",
+      reason: `Move to Boutique after reducing ${capacityCase.label} capacity.`,
+    }), res);
+
+    assert.equal(res.statusCode, 409);
+    assert.match(res.body.error, /up to 1 organization administrator and 2 additional users/i);
+    assert.equal(created, false);
+    assert.equal(org.serviceModel, "managed");
+  }
+});
+
+test("non-commercial organizations cannot request Boutique service", async () => {
+  const org = organization();
+  org.orgType = "RES";
+  org.properties.forEach((property, index) => {
+    property.grossSquareFeet = 1200 + (index * 500);
+  });
+  let created = false;
+  const handlers = createServiceModelChangeHandlers({
+    OrganizationModel: { async findById() { return org; } },
+    UserModel: userModel(
+      { _id: "admin-1", email: "admin@example.com", username: "Admin" },
+      { administrators: 1, users: 2 }
+    ),
+    InvitationModel: invitationModel(),
+    RequestModel: {
+      async findOne() { return null; },
+      async create() { created = true; },
+    },
+  });
+  const res = response();
+
+  await handlers.createRequest(organizationRequest({
+    requestedServiceModel: "boutique",
+    reason: "Request Boutique for a residential organization.",
+  }), res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /only to commercial organizations/i);
+  assert.equal(created, false);
+  assert.equal(org.serviceModel, "managed");
 });
 
 test("platform approval applies the model to future work and clears property overrides", async () => {
@@ -247,6 +331,153 @@ test("platform approval applies the model to future work and clears property ove
   assert.equal(requesterNotification.type, "service_model_change_approved");
   assert.equal(requesterNotification.route, "/service-delivery");
   assert.equal(res.body.emailDelivered, true);
+});
+
+test("Boutique approval revalidates capacity and retains Afterlight deployment and email workflows", async () => {
+  const org = organization();
+  org.properties.forEach((property, index) => {
+    property.grossSquareFeet = 1500 + (index * 500);
+  });
+  const requester = { _id: "admin-1", email: "admin@example.com", username: "Admin" };
+  const request = {
+    _id: "request-boutique",
+    organizationId: "org-1",
+    requestedBy: "admin-1",
+    changeType: "service_model",
+    currentServiceModel: "managed",
+    requestedServiceModel: "boutique",
+    currentLicenseTier: null,
+    requestedLicenseTier: null,
+    reason: "Move the small portfolio to Boutique service.",
+    status: "pending_review",
+    organizationSnapshot: {
+      requestedAdminLimit: 1,
+      requestedUserLimit: 2,
+      requestedPropertyLimit: 3,
+      requestedRecurringMonthlyFeeCents: 7500,
+    },
+    messages: [],
+    notification: {},
+    createdAt: new Date("2026-08-10T12:00:00.000Z"),
+    async save() {},
+  };
+  let deploymentUpdates = 0;
+  let authorizationUpdates = 0;
+  const handlers = createServiceModelChangeHandlers({
+    RequestModel: { async findOne() { return request; } },
+    OrganizationModel: { async findById() { return org; } },
+    UserModel: userModel(requester, { administrators: 1, users: 2 }),
+    InvitationModel: invitationModel(),
+    FulfillmentAuditModel: { async create() {} },
+    ResourceDeploymentModel: {
+      async updateMany() { deploymentUpdates += 1; return { modifiedCount: 0 }; },
+    },
+    InvoiceEmailAuthorizationModel: {
+      async updateMany() { authorizationUpdates += 1; return { modifiedCount: 0 }; },
+    },
+    PlatformAuditModel: { async create() {} },
+    sendRequesterEmail: async () => {},
+    notifyPlatform: async () => {},
+    notifyUser: async () => {},
+    now: () => new Date("2026-08-11T12:00:00.000Z"),
+    runServiceModelTransaction: async (operation) => operation(null),
+  });
+  const res = response();
+
+  await handlers.reviewRequest(platformRequest({ action: "approve", response: "Approved." }, request._id), res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(org.serviceModel, "boutique");
+  assert.equal(org.license.tier, null);
+  assert.equal(org.license.adminLimit, 1);
+  assert.equal(org.license.userLimit, 2);
+  assert.equal(org.license.propertyLimit, 3);
+  assert.equal(org.fulfillmentPolicy.defaultSource, "afterlight_staff");
+  assert.equal(org.billingCapabilities.invoiceApprovalExperience, "secure_email_link");
+  assert.equal(deploymentUpdates, 0);
+  assert.equal(authorizationUpdates, 0);
+});
+
+test("Boutique approval fails when the portfolio became ineligible after request submission", async () => {
+  const org = organization();
+  org.properties[0].grossSquareFeet = 4999;
+  org.properties[1].grossSquareFeet = 5000;
+  const request = {
+    _id: "request-boutique-ineligible",
+    organizationId: "org-1",
+    requestedBy: "admin-1",
+    changeType: "service_model",
+    currentServiceModel: "managed",
+    requestedServiceModel: "boutique",
+    currentLicenseTier: null,
+    requestedLicenseTier: null,
+    status: "pending_review",
+    organizationSnapshot: {},
+    messages: [],
+    notification: {},
+    async save() {},
+  };
+  const handlers = createServiceModelChangeHandlers({
+    RequestModel: { async findOne() { return request; } },
+    OrganizationModel: { async findById() { return org; } },
+    UserModel: userModel(
+      { _id: "admin-1", email: "admin@example.com", username: "Admin" },
+      { administrators: 1, users: 2 }
+    ),
+    InvitationModel: invitationModel(),
+    runServiceModelTransaction: async (operation) => operation(null),
+    now: () => new Date("2026-08-11T12:00:00.000Z"),
+  });
+  const res = response();
+
+  await handlers.reviewRequest(platformRequest({ action: "approve", response: "Approved." }, request._id), res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /under 5,000 square feet/i);
+  assert.equal(org.serviceModel, "managed");
+  assert.equal(org.saveCount, 0);
+});
+
+test("Boutique approval revalidates commercial organization eligibility", async () => {
+  const org = organization();
+  org.orgType = "RES";
+  org.properties.forEach((property, index) => {
+    property.grossSquareFeet = 1500 + (index * 500);
+  });
+  const request = {
+    _id: "request-boutique-residential",
+    organizationId: "org-1",
+    requestedBy: "admin-1",
+    changeType: "service_model",
+    currentServiceModel: "managed",
+    requestedServiceModel: "boutique",
+    currentLicenseTier: null,
+    requestedLicenseTier: null,
+    status: "pending_review",
+    organizationSnapshot: {},
+    messages: [],
+    notification: {},
+    async save() {},
+  };
+  const handlers = createServiceModelChangeHandlers({
+    RequestModel: { async findOne() { return request; } },
+    OrganizationModel: { async findById() { return org; } },
+    UserModel: userModel(
+      { _id: "admin-1", email: "admin@example.com", username: "Admin" },
+      { administrators: 1, users: 2 }
+    ),
+    InvitationModel: invitationModel(),
+    runServiceModelTransaction: async (operation) => operation(null),
+    now: () => new Date("2026-08-11T12:00:00.000Z"),
+  });
+  const res = response();
+
+  await handlers.reviewRequest(platformRequest({ action: "approve", response: "Approved." }, request._id), res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /only to commercial organizations/i);
+  assert.equal(org.serviceModel, "managed");
+  assert.equal(org.saveCount, 0);
 });
 
 test("tiered organizations can request a higher tier without mutating their license", async () => {

@@ -1,10 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  MODEL_LABELS,
   deliverPlatformRequestEmail,
   deliverRequesterDecisionEmail,
   platformAdminEmails,
 } = require("../services/serviceModelChangeEmails");
+
+test("service-plan email labels identify Boutique service", () => {
+  assert.equal(MODEL_LABELS.boutique, "Boutique service");
+});
 
 function userModelWithEmails(emails) {
   return {

@@ -16,6 +16,7 @@ The meter separates active administrators from pending administrator invitations
 | Full Stack SaaS or Hybrid Tier 2 | 3 |
 | Full Stack SaaS or Hybrid Tier 3 | 5 |
 | Managed service | Not metered |
+| Boutique service | 1 administrator |
 
 An expired or revoked invitation does not consume a seat. The plan name above the meter identifies the agreement currently applied to the organization.
 
@@ -73,7 +74,7 @@ Afterlight adds the request to **Service Plan Requests** and notifies platform a
 
 Approval of a Tier 1 or Tier 2 request applies the selected tier's administrator, user, and property limits. Approval of a Tier 3 custom-capacity request changes only the administrator-seat limit. It does not change the organization's tier, user limit, property limit, fulfillment policy, assignments, or invoices.
 
-Managed-service organizations do not display a seat limit and can continue using **Invite Administrator**.
+Managed-service organizations do not display a seat limit and can continue using **Invite Administrator**. Boutique organizations do not select a tier and are limited to one organization administrator, two non-administrator users, and three eligible properties.
 
 ## Security and access restrictions
 

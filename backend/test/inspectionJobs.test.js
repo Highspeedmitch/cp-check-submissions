@@ -7,12 +7,15 @@ const {
   normalizePhotoRequests,
   resolveCustomerContractorInvoiceSettings,
   resolveSubmissionAssignment,
+  createInspectionJob,
 } = require("../services/inspectionJobs");
 const {
   claimInspectionJob,
   deliverInspectionEmail,
   deliverInspectionEmailWithReviewFallback,
+  refreshRouteRunStatus,
   recordJobFailure,
+  resolveInspectionAssignment,
 } = require("../services/inspectionWorker");
 
 test("inspection job payloads only retain bounded string responses", () => {
@@ -116,6 +119,55 @@ test("inspection jobs do not guess when multiple scheduled assignments match", a
   }), null);
 });
 
+test("Boutique organization users cannot create an unassigned inspection job", async () => {
+  const organization = {
+    _id: "org-1",
+    orgType: "COM",
+    serviceModel: "boutique",
+    properties: [{ _id: "property-1", name: "Small Shop", customFields: [] }],
+  };
+  const AssignmentModel = {
+    find() {
+      return {
+        sort() { return this; },
+        limit() { return Promise.resolve([]); },
+      };
+    },
+  };
+
+  await assert.rejects(createInspectionJob({
+    user: {
+      userId: "customer-user-1",
+      organizationId: organization._id,
+      accountScope: "organization",
+      role: "user",
+    },
+    body: {
+      property: "Small Shop",
+      idempotencyKey: "boutique-direct-1",
+      responses: {},
+    },
+    OrganizationModel: {
+      async findById() { return organization; },
+    },
+    AssignmentModel,
+    TemplateResolver: async () => ({
+      organization,
+      property: organization.properties[0],
+      effectiveTemplate: {
+        templateId: "template-1",
+        version: 1,
+        name: "Commercial",
+        title: "Commercial inspection",
+        fields: [],
+      },
+    }),
+  }), (error) => (
+    error.status === 403
+    && error.code === "BOUTIQUE_ASSIGNMENT_REQUIRED"
+  ));
+});
+
 test("photo reservations enforce allowed fields and per-field limits", () => {
   const requests = Array.from({ length: MAX_PHOTOS_PER_FIELD }, (_, index) => ({
     fieldName: "graffiti",
@@ -169,6 +221,47 @@ test("workers atomically claim queued or expired-lease jobs", async () => {
   assert.equal(received.options.sort.availableAt, 1);
   assert.equal(received.query.$or[0].status, "queued");
   assert.equal(received.query.$or[1].status, "processing");
+});
+
+test("workers scope an explicit assignment to the inspection context", async () => {
+  let query;
+  const assignment = { _id: "assignment-1", status: "scheduled" };
+  const resolved = await resolveInspectionAssignment({
+    assignmentId: assignment._id,
+    organizationId: "org-1",
+    userId: "resource-1",
+    propertyName: "Small Shop",
+  }, {
+    AssignmentModel: {
+      async findOne(received) {
+        query = received;
+        return assignment;
+      },
+    },
+  });
+
+  assert.equal(resolved, assignment);
+  assert.deepEqual(query, {
+    _id: "assignment-1",
+    organizationId: "org-1",
+    userId: "resource-1",
+    propertyName: "Small Shop",
+    status: { $in: ["scheduled", "completed"] },
+  });
+});
+
+test("workers permanently reject an explicit assignment outside the inspection context", async () => {
+  await assert.rejects(resolveInspectionAssignment({
+    assignmentId: "assignment-1",
+    organizationId: "org-1",
+    userId: "resource-1",
+    propertyName: "Small Shop",
+  }, {
+    AssignmentModel: { async findOne() { return null; } },
+  }), (error) => (
+    error.permanent === true
+    && error.code === "INSPECTION_ASSIGNMENT_INVALID"
+  ));
 });
 
 test("failed jobs retry with backoff but preserve completed submissions", async () => {
@@ -267,4 +360,26 @@ test("an unavailable invoice review email retains the checklist-only fallback", 
   assert.equal(result.sent, true);
   assert.equal(result.delivery, "standalone");
   assert.equal(standaloneDeliveries, 1);
+});
+
+test("route run status follows completion of its per-property assignments", async () => {
+  let update;
+  const status = await refreshRouteRunStatus("route-run-1", {
+    AssignmentModel: {
+      async find() {
+        return [{ status: "completed" }, { status: "scheduled" }];
+      },
+    },
+    RouteRunModel: {
+      async updateOne(query, changes) {
+        update = { query, changes };
+      },
+    },
+  });
+
+  assert.equal(status, "in_progress");
+  assert.deepEqual(update, {
+    query: { _id: "route-run-1", status: { $ne: "canceled" } },
+    changes: { $set: { status: "in_progress" } },
+  });
 });

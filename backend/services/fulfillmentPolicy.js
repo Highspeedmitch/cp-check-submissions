@@ -1,4 +1,4 @@
-const SERVICE_MODELS = ["platform", "managed", "hybrid"];
+const SERVICE_MODELS = ["platform", "managed", "hybrid", "boutique"];
 const FULFILLMENT_SOURCES = [
   "customer_employee",
   "customer_contractor",
@@ -7,12 +7,14 @@ const FULFILLMENT_SOURCES = [
 ];
 const CUSTOMER_FULFILLMENT_SOURCES = ["customer_employee", "customer_contractor"];
 const AFTERLIGHT_FULFILLMENT_SOURCES = ["afterlight_staff", "afterlight_contractor"];
-const AFTERLIGHT_RESOURCE_SERVICE_MODELS = new Set(["managed", "hybrid"]);
+const AFTERLIGHT_RESOURCE_SERVICE_MODELS = new Set(["managed", "hybrid", "boutique"]);
+const { requireBoutiqueInspectionAssignment } = require("./boutiquePolicy");
 
 const SERVICE_MODEL_DEFAULTS = {
   platform: "customer_employee",
   managed: "afterlight_staff",
   hybrid: "customer_employee",
+  boutique: "afterlight_staff",
 };
 
 const SOURCE_POLICIES = {
@@ -50,7 +52,9 @@ function serviceModelAllowsAfterlightResources(organizationOrServiceModel) {
 }
 
 function fulfillmentSourcesForServiceModel(organizationOrServiceModel) {
-  return serviceModelAllowsAfterlightResources(organizationOrServiceModel)
+  const serviceModel = normalizedServiceModel(organizationOrServiceModel);
+  if (serviceModel === "boutique") return [...AFTERLIGHT_FULFILLMENT_SOURCES];
+  return serviceModelAllowsAfterlightResources(serviceModel)
     ? [...FULFILLMENT_SOURCES]
     : [...CUSTOMER_FULFILLMENT_SOURCES];
 }
@@ -61,10 +65,12 @@ function fulfillmentSourceAllowedForServiceModel(value, organizationOrServiceMod
 
 function validateFulfillmentSourceForServiceModel(value, organizationOrServiceModel) {
   const source = validateFulfillmentSource(value);
-  if (AFTERLIGHT_FULFILLMENT_SOURCES.includes(source)
-    && !serviceModelAllowsAfterlightResources(organizationOrServiceModel)) {
+  if (!fulfillmentSourceAllowedForServiceModel(source, organizationOrServiceModel)) {
+    if (normalizedServiceModel(organizationOrServiceModel) === "boutique") {
+      throw validationError("Boutique service requires an Afterlight fulfillment source.");
+    }
     throw validationError(
-      "Afterlight fulfillment is available only to Managed Service and Hybrid organizations."
+      "Afterlight fulfillment is available only to Boutique, Managed Service, and Hybrid organizations."
     );
   }
   return source;
@@ -115,6 +121,7 @@ function resolveAssignmentFulfillment({ organization, property, requestedSource,
 }
 
 function resolveDirectSubmissionFulfillment({ organization, actorUserId, resolvedAt = new Date() }) {
+  requireBoutiqueInspectionAssignment(organization, null);
   return {
     ...policyForSource("customer_employee"),
     sourceOrigin: "direct_submitter",

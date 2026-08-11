@@ -23,6 +23,7 @@ const {
 const { sendSystemEmail } = require("./systemEmail");
 const { sendUserNotification } = require("./notifications");
 const { monthlyPortfolioSummaryReady } = require("./notificationEvents");
+const { serviceModelIncludesPortfolioReporting } = require("./boutiquePolicy");
 
 const DEFAULT_POLL_MS = 5000;
 const SEED_INTERVAL_MS = 60 * 60 * 1000;
@@ -40,6 +41,11 @@ async function enqueueMonthlyPortfolioSummary({
   ReportModel = MonthlyPortfolioSummary,
 }) {
   if (!organization || !recipient) throw new Error("Organization and recipient are required.");
+  if (!serviceModelIncludesPortfolioReporting(organization)) {
+    const error = new Error("Monthly portfolio summaries are not included with this service model.");
+    error.code = "REPORTING_NOT_INCLUDED";
+    throw error;
+  }
   if (!["preview", "live"].includes(mode)) throw new Error("Monthly portfolio summaries are not enabled.");
   const properties = propertiesForPortfolioRecipient(organization, recipient);
   if (!properties.length) return null;

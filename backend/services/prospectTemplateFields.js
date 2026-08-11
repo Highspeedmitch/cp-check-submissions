@@ -1,6 +1,7 @@
 const {
   DEFAULT_COM_FIELDS,
   validateFields,
+  validateOrganizationFields,
 } = require("./inspectionTemplates");
 
 const GENERAL_OBSERVATIONS_FIELD = {
@@ -43,8 +44,10 @@ function defaultProspectFields() {
   return withGeneralObservations(DEFAULT_COM_FIELDS);
 }
 
-function validateProspectFields(fields) {
-  return withGeneralObservations(validateFields(fields));
+function validateProspectFields(fields, currentFields = []) {
+  const normalized = withGeneralObservations(validateFields(fields));
+  if (!currentFields.length) return normalized;
+  return validateOrganizationFields(normalized, withGeneralObservations(currentFields));
 }
 
 module.exports = {

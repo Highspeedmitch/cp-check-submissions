@@ -60,6 +60,7 @@ function createApp({ isReady = () => mongoose.connection.readyState === 1 } = {}
   app.use("/api/organization-security", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/organizationSecurity"));
   app.use("/api/onboarding", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/onboarding"));
   app.use("/api/fulfillment", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/fulfillment"));
+  app.use("/api/service-routes", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/serviceRoutes"));
   app.use("/api/service-model-changes", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/serviceModelChanges"));
   app.use("/api/bid-requests", authenticateToken, requireCurrentOrganizationPresence, require("./Routes/bidRequests"));
   app.use("/api/notifications", authenticateToken, require("./Routes/notifications"));

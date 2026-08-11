@@ -15,6 +15,8 @@ Use **Marketing tools > Complimentary Reports** to create a standalone exterior 
 
 Afterlight creates the PDF and returns to the repository. The assessment is a marketing artifact and is not included in customer reporting, assignments, billing, or Resource Network earnings.
 
+When Bedrock inspection summaries are enabled, the PDF's first page includes a concise AI-generated General Observations summary and its accuracy disclaimer. If Bedrock is disabled or temporarily unavailable, report generation still succeeds using the configured General Observations response or a deterministic fallback.
+
 ## Use the repository
 
 The **Repository** shows the report name or address, creation date, and scheduled purge date.
@@ -28,16 +30,19 @@ Assessments and their PDFs are automatically purged after 30 days. Download any 
 
 1. Select **Template**.
 2. Review the template name, report title, and current fields.
-3. Update unlocked labels and required settings.
-4. Add a field only when it belongs on future complimentary assessments.
-5. Remove only unlocked fields that are no longer required.
-6. Select **Publish template version**.
+3. Drag unlocked fields to reorder them within their current section. The up and down controls provide the same operation without dragging.
+4. Update unlocked labels, sections, response types, required settings, and photo settings.
+5. Add a field only when it belongs on future complimentary assessments.
+6. Remove only unlocked fields that are no longer required. Shopping Center Name, Property Address, and General Observations are protected anchors.
+7. Select **Publish template version**.
 
 Publishing affects future assessments. It does not rewrite PDFs already stored in the repository.
 
 ## Protect prospect and photo data
 
 Use customer-approved or otherwise authorized photos. Avoid faces, license plates, access codes, tenant information, and unrelated personal data. Keep descriptions factual and do not present the report as a formal inspection, safety certification, or approved service quote.
+
+The Bedrock summary input contains only normalized condition answers, opportunity descriptions, and narrative observations. It does not contain the prospect name, property address, photos, user email, access credentials, or billing data.
 
 ## If something goes wrong
 

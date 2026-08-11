@@ -5,6 +5,7 @@ const {
   validateFulfillmentSourceForServiceModel,
 } = require("./fulfillmentPolicy");
 const { caseInsensitiveExact } = require("./organizationProvisioning");
+const { validateBoutiquePortfolio } = require("./boutiquePolicy");
 
 function normalizeProductionOrganizationConfiguration(input = {}) {
   const name = String(input.name || "").trim().replace(/\s+/g, " ");
@@ -34,6 +35,13 @@ function buildProductionOrganizationPlan(organization, configuration) {
   const config = normalizeProductionOrganizationConfiguration(configuration);
   if (!organization) {
     return { name: config.name, status: "missing", configuration: config };
+  }
+  if (config.serviceModel === "boutique") {
+    validateBoutiquePortfolio({
+      serviceModel: "boutique",
+      orgType: organization.orgType,
+      properties: organization.properties || [],
+    });
   }
 
   const previous = {

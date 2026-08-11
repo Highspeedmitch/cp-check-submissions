@@ -13,6 +13,7 @@ const authenticateToken = require("../middleware/authenticateToken");
 const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const s3 = require("../awsConfig");
 const { generateProspectAssessmentPDF } = require("../prospectPdfService");
+const { ensureProspectAssessmentSummary } = require("../services/inspectionSummary");
 const {
   defaultProspectFields,
   validateProspectFields,
@@ -55,6 +56,10 @@ const {
   resolveOrganizationTravelContext,
 } = require("../services/platformPricingContext");
 const { createMapboxPricingClient } = require("../services/mapboxPricing");
+const {
+  estimateBoutiquePricing,
+  resolveBoutiqueTravelContext,
+} = require("../services/boutiquePricing");
 
 const router = express.Router();
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -135,6 +140,20 @@ function createPricingEstimateHandler({
 } = {}) {
   return async (req, res) => {
     try {
+      if (req.body.pricingMode === "boutique") {
+        const resolved = await resolveBoutiqueTravelContext({
+          properties: req.body.properties,
+          sameScheduledVisit: req.body.sameScheduledVisit !== false,
+          homeBase: homeBaseResolver(),
+          routingClient: routingClientResolver(),
+        });
+        return res.json(estimateBoutiquePricing({
+          properties: resolved.properties,
+          travelContext: resolved.travelContext,
+          hasKnownIssues: req.body.hasKnownIssues === true,
+          serviceFrequency: req.body.serviceFrequency,
+        }));
+      }
       if (req.body.pricingMode === "cluster") {
         return res.json(estimateClusterPricing({
           properties: req.body.properties,
@@ -147,12 +166,12 @@ function createPricingEstimateHandler({
       }
       if (req.body.pricingMode === "route_aware") {
         if (!req.body.organizationId) {
-          return res.status(400).json({ error: "Select an organization for portfolio-aware pricing." });
+          return res.status(400).json({ error: "Select an organization for route-aware pricing." });
         }
         let organizationQuery = OrganizationModel.findById(req.body.organizationId);
         if (organizationQuery?.select) {
           organizationQuery = organizationQuery.select(
-            "name serviceModel fulfillmentPolicy properties._id properties.name properties.lat properties.lng properties.fulfillmentPolicy"
+            "name serviceModel fulfillmentPolicy properties._id properties.name properties.lat properties.lng properties.fulfillmentPolicy routes._id routes.name routes.region routes.propertyIds routes.status routes.version"
           );
         }
         if (organizationQuery?.lean) organizationQuery = organizationQuery.lean();
@@ -169,7 +188,8 @@ function createPricingEstimateHandler({
         const travelContext = await resolveOrganizationTravelContext({
           organization,
           candidate: req.body.candidate,
-          routeCommitment: req.body.routeCommitment,
+          routeId: req.body.routeId,
+          routeCommitment: req.body.routeId ? req.body.routeCommitment : "none",
           homeBase: homeBaseResolver(),
           routingClient: routingClientResolver(),
         });
@@ -255,7 +275,8 @@ router.post("/organizations", authenticateToken, requirePlatformAdmin, async (re
     if (error?.code === 11000) {
       return res.status(409).json({ error: "An organization with that name already exists." });
     }
-    if (/Organization name|organization type|reporting timezone|valid invitation email/i.test(error.message || "")) {
+    if (error?.status === 400
+      || /Organization name|organization type|reporting timezone|valid invitation email/i.test(error.message || "")) {
       return res.status(400).json({ error: error.message });
     }
     console.error("Organization creation error:", error.message);
@@ -319,9 +340,9 @@ router.put("/organizations/:organizationId/billing-capabilities",
       const organization = await Organization.findById(req.params.organizationId);
       if (!organization) return res.status(404).json({ error: "Organization not found." });
       if (invoiceApprovalExperience === "secure_email_link"
-        && !["managed", "hybrid"].includes(organization.serviceModel || "managed")) {
+        && !["boutique", "managed", "hybrid"].includes(organization.serviceModel || "managed")) {
         return res.status(409).json({
-          error: "Secure email approval is currently limited to Managed service and Hybrid organizations.",
+          error: "Secure email approval is currently limited to Boutique, Managed service, and Hybrid organizations.",
         });
       }
 
@@ -385,7 +406,8 @@ router.put("/prospect-template", authenticateToken, requirePlatformAdmin, async 
     const name = String(req.body.name || "").trim();
     const title = String(req.body.title || "").trim();
     if (!name || !title) return res.status(400).json({ error: "Template name and title are required." });
-    const fields = validateProspectFields(req.body.fields || []);
+    const template = await getProspectTemplate();
+    const fields = validateProspectFields(req.body.fields || [], template.fields);
     for (const identityKey of ["businessName", "propertyAddress"]) {
       const identityField = fields.find((field) => field.key === identityKey);
       if (!identityField) {
@@ -394,7 +416,6 @@ router.put("/prospect-template", authenticateToken, requirePlatformAdmin, async 
       identityField.locked = true;
       if (identityKey === "propertyAddress") identityField.required = true;
     }
-    const template = await getProspectTemplate();
     template.name = name;
     template.title = title;
     template.fields = fields;
@@ -411,7 +432,7 @@ router.get("/prospect-assessments", authenticateToken, requirePlatformAdmin, asy
   try {
     await purgeExpiredProspectAssessments();
     const assessments = await ProspectAssessment.find({ expiresAt: { $gt: new Date() } })
-      .select("businessName propertyAddress pdfFileName createdAt expiresAt")
+      .select("businessName propertyAddress pdfFileName createdAt expiresAt aiSummary.status aiSummary.mode")
       .sort({ createdAt: -1 })
       .lean();
     return res.json(assessments);
@@ -470,7 +491,12 @@ router.post("/prospect-assessments", authenticateToken, requirePlatformAdmin,
         imageBuffer: file.buffer,
       }));
       const assessmentData = { businessName, propertyAddress, responses, templateSnapshot: snapshot, createdAt };
-      const pdfBuffer = await generateProspectAssessmentPDF({ assessment: assessmentData, photoBuffers });
+      const summaryResult = await ensureProspectAssessmentSummary(assessmentData);
+      const pdfBuffer = await generateProspectAssessmentPDF({
+        assessment: assessmentData,
+        photoBuffers,
+        coverSummary: summaryResult.coverSummary,
+      });
       const safeName = (businessName || propertyAddress)
         .replace(/[^a-z0-9]+/gi, "-")
         .replace(/^-|-$/g, "")

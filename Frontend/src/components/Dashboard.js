@@ -21,6 +21,7 @@ import {
   useNotificationBadges,
 } from "../services/notificationCenter";
 import { api, apiUrl } from "../services/api";
+import { inspectionSubmissionEnabled } from "../services/servicePlanAccess";
 
 // Helper function to open Apple Maps on iOS, or Google Maps elsewhere
 function openNativeMaps(lat, lng) {
@@ -107,6 +108,9 @@ const handleRegionFilter = async () => {
   const accountScope = localStorage.getItem("accountScope") || "organization";
   const isManagement = role === "admin" || role === "property_manager";
   const adminOrgType = localStorage.getItem("orgType") || "COM";
+  const serviceModel = localStorage.getItem("serviceModel") || "";
+  const portfolioReportingIncluded = localStorage.getItem("portfolioReportingIncluded") !== "false";
+  const canStartDirectInspection = inspectionSubmissionEnabled({ serviceModel, accountScope });
   const [canAccessBilling, setCanAccessBilling] = useState(false);
   const notificationBadges = useNotificationBadges(Boolean(token));
   useMarkNotificationsRead(["assignment_created"]);
@@ -446,6 +450,9 @@ useEffect(() => {
       await api.post("/api/admin/add-property", {
         adminActionGrant: addPropertyGrant,
         name: form.name,
+        grossSquareFeet: form.grossSquareFeet ? Number(form.grossSquareFeet) : null,
+        propertyType: form.propertyType || null,
+        region: String(form.region || "").trim() || "Uncategorized",
         emails: emailsArray,
         lat: parseFloat(form.lat) || 0,
         lng: parseFloat(form.lng) || 0,
@@ -519,6 +526,11 @@ useEffect(() => {
       navigate(`/admin/submissions/${encodeURIComponent(prop.name)}`);
       return;
     }
+    if (!inspectionSubmissionEnabled({
+      serviceModel,
+      accountScope,
+      assignmentId: assignment?._id,
+    })) return;
     const assignmentQuery = assignment?._id
       ? `?assignmentId=${encodeURIComponent(assignment._id)}`
       : "";
@@ -572,6 +584,8 @@ useEffect(() => {
         canAccessBilling={canAccessBilling}
         notificationBadges={notificationBadges}
         accountScope={accountScope}
+        serviceModel={serviceModel}
+        portfolioReportingIncluded={portfolioReportingIncluded}
       />
       {/* STR user action dialog */}
       {showModal && (
@@ -654,6 +668,7 @@ useEffect(() => {
               properties={displayedProperties}
               completedProperties={completedProperties}
               isManagement={isManagement}
+              canStartInspection={canStartDirectInspection}
               role={role}
               orgName={orgName}
               orgType={adminOrgType}

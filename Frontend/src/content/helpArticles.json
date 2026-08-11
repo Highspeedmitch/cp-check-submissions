@@ -69,6 +69,7 @@
     "roles": ["admin", "property_manager"],
     "accountScopes": ["organization"],
     "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "excludedServiceModels": ["boutique"],
     "file": "use-reporting-dashboard.md",
     "estimatedTime": "2-4 min",
     "keywords": ["activity", "average submission time", "field operator", "filters", "issues", "portfolio", "reporting", "trends"]
@@ -96,6 +97,18 @@
     "file": "admin-create-assignment.md",
     "estimatedTime": "2-3 min",
     "keywords": ["admin", "property manager", "assignment", "calendar", "dates", "schedule", "scheduler", "user"]
+  },
+  {
+    "slug": "manage-property-regions-routes",
+    "title": "Manage property regions and routes",
+    "summary": "Create property-derived regions, build ordered routes, and understand route-driven access, scheduling, deployments, and pricing.",
+    "category": "Organization administration",
+    "roles": ["admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "manage-property-regions-routes.md",
+    "estimatedTime": "4-8 min",
+    "keywords": ["access", "assignment", "deployment", "field operator", "pricing", "property", "region", "route", "route order", "scheduler", "scope", "stops"]
   },
   {
     "slug": "request-and-manage-property-bids",
@@ -238,7 +251,7 @@
   {
     "slug": "calculate-preliminary-service-pricing",
     "title": "Calculate preliminary service pricing",
-    "summary": "Run a stateless single-property, cluster, or portfolio-aware pricing estimate with transparent geographic factors.",
+    "summary": "Run a stateless single-property, cluster, or route-aware pricing estimate with transparent geographic factors.",
     "category": "Marketing tools",
     "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
     "platformRoles": ["platform_admin"],

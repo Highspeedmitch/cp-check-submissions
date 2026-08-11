@@ -15,12 +15,16 @@ const settings = {
   organization: {
     id: "org-1",
     name: "Example Organization",
+    orgType: "COM",
     serviceModel: "managed",
     license: {
       tier: null,
       adminLimit: null,
       userLimit: null,
       propertyLimit: null,
+      recurringMonthlyFeeCents: 50000,
+      currency: "USD",
+      visitChargesBilledSeparately: true,
       planLabel: "Managed service",
     },
     defaultSource: "afterlight_staff",
@@ -29,7 +33,7 @@ const settings = {
   },
   properties: [],
   options: {
-    serviceModels: ["platform", "managed", "hybrid"],
+    serviceModels: ["platform", "boutique", "managed", "hybrid"],
     meteredServiceModels: ["platform", "hybrid"],
     licenseTiers: ["tier_1", "tier_2", "tier_3"],
     tierLimits: {
@@ -38,6 +42,9 @@ const settings = {
       tier_3: { adminLimit: 5, userLimit: 50, propertyLimit: 250 },
     },
     hybridPortfolioMinimums: { tier_1: 15, tier_2: 12, tier_3: 10 },
+    tierRecurringMonthlyPricesCents: { tier_1: 30000, tier_2: 70000, tier_3: 100000 },
+    managedServiceBaseMonthlyCents: 50000,
+    boutiqueServiceBaseMonthlyCents: 7500,
     fulfillmentSources: [
       "customer_employee",
       "customer_contractor",
@@ -140,8 +147,38 @@ test("managed-service organizations do not see license tier controls", async () 
   );
 
   expect(await screen.findByRole("heading", { name: "Service plan" })).toBeInTheDocument();
+  expect(screen.getByText("$500/month organization fee")).toBeInTheDocument();
+  expect(screen.getByText(/property visits are billed separately/i)).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Increase license tier" })).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Requested license tier")).not.toBeInTheDocument();
+});
+
+test("Boutique organizations see the constrained $75 plan without reporting or tier controls", async () => {
+  const boutiqueSettings = {
+    ...settings,
+    organization: {
+      ...settings.organization,
+      serviceModel: "boutique",
+      license: {
+        tier: null,
+        adminLimit: 1,
+        userLimit: 2,
+        propertyLimit: 3,
+        recurringMonthlyFeeCents: 7500,
+        currency: "USD",
+        visitChargesBilledSeparately: true,
+        planLabel: "Boutique",
+      },
+    },
+  };
+  api.get.mockImplementation(async (path) => path === "/api/fulfillment" ? boutiqueSettings : []);
+
+  render(<MemoryRouter><ServiceDeliverySettings /></MemoryRouter>);
+
+  expect(await screen.findByText("$75/month organization fee")).toBeInTheDocument();
+  expect(screen.getByText(/one to three properties under 5,000 square feet/i)).toBeInTheDocument();
+  expect(screen.getByText(/does not include portfolio reporting/i)).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Increase license tier" })).not.toBeInTheDocument();
 });
 
 test("an organization administrator can request a service model change without a passkey", async () => {
@@ -175,6 +212,18 @@ test("an organization administrator can request a service model change without a
   expect(await screen.findByText(/platform administration was notified/i)).toBeInTheDocument();
 });
 
+test("non-commercial organizations are not offered Boutique service", async () => {
+  api.get.mockImplementation(async (path) => path === "/api/fulfillment" ? {
+    ...settings,
+    organization: { ...settings.organization, orgType: "RES" },
+  } : []);
+
+  render(<MemoryRouter><ServiceDeliverySettings /></MemoryRouter>);
+
+  const modelSelect = await screen.findByLabelText("Requested service model");
+  expect([...modelSelect.options].map(({ value }) => value)).not.toContain("boutique");
+});
+
 test("a SaaS administrator can request only a higher license tier", async () => {
   const tieredSettings = {
     ...settings,
@@ -187,6 +236,8 @@ test("a SaaS administrator can request only a higher license tier", async () => 
         adminLimit: 2,
         userLimit: 5,
         propertyLimit: 10,
+        recurringMonthlyFeeCents: 30000,
+        currency: "USD",
         planLabel: "Full Stack SaaS Tier 1",
       },
     },
@@ -221,6 +272,7 @@ test("a SaaS administrator can request only a higher license tier", async () => 
   expect(tierSelect.closest("form")).toHaveClass("beta-tier-request-form");
   expect(tierDate.closest("label")).toHaveClass("beta-contract-change-date");
   expect([...tierSelect.options].map(({ value }) => value)).toEqual(["tier_2", "tier_3"]);
+  expect(tierSelect.options[0]).toHaveTextContent("$700/month");
   fireEvent.change(tierSelect, { target: { value: "tier_3" } });
   fireEvent.change(tierDate, {
     target: { value: "2026-10-01" },

@@ -50,3 +50,22 @@ test("General Observations maps to the PDF summary before other note fields", ()
     generalObservations: "Primary property observation",
   }, template), "Primary property observation");
 });
+
+test("prospect validation preserves locked fields while accepting unlocked reordering", () => {
+  const current = defaultProspectFields();
+  const graffitiIndex = current.findIndex((field) => field.key === "graffiti");
+  const dumpstersIndex = current.findIndex((field) => field.key === "dumpsters");
+  const reordered = [...current];
+  [reordered[graffitiIndex], reordered[dumpstersIndex]] = [
+    reordered[dumpstersIndex],
+    reordered[graffitiIndex],
+  ];
+
+  const validated = validateProspectFields(reordered, current);
+  assert.ok(validated.findIndex((field) => field.key === "dumpsters")
+    < validated.findIndex((field) => field.key === "graffiti"));
+  assert.throws(() => validateProspectFields(
+    current.map((field) => field.key === "businessName" ? { ...field, label: "Renamed" } : field),
+    current
+  ), /locked and cannot be changed/);
+});

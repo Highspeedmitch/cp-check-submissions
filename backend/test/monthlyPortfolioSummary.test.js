@@ -28,6 +28,12 @@ test("monthly portfolio mode and organization allowlist fail closed", () => {
   assert.equal(isMonthlyPortfolioSummaryOrganizationAllowed(organization, {
     MONTHLY_PORTFOLIO_SUMMARY_ORGANIZATION_ALLOWLIST: "PICOR - DEV",
   }), true);
+  assert.equal(isMonthlyPortfolioSummaryOrganizationAllowed({
+    ...organization,
+    serviceModel: "boutique",
+  }, {
+    MONTHLY_PORTFOLIO_SUMMARY_ORGANIZATION_ALLOWLIST: "PICOR - DEV,org-picor",
+  }), false);
   assert.equal(isMonthlyPortfolioSummaryOrganizationAllowed(organization, {
     MONTHLY_PORTFOLIO_SUMMARY_ORGANIZATION_ALLOWLIST: "Picor",
   }), false);

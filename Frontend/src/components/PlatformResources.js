@@ -38,7 +38,14 @@ export default function PlatformResources() {
   const [data, setData] = useState(null);
   const [resourceDraft, setResourceDraft] = useState(EMPTY_RESOURCE);
   const [resourceEdits, setResourceEdits] = useState({});
-  const [deployment, setDeployment] = useState({ resourceId: "", organizationId: "", propertyIds: [], rateOverride: "" });
+  const [deployment, setDeployment] = useState({
+    resourceId: "",
+    organizationId: "",
+    scopeMode: "all",
+    propertyIds: [],
+    routeIds: [],
+    rateOverride: "",
+  });
   const [editingDeploymentId, setEditingDeploymentId] = useState("");
   const [selectedEarnings, setSelectedEarnings] = useState([]);
   const [checkDate, setCheckDate] = useState("");
@@ -272,7 +279,14 @@ export default function PlatformResources() {
   }
 
   function resetDeploymentDraft() {
-    setDeployment({ resourceId: "", organizationId: "", propertyIds: [], rateOverride: "" });
+    setDeployment({
+      resourceId: "",
+      organizationId: "",
+      scopeMode: "all",
+      propertyIds: [],
+      routeIds: [],
+      rateOverride: "",
+    });
     setEditingDeploymentId("");
   }
 
@@ -280,7 +294,11 @@ export default function PlatformResources() {
     setDeployment({
       resourceId: id(item.resourceProfileId),
       organizationId: id(item.organizationId),
+      scopeMode: item.scopeMode || ((item.propertyIds || []).length || (item.routeIds || []).length
+        ? "selected"
+        : "all"),
       propertyIds: (item.propertyIds || []).map(String),
+      routeIds: (item.routeIds || []).map(String),
       rateOverride: item.rateOverrideCents == null ? "" : (item.rateOverrideCents / 100).toFixed(2),
     });
     setEditingDeploymentId(item._id);
@@ -293,7 +311,9 @@ export default function PlatformResources() {
     event.preventDefault();
     const payload = {
       organizationId: deployment.organizationId,
+      scopeMode: deployment.scopeMode,
       propertyIds: deployment.propertyIds,
+      routeIds: deployment.routeIds,
       rateOverrideCents: deployment.rateOverride
         ? Math.round(Number(deployment.rateOverride) * 100)
         : null,
@@ -458,21 +478,69 @@ export default function PlatformResources() {
       </section>
 
       <section className="beta-panel platform-resource-deployment-panel" ref={deploymentEditorRef}>
-        <div className="beta-section-heading"><div><p className="beta-eyebrow">Tenant access</p><h2>{editingDeploymentId ? "Edit Resource Deployment" : "Deploy a Resource"}</h2><p>{editingDeploymentId ? "Update its organization or eligible properties for future scheduling. Historical assignments stay unchanged." : "An empty property selection makes the resource eligible across the organization."}</p></div></div>
+        <div className="beta-section-heading"><div><p className="beta-eyebrow">Tenant access</p><h2>{editingDeploymentId ? "Edit Resource Deployment" : "Deploy a Resource"}</h2><p>{editingDeploymentId ? "Update its organization or property/route scope for future scheduling. Historical assignments stay unchanged." : "Choose organization-wide eligibility or select individual properties and routes."}</p></div></div>
         <form className="beta-form-grid" onSubmit={saveDeployment}>
           <label className="beta-form-field">{editingDeploymentId ? "Resource" : "Active resource"}<select required disabled={Boolean(editingDeploymentId)} value={deployment.resourceId} onChange={(event) => setDeployment((current) => ({ ...current, resourceId: event.target.value }))}><option value="">Select resource</option>{data.resources.filter((resource) => resource.status === "active" || (editingDeploymentId && resource._id === deployment.resourceId)).map((resource) => <option key={resource._id} value={resource._id}>{resource.displayName}</option>)}</select></label>
-          <label className="beta-form-field">Managed or hybrid organization<select required value={deployment.organizationId} onChange={(event) => setDeployment((current) => ({ ...current, organizationId: event.target.value, propertyIds: [] }))}><option value="">Select organization</option>{data.organizations.map((organization) => <option key={organization._id} value={organization._id}>{organization.name} ({organization.serviceModel})</option>)}</select></label>
+          <label className="beta-form-field">Afterlight-serviced organization<select required value={deployment.organizationId} onChange={(event) => setDeployment((current) => ({ ...current, organizationId: event.target.value, scopeMode: "all", propertyIds: [], routeIds: [] }))}><option value="">Select organization</option>{data.organizations.map((organization) => <option key={organization._id} value={organization._id}>{organization.name} ({organization.serviceModel})</option>)}</select></label>
           {selectedResource?.resourceType === "contractor" && <label className="beta-form-field">Contractor pay override<input min="0.01" step="0.01" type="number" value={deployment.rateOverride} placeholder="Use resource default" onChange={(event) => setDeployment((current) => ({ ...current, rateOverride: event.target.value }))} /></label>}
-          {selectedOrganization && <label className="beta-form-field full">Eligible properties<select multiple value={deployment.propertyIds} onChange={(event) => setDeployment((current) => ({ ...current, propertyIds: [...event.target.selectedOptions].map((option) => option.value) }))}>{(selectedOrganization.properties || []).map((property) => <option key={property._id} value={property._id}>{property.name}</option>)}</select></label>}
+          {selectedOrganization && <fieldset className="beta-property-access beta-deployment-scope full">
+            <legend>Future scheduling scope</legend>
+            <label>
+              <input type="radio" name="deployment-scope" value="all" checked={deployment.scopeMode === "all"}
+                onChange={() => setDeployment((current) => ({ ...current, scopeMode: "all", propertyIds: [], routeIds: [] }))} />
+              <span><strong>All organization properties</strong><small>Includes properties added later.</small></span>
+            </label>
+            <label>
+              <input type="radio" name="deployment-scope" value="selected" checked={deployment.scopeMode === "selected"}
+                onChange={() => setDeployment((current) => ({ ...current, scopeMode: "selected" }))} />
+              <span><strong>Selected properties and routes</strong><small>Route membership follows future route edits.</small></span>
+            </label>
+            {deployment.scopeMode === "selected" && <div className="beta-deployment-scope-options">
+              <fieldset>
+                <legend>Individual properties</legend>
+                {(selectedOrganization.properties || []).map((property) => <label key={property._id}>
+                  <input type="checkbox" checked={deployment.propertyIds.includes(String(property._id))}
+                    onChange={(event) => setDeployment((current) => ({
+                      ...current,
+                      propertyIds: event.target.checked
+                        ? [...new Set([...current.propertyIds, String(property._id)])]
+                        : current.propertyIds.filter((value) => value !== String(property._id)),
+                    }))} />
+                  <span><strong>{property.name}</strong><small>{property.region || "Uncategorized"}</small></span>
+                </label>)}
+              </fieldset>
+              <fieldset>
+                <legend>Routes</legend>
+                {(selectedOrganization.routes || []).filter((route) => route.status !== "archived").length
+                  ? (selectedOrganization.routes || []).filter((route) => route.status !== "archived").map((route) => <label key={route._id}>
+                    <input type="checkbox" checked={deployment.routeIds.includes(String(route._id))}
+                      onChange={(event) => setDeployment((current) => ({
+                        ...current,
+                        routeIds: event.target.checked
+                          ? [...new Set([...current.routeIds, String(route._id)])]
+                          : current.routeIds.filter((value) => value !== String(route._id)),
+                      }))} />
+                    <span><strong>{route.name}</strong><small>{route.region} · {(route.propertyIds || []).length} stops</small></span>
+                  </label>)
+                  : <small>No active routes are configured.</small>}
+              </fieldset>
+            </div>}
+          </fieldset>}
           <div className="beta-card-actions full">
             {editingDeploymentId && <button type="button" className="beta-button secondary" onClick={resetDeploymentDraft}>Cancel Edit</button>}
-            <button className="beta-button" disabled={busy === (editingDeploymentId ? `deployment-scope-${editingDeploymentId}` : "deployment")}>{busy === (editingDeploymentId ? `deployment-scope-${editingDeploymentId}` : "deployment") ? "Saving..." : editingDeploymentId ? "Save Changes" : "Save Deployment"}</button>
+            <button className="beta-button" disabled={busy === (editingDeploymentId ? `deployment-scope-${editingDeploymentId}` : "deployment") || (deployment.scopeMode === "selected" && !deployment.propertyIds.length && !deployment.routeIds.length)}>{busy === (editingDeploymentId ? `deployment-scope-${editingDeploymentId}` : "deployment") ? "Saving..." : editingDeploymentId ? "Save Changes" : "Save Deployment"}</button>
           </div>
         </form>
         {data.deployments.length > 0 && <div className="beta-table-wrap"><table className="beta-data-table platform-resource-deployment-table"><thead><tr><th>Resource</th><th>Organization</th><th>Scope</th><th>Rate</th><th>Status</th><th>Action</th></tr></thead><tbody>{data.deployments.map((item) => {
           const resource = data.resources.find((candidate) => candidate._id === id(item.resourceProfileId));
           const propertyNames = (item.organizationId?.properties || []).filter((property) => (item.propertyIds || []).map(String).includes(String(property._id))).map((property) => property.name);
-          return <tr key={item._id}><td data-label="Resource">{resource?.displayName || "Resource"}</td><td data-label="Organization">{item.organizationId?.name}</td><td data-label="Scope">{propertyNames.length ? propertyNames.join(", ") : "All properties"}</td><td data-label="Rate">{resource?.resourceType === "contractor" ? item.rateOverrideCents == null ? "Resource default" : money(item.rateOverrideCents) : "Not payable per assignment"}</td><td data-label="Status">{item.status}</td><td data-label="Action">{item.status !== "ended" && <div className="beta-table-actions"><button type="button" className="beta-text-button" aria-label={`Edit deployment for ${resource?.displayName || "resource"}`} onClick={() => editDeployment(item)}>Edit</button><button type="button" className="beta-text-button" onClick={() => run(`deployment-${item._id}`, () => api.put(`/api/platform-resources/deployments/${item._id}`, { status: item.status === "active" ? "paused" : "active" }), "Deployment updated.")}>{item.status === "active" ? "Pause" : "Reactivate"}</button></div>}</td></tr>;
+          const routeNames = (item.organizationId?.routes || []).filter((route) => (item.routeIds || []).map(String).includes(String(route._id))).map((route) => route.name);
+          const selectedScope = [
+            propertyNames.length ? `Properties: ${propertyNames.join(", ")}` : "",
+            routeNames.length ? `Routes: ${routeNames.join(", ")}` : "",
+          ].filter(Boolean).join(" · ");
+          const scopeMode = item.scopeMode || ((item.propertyIds || []).length || (item.routeIds || []).length ? "selected" : "all");
+          return <tr key={item._id}><td data-label="Resource">{resource?.displayName || "Resource"}</td><td data-label="Organization">{item.organizationId?.name}</td><td data-label="Scope">{scopeMode === "all" ? "All properties" : selectedScope || "Selected scope"}</td><td data-label="Rate">{resource?.resourceType === "contractor" ? item.rateOverrideCents == null ? "Resource default" : money(item.rateOverrideCents) : "Not payable per assignment"}</td><td data-label="Status">{item.status}</td><td data-label="Action">{item.status !== "ended" && <div className="beta-table-actions"><button type="button" className="beta-text-button" aria-label={`Edit deployment for ${resource?.displayName || "resource"}`} onClick={() => editDeployment(item)}>Edit</button><button type="button" className="beta-text-button" onClick={() => run(`deployment-${item._id}`, () => api.put(`/api/platform-resources/deployments/${item._id}`, { status: item.status === "active" ? "paused" : "active" }), "Deployment updated.")}>{item.status === "active" ? "Pause" : "Reactivate"}</button></div>}</td></tr>;
         })}</tbody></table></div>}
       </section>
 

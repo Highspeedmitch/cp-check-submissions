@@ -10,6 +10,10 @@ import { restoreSession, tokenNeedsRefresh } from "./services/session";
 import { helpArticleBySlug } from "./services/helpAccess";
 import { api } from "./services/api";
 import { canAccessExternalConnections } from "./services/externalConnectionsAccess";
+import {
+  inspectionSubmissionEnabled,
+  portfolioReportingEnabled,
+} from "./services/servicePlanAccess";
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const ClientDashboard = lazy(() => import("./components/ClientDashboard"));
@@ -39,6 +43,7 @@ const InvoiceReview = lazy(() => import("./components/InvoiceReview"));
 const InvoiceEmailApproval = lazy(() => import("./components/InvoiceEmailApproval"));
 const BidRequests = lazy(() => import("./components/BidRequests"));
 const UserManagement = lazy(() => import("./components/UserManagement"));
+const RouteManagement = lazy(() => import("./components/RouteManagement"));
 const BulkOnboarding = lazy(() => import("./components/BulkOnboarding"));
 const Reporting = lazy(() => import("./components/Reporting"));
 const PlatformDashboard = lazy(() => import("./components/PlatformDashboard"));
@@ -105,6 +110,16 @@ function HelpRoute({ user, children }) {
   return children;
 }
 
+function InspectionRoute({ user, serviceModel, accountScope, children }) {
+  const location = useLocation();
+  const assignmentId = new URLSearchParams(location.search).get("assignmentId") || "";
+  if (!user) return <Navigate to="/" />;
+  if (!inspectionSubmissionEnabled({ serviceModel, accountScope, assignmentId })) {
+    return <Navigate to={accountScope === "afterlight_resource" ? "/resource" : "/dashboard"} replace />;
+  }
+  return children;
+}
+
 function BillingRoute({ user, role, accountScope }) {
   const [access, setAccess] = useState(null);
   useEffect(() => {
@@ -139,6 +154,8 @@ function App() {
   const [platformRole, setPlatformRole] = useState(null);
   const [assumedOrganization, setAssumedOrganization] = useState(false);
   const [accountScope, setAccountScope] = useState(null);
+  const [serviceModel, setServiceModel] = useState(null);
+  const [portfolioReportingIncluded, setPortfolioReportingIncluded] = useState(true);
 
   useEffect(() => {
     const syncStoredSession = () => {
@@ -147,6 +164,8 @@ function App() {
       setPlatformRole(localStorage.getItem("platformRole"));
       setAssumedOrganization(localStorage.getItem("assumedOrganization") === "true");
       setAccountScope(localStorage.getItem("accountScope") || "organization");
+      setServiceModel(localStorage.getItem("serviceModel"));
+      setPortfolioReportingIncluded(localStorage.getItem("portfolioReportingIncluded") !== "false");
     };
     const handleSessionCleared = () => {
       setUser(false);
@@ -154,6 +173,8 @@ function App() {
       setPlatformRole(null);
       setAssumedOrganization(false);
       setAccountScope(null);
+      setServiceModel(null);
+      setPortfolioReportingIncluded(true);
     };
     window.addEventListener("auth-session-cleared", handleSessionCleared);
     window.addEventListener("auth-session-changed", syncStoredSession);
@@ -169,6 +190,8 @@ function App() {
       setPlatformRole(null);
       setAssumedOrganization(false);
       setAccountScope(null);
+      setServiceModel(null);
+      setPortfolioReportingIncluded(true);
       return;
     }
     const token = localStorage.getItem("token");
@@ -184,6 +207,8 @@ function App() {
           authenticated && localStorage.getItem("assumedOrganization") === "true"
         );
         setAccountScope(authenticated ? localStorage.getItem("accountScope") || "organization" : null);
+        setServiceModel(authenticated ? localStorage.getItem("serviceModel") : null);
+        setPortfolioReportingIncluded(authenticated ? localStorage.getItem("portfolioReportingIncluded") !== "false" : true);
       });
       return;
     }
@@ -194,6 +219,8 @@ function App() {
       setPlatformRole(null);
       setAssumedOrganization(false);
       setAccountScope(null);
+      setServiceModel(null);
+      setPortfolioReportingIncluded(true);
       return;
     }
 
@@ -209,6 +236,8 @@ function App() {
     setPlatformRole(localStorage.getItem("platformRole"));
     setAssumedOrganization(localStorage.getItem("assumedOrganization") === "true");
     setAccountScope(localStorage.getItem("accountScope") || "organization");
+    setServiceModel(localStorage.getItem("serviceModel"));
+    setPortfolioReportingIncluded(localStorage.getItem("portfolioReportingIncluded") !== "false");
   }, [user]);
 
   if (user === null) return null;
@@ -267,7 +296,11 @@ function App() {
         }
       />
 
-      <Route path="/form/:property" element={user ? <FormPage /> : <Navigate to="/" />} />
+      <Route path="/form/:property" element={
+        <InspectionRoute user={user} serviceModel={serviceModel} accountScope={accountScope}>
+          <FormPage />
+        </InspectionRoute>
+      } />
       <Route path="/property-form-settings/:property" element={user ? <PropertyFormSettings /> : <Navigate to="/" />} />
       <Route path="/organization-form-settings" element={user ? <OrganizationFormSettings /> : <Navigate to="/" />} />
       <Route path="/organization-security" element={
@@ -285,9 +318,21 @@ function App() {
           ? <ServiceDeliverySettings />
           : <Navigate to="/" />
       } />
-      <Route path="/residential-form/:property" element={user ? <ResidentialForm /> : <Navigate to="/" />} />
-      <Route path="/long-term-rental-form/:property" element={user ? <LongTermRental /> : <Navigate to="/" />} />
-      <Route path="/short-term-rental-form/:property" element={user ? <ShortTermRental /> : <Navigate to="/" />} />
+      <Route path="/residential-form/:property" element={
+        <InspectionRoute user={user} serviceModel={serviceModel} accountScope={accountScope}>
+          <ResidentialForm />
+        </InspectionRoute>
+      } />
+      <Route path="/long-term-rental-form/:property" element={
+        <InspectionRoute user={user} serviceModel={serviceModel} accountScope={accountScope}>
+          <LongTermRental />
+        </InspectionRoute>
+      } />
+      <Route path="/short-term-rental-form/:property" element={
+        <InspectionRoute user={user} serviceModel={serviceModel} accountScope={accountScope}>
+          <ShortTermRental />
+        </InspectionRoute>
+      } />
       <Route path="/admin/submissions/:property" element={<AdminSubmissions />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -298,8 +343,13 @@ function App() {
       <Route path="/billing/review/:id" element={<InvoiceReviewRoute user={user} role={role} />} />
       <Route path="/billing/email-approval" element={<InvoiceEmailApproval />} />
       <Route path="/bid-requests" element={user && ["admin", "property_manager"].includes(role) ? <BidRequests /> : <Navigate to="/" />} />
-      <Route path="/reporting" element={user && ["admin", "property_manager"].includes(role) ? <Reporting /> : <Navigate to="/" />} />
+      <Route path="/reporting" element={user
+        && ["admin", "property_manager"].includes(role)
+        && portfolioReportingEnabled({ serviceModel, portfolioReportingIncluded })
+        ? <Reporting />
+        : <Navigate to="/dashboard" replace />} />
       <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
+      <Route path="/admin/routes" element={user && role === "admin" ? <RouteManagement /> : <Navigate to="/" />} />
       <Route path="/admin/bulk-onboarding" element={
         user && role === "admin" && !assumedOrganization
           ? <BulkOnboarding />

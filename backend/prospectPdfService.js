@@ -1,7 +1,7 @@
 const path = require("path");
 const { generateChecklistPDF } = require("./pdfservice");
 
-async function generateProspectAssessmentPDF({ assessment, photoBuffers = [] }) {
+async function generateProspectAssessmentPDF({ assessment, photoBuffers = [], coverSummary = null }) {
   const reportIdentity = assessment.businessName
     || assessment.propertyAddress
     || "Prospective Property";
@@ -23,6 +23,7 @@ async function generateProspectAssessmentPDF({ assessment, photoBuffers = [] }) 
     onlyAssessed: true,
     logoPath: path.resolve(__dirname, "../Frontend/public/apple-touch-icon.png"),
     notice: "Limited exterior visual assessment; not a code, safety, engineering, or comprehensive inspection.",
+    coverSummary,
   });
   return result.pdfBuffer;
 }

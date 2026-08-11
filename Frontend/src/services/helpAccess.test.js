@@ -35,6 +35,7 @@ test("filters help articles by exact role and organization type", () => {
     "review-portfolio-reporting",
     "manage-inspection-form-templates",
     "create-a-scheduler-assignment",
+    "manage-property-regions-routes",
     "request-and-manage-property-bids",
     "request-a-service-model-change",
     "enable-notifications",
@@ -156,4 +157,14 @@ test("searches titles, summaries, categories, and keywords", () => {
   expect(matchesHelpSearch(invoiceArticle, "invoice approval")).toBe(true);
   expect(matchesHelpSearch(invoiceArticle, "photos")).toBe(false);
   expect(matchesHelpSearch(invoiceArticle, "")).toBe(true);
+});
+
+test("Boutique organizations do not receive portfolio reporting guidance", () => {
+  const articles = visibleHelpArticles({
+    role: "property_manager",
+    orgType: "COM",
+    accountScope: "organization",
+    serviceModel: "boutique",
+  });
+  expect(articles.map(({ slug }) => slug)).not.toContain("review-portfolio-reporting");
 });

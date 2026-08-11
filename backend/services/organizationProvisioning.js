@@ -4,16 +4,21 @@ const {
   validateServiceModel,
   validateFulfillmentSourceForServiceModel,
 } = require("./fulfillmentPolicy");
-const { LICENSE_TIERS, defaultStoredLicense } = require("./licenseEntitlements");
+const {
+  LICENSE_TIERS,
+  METERED_SERVICE_MODELS,
+  defaultStoredLicense,
+} = require("./licenseEntitlements");
+const { validateBoutiqueOrganizationType } = require("./boutiquePolicy");
 
 function normalizeOrganizationSetup(input = {}) {
   const name = String(input.name || "").trim().replace(/\s+/g, " ");
   const orgType = String(input.orgType || "").trim().toUpperCase();
   const reportingTimezone = String(input.reportingTimezone || "America/Phoenix").trim();
   const serviceModel = validateServiceModel(String(input.serviceModel || "managed").trim());
-  const licenseTier = serviceModel === "managed"
-    ? null
-    : String(input.licenseTier || "tier_1").trim();
+  const licenseTier = METERED_SERVICE_MODELS.has(serviceModel)
+    ? String(input.licenseTier || "tier_1").trim()
+    : null;
   const defaultSource = validateFulfillmentSourceForServiceModel(
     String(input.defaultFulfillmentSource || SERVICE_MODEL_DEFAULTS[serviceModel]).trim(),
     serviceModel
@@ -25,6 +30,7 @@ function normalizeOrganizationSetup(input = {}) {
   if (!ORGANIZATION_TYPES.has(orgType)) {
     throw new Error("Select a valid organization type.");
   }
+  validateBoutiqueOrganizationType({ serviceModel, orgType }, { status: 400 });
   if (licenseTier && !LICENSE_TIERS.includes(licenseTier)) {
     throw new Error("Select a valid license tier.");
   }

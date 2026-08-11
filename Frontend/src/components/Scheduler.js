@@ -37,7 +37,9 @@ const SOURCE_POLICIES = {
 };
 
 const EMPTY_ASSIGNMENT = {
+  assignmentType: "property",
   propertyName: "",
+  routeId: "",
   userId: "",
   startDate: "",
   endDate: "",
@@ -53,6 +55,7 @@ function Scheduler() {
 
   const [assignments, setAssignments] = useState([]);
   const [properties, setProperties] = useState([]);
+  const [routes, setRoutes] = useState([]);
   const [users, setUsers] = useState([]);
   const [fulfillmentSettings, setFulfillmentSettings] = useState(null);
   const [newAssignment, setNewAssignment] = useState(EMPTY_ASSIGNMENT);
@@ -118,6 +121,18 @@ function Scheduler() {
       .catch((err) => console.error("Error fetching users:", err));
   }, [token]);
 
+  // Fetch active, ordered routes available to this administrator or property manager.
+  useEffect(() => {
+    if (!token) return;
+    fetch(apiUrl("/api/service-routes"), {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setRoutes(data.routes || []))
+      .catch((err) => console.error("Error fetching routes:", err));
+  }, [token]);
+
   useEffect(() => {
     if (!token) return;
     fetch(apiUrl("/api/fulfillment"), {
@@ -129,9 +144,33 @@ function Scheduler() {
   }, [token]);
 
   const selectedProperty = properties.find((property) => property.name === newAssignment.propertyName);
+  const selectedRoute = routes.find((route) => String(route._id) === String(newAssignment.routeId))
+    || (editingAssignment?.routeRunId ? {
+      _id: editingAssignment.routeId,
+      name: editingAssignment.routeName,
+      propertyIds: (editingAssignment.routeStops || []).map((stop) => stop.propertyId),
+      properties: editingAssignment.routeStops || [],
+    } : null);
+  const selectedRouteProperties = (selectedRoute?.propertyIds || []).map((propertyId) =>
+    properties.find((property) => String(property._id) === String(propertyId))
+      || (selectedRoute?.properties || []).find((property) => String(property.propertyId || property._id) === String(propertyId))
+  ).filter(Boolean);
+  const targetProperties = newAssignment.assignmentType === "route"
+    ? selectedRouteProperties
+    : selectedProperty ? [selectedProperty] : [];
+  const routeDefaultSources = [...new Set(selectedRouteProperties.map((property) =>
+    property.fulfillment?.resolvedSource
+      || fulfillmentSettings?.organization?.defaultSource
+      || "customer_employee"
+  ))];
+  const mixedRouteDefaults = newAssignment.assignmentType === "route"
+    && !newAssignment.fulfillmentSource
+    && !editingAssignment
+    && routeDefaultSources.length > 1;
   const savedEditingSource = editingAssignment?.fulfillment?.source;
   const effectiveFulfillmentSource = newAssignment.fulfillmentSource
     || savedEditingSource
+    || routeDefaultSources[0]
     || selectedProperty?.fulfillment?.resolvedSource
     || fulfillmentSettings?.organization?.defaultSource
     || "customer_employee";
@@ -139,14 +178,20 @@ function Scheduler() {
   const availableFulfillmentSources = schedulerFulfillmentSources(fulfillmentSettings);
   const eligibleUsers = users.filter((user) => {
     const isAfterlightResource = user.accountScope === "afterlight_resource";
+    const scopedPropertyIds = (user.propertyIds || []).map(String);
+    const coversTargets = !targetProperties.length
+      || user.scopeMode === "all"
+      || (!isAfterlightResource && user.workScopeConfigured === false && !scopedPropertyIds.length)
+      || targetProperties.every((property) => scopedPropertyIds.includes(String(property._id)));
+    if (!coversTargets || mixedRouteDefaults) return false;
     if (!["afterlight_staff", "afterlight_contractor"].includes(effectiveFulfillmentSource)) {
-      return schedulerUserMatchesFulfillment(user, effectiveFulfillmentSource);
+      return !isAfterlightResource
+        && schedulerUserMatchesFulfillment(user, effectiveFulfillmentSource);
     }
     if (!isAfterlightResource) return false;
     if (effectiveFulfillmentSource === "afterlight_contractor" && user.resourceType !== "contractor") return false;
     if (effectiveFulfillmentSource === "afterlight_staff" && user.resourceType === "contractor") return false;
-    if (!selectedProperty || !(user.propertyIds || []).length) return true;
-    return user.propertyIds.map(String).includes(String(selectedProperty._id));
+    return true;
   });
   const retainedEditingAssignee = editingAssignment
     && newAssignment.userId
@@ -169,9 +214,12 @@ function Scheduler() {
       return;
     }
   
+    const routeAssignment = newAssignment.assignmentType === "route";
     const url = editingAssignment
-      ? apiUrl(`/api/assignments/${editingAssignment._id}`)
-      : apiUrl("/api/assignments");
+      ? apiUrl(editingAssignment.routeRunId
+        ? `/api/route-runs/${editingAssignment.routeRunId}`
+        : `/api/assignments/${editingAssignment._id}`)
+      : apiUrl(routeAssignment ? "/api/route-runs" : "/api/assignments");
   
     const method = editingAssignment ? "PUT" : "POST";
   
@@ -184,7 +232,9 @@ function Scheduler() {
     const effectiveEndDate = newAssignment.endDate || newAssignment.startDate;
     const formattedAssignment = {
       organizationId: storedOrgId,  
-      propertyName: newAssignment.propertyName,
+      ...(routeAssignment
+        ? { routeId: newAssignment.routeId }
+        : { propertyName: newAssignment.propertyName }),
       userId: newAssignment.userId,
       startDate: new Date(newAssignment.startDate).toISOString(),
       endDate: new Date(effectiveEndDate).toISOString(),
@@ -209,7 +259,9 @@ function Scheduler() {
       if (data.success) {
         setFeedback({
           type: "success",
-          message: editingAssignment ? "Assignment updated." : "Assignment created.",
+          message: editingAssignment
+            ? routeAssignment ? "ROUTE assignment updated." : "Assignment updated."
+            : routeAssignment ? `ROUTE assignment created with ${selectedRouteProperties.length} stops.` : "Assignment created.",
         });
 
         fetch(apiUrl("/api/assignments"), {
@@ -238,7 +290,10 @@ function Scheduler() {
   // Handle Event Drag (Move Dates)
   const handleEventDrop = ({ event, start, end }) => {
     const dates = assignmentDatesFromCalendarDrop(start, end);
-    fetch(apiUrl(`/api/assignments/${event._id}`), {
+    const groupedRoute = Boolean(event.routeRunId);
+    fetch(apiUrl(groupedRoute
+      ? `/api/route-runs/${event.routeRunId}`
+      : `/api/assignments/${event._id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(dates),
@@ -247,11 +302,15 @@ function Scheduler() {
       .then((data) => {
         if (data.success) {
           setAssignments((current) => current.map((assignment) => (
-            assignment._id === event._id
+            (groupedRoute
+              ? String(assignment.routeRunId) === String(event.routeRunId)
+              : assignment._id === event._id)
               ? { ...assignment, startDate: dates.startDate, endDate: dates.endDate }
               : assignment
           )));
-          setFeedback({ type: "success", message: "Assignment moved to the selected date." });
+          setFeedback({ type: "success", message: groupedRoute
+            ? "ROUTE assignment moved to the selected date."
+            : "Assignment moved to the selected date." });
         } else {
           setFeedback({ type: "error", message: data.error || "The assignment could not be moved." });
         }
@@ -266,20 +325,29 @@ function Scheduler() {
   const handleDeleteAssignment = () => {
     if (!editingAssignment) return;
 
-    if (!window.confirm("Are you sure you want to cancel this assignment?")) return;
+    const groupedRoute = Boolean(editingAssignment.routeRunId);
+    if (!window.confirm(groupedRoute
+      ? `Cancel the entire ROUTE assignment and all ${editingAssignment.routeStopCount} stops?`
+      : "Are you sure you want to cancel this assignment?")) return;
 
-    fetch(apiUrl(`/api/assignments/${editingAssignment._id}`), {
+    fetch(apiUrl(groupedRoute
+      ? `/api/route-runs/${editingAssignment.routeRunId}`
+      : `/api/assignments/${editingAssignment._id}`), {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          setAssignments((current) => current.filter((a) => a._id !== editingAssignment._id));
+          setAssignments((current) => current.filter((assignment) => groupedRoute
+            ? String(assignment.routeRunId) !== String(editingAssignment.routeRunId)
+            : assignment._id !== editingAssignment._id));
           setEditingAssignment(null);
           setNewAssignment(EMPTY_ASSIGNMENT);
           setEditorOpen(false);
-          setFeedback({ type: "success", message: "Assignment canceled." });
+          setFeedback({ type: "success", message: groupedRoute
+            ? "ROUTE assignment canceled."
+            : "Assignment canceled." });
         } else {
           setFeedback({ type: "error", message: data.error || "Failed to cancel assignment." });
         }
@@ -313,7 +381,9 @@ function Scheduler() {
     const formDates = assignmentFormDatesFromStored(savedStartDate, savedEndDate);
     setEditingAssignment(event);
     setNewAssignment({
-      propertyName: event.propertyName || event.title.split(" - ")[0],
+      assignmentType: event.routeRunId ? "route" : "property",
+      propertyName: event.routeRunId ? "" : event.propertyName || event.title.split(" - ")[0],
+      routeId: event.routeId || "",
       userId: event.userId,
       ...formDates,
       oneTimeCheckRequest: event.oneTimeCheckRequest || "",
@@ -340,21 +410,35 @@ function Scheduler() {
     || "afterlight_coverage";
   const serviceModel = fulfillmentSettings?.organization?.serviceModel;
 
-  // Map assignments into events
-  const events = assignments.map((assignment) => {
+  const eventForAssignment = (assignment, routeChildren = null) => {
     const calendarDates = calendarEventDatesFromAssignment(assignment.startDate, assignment.endDate);
-  
-    // Find user email by ID
-    const assignedUser = users.find(user => user._id === assignment.userId);
+    const assignedUser = users.find((user) => String(user._id) === String(assignment.userId));
     const assignedUserEmail = assignedUser?.email
       || assignment.assignee?.email
       || assignment.assignee?.name
       || "Unknown User";
-  
+    const children = routeChildren || [assignment];
+    const routeStopCount = assignment.routeStopCount || children.length;
+    const routeLabel = assignment.routeRunId
+      ? `ROUTE: ${assignment.routeName || "Route"} (${routeStopCount} stops)`
+      : assignment.propertyName;
     return {
-      _id: assignment._id,
-      title: `${assignment.propertyName} - ${assignedUserEmail}`,
-      propertyName: assignment.propertyName,
+      _id: assignment.routeRunId ? `route-${assignment.routeRunId}` : assignment._id,
+      title: `${routeLabel} - ${assignedUserEmail}`,
+      propertyName: routeLabel,
+      routeName: assignment.routeName || "",
+      routeRunId: assignment.routeRunId || "",
+      routeId: assignment.routeId || "",
+      routeStopCount,
+      routeStops: children
+        .slice()
+        .sort((first, second) => (first.routeStopIndex || 0) - (second.routeStopIndex || 0))
+        .map((child) => ({
+          assignmentId: child._id,
+          propertyId: child.propertyId,
+          propertyName: child.propertyName,
+          stopIndex: child.routeStopIndex || 0,
+        })),
       assigneeLabel: assignedUserEmail,
       start: calendarDates.start,
       end: calendarDates.end,
@@ -369,6 +453,24 @@ function Scheduler() {
         : queueForAssignment(assignment) === "afterlight_coverage" ? "afterlight" : "customer",
       allDay: true, // This flag tells react-big-calendar to treat this as an all-day event
     };
+  };
+
+  // A route run persists as normal per-property assignments, but appears as one
+  // clearly labeled calendar event and is edited/canceled as a group.
+  const seenRouteRuns = new Set();
+  const events = [];
+  assignments.forEach((assignment) => {
+    if (!assignment.routeRunId) {
+      events.push(eventForAssignment(assignment));
+      return;
+    }
+    const routeRunId = String(assignment.routeRunId);
+    if (seenRouteRuns.has(routeRunId)) return;
+    seenRouteRuns.add(routeRunId);
+    const routeChildren = assignments.filter((candidate) =>
+      String(candidate.routeRunId || "") === routeRunId
+    );
+    events.push(eventForAssignment(assignment, routeChildren));
   });
 
   const customerAssignments = assignments.filter((assignment) => queueForAssignment(assignment) === "customer_assigned");
@@ -431,8 +533,12 @@ function Scheduler() {
           aria-labelledby="assignment-editor-title">
           <div className="beta-scheduler-editor-header">
             <div>
-              <span className="beta-eyebrow">{editingAssignment ? "Scheduled assignment" : "New assignment"}</span>
-              <h2 id="assignment-editor-title">{editingAssignment ? "Edit assignment" : "Create assignment"}</h2>
+              <span className="beta-eyebrow">{editingAssignment
+                ? editingAssignment.routeRunId ? "Scheduled ROUTE assignment" : "Scheduled assignment"
+                : "New assignment"}</span>
+              <h2 id="assignment-editor-title">{editingAssignment
+                ? editingAssignment.routeRunId ? "Edit ROUTE assignment" : "Edit assignment"
+                : "Create assignment"}</h2>
               <p>{newAssignment.startDate
                 ? `Scheduled for ${moment(newAssignment.startDate).format("MMMM D, YYYY")}`
                 : "Choose the property, assignee, and schedule."}</p>
@@ -446,22 +552,71 @@ function Scheduler() {
           </p>}
 
       <form onSubmit={handleSaveAssignment} className="assignment-form beta-scheduler-form beta-scheduler-editor-form">
-  <label>Property:</label>
-  <select
-    ref={propertySelectRef}
-    value={newAssignment.propertyName}
-    onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value, userId: "", fulfillmentSource: "", fulfillmentOverrideReason: "" })}
-    required
-  >
-    <option value="">Select Property</option>
-    {properties.map((prop) => (
-      <option key={prop.name} value={prop.name}>{prop.name}</option>
-    ))}
-  </select>
+  <label>Assignment type:</label>
+  <div className="beta-scheduler-assignment-type" role="group" aria-label="Assignment type">
+    <button type="button" className={newAssignment.assignmentType === "property" ? "active" : ""}
+      disabled={Boolean(editingAssignment)}
+      onClick={() => setNewAssignment({ ...EMPTY_ASSIGNMENT, assignmentType: "property", startDate: newAssignment.startDate, endDate: newAssignment.endDate })}>
+      Property
+    </button>
+    <button type="button" className={newAssignment.assignmentType === "route" ? "active" : ""}
+      disabled={Boolean(editingAssignment) || !routes.length}
+      onClick={() => setNewAssignment({ ...EMPTY_ASSIGNMENT, assignmentType: "route", startDate: newAssignment.startDate, endDate: newAssignment.endDate })}>
+      Route
+    </button>
+  </div>
+
+  {newAssignment.assignmentType === "route" ? <>
+    <label htmlFor="assignment-route">Route:</label>
+    <select
+      id="assignment-route"
+      ref={propertySelectRef}
+      value={newAssignment.routeId}
+      disabled={Boolean(editingAssignment)}
+      onChange={(e) => setNewAssignment({ ...newAssignment, routeId: e.target.value, userId: "", fulfillmentSource: "", fulfillmentOverrideReason: "" })}
+      required
+    >
+      <option value="">Select Route</option>
+      {routes.map((route) => (
+        <option key={route._id} value={route._id}>{route.name} ({(route.propertyIds || []).length} stops)</option>
+      ))}
+      {editingAssignment?.routeRunId && !routes.some((route) => String(route._id) === String(newAssignment.routeId)) && (
+        <option value={newAssignment.routeId}>{editingAssignment.routeName} ({editingAssignment.routeStopCount} stops)</option>
+      )}
+    </select>
+  </> : <>
+    <label htmlFor="assignment-property">Property:</label>
+    <select
+      id="assignment-property"
+      ref={propertySelectRef}
+      value={newAssignment.propertyName}
+      disabled={Boolean(editingAssignment?.routeRunId)}
+      onChange={(e) => setNewAssignment({ ...newAssignment, propertyName: e.target.value, userId: "", fulfillmentSource: "", fulfillmentOverrideReason: "" })}
+      required
+    >
+      <option value="">Select Property</option>
+      {properties.map((prop) => (
+        <option key={prop.name} value={prop.name}>{prop.name}</option>
+      ))}
+    </select>
+  </>}
+
+  {selectedRoute && <div className="beta-route-assignment-preview">
+    <strong>ROUTE assignment · {selectedRouteProperties.length} stops</strong>
+    <ol>{selectedRouteProperties.map((property, index) => <li key={property._id || property.propertyId}>
+      <span>{index + 1}</span>{property.name || property.propertyName}
+    </li>)}</ol>
+    <small>One grouped notification and calendar entry will be created. Pricing and pay remain per property.</small>
+  </div>}
+
+  {mixedRouteDefaults && <p className="beta-alert notice">
+    This route's properties use different fulfillment defaults. Choose one fulfillment option for this route assignment.
+  </p>}
 
   <label>Fulfillment:</label>
   <select
     value={newAssignment.fulfillmentSource}
+    disabled={Boolean(editingAssignment?.routeRunId)}
     onChange={(e) => setNewAssignment({ ...newAssignment, userId: "", fulfillmentSource: e.target.value })}
   >
     <option value="">
@@ -477,6 +632,7 @@ function Scheduler() {
   <label>Assignee:</label>
   <select
     value={newAssignment.userId}
+    disabled={Boolean(editingAssignment?.routeRunId)}
     onChange={(e) => setNewAssignment({ ...newAssignment, userId: e.target.value })}
     required
   >
@@ -503,8 +659,12 @@ function Scheduler() {
     <>
       <label>Suggested client amount:</label>
       <div className="beta-assignment-routing-preview">
-        <strong>{selectedProperty ? propertySuggestedAmount(selectedProperty) : "Select a property"}</strong>
-        <span>Property billing setting</span>
+        <strong>{newAssignment.assignmentType === "route"
+          ? selectedRouteProperties.length
+            ? selectedRouteProperties.map((property) => `${property.name}: ${propertySuggestedAmount(property)}`).join(" · ")
+            : "Select a route"
+          : selectedProperty ? propertySuggestedAmount(selectedProperty) : "Select a property"}</strong>
+        <span>{newAssignment.assignmentType === "route" ? "Per-property billing settings" : "Property billing setting"}</span>
       </div>
     </>
   )}
@@ -559,14 +719,16 @@ function Scheduler() {
 />
   <div className="beta-scheduler-actions">
     <button type="submit" className="create-button">
-      {editingAssignment ? "Update Assignment" : "Create Assignment"}
+      {editingAssignment
+        ? editingAssignment.routeRunId ? "Update ROUTE Assignment" : "Update Assignment"
+        : newAssignment.assignmentType === "route" ? "Create ROUTE Assignment" : "Create Assignment"}
     </button>
     <button type="button" className="history-button" onClick={() => setEditorOpen(false)}>
       Close
     </button>
     {editingAssignment && (
       <button type="button" className="delete-button" onClick={handleDeleteAssignment}>
-        Cancel Assignment
+        {editingAssignment.routeRunId ? "Cancel Entire ROUTE" : "Cancel Assignment"}
       </button>
     )}
   </div>

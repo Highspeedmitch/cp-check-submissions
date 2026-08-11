@@ -1,8 +1,10 @@
 # Review portfolio reporting
 
-**Audience:** Organization administrators and property managers
+**Audience:** Organization administrators and property managers on service plans that include Portfolio Reporting
 
 Use **Reporting** to review inspection volume, issue trends, and Field Operator activity across the properties available to your account.
+
+Reporting is included with Full-stack SaaS, Hybrid, and Managed service. It is not included with Boutique service, so Boutique administrators and property managers do not see the Reporting navigation or receive monthly executive summaries.
 
 Reporting has two views:
 

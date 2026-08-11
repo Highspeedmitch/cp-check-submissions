@@ -8,6 +8,8 @@ jest.mock("./components/Scheduler", () => () => <div>Scheduler</div>);
 jest.mock("./components/ResidentialForm", () => () => <div>Residential Form</div>);
 jest.mock("./components/ResourceDashboard", () => () => <div>Resource Workspace</div>);
 jest.mock("./components/ExternalConnections", () => () => <div>External Connections Page</div>);
+jest.mock("./components/Reporting", () => () => <div>Portfolio Reporting</div>);
+jest.mock("./components/FormPage", () => () => <div>Commercial Inspection Form</div>);
 jest.mock("./components/help/HelpArticle", () => () => <div>Public Contractor Setup Guide</div>);
 
 function renderApp(initialPath = "/") {
@@ -76,6 +78,77 @@ test("allows Afterlight resource identities to open External Connections", async
   renderApp("/external-connections");
 
   expect(await screen.findByText("External Connections Page")).toBeInTheDocument();
+});
+
+test("redirects Boutique property managers away from the Reporting route", async () => {
+  localStorage.setItem("token", "test-token");
+  localStorage.setItem("role", "property_manager");
+  localStorage.setItem("accountScope", "organization");
+  localStorage.setItem("serviceModel", "boutique");
+  localStorage.setItem("portfolioReportingIncluded", "false");
+
+  renderApp("/reporting");
+
+  expect(await screen.findByText("Dashboard")).toBeInTheDocument();
+  expect(screen.queryByText("Portfolio Reporting")).not.toBeInTheDocument();
+});
+
+test("keeps portfolio Reporting available to an entitled property manager", async () => {
+  localStorage.setItem("token", "test-token");
+  localStorage.setItem("role", "property_manager");
+  localStorage.setItem("accountScope", "organization");
+  localStorage.setItem("serviceModel", "managed");
+  localStorage.setItem("portfolioReportingIncluded", "true");
+
+  renderApp("/reporting");
+
+  expect(await screen.findByText("Portfolio Reporting")).toBeInTheDocument();
+});
+
+test("redirects Boutique organization users away from an unassigned inspection form", async () => {
+  localStorage.setItem("token", "test-token");
+  localStorage.setItem("role", "user");
+  localStorage.setItem("accountScope", "organization");
+  localStorage.setItem("serviceModel", "boutique");
+
+  renderApp("/form/Small%20Shop");
+
+  expect(await screen.findByText("Dashboard")).toBeInTheDocument();
+  expect(screen.queryByText("Commercial Inspection Form")).not.toBeInTheDocument();
+});
+
+test("retains an exact legacy assignment after an organization moves to Boutique", async () => {
+  localStorage.setItem("token", "test-token");
+  localStorage.setItem("role", "user");
+  localStorage.setItem("accountScope", "organization");
+  localStorage.setItem("serviceModel", "boutique");
+
+  renderApp("/form/Small%20Shop?assignmentId=legacy-assignment-1");
+
+  expect(await screen.findByText("Commercial Inspection Form")).toBeInTheDocument();
+});
+
+test("Afterlight resources require an assignment before opening any inspection form", async () => {
+  localStorage.setItem("token", "test-token");
+  localStorage.setItem("role", "contractor");
+  localStorage.setItem("accountScope", "afterlight_resource");
+  localStorage.setItem("serviceModel", "boutique");
+
+  renderApp("/form/Small%20Shop");
+
+  expect(await screen.findByText("Resource Workspace")).toBeInTheDocument();
+  expect(screen.queryByText("Commercial Inspection Form")).not.toBeInTheDocument();
+});
+
+test("assigned Afterlight resources can open the Boutique inspection form", async () => {
+  localStorage.setItem("token", "test-token");
+  localStorage.setItem("role", "contractor");
+  localStorage.setItem("accountScope", "afterlight_resource");
+  localStorage.setItem("serviceModel", "boutique");
+
+  renderApp("/form/Small%20Shop?assignmentId=afterlight-assignment-1");
+
+  expect(await screen.findByText("Commercial Inspection Form")).toBeInTheDocument();
 });
 
 test("allows the contractor account setup guide before authentication", async () => {

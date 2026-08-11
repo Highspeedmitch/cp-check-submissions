@@ -89,7 +89,7 @@ test("platform pricing estimation reuses the bid pricing contract without persis
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.version, 5);
+  assert.equal(res.body.version, 6);
   assert.equal(res.body.estimatedPerVisitCents, 20000);
   assert.equal(res.body.estimatedMonthlyCents, 20000);
   assert.equal(res.body.managedService.baseMonthlyFeeCents, 50000);
@@ -119,6 +119,104 @@ test("platform pricing estimation calculates eligible property clusters", () => 
   assert.equal(res.body.estimatedPerVisitCents, 10000);
 });
 
+test("platform pricing estimation calculates a Boutique contract from backend road travel", async () => {
+  let matrixPoints;
+  const handler = platformRouter.createPricingEstimateHandler({
+    OrganizationModel: {
+      findById() { throw new Error("Boutique prospect pricing must not query an organization"); },
+    },
+    homeBaseResolver: () => ({
+      id: "operations-base",
+      name: "Tucson operations base",
+      lat: 32.25,
+      lng: -110.93,
+    }),
+    routingClientResolver: () => ({
+      async getDrivingMatrix(points) {
+        matrixPoints = points;
+        return {
+          provider: "mapbox",
+          distancesMeters: [
+            [0, 15 * 1609.344],
+            [15 * 1609.344, 0],
+          ],
+          durationsSeconds: [
+            [0, 30 * 60],
+            [30 * 60, 0],
+          ],
+        };
+      },
+    }),
+  });
+  const res = response();
+  await handler({ body: {
+    pricingMode: "boutique",
+    properties: [{
+      grossSquareFeet: 1500,
+      propertyType: "free_standing",
+      candidate: {
+        id: "address.1",
+        name: "Small Office",
+        lat: 32.22,
+        lng: -110.88,
+      },
+    }],
+    sameScheduledVisit: true,
+  } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.version, "boutique-1");
+  assert.equal(res.body.pricingMode, "boutique");
+  assert.equal(res.body.baseVisitTotalCents, 5000);
+  assert.equal(res.body.travelAdjustmentCents, 3000);
+  assert.equal(res.body.estimatedMonthlyCents, 8000);
+  assert.equal(res.body.boutiqueService.baseMonthlyFeeCents, 7500);
+  assert.equal(res.body.boutiqueService.estimatedContractMonthlyCents, 15500);
+  assert.equal(res.body.properties[0].baseVisitCents, 5000);
+  assert.equal(res.body.properties[0].travelAdjustmentCents, 3000);
+  assert.equal(res.body.properties[0].estimatedMonthlyCents, 8000);
+  assert.equal(res.body.geography.method, "road_matrix");
+  assert.equal(matrixPoints.length, 2);
+  assert.equal(JSON.stringify(res.body).includes("32.25"), false);
+  assert.equal(JSON.stringify(res.body).includes("-110.93"), false);
+});
+
+test("platform Boutique pricing rejects a fourth property and the exclusive size boundary", async () => {
+  const handler = platformRouter.createPricingEstimateHandler({
+    homeBaseResolver: () => ({ lat: 32.25, lng: -110.93 }),
+    routingClientResolver: () => null,
+  });
+  const candidate = (index, grossSquareFeet = 1000) => ({
+    grossSquareFeet,
+    propertyType: "free_standing",
+    candidate: { lat: 32.2 + (index / 100), lng: -110.9 - (index / 100) },
+  });
+  const tooMany = response();
+  await handler({ body: {
+    pricingMode: "boutique",
+    properties: [candidate(1), candidate(2), candidate(3), candidate(4)],
+  } }, tooMany);
+  assert.equal(tooMany.statusCode, 400);
+  assert.match(tooMany.body.error, /between 1 and 3 properties/i);
+
+  const tooLarge = response();
+  await handler({ body: {
+    pricingMode: "boutique",
+    properties: [candidate(1, 5000)],
+  } }, tooLarge);
+  assert.equal(tooLarge.statusCode, 409);
+  assert.match(tooLarge.body.error, /under 5,000 square feet/i);
+
+  const weekly = response();
+  await handler({ body: {
+    pricingMode: "boutique",
+    serviceFrequency: "weekly",
+    properties: [candidate(1)],
+  } }, weekly);
+  assert.equal(weekly.statusCode, 400);
+  assert.match(weekly.body.error, /only for monthly visits/i);
+});
+
 test("platform pricing estimation returns safe validation errors", () => {
   const res = response();
   pricingRoute().stack[2].handle({
@@ -146,6 +244,14 @@ test("platform pricing estimation derives road-matrix portfolio context on the b
       { _id: "property-2", name: "Internal Property", lat: 32.22, lng: -110.9,
         fulfillmentPolicy: { defaultSource: "customer_employee" } },
     ],
+    routes: [{
+      _id: "route-1",
+      name: "East/Central",
+      region: "Tucson - East/Central",
+      propertyIds: ["property-1"],
+      status: "active",
+      version: 2,
+    }],
   };
   const query = {
     select() { return this; },
@@ -183,6 +289,7 @@ test("platform pricing estimation derives road-matrix portfolio context on the b
     body: {
       pricingMode: "route_aware",
       organizationId: "organization-1",
+      routeId: "route-1",
       candidate: { id: "address.1", name: "Candidate", lat: 32.22, lng: -110.88 },
       routeCommitment: "modeled",
       grossSquareFeet: 18000,
@@ -193,13 +300,54 @@ test("platform pricing estimation derives road-matrix portfolio context on the b
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.version, 5);
+  assert.equal(res.body.version, 6);
   assert.equal(res.body.pricingMode, "route_aware");
   assert.equal(res.body.organization.name, "Example Organization");
   assert.equal(res.body.geography.portfolio.propertyCount, 1);
+  assert.equal(res.body.geography.route.routeId, "route-1");
+  assert.equal(res.body.geography.route.routeVersion, 2);
   assert.equal(res.body.geography.method, "road_matrix");
   assert.equal(res.body.geography.home.lat, undefined);
   assert.deepEqual(res.body.manualReviewReasons, []);
+});
+
+test("platform route-aware pricing rejects a full saved route", async () => {
+  const propertyIds = ["one", "two", "three", "four", "five", "six"];
+  const organization = {
+    _id: "organization-1",
+    name: "Example",
+    serviceModel: "managed",
+    fulfillmentPolicy: { defaultSource: "afterlight_staff" },
+    properties: propertyIds.map((id, index) => ({
+      _id: id,
+      name: id,
+      lat: 32.2 + (index / 100),
+      lng: -110.9 - (index / 100),
+    })),
+    routes: [{
+      _id: "route-full",
+      name: "Full route",
+      propertyIds,
+      status: "active",
+    }],
+  };
+  const handler = platformRouter.createPricingEstimateHandler({
+    OrganizationModel: { findById: () => Promise.resolve(organization) },
+    homeBaseResolver: () => ({ lat: 32.25, lng: -110.93 }),
+  });
+  const res = response();
+  await handler({ body: {
+    pricingMode: "route_aware",
+    organizationId: "organization-1",
+    routeId: "route-full",
+    candidate: { lat: 32.22, lng: -110.88 },
+    grossSquareFeet: 18000,
+    propertyType: "free_standing",
+    serviceFrequency: "monthly",
+  } }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /maximum of 6 properties/);
 });
 
 test("platform pricing estimation falls back safely when road routing is unavailable", async () => {
@@ -238,11 +386,14 @@ test("platform pricing estimation falls back safely when road routing is unavail
   } }, res);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.geography.method, "modeled_coordinates");
+  assert.equal(res.body.geography.route.source, "standalone");
+  assert.equal(res.body.geography.route.stopCount, 0);
+  assert.equal(res.body.geography.route.commitment, "none");
   assert.deepEqual(res.body.manualReviewReasons, ["routing_provider_fallback"]);
   assert.equal(JSON.stringify(res.body).includes("private token or provider detail"), false);
 });
 
-test("portfolio-aware estimates require organization and backend home-base configuration", async () => {
+test("route-aware estimates require organization and backend home-base configuration", async () => {
   const handler = platformRouter.createPricingEstimateHandler({
     OrganizationModel: {
       findById: () => ({
@@ -279,7 +430,7 @@ test("portfolio-aware estimates require organization and backend home-base confi
   assert.match(missingBase.body.error, /not configured/);
 });
 
-test("portfolio-aware organization lookup failures do not expose database errors", async () => {
+test("route-aware organization lookup failures do not expose database errors", async () => {
   const castError = new Error("Cast to ObjectId failed for value private-detail");
   castError.name = "CastError";
   const invalidIdHandler = platformRouter.createPricingEstimateHandler({

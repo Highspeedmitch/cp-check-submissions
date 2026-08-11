@@ -4,6 +4,7 @@ const Submission = require("../models/submission");
 const BidRequest = require("../models/bidRequest");
 const Invoice = require("../models/invoice");
 const OrganizationInvitation = require("../models/organizationInvitation");
+const { resolveLicenseEntitlements } = require("./licenseEntitlements");
 
 function countMap(rows) {
   return new Map(rows.map((row) => [String(row._id), row.count]));
@@ -27,9 +28,11 @@ async function getPlatformOrganizationMetrics({
         name: 1,
         orgType: 1,
         serviceModel: 1,
+        license: 1,
         onboarding: 1,
         security: 1,
         billingCapabilities: 1,
+        routes: 1,
         propertyCount: { $size: { $ifNull: ["$properties", []] } },
         emailApPropertyCount: {
           $size: {
@@ -86,11 +89,18 @@ async function getPlatformOrganizationMetrics({
   }]));
   const rows = organizations.map((organization) => {
     const id = String(organization._id);
+    const entitlements = resolveLicenseEntitlements(organization);
     return {
       organizationId: id,
       name: organization.name,
       orgType: organization.orgType,
       serviceModel: organization.serviceModel || "managed",
+      planLabel: entitlements.label,
+      recurringMonthlyFeeCents: entitlements.recurringMonthlyFeeCents,
+      currency: entitlements.currency,
+      visitChargesBilledSeparately: entitlements.visitChargesBilledSeparately,
+      portfolioReportingIncluded: entitlements.portfolioReportingIncluded,
+      monthlyExecutiveSummaryIncluded: entitlements.monthlyExecutiveSummaryIncluded,
       propertyCount: organization.propertyCount || 0,
       emailApPropertyCount: organization.emailApPropertyCount || 0,
       invoiceApprovalExperience:
@@ -100,6 +110,16 @@ async function getPlatformOrganizationMetrics({
       pendingBidCount: bidCounts.get(id) || 0,
       pendingInvoiceCount: invoiceCounts.get(id) || 0,
       pendingAdminInvitation: adminInvitations.get(id) || null,
+      routes: (organization.routes || [])
+        .filter((route) => route.status !== "archived")
+        .map((route) => ({
+          routeId: String(route._id),
+          name: route.name,
+          region: route.region,
+          version: Number(route.version) || 1,
+          stopCount: Array.isArray(route.propertyIds) ? route.propertyIds.length : 0,
+          status: route.status || "active",
+        })),
       onboarding: organization.onboarding ? {
         status: organization.onboarding.status || "invited",
         initiatedAt: organization.onboarding.initiatedAt || null,

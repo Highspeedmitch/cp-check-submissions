@@ -5,6 +5,7 @@ function PropertySection({
   properties,
   completedProperties,
   isManagement,
+  canStartInspection = true,
   role,
   orgName,
   orgType,
@@ -29,7 +30,9 @@ function PropertySection({
           <p>
             {isManagement
               ? "Review inspections and property activity."
-              : "Select a property to begin an inspection."}
+              : canStartInspection
+                ? "Select a property to begin an inspection."
+                : "Afterlight resources complete inspections for this service plan."}
           </p>
         </div>
       </div>
@@ -41,6 +44,7 @@ function PropertySection({
               key={property._id || property.name}
               property={property}
               isManagement={isManagement}
+              canStartInspection={canStartInspection}
               isCompleted={completedProperties.includes(property.name)}
               hasNewActivity={isManagement && activityRoutes.includes(activityRoute)}
               role={role}

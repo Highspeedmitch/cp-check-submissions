@@ -11,8 +11,8 @@ const TEMPLATES = {
     "manager@example.com,property_manager,,Property One|Property Two",
   ].join("\n"),
   properties: [
-    "name,property_code,physical_address,billing_address,region,latitude,longitude,inspection_recipient_emails",
-    "Property One,P-001,100 Main Street,PO Box 100,Central,33.4484,-112.0740,operations@example.com|owner@example.com",
+    "name,property_code,physical_address,billing_address,region,gross_square_feet,property_type,latitude,longitude,inspection_recipient_emails",
+    "Property One,P-001,100 Main Street,PO Box 100,Central,4500,free_standing,33.4484,-112.0740,operations@example.com|owner@example.com",
   ].join("\n"),
 };
 

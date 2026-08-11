@@ -46,6 +46,10 @@ test("secure links support Afterlight and customer contractor invoices with auto
     propertySnapshot: { apMethod: "email", apEmail: "ap@client.example" },
   };
   assert.equal(secureEmailApprovalEligible(organization, invoice), true);
+  assert.equal(secureEmailApprovalEligible({
+    ...organization,
+    serviceModel: "boutique",
+  }, invoice), true);
   assert.equal(secureEmailApprovalEligible(organization, {
     billingOwner: "customer_submitter",
     fulfillmentSnapshot: { invoiceRouting: "customer_accounts_payable" },

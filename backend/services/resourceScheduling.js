@@ -6,6 +6,12 @@ const {
   customerEngagementLabel,
   customerEngagementMatchesFulfillment,
 } = require("./organizationUserClassification");
+const {
+  deploymentAllowsProperty,
+  deploymentScopeMode,
+  effectivePropertyIdsForDeployment,
+  effectivePropertyIdsForUser,
+} = require("./routeScopes");
 
 function validationError(message) {
   const error = new Error(message);
@@ -19,6 +25,7 @@ async function resolveAssignmentAssignee({
   organizationId,
   property,
   startDate,
+  organization = null,
   UserModel = User,
   ResourceProfileModel = ResourceProfile,
   ResourceDeploymentModel = ResourceDeployment,
@@ -38,6 +45,12 @@ async function resolveAssignmentAssignee({
     }
     if (!customerEngagementMatchesFulfillment(assignedUser, fulfillment.source)) {
       throw validationError(`Select a ${customerEngagementLabel(fulfillment.source)} field operator for this fulfillment type.`);
+    }
+    if (organization && property?._id != null && !effectivePropertyIdsForUser(organization, {
+      ...assignedUser,
+      userId: assignedUser._id,
+    }).some((propertyId) => String(propertyId) === String(property._id))) {
+      throw validationError("That field operator is not eligible for this property.");
     }
     return {
       userId: assignedUser._id,
@@ -64,16 +77,25 @@ async function resolveAssignmentAssignee({
     throw validationError("Select an Afterlight employee or owner for Afterlight staff fulfillment.");
   }
   const effectiveAt = new Date(startDate);
-  const deployment = await ResourceDeploymentModel.findOne({
+  const deploymentQuery = {
     resourceProfileId: resource._id,
     organizationId,
     status: "active",
     startsAt: { $lte: effectiveAt },
-    $and: [
+    $or: [{ endsAt: null }, { endsAt: { $gte: effectiveAt } }],
+  };
+  if (!organization) {
+    deploymentQuery.$and = [
       { $or: [{ endsAt: null }, { endsAt: { $gte: effectiveAt } }] },
       { $or: [{ propertyIds: { $size: 0 } }, { propertyIds: property._id }] },
-    ],
-  }).lean();
+    ];
+    delete deploymentQuery.$or;
+  }
+  const deployment = await ResourceDeploymentModel.findOne(deploymentQuery).lean();
+  if (deployment && organization
+    && !deploymentAllowsProperty(organization, deployment, property._id)) {
+    throw validationError("That Afterlight resource is not deployed to this property for the selected date.");
+  }
   if (!deployment) {
     throw validationError("That Afterlight resource is not deployed to this property for the selected date.");
   }
@@ -107,6 +129,7 @@ async function deployedSchedulerResources({
   organizationId,
   serviceModel,
   now = new Date(),
+  organization = null,
   ResourceProfileModel = ResourceProfile,
   ResourceDeploymentModel = ResourceDeployment,
 }) {
@@ -140,7 +163,12 @@ async function deployedSchedulerResources({
       resourceType,
       resourceProfileId: profile._id,
       resourceDeploymentId: deployment._id,
-      propertyIds: deployment.propertyIds || [],
+      propertyIds: organization && deploymentScopeMode(deployment) === "selected"
+        ? effectivePropertyIdsForDeployment(organization, deployment)
+        : deployment.propertyIds || [],
+      directPropertyIds: deployment.propertyIds || [],
+      routeIds: deployment.routeIds || [],
+      scopeMode: deploymentScopeMode(deployment),
     };
   });
 }

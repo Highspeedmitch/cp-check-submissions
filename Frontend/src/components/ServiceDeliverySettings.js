@@ -12,6 +12,7 @@ import {
 const SERVICE_MODEL_LABELS = {
   platform: "Full-stack SaaS",
   managed: "Managed service",
+  boutique: "Boutique",
   hybrid: "Hybrid",
 };
 
@@ -79,14 +80,43 @@ function limitSummary(limits) {
   return `${limits.adminLimit} administrators, ${limits.userLimit} users, ${limits.propertyLimit} properties`;
 }
 
+function currencyAmount(cents, currency = "USD") {
+  if (cents == null || !Number.isFinite(Number(cents))) return "Not configured";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Number(cents) / 100);
+}
+
+function planMonthlyFee(settings, serviceModel, tier) {
+  if (serviceModel === "managed") return settings.options.managedServiceBaseMonthlyCents;
+  if (serviceModel === "boutique") return settings.options.boutiqueServiceBaseMonthlyCents;
+  return settings.options.tierRecurringMonthlyPricesCents?.[tier];
+}
+
+function serviceModelOptionLabel(settings, serviceModel) {
+  if (serviceModel === "managed") {
+    return `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(settings.options.managedServiceBaseMonthlyCents)}/month + visit charges`;
+  }
+  if (serviceModel === "boutique") {
+    return `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(settings.options.boutiqueServiceBaseMonthlyCents)}/month + visit charges · 1-3 properties under 5,000 sq ft`;
+  }
+  const prices = Object.values(settings.options.tierRecurringMonthlyPricesCents || {});
+  return prices.length
+    ? `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(Math.min(...prices))}-${currencyAmount(Math.max(...prices))}/month by tier`
+    : SERVICE_MODEL_LABELS[serviceModel];
+}
+
 function tierOptionSummary(settings, serviceModel, tier) {
   const capacity = limitSummary(settings.options.tierLimits[tier]);
+  const monthlyFee = `${currencyAmount(planMonthlyFee(settings, serviceModel, tier))}/month`;
   const hybridMinimum = serviceModel === "hybrid"
     ? settings.options.hybridPortfolioMinimums?.[tier]
     : null;
   return hybridMinimum == null
-    ? capacity
-    : `${capacity}, ${hybridMinimum}% monthly portfolio minimum assigned to Afterlight`;
+    ? `${monthlyFee}, ${capacity}`
+    : `${monthlyFee}, ${capacity}, ${hybridMinimum}% monthly portfolio minimum assigned to Afterlight`;
 }
 
 export default function ServiceDeliverySettings() {
@@ -116,11 +146,15 @@ export default function ServiceDeliverySettings() {
     });
     setAudit(nextAudit);
     setRequests(nextRequests);
+    const selectableServiceModels = nextSettings.options.serviceModels.filter((model) => (
+      model !== nextSettings.organization.serviceModel
+      && (model !== "boutique" || nextSettings.organization.orgType === "COM")
+    ));
     setRequestDraft((current) => ({
       ...current,
-      requestedServiceModel: current.requestedServiceModel
-        || nextSettings.options.serviceModels.find((model) => model !== nextSettings.organization.serviceModel)
-        || "",
+      requestedServiceModel: selectableServiceModels.includes(current.requestedServiceModel)
+        ? current.requestedServiceModel
+        : selectableServiceModels[0] || "",
       requestedLicenseTier: current.requestedLicenseTier
         || nextSettings.organization.license?.tier
         || nextSettings.options.licenseTiers?.[0]
@@ -271,6 +305,12 @@ export default function ServiceDeliverySettings() {
   const requestedModelUsesTiers = Boolean(
     settings?.options.meteredServiceModels?.includes(requestDraft.requestedServiceModel)
   );
+  const selectableServiceModels = settings
+    ? settings.options.serviceModels.filter((model) => (
+      model !== settings.organization.serviceModel
+      && (model !== "boutique" || settings.organization.orgType === "COM")
+    ))
+    : [];
 
   const saveProperty = async (propertyId, defaultSource) => {
     setSaving(propertyId);
@@ -322,6 +362,19 @@ export default function ServiceDeliverySettings() {
                   {tieredOrganization && <span className="beta-status success">{LICENSE_TIER_LABELS[currentTier]}</span>}
                 </div>
               </div>
+              <div className="beta-dialog-note">
+                <strong>{currencyAmount(settings.organization.license.recurringMonthlyFeeCents, settings.organization.license.currency)}/month organization fee</strong>
+                <p>
+                  {settings.organization.serviceModel === "managed"
+                    ? "Managed-service property visits are billed separately in addition to this base fee."
+                    : settings.organization.serviceModel === "boutique"
+                      ? "Boutique property visits are billed separately. This plan supports one to three properties under 5,000 square feet each and does not include portfolio reporting."
+                    : settings.organization.serviceModel === "hybrid"
+                      ? "Afterlight-serviced visits are billed separately; the tier portfolio minimum remains part of the agreement."
+                      : "This recurring fee covers the Full-stack SaaS license."}
+                </p>
+                <small>Pricing here records the contracted plan. This page does not yet generate a recurring corporate invoice.</small>
+              </div>
               {activeRequest ? (
                 <div className="beta-service-model-request-summary">
                   <div className="beta-card-header">
@@ -349,14 +402,14 @@ export default function ServiceDeliverySettings() {
                   <div className="beta-contract-change-option">
                     <div>
                       <h3>Change service model</h3>
-                      <p>Request a move between Full-stack SaaS, Managed service, and Hybrid delivery.</p>
+                      <p>Request a move between Full-stack SaaS, Boutique, Managed service, and Hybrid delivery.</p>
                     </div>
                     <form className="beta-form-grid beta-contract-change-form" onSubmit={submitServiceModelRequest}>
                       <label className="beta-form-field">Requested service model
                         <select required value={requestDraft.requestedServiceModel}
                           onChange={(event) => selectRequestedServiceModel(event.target.value)}>
-                          {settings.options.serviceModels.filter((model) => model !== settings.organization.serviceModel)
-                            .map((model) => <option key={model} value={model}>{SERVICE_MODEL_LABELS[model]}</option>)}
+                          {selectableServiceModels
+                            .map((model) => <option key={model} value={model}>{serviceModelOptionLabel(settings, model)}</option>)}
                         </select>
                       </label>
                       {requestedModelUsesTiers && (

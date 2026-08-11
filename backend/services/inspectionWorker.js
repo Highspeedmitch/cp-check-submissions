@@ -4,6 +4,7 @@ const Submission = require("../models/submission");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const Assignment = require("../models/assignment");
+const RouteRun = require("../models/routeRun");
 const Invoice = require("../models/invoice");
 const { generateChecklistPDF } = require("../pdfservice");
 const { ensureInspectionSummary } = require("./inspectionSummary");
@@ -37,6 +38,8 @@ const {
 } = require("./invoiceReview");
 const { issuerSnapshotForInvoice } = require("./invoiceIssuer");
 const { mergePropertyInspectionRecipients } = require("./propertyEmails");
+const { effectivePropertyManagerIds } = require("./routeScopes");
+const { requireBoutiqueInspectionAssignment } = require("./boutiquePolicy");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -109,6 +112,31 @@ function assignmentFulfillmentSnapshot(assignment, organization, job) {
     ? assignment.fulfillment.toObject()
     : assignment.fulfillment;
   return { ...stored };
+}
+
+async function resolveInspectionAssignment(job, { AssignmentModel = Assignment } = {}) {
+  if (job.assignmentId) {
+    const assignment = await AssignmentModel.findOne({
+      _id: job.assignmentId,
+      organizationId: job.organizationId,
+      userId: job.userId,
+      propertyName: job.propertyName,
+      status: { $in: ["scheduled", "completed"] },
+    });
+    if (!assignment) {
+      const error = new Error("The assigned work item is no longer available for this inspection.");
+      error.code = "INSPECTION_ASSIGNMENT_INVALID";
+      error.permanent = true;
+      throw error;
+    }
+    return assignment;
+  }
+  return AssignmentModel.findOne({
+    organizationId: job.organizationId,
+    propertyName: job.propertyName,
+    userId: job.userId,
+    status: "scheduled",
+  });
 }
 
 async function ensureSubmission(job, organization, property, assignment) {
@@ -218,11 +246,45 @@ async function ensureSubmission(job, organization, property, assignment) {
   return { submission, contractorEarning };
 }
 
-async function deliverNotifications(job, property, submission, assignment, contractorEarning) {
+async function refreshRouteRunStatus(
+  routeRunId,
+  { AssignmentModel = Assignment, RouteRunModel = RouteRun } = {}
+) {
+  if (!routeRunId) return null;
+  let childQuery = AssignmentModel.find({ routeRunId });
+  if (typeof childQuery.select === "function") childQuery = childQuery.select("status");
+  if (typeof childQuery.lean === "function") childQuery = childQuery.lean();
+  const childAssignments = await childQuery;
+  if (!childAssignments.length) return null;
+
+  const counts = childAssignments.reduce((result, child) => {
+    const status = child.status || "scheduled";
+    result[status] = (result[status] || 0) + 1;
+    return result;
+  }, {});
+  let status = "scheduled";
+  if (counts.completed === childAssignments.length) status = "completed";
+  else if (counts.completed && counts.scheduled) status = "in_progress";
+  else if (counts.completed) status = "partially_completed";
+  else if (counts.canceled === childAssignments.length) status = "canceled";
+
+  await RouteRunModel.updateOne(
+    { _id: routeRunId, status: { $ne: "canceled" } },
+    { $set: { status } }
+  );
+  return status;
+}
+
+async function deliverNotifications(
+  job,
+  organization,
+  property,
+  submission,
+  assignment,
+  contractorEarning
+) {
   if (job.notificationsSentAt) return;
-  const propertyManagerIds = [...new Set(
-    (property.propertyManagers || []).map((id) => id.toString())
-  )];
+  const propertyManagerIds = effectivePropertyManagerIds(organization, property);
   let recipientIds = propertyManagerIds;
   let event = inspectionSubmitted(job.propertyName, submission._id);
   if (assignment) {
@@ -270,6 +332,7 @@ async function deliverNotifications(job, property, submission, assignment, contr
         $inc: { calendarSequence: 1 },
       }
     );
+    await refreshRouteRunStatus(assignment.routeRunId);
   }
   job.notificationsSentAt = new Date();
   await job.save();
@@ -354,14 +417,11 @@ async function processInspectionJob(job) {
     error.permanent = true;
     throw error;
   }
-  const assignment = job.assignmentId
-    ? await Assignment.findById(job.assignmentId)
-    : await Assignment.findOne({
-        organizationId: job.organizationId,
-        propertyName: job.propertyName,
-        userId: job.userId,
-        status: "scheduled",
-      });
+  const assignment = await resolveInspectionAssignment(job);
+  requireBoutiqueInspectionAssignment(
+    organization,
+    job.assignmentId ? assignment : null
+  );
   const summaryResult = await ensureInspectionSummary(job, { organization });
   const generated = await ensurePdf(job, {
     coverSummary: summaryResult.coverSummary,
@@ -391,9 +451,16 @@ async function processInspectionJob(job) {
       },
     });
   }
-  await deliverNotifications(job, property, submission, assignment, contractorEarning);
+  await deliverNotifications(
+    job,
+    organization,
+    property,
+    submission,
+    assignment,
+    contractorEarning
+  );
 
-  const managerIds = [...new Set((property.propertyManagers || []).map(String))];
+  const managerIds = effectivePropertyManagerIds(organization, property);
   const propertyManagers = managerIds.length
     ? await User.find({
         _id: { $in: managerIds },
@@ -519,10 +586,12 @@ module.exports = {
   LEASE_MS,
   claimInspectionJob,
   processInspectionJob,
+  resolveInspectionAssignment,
   recordJobFailure,
   processNextInspectionJob,
   cleanupExpiredInspectionUploads,
   startInspectionWorker,
   deliverInspectionEmail,
   deliverInspectionEmailWithReviewFallback,
+  refreshRouteRunStatus,
 };

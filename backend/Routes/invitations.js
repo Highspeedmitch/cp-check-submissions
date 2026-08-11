@@ -10,6 +10,10 @@ const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails")
 const { registrationLimiter } = require("../middleware/rateLimits");
 const { hashInvitationToken, invitationRoleLabel } = require("../services/organizationInvitations");
 const { inferredCustomerEngagementType } = require("../services/organizationUserClassification");
+const {
+  OPERATIONAL_ROLES,
+  validateScopeSelection,
+} = require("../services/routeScopes");
 
 const router = express.Router();
 router.use(registrationLimiter);
@@ -109,11 +113,27 @@ router.post("/accept", async (req, res) => {
         }
       }
 
-      const assignedIds = new Set((invitation.propertyIds || []).map(String));
-      if (invitation.role === "property_manager" || invitation.role === "client") {
+      let scope;
+      try {
+        scope = validateScopeSelection(organization, {
+          role: invitation.role,
+          propertyIds: invitation.propertyIds || [],
+          routeIds: invitation.routeIds || [],
+        });
+      } catch (scopeError) {
+        throw Object.assign(new Error(`The invitation's property or route scope changed. Ask an administrator to issue a new invitation. ${scopeError.message}`), { statusCode: 409 });
+      }
+      const assignedIds = new Set(scope.propertyIds);
+      const assignedRouteIds = new Set(scope.routeIds);
+      if (["property_manager", "client"].includes(invitation.role)
+        || OPERATIONAL_ROLES.has(invitation.role)) {
         organization.properties.forEach((property) => {
           if (!assignedIds.has(String(property._id))) return;
-          const field = invitation.role === "client" ? "clientOwners" : "propertyManagers";
+          const field = invitation.role === "client"
+            ? "clientOwners"
+            : invitation.role === "property_manager"
+              ? "propertyManagers"
+              : "fieldOperators";
           property[field] = property[field] || [];
           if (!(property[field] || []).some((id) => String(id) === String(createdUser._id))) {
             property[field].push(createdUser._id);
@@ -125,6 +145,19 @@ router.post("/accept", async (req, res) => {
             );
           }
         });
+        (organization.routes || []).forEach((route) => {
+          if (route.status === "archived" || !assignedRouteIds.has(String(route._id))) return;
+          route.assignedUserIds = route.assignedUserIds || [];
+          if (!route.assignedUserIds.some((id) => String(id) === String(createdUser._id))) {
+            route.assignedUserIds.push(createdUser._id);
+          }
+        });
+        if (OPERATIONAL_ROLES.has(invitation.role)) {
+          organization.workScopeConfiguredUsers = organization.workScopeConfiguredUsers || [];
+          if (!organization.workScopeConfiguredUsers.some((id) => String(id) === String(createdUser._id))) {
+            organization.workScopeConfiguredUsers.push(createdUser._id);
+          }
+        }
         await organization.save({ session });
       }
 
@@ -147,6 +180,7 @@ router.post("/accept", async (req, res) => {
           role: invitation.role,
           engagementType: createdUser.engagementType,
           propertyIds: [...assignedIds],
+          routeIds: [...assignedRouteIds],
         },
       }], { session });
       acceptedOrganization = organization;

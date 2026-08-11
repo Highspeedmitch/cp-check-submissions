@@ -12,6 +12,7 @@ const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const {
   SERVICE_MODEL_DEFAULTS,
   organizationDefaultSource,
+  serviceModelAllowsAfterlightResources,
   validateServiceModel,
 } = require("../services/fulfillmentPolicy");
 const {
@@ -24,11 +25,13 @@ const {
 } = require("../services/notifications");
 const { servicePlanChangeEvent } = require("../services/notificationEvents");
 const {
+  BOUTIQUE_LIMITS,
   LICENSE_TIERS,
   METERED_SERVICE_MODELS,
   defaultStoredLicense,
   resolveLicenseEntitlements,
 } = require("../services/licenseEntitlements");
+const { validateBoutiquePortfolio } = require("../services/boutiquePolicy");
 const { capacitySnapshot: licensedCapacitySnapshot } = require("../services/licenseCapacity");
 
 const router = express.Router();
@@ -125,14 +128,48 @@ function storedLicense(organization, serviceModel, tier, updatedBy, updatedAt) {
   };
 }
 
-async function capacitySnapshot({ organization, UserModel, InvitationModel, now }) {
-  const snapshot = await licensedCapacitySnapshot({ organization, UserModel, InvitationModel, now });
+async function capacitySnapshot({ organization, UserModel, InvitationModel, now, session }) {
+  const snapshot = await licensedCapacitySnapshot({
+    organization,
+    UserModel,
+    InvitationModel,
+    now,
+    session,
+  });
   return {
     activeAdministratorCount: snapshot.activeAdministrators,
     pendingAdministratorCount: snapshot.pendingAdministrators,
     activeUserCount: snapshot.activeUsers,
     pendingUserCount: snapshot.pendingUsers,
   };
+}
+
+function boutiqueCandidate(organization) {
+  const snapshot = typeof organization?.toObject === "function"
+    ? organization.toObject()
+    : organization;
+  return {
+    ...(snapshot || {}),
+    serviceModel: "boutique",
+    properties: organization?.properties || snapshot?.properties || [],
+  };
+}
+
+function validateBoutiqueCapacity(usage, { status = 409 } = {}) {
+  const administratorCount = Number(usage?.activeAdministratorCount || 0)
+    + Number(usage?.pendingAdministratorCount || 0);
+  const userCount = Number(usage?.activeUserCount || 0)
+    + Number(usage?.pendingUserCount || 0);
+  if (administratorCount > BOUTIQUE_LIMITS.adminLimit
+    || userCount > BOUTIQUE_LIMITS.userLimit) {
+    const error = new Error(
+      `Boutique service supports up to ${BOUTIQUE_LIMITS.adminLimit} organization administrator and ${BOUTIQUE_LIMITS.userLimit} additional users.`
+    );
+    error.status = status;
+    error.code = "BOUTIQUE_USER_CAPACITY_EXCEEDED";
+    throw error;
+  }
+  return true;
 }
 
 function auditAction(request, status) {
@@ -316,6 +353,10 @@ function createServiceModelChangeHandlers({
         InvitationModel,
         now: requestedAt,
       });
+      if (requestedChangeType === "service_model" && requestedServiceModel === "boutique") {
+        validateBoutiquePortfolio(boutiqueCandidate(organization), { status: 409 });
+        validateBoutiqueCapacity(usage, { status: 409 });
+      }
       const request = await RequestModel.create({
         organizationId: organization._id,
         requestedBy: requester._id,
@@ -339,6 +380,8 @@ function createServiceModelChangeHandlers({
           requestedPropertyLimit: requestedEntitlements.propertyLimit,
           currentAfterlightPortfolioMinimumPercent: currentEntitlements.afterlightPortfolioMinimumPercent,
           requestedAfterlightPortfolioMinimumPercent: requestedEntitlements.afterlightPortfolioMinimumPercent,
+          currentRecurringMonthlyFeeCents: currentEntitlements.recurringMonthlyFeeCents,
+          requestedRecurringMonthlyFeeCents: requestedEntitlements.recurringMonthlyFeeCents,
           ...usage,
         },
         messages: [{
@@ -360,6 +403,7 @@ function createServiceModelChangeHandlers({
           currentLicenseTier,
           requestedLicenseTier,
           requestedAdminLimit: requestedEntitlements.adminLimit,
+          requestedRecurringMonthlyFeeCents: requestedEntitlements.recurringMonthlyFeeCents,
           proposedEffectiveDate: request.proposedEffectiveDate,
         },
       });
@@ -550,6 +594,16 @@ function createServiceModelChangeHandlers({
           const clearedPropertyOverrides = (organization.properties || [])
             .filter((property) => property.fulfillmentPolicy?.defaultSource).length;
           const transition = await runServiceModelTransaction(async (session) => {
+            if (request.requestedServiceModel === "boutique") {
+              validateBoutiquePortfolio(boutiqueCandidate(organization), { status: 409 });
+              validateBoutiqueCapacity(await capacitySnapshot({
+                organization,
+                UserModel,
+                InvitationModel,
+                now: reviewedAt,
+                session,
+              }), { status: 409 });
+            }
             for (const property of organization.properties || []) {
               property.fulfillmentPolicy = {
                 defaultSource: null,
@@ -571,7 +625,7 @@ function createServiceModelChangeHandlers({
               updatedBy: req.user.userId,
               updatedAt: reviewedAt,
             };
-            if (!["managed", "hybrid"].includes(request.requestedServiceModel)) {
+            if (!serviceModelAllowsAfterlightResources(request.requestedServiceModel)) {
               organization.billingCapabilities = {
                 invoiceApprovalExperience: "authenticated_portal",
                 emailApprovalTokenHours: 24,
@@ -600,7 +654,7 @@ function createServiceModelChangeHandlers({
               );
             }
             let revokedEmailApprovals = { modifiedCount: 0 };
-            if (!["managed", "hybrid"].includes(request.requestedServiceModel)) {
+            if (!serviceModelAllowsAfterlightResources(request.requestedServiceModel)) {
               revokedEmailApprovals = await updateMany(
                 InvoiceEmailAuthorizationModel,
                 {
@@ -712,6 +766,12 @@ function createServiceModelChangeHandlers({
           requestedAfterlightPortfolioMinimumPercent:
             appliedEntitlements?.afterlightPortfolioMinimumPercent
               ?? request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent
+              ?? null,
+          currentRecurringMonthlyFeeCents:
+            request.organizationSnapshot?.currentRecurringMonthlyFeeCents ?? null,
+          requestedRecurringMonthlyFeeCents:
+            appliedEntitlements?.recurringMonthlyFeeCents
+              ?? request.organizationSnapshot?.requestedRecurringMonthlyFeeCents
               ?? null,
           endedResourceDeploymentCount,
           revokedEmailApprovalAuthorizationCount,

@@ -40,12 +40,12 @@ Activation is blocked until the resource has a linked Afterlight user. Contracto
 ## Deploy the resource
 
 1. Under **Deploy a Resource**, select an active resource.
-2. Select an eligible managed or hybrid organization.
+2. Select an eligible Boutique, Managed service, or Hybrid organization.
 3. For a contractor, optionally enter a deployment-specific pay-rate override. Employee and owner deployments have no per-assignment payable rate.
-4. Select eligible properties. Leave the property selection empty only when the resource should be eligible across the entire organization.
+4. Under **Future scheduling scope**, choose **All organization properties** or **Selected properties and routes**. In selected scope, choose any required individual properties, active routes, or both.
 5. Select **Save Deployment**.
 
-An active deployment makes the resource selectable; it does not create an assignment. An organization administrator or property manager chooses **Afterlight contractor** for a 1099 resource or **Afterlight staff** for an employee or owner, then assigns the person to a date and property within the deployment scope.
+An active deployment makes the resource selectable; it does not create an assignment. A selected route includes every current route stop and follows future route edits. Individual property selections remain available for exceptions outside a route. An organization administrator or property manager chooses **Afterlight contractor** for a 1099 resource or **Afterlight staff** for an employee or owner, then assigns the person to a date and property or route within the deployment scope.
 
 ## Edit a deployment
 
@@ -53,13 +53,13 @@ Use deployment editing to change where a resource can be scheduled in the future
 
 1. Find the deployment in the table below **Deploy a Resource**.
 2. Select **Edit**.
-3. In **Edit Resource Deployment**, review the organization, eligible properties, and contractor pay override when applicable.
-4. Select a different managed or hybrid organization when the resource must move, or change the property scope within the current organization.
+3. In **Edit Resource Deployment**, review the organization, property/route scope, and contractor pay override when applicable.
+4. Select a different Boutique, Managed service, or Hybrid organization when the resource must move, or change the property and route scope within the current organization.
 5. Select **Save Changes**.
 
 Changing deployment scope affects future scheduling only. Existing assignments, completed inspections, earnings, and audit history remain linked to the original deployment context. Moving a resource to another organization does not move those historical records.
 
-Use **Pause** for a temporary stop and **Reactivate** when the same deployment should become eligible again. An empty eligible-property selection means all properties in that organization; it does not mean no properties.
+Use **Pause** for a temporary stop and **Reactivate** when the same deployment should become eligible again. **All organization properties** includes properties added later. **Selected properties and routes** requires at least one selection and follows future edits to every selected route. See [Manage property regions and routes](manage-property-regions-routes.md).
 
 ## Approve completed earnings
 
@@ -109,6 +109,7 @@ To restore a record, select **Find archived resource**, open **View details**, r
 - **The workspace switcher is missing:** Confirm that the email matches the existing user exactly, the resource profile is linked to that user, and the profile is not suspended. Ask the user to sign out and back in.
 - **The resource is missing from the Scheduler:** Confirm that the profile and deployment are active, the selected date is within the deployment period, and the selected property is in scope.
 - **A deployment update affects the wrong organization:** Cancel the edit before saving, reopen the intended deployment, and confirm the organization and property scope. Historical assignments will not move with a corrected deployment.
+- **A resource is missing for a route assignment:** Confirm that the deployment is active and that its selected properties and routes cover every current route stop.
 - **Activation is refused:** Link the Afterlight identity. For contractors, also complete Gusto onboarding before setting the Afterlight status to Active.
 - **Archiving is refused:** Reassign or cancel every scheduled assignment for the resource, then try again.
 - **A restored resource is still unavailable:** This is the safe default. Review and activate the resource, then reactivate or replace the appropriate deployment.

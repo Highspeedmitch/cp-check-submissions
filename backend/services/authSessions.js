@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { serviceModelIncludesPortfolioReporting } = require("./boutiquePolicy");
 const RefreshSession = require("../models/refreshSession");
 const { inferredCustomerEngagementType } = require("./organizationUserClassification");
 
@@ -46,6 +47,8 @@ function accessTokenPayload(user, authentication = {}) {
     userId: user._id,
     tokenVersion: user.tokenVersion || 0,
     orgType: organization.orgType,
+    serviceModel: organization.serviceModel || "managed",
+    reportingEnabled: serviceModelIncludesPortfolioReporting(organization),
     accountScope,
     availableWorkspaces: authentication.availableWorkspaces || [accountScope],
     ...(authentication.mfaAuthenticatedAt
@@ -61,6 +64,8 @@ function authResponse(user, secretKey, authentication = {}) {
     organizationId: payload.organizationId,
     orgName: user.organizationId.name,
     orgType: payload.orgType,
+    serviceModel: payload.serviceModel,
+    reportingEnabled: payload.reportingEnabled,
     role: payload.role,
     engagementType: payload.engagementType,
     platformRole: payload.platformRole,

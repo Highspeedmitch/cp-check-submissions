@@ -1,5 +1,28 @@
 # Licensing enforcement and bulk onboarding
 
+## Contract pricing
+
+Organization-level recurring prices are defined in `backend/services/servicePlanPricing.js`:
+
+| Service model | Tier | Recurring organization fee | Additional service billing |
+| --- | --- | ---: | --- |
+| Full-stack SaaS | Tier 1 | $300/month | None by default |
+| Full-stack SaaS | Tier 2 | $700/month | None by default |
+| Full-stack SaaS | Tier 3 | $1,000/month | None by default |
+| Hybrid | Tier 1 | $300/month | Afterlight visits billed separately; 15% monthly portfolio minimum |
+| Hybrid | Tier 2 | $700/month | Afterlight visits billed separately; 12% monthly portfolio minimum |
+| Hybrid | Tier 3 | $1,000/month | Afterlight visits billed separately; 10% monthly portfolio minimum |
+| Boutique service | Not tiered | $75/month | Afterlight visits billed separately; 1-3 properties under 5,000 square feet each |
+| Managed service | Not tiered | $500/month | Property visits billed separately |
+
+The Hybrid percentage is the minimum share of the monthly portfolio assigned to Afterlight. It is not a percentage surcharge on the license fee.
+
+Boutique service is a deliberately constrained Afterlight-operated plan for small commercial portfolios. Only organizations whose organization type is **Commercial** are eligible. It includes one administrator, two non-administrator users, and no more than three active properties. Every property must have a recorded gross area below 5,000 square feet; a property at exactly 5,000 square feet is not eligible. Boutique fulfillment is limited to Afterlight staff or Afterlight contractors. Portfolio Reporting and monthly executive summaries are not included. The $75 organization fee is charged once per organization each month, never once per property, and does not replace per-visit pricing.
+
+Boutique organization users do not receive a generic **Start Inspection** action. Field work opens from an exact scheduled assignment in the Afterlight resource workspace. An assignment created before a service-model transition remains available through its assignment-specific link and keeps its saved fulfillment and billing snapshot, but an unassigned organization submission is rejected.
+
+The service-plan interfaces display these contract terms and preserve the current and requested fee in each plan-change request. They do not yet create or collect an organization-level recurring invoice. Existing customer invoices remain tied to completed property visits.
+
 ## Licensed capacity
 
 backend/services/licenseCapacity.js is the canonical source for administrator, user, and property allocation.
@@ -14,7 +37,7 @@ For licensed SaaS and Hybrid organizations:
 - inactive or archived users do not consume user seats;
 - Afterlight resource accounts and resource invitations never consume customer seats.
 
-Managed Service organizations remain unmetered.
+Managed Service organizations remain unmetered. Boutique organizations use fixed capacity of one administrator, two non-administrator users, and three properties even though they do not select a SaaS license tier.
 
 Capacity-bearing writes update the organization's license.capacityVersion in the same MongoDB transaction. This makes simultaneous requests contend on one organization record instead of independently passing a stale capacity check.
 
@@ -66,6 +89,8 @@ Administrator rows are rejected and must use the dedicated administrator invitat
 | property_code | Commercial organizations | Must be unique when supplied |
 | physical_address | Commercial organizations | Required for commercial property billing |
 | billing_address | Commercial organizations | Required for commercial property billing |
+| gross_square_feet | Boutique organizations | Must be a positive whole number below 5,000 for every Boutique property |
+| property_type | No | `free_standing`, `strip_mall`, or `individual_suite`; defaults to `free_standing` for Boutique imports when omitted |
 | region | No | Defaults to Uncategorized |
 | latitude and longitude | No | Supply both or neither |
 | inspection_recipient_emails | No | Separate addresses with a vertical bar |

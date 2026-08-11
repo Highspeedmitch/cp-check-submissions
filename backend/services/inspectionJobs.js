@@ -14,6 +14,7 @@ const {
   inspectUploadedPhoto,
 } = require("./inspectionStorage");
 const { assignedResourceContext } = require("./resourceAccess");
+const { requireBoutiqueInspectionAssignment } = require("./boutiquePolicy");
 
 const MAX_PHOTOS = 15;
 const MAX_PHOTOS_PER_FIELD = 6;
@@ -183,6 +184,7 @@ async function createInspectionJob({
   JobModel = InspectionJob,
   OrganizationModel = Organization,
   AssignmentModel = Assignment,
+  TemplateResolver = resolvePropertyInspectionTemplate,
 }) {
   const propertyName = String(body.property || body.selectedProperty || "").trim();
   if (!propertyName) {
@@ -220,7 +222,7 @@ async function createInspectionJob({
   }
   let templateSnapshot = null;
   if (organization.orgType === "COM") {
-    const result = await resolvePropertyInspectionTemplate({
+    const result = await TemplateResolver({
       organizationId,
       propertyName,
       user: resourceAssignment ? { ...user, role: "admin", organizationId } : user,
@@ -267,12 +269,14 @@ async function createInspectionJob({
       error.status = 404;
       throw error;
     }
-    if (!resourceAssignment && !canAccessProperty(property, user)) {
+    if (!resourceAssignment && !canAccessProperty(property, user, organization)) {
       const error = new Error("You do not manage this property.");
       error.status = 403;
       throw error;
     }
   }
+
+  requireBoutiqueInspectionAssignment(organization, submissionAssignment);
 
   const orgType = organization.orgType;
   const customerContractorInvoiceSettings = resolveCustomerContractorInvoiceSettings({

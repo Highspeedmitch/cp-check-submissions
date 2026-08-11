@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const assignmentSchema = new mongoose.Schema({
   propertyName: { type: String, required: true },
+  propertyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null,
+    index: true,
+  },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
   startDate: { type: Date, required: true, index: true },
@@ -28,6 +33,18 @@ const assignmentSchema = new mongoose.Schema({
     ref: "ResourceDeployment",
     default: null,
   },
+  routeRunId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "RouteRun",
+    default: null,
+    index: true,
+  },
+  routeId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  routeName: { type: String, default: "" },
+  routeVersion: { type: Number, min: 1, default: null },
+  routeStopIndex: { type: Number, min: 0, default: null },
+  routeStopCount: { type: Number, min: 2, max: 6, default: null },
+  serviceDate: { type: String, default: "" },
   compensationSnapshot: {
     payeeType: { type: String, enum: ["afterlight_contractor"], default: null },
     rateType: { type: String, enum: ["per_assignment"], default: null },
@@ -88,5 +105,6 @@ assignmentSchema.index({ organizationId: 1, userId: 1, startDate: -1 });
 assignmentSchema.index({ organizationId: 1, "fulfillment.queue": 1, startDate: 1 });
 assignmentSchema.index({ resourceProfileId: 1, status: 1, startDate: 1 });
 assignmentSchema.index({ userId: 1, status: 1, startDate: 1 });
+assignmentSchema.index({ routeRunId: 1, routeStopIndex: 1 });
 
 module.exports = mongoose.model("Assignment", assignmentSchema);

@@ -53,6 +53,8 @@ Do not include administrators. Use **Users > Invite Administrator** so administr
 
 Every property needs a unique name. Commercial organizations also require a property code, physical address, and billing address.
 
+Boutique property rows also require gross square footage as a positive whole number. Property type accepts free-standing, strip mall, or individual suite and defaults to free-standing when omitted. A Boutique import cannot bring the organization above three properties, and every existing and imported property must remain below 5,000 square feet. Exactly 5,000 square feet is not eligible.
+
 Latitude and longitude are optional, but must be supplied together. Separate multiple inspection recipient email addresses with a vertical bar.
 
 ## Preview and complete the import

@@ -7,8 +7,11 @@ const initialForm = {
   lat: "",
   lng: "",
   address: "",
+  region: "Uncategorized",
   billingAddress: "",
   propertyCode: "",
+  grossSquareFeet: "",
+  propertyType: "free_standing",
   defaultAmount: "",
   apMethod: "download",
   apDestination: "",
@@ -23,6 +26,14 @@ const FULFILLMENT_SOURCE_LABELS = {
   afterlight_contractor: "Afterlight contractor",
 };
 
+const BOUTIQUE_FULFILLMENT_SOURCES = ["afterlight_staff", "afterlight_contractor"];
+
+function fulfillmentSourcesForServiceModel(serviceModel) {
+  return serviceModel === "boutique"
+    ? BOUTIQUE_FULFILLMENT_SOURCES
+    : Object.keys(FULFILLMENT_SOURCE_LABELS);
+}
+
 function formReducer(state, action) {
   if (action.type === "field") return { ...state, [action.name]: action.value };
   if (action.type === "coordinates") return { ...state, lat: action.lat, lng: action.lng };
@@ -35,7 +46,12 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [propertyManagers, setPropertyManagers] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [organizationDefaultSource, setOrganizationDefaultSource] = useState("");
+  const [serviceModel, setServiceModel] = useState(localStorage.getItem("serviceModel") || "");
+  const [allowedFulfillmentSources, setAllowedFulfillmentSources] = useState(() => (
+    fulfillmentSourcesForServiceModel(localStorage.getItem("serviceModel") || "")
+  ));
   const formRef = useRef(null);
 
   useEffect(() => {
@@ -43,6 +59,12 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
       formRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    api.get("/api/properties/regions")
+      .then((data) => setRegions(Array.isArray(data) ? data : data.regions || []))
+      .catch(() => setRegions([]));
   }, []);
 
   useEffect(() => {
@@ -59,8 +81,16 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
 
   useEffect(() => {
     api.get("/api/fulfillment")
-      .then((settings) => setOrganizationDefaultSource(settings.organization?.defaultSource || ""))
-      .catch(() => setOrganizationDefaultSource(""));
+      .then((settings) => {
+        const currentServiceModel = settings.organization?.serviceModel || localStorage.getItem("serviceModel") || "";
+        setOrganizationDefaultSource(settings.organization?.defaultSource || "");
+        setServiceModel(currentServiceModel);
+        setAllowedFulfillmentSources(settings.options?.fulfillmentSources || fulfillmentSourcesForServiceModel(currentServiceModel));
+      })
+      .catch(() => {
+        setOrganizationDefaultSource("");
+        setAllowedFulfillmentSources(fulfillmentSourcesForServiceModel(localStorage.getItem("serviceModel") || ""));
+      });
   }, []);
 
   const setField = (name) => (event) => {
@@ -104,6 +134,12 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
 
   const handleCreate = async () => {
     if (busy) return;
+    const squareFeet = Number(form.grossSquareFeet);
+    if (serviceModel === "boutique"
+      && (!Number.isInteger(squareFeet) || squareFeet < 1 || squareFeet >= 5000)) {
+      setError("Boutique properties require a gross square footage below 5,000.");
+      return;
+    }
     setBusy("create");
     setError("");
     try {
@@ -139,6 +175,38 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
           <input type="text" value={form.address} onChange={setField("address")} />
         </label>
         <label className="beta-form-field">
+          Gross square footage
+          <input type="number" min="1" max={serviceModel === "boutique" ? "4999" : undefined}
+            step="1" required={serviceModel === "boutique"} value={form.grossSquareFeet}
+            onChange={setField("grossSquareFeet")} />
+          {serviceModel === "boutique" && <small className="beta-field-help">Boutique properties must be under 5,000 square feet.</small>}
+        </label>
+        <label className="beta-form-field">
+          Property type
+          <select value={form.propertyType} required={serviceModel === "boutique"} onChange={setField("propertyType")}>
+            <option value="free_standing">Free standing</option>
+            <option value="strip_mall">Strip mall</option>
+            <option value="individual_suite">Individual suite</option>
+          </select>
+        </label>
+        <label className="beta-form-field full">
+          Region
+          <input
+            type="text"
+            list="property-region-options"
+            value={form.region}
+            onChange={setField("region")}
+            maxLength={100}
+            placeholder="Example: Tucson - East/Central"
+          />
+          <datalist id="property-region-options">
+            {regions.map((region) => <option key={region} value={region} />)}
+          </datalist>
+          <small className="beta-field-help">
+            A named region makes this property eligible for an administrator-created route. Region alone does not add it to one.
+          </small>
+        </label>
+        <label className="beta-form-field">
           Assign to property manager (optional)
           <select value={form.propertyManagerId} onChange={setField("propertyManagerId")}>
             <option value="">Leave unassigned</option>
@@ -157,8 +225,8 @@ function AddPropertyForm({ orgType, onCreate, onClose }) {
                 ? ` (${FULFILLMENT_SOURCE_LABELS[organizationDefaultSource]})`
                 : ""}
             </option>
-            {Object.entries(FULFILLMENT_SOURCE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+            {allowedFulfillmentSources.map((value) => (
+              <option key={value} value={value}>{FULFILLMENT_SOURCE_LABELS[value] || value}</option>
             ))}
           </select>
           <small className="beta-field-help">

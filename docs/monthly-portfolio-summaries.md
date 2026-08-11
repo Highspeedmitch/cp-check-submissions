@@ -2,13 +2,15 @@
 
 Monthly executive portfolio summaries are durable, recipient-specific snapshots for commercial property managers. The worker prepares one report for each active property manager after a month closes. Each report contains only the properties assigned to that manager when the snapshot is created.
 
+Portfolio Reporting and monthly executive summaries are not included with Boutique service. Boutique organizations are excluded even when their name or ID appears in the deployment allowlist. Organization administrators and property managers in a Boutique workspace cannot list, prepare, or download monthly summaries.
+
 Organization administrators can prepare an organization-wide summary manually from **Reporting > Monthly Summaries**. Automatic monthly generation targets property managers only. Reports are never sent to property owners or property-level recipient lists automatically.
 
 ## Architecture
 
 The feature extends Afterlight's existing durable worker architecture:
 
-1. The monthly worker identifies enabled commercial organizations and their active property managers.
+1. The monthly worker identifies enabled, non-Boutique commercial organizations and their active property managers.
 2. MongoDB upserts one `MonthlyPortfolioSummary` for each organization, recipient, and `YYYY-MM` period. A unique index makes seeding idempotent.
 3. The record captures an immutable recipient and managed-property snapshot.
 4. A worker claims the queued record with an atomic lease.
@@ -38,7 +40,7 @@ The report never calls an issue resolved because Afterlight does not yet have a 
 
 ## Rollout controls
 
-The feature fails closed. Both a mode and an exact organization allowlist match are required.
+The feature fails closed. An included service model, a mode, and an exact organization allowlist match are required.
 
 | Variable | Purpose |
 | --- | --- |

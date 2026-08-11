@@ -264,7 +264,7 @@ async function resolvePropertyInspectionTemplate({ organizationId, propertyId, p
     ? organization.properties.id(propertyId)
     : organization.properties.find((item) => item.name === propertyName);
   if (!property) throw new Error("Property not found.");
-  if (!canAccessProperty(property, user)) {
+  if (!canAccessProperty(property, user, organization)) {
     const error = new Error("You do not manage this property.");
     error.status = 403;
     throw error;

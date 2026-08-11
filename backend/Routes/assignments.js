@@ -1,5 +1,7 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Assignment = require("../models/assignment");
+const RouteRun = require("../models/routeRun");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const Submission = require("../models/submission");
@@ -20,6 +22,11 @@ const {
   currentAssignmentMonth,
 } = require("../services/monthlyAssignmentCoverage");
 const { customerChargeSnapshotForAssignment } = require("../services/serviceBilling");
+const {
+  findRoute,
+  routePropertyIds,
+  userScope,
+} = require("../services/routeScopes");
 const authenticateToken = require("../middleware/authenticateToken");
 
 function assignmentDate(value, label) {
@@ -41,6 +48,25 @@ function resolveAssignmentDates(startDate, endDate) {
     throw error;
   }
   return { startDate: normalizedStartDate, endDate: normalizedEndDate };
+}
+
+function serviceDateFromStart(value, parsedStartDate) {
+  const source = String(value || "").trim();
+  const dateOnly = source.match(/^(\d{4}-\d{2}-\d{2})/);
+  return dateOnly ? dateOnly[1] : parsedStartDate.toISOString().slice(0, 10);
+}
+
+async function runMongoTransaction(work) {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      result = await work(session);
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
 }
 
 function tenantAssignmentResult(assignment) {
@@ -71,6 +97,7 @@ function publicUser(user) {
 
 function createAssignmentHandlers({
   AssignmentModel = Assignment,
+  RouteRunModel = RouteRun,
   OrganizationModel = Organization,
   UserModel = User,
   SubmissionModel = Submission,
@@ -80,6 +107,7 @@ function createAssignmentHandlers({
   resolveAssignee = resolveAssignmentAssignee,
   schedulerResources = deployedSchedulerResources,
   currentTime = () => new Date(),
+  transactionRunner = runMongoTransaction,
 } = {}) {
   const isManagement = (user) => ["admin", "property_manager"].includes(user.role);
 
@@ -131,6 +159,7 @@ function createAssignmentHandlers({
         organizationId,
         property,
         startDate: assignmentDates.startDate,
+        organization,
         UserModel,
       });
 
@@ -152,10 +181,12 @@ function createAssignmentHandlers({
       const assignment = new AssignmentModel({
         organizationId,
         propertyName,
+        propertyId: property._id,
         userId: assignee.userId,
         eventType,
         startDate: assignmentDates.startDate,
         endDate: assignmentDates.endDate,
+        serviceDate: serviceDateFromStart(startDate, assignmentDates.startDate),
         oneTimeCheckRequest: oneTimeCheckRequest || "",
         fulfillment,
         resourceProfileId: assignee.resourceProfileId,
@@ -214,6 +245,213 @@ function createAssignmentHandlers({
     }
   }
 
+  async function createRouteRun(req, res) {
+    try {
+      if (!isManagement(req.user)) {
+        return res.status(403).json({ error: "Management access required." });
+      }
+      const {
+        routeId,
+        userId,
+        eventType,
+        startDate,
+        endDate,
+        oneTimeCheckRequest,
+        fulfillmentSource,
+        fulfillmentOverrideReason,
+      } = req.body;
+      const organizationId = req.user.organizationId;
+      const validEventTypes = ["QA Check", "Maintenance", "Cleaning"];
+      if (eventType && !validEventTypes.includes(eventType)) {
+        return res.status(400).json({ error: "Invalid assignment event type." });
+      }
+      const assignmentDates = resolveAssignmentDates(startDate, endDate);
+      const serviceDate = serviceDateFromStart(startDate, assignmentDates.startDate);
+      const organization = await OrganizationModel.findById(organizationId);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
+      const route = findRoute(organization, routeId);
+      if (!route) return res.status(404).json({ error: "Active route not found." });
+
+      const orderedProperties = routePropertyIds(route)
+        .map((propertyId) => (organization.properties || [])
+          .find((property) => String(property._id) === String(propertyId)));
+      if (orderedProperties.length < 2 || orderedProperties.length > 6
+        || orderedProperties.some((property) => !property)) {
+        return res.status(409).json({ error: "This route no longer has a valid set of 2 to 6 properties." });
+      }
+      if (req.user.role === "property_manager") {
+        const managedIds = new Set(managedPropertiesForUser(organization, req.user)
+          .map((property) => String(property._id)));
+        if (orderedProperties.some((property) => !managedIds.has(String(property._id)))) {
+          return res.status(403).json({ error: "You must manage every property in this route." });
+        }
+      }
+
+      const propertyNames = orderedProperties.map((property) => property.name);
+      const overlapping = await AssignmentModel.find({
+        organizationId,
+        propertyName: { $in: propertyNames },
+        status: "scheduled",
+        $or: [{
+          startDate: { $lte: assignmentDates.endDate },
+          endDate: { $gte: assignmentDates.startDate },
+        }],
+      });
+      if (overlapping.length) {
+        const conflicts = [...new Set(overlapping.map((assignment) => assignment.propertyName))];
+        return res.status(409).json({
+          error: `Route conflicts with scheduled work at: ${conflicts.join(", ")}.`,
+          conflictingProperties: conflicts,
+        });
+      }
+
+      const resolvedStops = [];
+      let sharedAssignee = null;
+      for (const property of orderedProperties) {
+        const fulfillment = resolveAssignmentFulfillment({
+          organization,
+          property,
+          requestedSource: fulfillmentSource,
+          actorUserId: req.user.userId,
+        });
+        let assignee;
+        try {
+          assignee = await resolveAssignee({
+            fulfillment,
+            userId,
+            organizationId,
+            property,
+            startDate: assignmentDates.startDate,
+            organization,
+            UserModel,
+          });
+        } catch (assigneeError) {
+          assigneeError.message = `${property.name}: ${assigneeError.message}`;
+          throw assigneeError;
+        }
+        if (sharedAssignee && String(sharedAssignee.userId) !== String(assignee.userId)) {
+          throw Object.assign(new Error("Every route stop must use the same assignee."), { status: 400 });
+        }
+        sharedAssignee = sharedAssignee || assignee;
+        resolvedStops.push({ property, fulfillment, assignee });
+      }
+
+      const persisted = await transactionRunner(async (session) => {
+        const [routeRun] = await RouteRunModel.create([{
+          organizationId,
+          routeId: route._id,
+          routeVersion: route.version || 1,
+          routeName: route.name,
+          region: route.region,
+          stops: resolvedStops.map(({ property }, stopIndex) => ({
+            propertyId: property._id,
+            propertyName: property.name,
+            stopIndex,
+          })),
+          userId: sharedAssignee.userId,
+          resourceProfileId: sharedAssignee.resourceProfileId,
+          resourceDeploymentId: sharedAssignee.resourceDeploymentId,
+          startDate: assignmentDates.startDate,
+          endDate: assignmentDates.endDate,
+          serviceDate,
+          assignedBy: req.user.userId,
+          oneTimeCheckRequest: oneTimeCheckRequest || "",
+        }], { session });
+
+        const assignments = await AssignmentModel.create(resolvedStops.map(({
+          property,
+          fulfillment,
+          assignee,
+        }, stopIndex) => ({
+          organizationId,
+          propertyName: property.name,
+          propertyId: property._id,
+          userId: assignee.userId,
+          eventType,
+          startDate: assignmentDates.startDate,
+          endDate: assignmentDates.endDate,
+          serviceDate,
+          oneTimeCheckRequest: oneTimeCheckRequest || "",
+          fulfillment,
+          resourceProfileId: assignee.resourceProfileId,
+          resourceDeploymentId: assignee.resourceDeploymentId,
+          compensationSnapshot: assignee.compensationSnapshot,
+          customerChargeSnapshot: customerChargeSnapshotForAssignment({ fulfillment, property }),
+          assignedBy: req.user.userId,
+          routeRunId: routeRun._id,
+          routeId: route._id,
+          routeName: route.name,
+          routeVersion: route.version || 1,
+          routeStopIndex: stopIndex,
+          routeStopCount: resolvedStops.length,
+        })), { session, ordered: true });
+
+        routeRun.stops.forEach((stop, stopIndex) => {
+          stop.assignmentId = assignments[stopIndex]._id;
+        });
+        await routeRun.save({ session });
+
+        const audits = resolvedStops.flatMap(({ property, fulfillment }, stopIndex) => (
+          fulfillment.sourceOrigin === "assignment_override" ? [{
+            organizationId,
+            actorUserId: req.user.userId,
+            entityType: "assignment",
+            entityId: assignments[stopIndex]._id.toString(),
+            action: "route_assignment_fulfillment_overridden",
+            previousValue: { source: fulfillment.inheritedSource },
+            nextValue: {
+              source: fulfillment.source,
+              queue: fulfillment.queue,
+              invoiceRouting: fulfillment.invoiceRouting,
+              invoiceVisibility: fulfillment.invoiceVisibility,
+              invoiceRequired: fulfillment.invoiceRequired,
+            },
+            reason: String(fulfillmentOverrideReason || "").trim(),
+            metadata: {
+              routeRunId: routeRun._id,
+              routeId: route._id,
+              routeName: route.name,
+              propertyName: property.name,
+              policyVersion: fulfillment.policyVersion,
+            },
+            ipAddress: req.ip || "",
+            userAgent: typeof req.get === "function" ? req.get("user-agent") || "" : "",
+          }] : []
+        ));
+        if (audits.length) await FulfillmentAuditModel.create(audits, { session });
+        return { routeRun, assignments };
+      });
+
+      notifyUser({
+        organizationId,
+        userId: sharedAssignee.userId,
+        type: "route_assignment_created",
+        title: "New ROUTE assignment",
+        body: `${route.name} is a ROUTE assignment with ${resolvedStops.length} stops beginning ${serviceDate}.`,
+        route: sharedAssignee.resourceProfileId ? "/resource" : "/dashboard",
+        entityId: persisted.routeRun._id,
+        recipientScope: sharedAssignee.resourceProfileId ? "afterlight_resource" : "organization",
+      }).catch((error) => {
+        console.error("Route assignment notification error:", error);
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: `ROUTE assignment created with ${resolvedStops.length} stops.`,
+        routeRun: typeof persisted.routeRun.toObject === "function"
+          ? persisted.routeRun.toObject()
+          : persisted.routeRun,
+        assignments: persisted.assignments.map(tenantAssignmentResult),
+      });
+    } catch (error) {
+      console.error("Error creating route assignment:", error);
+      const status = error.status || (error?.code === 11000 ? 409 : 500);
+      return res.status(status).json({
+        error: status === 500 ? "Server error creating route assignment" : error.message,
+      });
+    }
+  }
+
   async function listAssignments(req, res) {
     try {
       if (req.user.accountScope === "afterlight_resource") {
@@ -250,6 +488,181 @@ function createAssignmentHandlers({
     } catch (error) {
       console.error("Error fetching assignments:", error);
       return res.status(500).json({ error: "Server error fetching assignments" });
+    }
+  }
+
+  async function updateRouteRun(req, res) {
+    try {
+      if (!isManagement(req.user)) {
+        return res.status(403).json({ error: "Management access required." });
+      }
+      const routeRun = await RouteRunModel.findOne({
+        _id: req.params.id,
+        organizationId: req.user.organizationId,
+        status: { $in: ["scheduled", "in_progress"] },
+      });
+      if (!routeRun) return res.status(404).json({ error: "Route assignment not found." });
+      const organization = await OrganizationModel.findById(req.user.organizationId);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
+      if (req.user.role === "property_manager") {
+        const managedIds = new Set(managedPropertiesForUser(organization, req.user)
+          .map((property) => String(property._id)));
+        if ((routeRun.stops || []).some((stop) => !managedIds.has(String(stop.propertyId)))) {
+          return res.status(403).json({ error: "You must manage every property in this route." });
+        }
+      }
+
+      const assignmentDates = resolveAssignmentDates(
+        req.body.startDate || routeRun.startDate,
+        Object.prototype.hasOwnProperty.call(req.body, "endDate")
+          ? req.body.endDate || req.body.startDate
+          : routeRun.endDate
+      );
+      const serviceDate = serviceDateFromStart(
+        req.body.startDate || routeRun.serviceDate,
+        assignmentDates.startDate
+      );
+      const propertyNames = (routeRun.stops || []).map((stop) => stop.propertyName);
+      const overlapping = await AssignmentModel.find({
+        organizationId: req.user.organizationId,
+        routeRunId: { $ne: routeRun._id },
+        propertyName: { $in: propertyNames },
+        status: "scheduled",
+        $or: [{
+          startDate: { $lte: assignmentDates.endDate },
+          endDate: { $gte: assignmentDates.startDate },
+        }],
+      });
+      if (overlapping.length) {
+        const conflicts = [...new Set(overlapping.map((assignment) => assignment.propertyName))];
+        return res.status(409).json({
+          error: `Route conflicts with scheduled work at: ${conflicts.join(", ")}.`,
+          conflictingProperties: conflicts,
+        });
+      }
+
+      const childAssignments = await AssignmentModel.find({
+        routeRunId: routeRun._id,
+        organizationId: req.user.organizationId,
+        status: "scheduled",
+      });
+      if (childAssignments.length !== (routeRun.stops || []).length) {
+        return res.status(409).json({
+          error: "This route has already been partially completed or canceled and cannot be rescheduled as a group.",
+        });
+      }
+      for (const child of childAssignments) {
+        const property = (organization.properties || []).find((candidate) =>
+          String(candidate._id) === String(child.propertyId)
+          || candidate.name === child.propertyName
+        );
+        if (!property) return res.status(409).json({ error: `${child.propertyName} is no longer available.` });
+        await resolveAssignee({
+          fulfillment: child.fulfillment,
+          userId: child.userId,
+          organizationId: req.user.organizationId,
+          property,
+          startDate: assignmentDates.startDate,
+          organization,
+          UserModel,
+        });
+      }
+
+      const instructions = Object.prototype.hasOwnProperty.call(req.body, "oneTimeCheckRequest")
+        ? String(req.body.oneTimeCheckRequest || "")
+        : routeRun.oneTimeCheckRequest || "";
+      await transactionRunner(async (session) => {
+        await AssignmentModel.updateMany({
+          routeRunId: routeRun._id,
+          organizationId: req.user.organizationId,
+          status: "scheduled",
+        }, {
+          $set: {
+            startDate: assignmentDates.startDate,
+            endDate: assignmentDates.endDate,
+            serviceDate,
+            oneTimeCheckRequest: instructions,
+          },
+          $inc: { calendarSequence: 1 },
+        }, { session });
+        routeRun.startDate = assignmentDates.startDate;
+        routeRun.endDate = assignmentDates.endDate;
+        routeRun.serviceDate = serviceDate;
+        routeRun.oneTimeCheckRequest = instructions;
+        await routeRun.save({ session });
+      });
+
+      notifyUser({
+        organizationId: routeRun.organizationId,
+        userId: routeRun.userId,
+        type: "route_assignment_rescheduled",
+        title: "ROUTE assignment updated",
+        body: `${routeRun.routeName} (${routeRun.stops.length} stops) now begins ${serviceDate}.`,
+        route: routeRun.resourceProfileId ? "/resource" : "/dashboard",
+        entityId: routeRun._id,
+        recipientScope: routeRun.resourceProfileId ? "afterlight_resource" : "organization",
+      }).catch((error) => console.error("Route reschedule notification error:", error));
+      return res.json({ success: true, routeRun });
+    } catch (error) {
+      console.error("Error updating route assignment:", error);
+      return res.status(error.status || 500).json({
+        error: error.status ? error.message : "Unable to update the route assignment.",
+      });
+    }
+  }
+
+  async function cancelRouteRun(req, res) {
+    try {
+      if (!isManagement(req.user)) {
+        return res.status(403).json({ error: "Management access required." });
+      }
+      const routeRun = await RouteRunModel.findOne({
+        _id: req.params.id,
+        organizationId: req.user.organizationId,
+        status: { $in: ["scheduled", "in_progress"] },
+      });
+      if (!routeRun) return res.status(404).json({ error: "Route assignment not found." });
+      if (req.user.role === "property_manager") {
+        const organization = await OrganizationModel.findById(req.user.organizationId);
+        const managedIds = new Set(managedPropertiesForUser(organization, req.user)
+          .map((property) => String(property._id)));
+        if ((routeRun.stops || []).some((stop) => !managedIds.has(String(stop.propertyId)))) {
+          return res.status(403).json({ error: "You must manage every property in this route." });
+        }
+      }
+      const canceledAt = currentTime();
+      await transactionRunner(async (session) => {
+        await AssignmentModel.updateMany({
+          routeRunId: routeRun._id,
+          organizationId: req.user.organizationId,
+          status: "scheduled",
+        }, {
+          $set: {
+            status: "canceled",
+            canceledAt,
+            canceledBy: req.user.userId,
+          },
+          $inc: { calendarSequence: 1 },
+        }, { session });
+        routeRun.status = "canceled";
+        routeRun.canceledAt = canceledAt;
+        routeRun.canceledBy = req.user.userId;
+        await routeRun.save({ session });
+      });
+      notifyUser({
+        organizationId: routeRun.organizationId,
+        userId: routeRun.userId,
+        type: "route_assignment_canceled",
+        title: "ROUTE assignment canceled",
+        body: `${routeRun.routeName} (${routeRun.stops.length} stops) was canceled.`,
+        route: routeRun.resourceProfileId ? "/resource" : "/dashboard",
+        entityId: routeRun._id,
+        recipientScope: routeRun.resourceProfileId ? "afterlight_resource" : "organization",
+      }).catch((error) => console.error("Route cancellation notification error:", error));
+      return res.json({ success: true, routeRun });
+    } catch (error) {
+      console.error("Error canceling route assignment:", error);
+      return res.status(500).json({ error: "Unable to cancel the route assignment." });
     }
   }
 
@@ -313,10 +726,23 @@ function createAssignmentHandlers({
         ? await schedulerResources({
             organizationId: req.user.organizationId,
             serviceModel: organization.serviceModel,
+            organization,
           })
         : [];
 
-      return res.json([...users, ...resources]);
+      const scopedUsers = users.map((user) => {
+        const value = typeof user?.toObject === "function" ? user.toObject() : { ...user };
+        const scope = userScope(organization, { ...value, userId: value._id });
+        return {
+          ...value,
+          propertyIds: scope.effectivePropertyIds,
+          directPropertyIds: scope.directPropertyIds,
+          routeIds: scope.directRouteIds,
+          eligibleRouteIds: scope.eligibleRouteIds,
+          workScopeConfigured: scope.configured,
+        };
+      });
+      return res.json([...scopedUsers, ...resources]);
     } catch (error) {
       console.error("Error fetching users:", error);
       return res.status(500).json({ error: "Server error fetching users" });
@@ -399,6 +825,7 @@ function createAssignmentHandlers({
         _id: req.params.id,
         organizationId: req.user.organizationId,
         status: "scheduled",
+        routeRunId: null,
       };
       if (req.user.role === "property_manager") {
         const organization = await OrganizationModel.findById(req.user.organizationId);
@@ -483,6 +910,7 @@ function createAssignmentHandlers({
           _id: req.params.id,
           organizationId: req.user.organizationId,
           status: "scheduled",
+          routeRunId: null,
         };
         if (req.user.role === "property_manager") {
           const organization = await OrganizationModel.findById(req.user.organizationId);
@@ -498,6 +926,7 @@ function createAssignmentHandlers({
         const propertyName = changes.propertyName || existing.propertyName;
         const property = (organization?.properties || []).find((item) => item.name === propertyName);
         if (!property) return res.status(400).json({ error: "Select a property in your organization." });
+        changes.propertyId = property._id;
         if (req.user.role === "property_manager" && !managedPropertiesForUser(organization, req.user)
           .some((managed) => String(managed._id) === String(property._id))) {
           return res.status(403).json({ error: "You do not manage this property." });
@@ -543,6 +972,7 @@ function createAssignmentHandlers({
             organizationId: req.user.organizationId,
             property,
             startDate: changes.startDate || existing.startDate,
+            organization,
             UserModel,
           });
           changes.userId = assignee.userId;
@@ -582,6 +1012,7 @@ function createAssignmentHandlers({
           _id: req.params.id,
           organizationId: req.user.organizationId,
           status: "scheduled",
+          routeRunId: null,
       };
       if (req.user.role === "property_manager") {
         updateQuery.propertyName = existing.propertyName;
@@ -646,6 +1077,9 @@ function createAssignmentHandlers({
 
   return {
     createAssignment,
+    createRouteRun,
+    updateRouteRun,
+    cancelRouteRun,
     listAssignments,
     monthlyAssignmentCoverage,
     listAssignmentHistory,
@@ -662,6 +1096,9 @@ function createAssignmentRouter(
   const router = express.Router();
   const handlers = createAssignmentHandlers(dependencies);
   router.post("/assignments", routeAuthentication, handlers.createAssignment);
+  router.post("/route-runs", routeAuthentication, handlers.createRouteRun);
+  router.put("/route-runs/:id", routeAuthentication, handlers.updateRouteRun);
+  router.delete("/route-runs/:id", routeAuthentication, handlers.cancelRouteRun);
   router.get("/assignments", routeAuthentication, handlers.listAssignments);
   router.get("/assignments/monthly-status", routeAuthentication, handlers.monthlyAssignmentCoverage);
   router.get("/assignments/history", routeAuthentication, handlers.listAssignmentHistory);

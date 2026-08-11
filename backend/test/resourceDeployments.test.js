@@ -16,6 +16,7 @@ function transactionSession() {
 test("deployment scope edits update future property eligibility in the same organization", async () => {
   let auditRecord;
   let createdDestination = false;
+  let organizationQuery;
   const deployment = {
     _id: "deployment-1",
     resourceProfileId: "resource-1",
@@ -41,10 +42,13 @@ test("deployment scope edits update future property eligibility in the same orga
       findById: () => queryResult({ _id: "resource-1", resourceType: "owner", defaultRateCents: 0 }),
     },
     OrganizationModel: {
-      findOne: () => queryResult({
-        _id: "org-1",
-        properties: [{ _id: "property-1" }, { _id: "property-2" }],
-      }),
+      findOne: (query) => {
+        organizationQuery = query;
+        return queryResult({
+          _id: "org-1",
+          properties: [{ _id: "property-1" }, { _id: "property-2" }],
+        });
+      },
     },
     PlatformAuditModel: {
       create: async ([record]) => { auditRecord = record; },
@@ -58,6 +62,7 @@ test("deployment scope edits update future property eligibility in the same orga
   assert.equal(deployment.status, "active");
   assert.equal(deployment.updatedBy, "admin-1");
   assert.equal(createdDestination, false);
+  assert.deepEqual(organizationQuery.serviceModel, { $in: ["boutique", "managed", "hybrid"] });
   assert.equal(auditRecord.action, "afterlight_resource_deployment_scope_updated");
   assert.equal(auditRecord.metadata.organizationChanged, false);
 });

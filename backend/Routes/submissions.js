@@ -298,7 +298,7 @@ router.get("/admin/submissions/:property", async (req, res) => {
     const organization = await Organization.findById(req.user.organizationId);
     const property = organization?.properties.find((item) => item.name === req.params.property);
     if (!property) return res.status(404).json({ error: "Property not found." });
-    if (!canAccessProperty(property, req.user)) {
+    if (!canAccessProperty(property, req.user, organization)) {
       return res.status(403).json({ error: "You do not manage this property." });
     }
     const [history = {}] = await Submission.aggregate(buildSubmissionHistoryPipeline({

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PlatformDashboard from "./PlatformDashboard";
 import { api } from "../services/api";
@@ -53,6 +53,10 @@ const report = {
     name: "PICOR",
     orgType: "COM",
     serviceModel: "managed",
+    planLabel: "Managed service",
+    recurringMonthlyFeeCents: 50000,
+    currency: "USD",
+    visitChargesBilledSeparately: true,
     propertyCount: 5,
     emailApPropertyCount: 4,
     invoiceApprovalExperience: "authenticated_portal",
@@ -86,6 +90,54 @@ beforeEach(() => {
   window.prompt = jest.fn(() => "Development and support");
 });
 
+test("organization cards integrate service delivery and recurring price", async () => {
+  renderDashboard();
+
+  const plan = await screen.findByRole("region", { name: "PICOR service plan" });
+  expect(within(plan).getByText("Service delivery")).toBeInTheDocument();
+  expect(within(plan).getByText("Managed service")).toBeInTheDocument();
+  expect(within(plan).getByText("$500/mo")).toBeInTheDocument();
+  expect(within(plan).getByText("Per-visit charges billed separately")).toBeInTheDocument();
+});
+
+test("tiered service plans separate the delivery model from the tier", async () => {
+  api.get.mockResolvedValue({
+    ...report,
+    organizations: [{
+      ...report.organizations[0],
+      planLabel: "Full Stack SaaS Tier 1",
+      recurringMonthlyFeeCents: 30000,
+      visitChargesBilledSeparately: false,
+    }],
+  });
+  renderDashboard();
+
+  const plan = await screen.findByRole("region", { name: "PICOR service plan" });
+  expect(within(plan).getByText("Full Stack SaaS")).toBeInTheDocument();
+  expect(within(plan).getByText("Tier 1")).toBeInTheDocument();
+  expect(within(plan).getByText("$300/mo")).toBeInTheDocument();
+  expect(within(plan).queryByText("Per-visit charges billed separately")).not.toBeInTheDocument();
+});
+
+test("Boutique organization cards show the $75 fee and separate visit billing", async () => {
+  api.get.mockResolvedValue({
+    ...report,
+    organizations: [{
+      ...report.organizations[0],
+      serviceModel: "boutique",
+      planLabel: "Boutique",
+      recurringMonthlyFeeCents: 7500,
+      visitChargesBilledSeparately: true,
+    }],
+  });
+  renderDashboard();
+
+  const plan = await screen.findByRole("region", { name: "PICOR service plan" });
+  expect(within(plan).getByText("Boutique")).toBeInTheDocument();
+  expect(within(plan).getByText("$75/mo")).toBeInTheDocument();
+  expect(within(plan).getByText("Per-visit charges billed separately")).toBeInTheDocument();
+});
+
 test("stale Admin View access opens an authenticator dialog and retries after verification", async () => {
   let assumeAttempts = 0;
   api.post.mockImplementation((path) => {
@@ -110,8 +162,13 @@ test("stale Admin View access opens an authenticator dialog and retries after ve
   expect(dialog).toHaveTextContent("PICOR");
   expect(screen.queryByText("Reauthenticate with Okta before entering an organization.")).not.toBeInTheDocument();
 
-  fireEvent.change(screen.getByLabelText("Authentication code"), { target: { value: "123456" } });
-  fireEvent.click(screen.getByRole("button", { name: "Verify and continue" }));
+  const codeInput = screen.getByLabelText("Authentication code");
+  const verifyButton = screen.getByRole("button", { name: "Verify and continue" });
+  await waitFor(() => {
+    fireEvent.change(codeInput, { target: { value: "123456" } });
+    expect(verifyButton).toBeEnabled();
+  });
+  fireEvent.click(verifyButton);
 
   await waitFor(() => expect(api.post).toHaveBeenCalledWith(
     "/api/auth/mfa/step-up/verify",

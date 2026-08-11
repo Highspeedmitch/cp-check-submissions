@@ -5,6 +5,7 @@ import ContextualHelpLink from "./help/ContextualHelpLink";
 const MODEL_LABELS = {
   platform: "Full-stack SaaS",
   managed: "Managed service",
+  boutique: "Boutique",
   hybrid: "Hybrid",
 };
 
@@ -55,6 +56,16 @@ function requestHeadline(request) {
 function percentageLabel(value) {
   if (value === undefined) return "Not recorded";
   return value === null ? "None" : `${value}%`;
+}
+
+function monthlyPrice(value) {
+  if (value === undefined) return "Not recorded";
+  if (value === null) return "None";
+  return `${new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(Number(value) / 100)}/month`;
 }
 
 export default function PlatformServiceModelChanges() {
@@ -157,6 +168,7 @@ export default function PlatformServiceModelChanges() {
                   <div><dt>Administrator capacity</dt><dd>{capacityLabel(request.organizationSnapshot?.currentAdminLimit)} → {capacityLabel(request.organizationSnapshot?.requestedAdminLimit)}</dd></div>
                   <div><dt>User capacity</dt><dd>{capacityLabel(request.organizationSnapshot?.currentUserLimit)} → {capacityLabel(request.organizationSnapshot?.requestedUserLimit)}</dd></div>
                   <div><dt>Property capacity</dt><dd>{capacityLabel(request.organizationSnapshot?.currentPropertyLimit)} → {capacityLabel(request.organizationSnapshot?.requestedPropertyLimit)}</dd></div>
+                  <div><dt>Organization fee</dt><dd>{monthlyPrice(request.organizationSnapshot?.currentRecurringMonthlyFeeCents)} → {monthlyPrice(request.organizationSnapshot?.requestedRecurringMonthlyFeeCents)}</dd></div>
                   {(request.organizationSnapshot?.currentAfterlightPortfolioMinimumPercent != null
                     || request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent != null) && (
                     <div><dt>Afterlight portfolio minimum</dt><dd>{percentageLabel(request.organizationSnapshot?.currentAfterlightPortfolioMinimumPercent)} → {percentageLabel(request.organizationSnapshot?.requestedAfterlightPortfolioMinimumPercent)}</dd></div>

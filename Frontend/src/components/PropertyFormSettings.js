@@ -39,6 +39,9 @@ export default function PropertyFormSettings() {
   const [geocoding, setGeocoding] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [regions, setRegions] = useState([]);
+  const isAdmin = localStorage.getItem("role") === "admin";
+  const boutiqueOrganization = localStorage.getItem("serviceModel") === "boutique";
 
   useEffect(() => {
     api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective`)
@@ -52,6 +55,12 @@ export default function PropertyFormSettings() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [property]);
+
+  useEffect(() => {
+    api.get("/api/properties/regions")
+      .then((data) => setRegions(Array.isArray(data) ? data : data.regions || []))
+      .catch(() => setRegions([]));
+  }, []);
 
   const geocodeAddress = async () => {
     if (!propertyDetails?.physicalAddress || geocoding) return;
@@ -83,6 +92,12 @@ export default function PropertyFormSettings() {
 
   const savePropertyDetails = async () => {
     if (!propertyDetails || detailsSaving) return;
+    const squareFeet = Number(propertyDetails.grossSquareFeet);
+    if (boutiqueOrganization
+      && (!Number.isInteger(squareFeet) || squareFeet < 1 || squareFeet >= 5000)) {
+      setError("Boutique properties require a gross square footage below 5,000.");
+      return;
+    }
     setDetailsSaving(true);
     setError("");
     setMessage("");
@@ -174,7 +189,10 @@ export default function PropertyFormSettings() {
           eyebrow="Managed property settings"
           title={propertyDetails?.name || property}
           subtitle="Update property information and customize the inspection form."
-          actions={<ContextualHelpLink slug="manage-inspection-form-templates" />}
+          actions={<>
+            <ContextualHelpLink slug="manage-property-regions-routes" label="Regions & routes help" />
+            <ContextualHelpLink slug="manage-inspection-form-templates" label="Form template help" />
+          </>}
         />
 
         {loading && <div className="beta-empty-state">Loading form settings…</div>}
@@ -198,6 +216,41 @@ export default function PropertyFormSettings() {
                 <label className="beta-form-field">Property code
                   <input value={propertyDetails?.propertyCode || ""}
                     onChange={(event) => setPropertyDetails({ ...propertyDetails, propertyCode: event.target.value })} />
+                </label>
+                <label className="beta-form-field">Gross square footage
+                  <input type="number" min="1" max={boutiqueOrganization ? "4999" : undefined}
+                    step="1" required={boutiqueOrganization} value={propertyDetails?.grossSquareFeet ?? ""}
+                    onChange={(event) => setPropertyDetails({ ...propertyDetails, grossSquareFeet: event.target.value })} />
+                  {boutiqueOrganization && <small className="beta-field-help">Boutique properties must remain under 5,000 square feet.</small>}
+                </label>
+                <label className="beta-form-field">Property type
+                  <select value={propertyDetails?.propertyType || "free_standing"}
+                    required={boutiqueOrganization}
+                    onChange={(event) => setPropertyDetails({ ...propertyDetails, propertyType: event.target.value })}>
+                    <option value="free_standing">Free standing</option>
+                    <option value="strip_mall">Strip mall</option>
+                    <option value="individual_suite">Individual suite</option>
+                  </select>
+                </label>
+                <label className="beta-form-field full">Region
+                  <input
+                    value={propertyDetails?.region || "Uncategorized"}
+                    list="property-settings-region-options"
+                    maxLength={100}
+                    disabled={!isAdmin}
+                    onChange={(event) => setPropertyDetails({
+                      ...propertyDetails,
+                      region: event.target.value,
+                    })}
+                  />
+                  <datalist id="property-settings-region-options">
+                    {regions.map((region) => <option key={region} value={region} />)}
+                  </datalist>
+                  <small className="beta-field-help">
+                    {isAdmin
+                      ? "A named region makes the property eligible for route enrollment. Properties in an active route must be removed from it before changing regions."
+                      : "Only an organization administrator can change a property's region."}
+                  </small>
                 </label>
                 <label className="beta-form-field full">Physical property address
                   <input value={propertyDetails?.physicalAddress || ""}

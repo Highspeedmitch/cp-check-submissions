@@ -27,8 +27,28 @@ const {
   downloadPortfolioSummaryPdf,
 } = require("../services/portfolioSummaryStorage");
 const { inlinePdfContentDisposition } = require("../services/inspectionStorage");
+const { serviceModelIncludesPortfolioReporting } = require("../services/boutiquePolicy");
 
 const router = express.Router();
+
+async function requirePortfolioReporting(req, res, next) {
+  try {
+    const organization = await Organization.findById(req.user.organizationId);
+    if (!organization) return res.status(404).json({ error: "Organization not found." });
+    if (!serviceModelIncludesPortfolioReporting(organization)) {
+      return res.status(403).json({
+        code: "REPORTING_NOT_INCLUDED",
+        error: "Portfolio reporting is not included with Boutique service.",
+      });
+    }
+    req.reportingOrganization = organization;
+    return next();
+  } catch (error) {
+    return res.status(500).json({ error: "Unable to verify reporting access." });
+  }
+}
+
+router.use(requirePortfolioReporting);
 
 router.get("/summary", async (req, res) => {
   try {
@@ -41,8 +61,7 @@ router.get("/summary", async (req, res) => {
         error: `Reporting range must be between ${MIN_SUBMISSION_MONTHS} and ${MAX_SUBMISSION_MONTHS} months.`,
       });
     }
-    const organization = await Organization.findById(req.user.organizationId);
-    if (!organization) return res.status(404).json({ error: "Organization not found." });
+    const organization = req.reportingOrganization;
 
     const properties = reportingProperties(organization, req.user);
     const propertyId = req.query.propertyId || "";
@@ -136,7 +155,7 @@ router.get("/monthly-summaries", async (req, res) => {
     if (!requireReportingRole(req, res)) return;
     const mode = monthlyPortfolioSummaryMode();
     const [organization, reports] = await Promise.all([
-      Organization.findById(req.user.organizationId).select("name"),
+      Promise.resolve(req.reportingOrganization),
       MonthlyPortfolioSummary.find(monthlySummaryQuery(req))
         .sort({ periodStart: -1, "recipientSnapshot.name": 1 })
         .limit(36)
@@ -164,8 +183,7 @@ router.post("/monthly-summaries", async (req, res) => {
     if (mode === "off") {
       return res.status(503).json({ error: "Monthly portfolio summaries are not enabled for this deployment." });
     }
-    const organization = await Organization.findById(req.user.organizationId);
-    if (!organization) return res.status(404).json({ error: "Organization not found." });
+    const organization = req.reportingOrganization;
     if (!isMonthlyPortfolioSummaryOrganizationAllowed(organization)) {
       return res.status(403).json({ error: "This organization is not enabled for monthly portfolio summaries." });
     }
@@ -255,3 +273,4 @@ router.get("/monthly-summaries/:summaryId/download", async (req, res) => {
 module.exports = router;
 module.exports.monthlySummaryQuery = monthlySummaryQuery;
 module.exports.serializeMonthlySummary = serializeMonthlySummary;
+module.exports.requirePortfolioReporting = requirePortfolioReporting;

@@ -14,6 +14,10 @@ const { consumeGrant } = require("./organizationPasskeys");
 const { normalizePropertyEmails } = require("./propertyEmails");
 const { sendSystemEmail } = require("./systemEmail");
 const { normalizeOrganizationUserClassification } = require("./organizationUserClassification");
+const {
+  normalizePropertySquareFeet,
+  normalizePropertyType,
+} = require("./boutiquePolicy");
 
 const MAX_CSV_BYTES = 512 * 1024;
 const MAX_IMPORT_ROWS = 250;
@@ -155,11 +159,29 @@ function propertyPreviewRows({ organization, parsedRows }) {
     } catch (error) {
       errors.push(error.message);
     }
+    let grossSquareFeet = null;
+    let propertyType = null;
+    try {
+      grossSquareFeet = normalizePropertySquareFeet(
+        values.gross_square_feet,
+        organization,
+        { required: organization.serviceModel === "boutique" }
+      );
+      propertyType = normalizePropertyType(
+        values.property_type,
+        organization,
+        { required: organization.serviceModel === "boutique" }
+      );
+    } catch (error) {
+      errors.push(error.message);
+    }
     return {
       rowNumber,
       errors,
       data: {
         name,
+        grossSquareFeet,
+        propertyType,
         propertyCode,
         physicalAddress: String(values.physical_address || "").trim(),
         billingAddress: String(values.billing_address || "").trim(),

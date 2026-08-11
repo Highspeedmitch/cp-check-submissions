@@ -42,6 +42,7 @@ function AssignmentEvent({ event }) {
   return (
     <div className="beta-calendar-event-copy">
       <strong>{event.propertyName || event.title}</strong>
+      {event.routeRunId && <span className="beta-calendar-route-label">ROUTE · {event.routeStopCount} stops</span>}
       {event.assigneeLabel && <span>{event.assigneeLabel}</span>}
     </div>
   );
@@ -87,11 +88,13 @@ function DayAssignmentList({ events, onSelectEvent }) {
       {events.map((event) => (
         <button type="button" className={`beta-calendar-day-event ${event.tone || "customer"}`}
           key={event._id} onClick={() => onSelectEvent(event)}
-          aria-label={`Edit ${event.propertyName || event.title} assignment`}>
+          aria-label={`Edit ${event.routeRunId ? "ROUTE " : ""}${event.propertyName || event.title} assignment`}>
           <i aria-hidden="true" />
           <span>
             <strong>{event.propertyName || event.title}</strong>
-            <small>{event.assigneeLabel || "Open assignment"}</small>
+            <small>{event.routeRunId
+              ? `ROUTE assignment · ${event.routeStopCount} stops · ${event.assigneeLabel || "Open assignment"}`
+              : event.assigneeLabel || "Open assignment"}</small>
           </span>
           <b aria-hidden="true">›</b>
         </button>

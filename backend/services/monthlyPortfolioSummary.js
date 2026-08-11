@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const moment = require("moment-timezone");
+const { effectivePropertyIdsForUser } = require("./routeScopes");
 const {
   BedrockRuntimeClient,
   ConverseCommand,
@@ -9,6 +10,7 @@ const {
   reportingTimezone,
   submissionIssueOccurrences,
 } = require("./reporting");
+const { serviceModelIncludesPortfolioReporting } = require("./boutiquePolicy");
 
 const PORTFOLIO_SUMMARY_MODES = new Set(["off", "preview", "live"]);
 const PORTFOLIO_NARRATIVE_PROMPT_VERSION = "monthly-portfolio-v1";
@@ -33,6 +35,7 @@ function monthlyPortfolioSummaryOrganizationAllowlist(env = process.env) {
 }
 
 function isMonthlyPortfolioSummaryOrganizationAllowed(organization, env = process.env) {
+  if (!serviceModelIncludesPortfolioReporting(organization)) return false;
   const allowlist = monthlyPortfolioSummaryOrganizationAllowlist(env);
   if (!allowlist.size) return false;
   return [organization?._id, organization?.name]
@@ -80,10 +83,11 @@ function propertiesForPortfolioRecipient(organization, recipient) {
   const properties = Array.isArray(organization?.properties) ? organization.properties : [];
   if (recipient?.role === "admin") return properties;
   if (recipient?.role !== "property_manager") return [];
-  const recipientId = String(recipient._id || recipient.userId || "");
-  return properties.filter((property) => (
-    (property.propertyManagers || []).some((managerId) => String(managerId) === recipientId)
-  ));
+  const effectiveIds = new Set(effectivePropertyIdsForUser(organization, {
+    ...recipient,
+    userId: recipient.userId || recipient._id,
+  }));
+  return properties.filter((property) => effectiveIds.has(String(property._id)));
 }
 
 function portfolioPropertySnapshots(properties) {

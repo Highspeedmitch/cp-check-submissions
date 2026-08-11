@@ -44,6 +44,20 @@ export function storeAuthentication(data) {
   localStorage.setItem("organizationId", data.organizationId);
   localStorage.setItem("orgType", data.orgType);
   localStorage.setItem("role", data.role || "user");
+  if (data.serviceModel) localStorage.setItem("serviceModel", data.serviceModel);
+  else localStorage.removeItem("serviceModel");
+  const portfolioReportingIncluded = typeof data.portfolioReportingIncluded === "boolean"
+    ? data.portfolioReportingIncluded
+    : typeof data.reportingEnabled === "boolean"
+      ? data.reportingEnabled
+      : null;
+  if (typeof portfolioReportingIncluded === "boolean") {
+    localStorage.setItem("portfolioReportingIncluded", portfolioReportingIncluded ? "true" : "false");
+  } else if (data.serviceModel) {
+    localStorage.setItem("portfolioReportingIncluded", data.serviceModel === "boutique" ? "false" : "true");
+  } else {
+    localStorage.removeItem("portfolioReportingIncluded");
+  }
   if (data.engagementType) localStorage.setItem("engagementType", data.engagementType);
   else localStorage.removeItem("engagementType");
   localStorage.setItem("accountScope", data.accountScope || "organization");
@@ -64,7 +78,7 @@ export function storeAuthentication(data) {
 
 export function clearAuthentication() {
   ["token", "orgName", "organizationId", "orgType", "role", "userId", "loginTime",
-    "platformRole", "assumedOrganization", "platformSessionId", "accountScope", "availableWorkspaces", "resourceType", "billingAccess", "engagementType"]
+    "platformRole", "assumedOrganization", "platformSessionId", "accountScope", "availableWorkspaces", "resourceType", "billingAccess", "engagementType", "serviceModel", "portfolioReportingIncluded"]
     .forEach((key) => localStorage.removeItem(key));
   window.dispatchEvent(new Event("auth-session-cleared"));
 }

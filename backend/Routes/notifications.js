@@ -2,6 +2,8 @@ const express = require("express");
 const PushToken = require("../models/PushToken");
 const WebPushSubscription = require("../models/webPushSubscription");
 const Notification = require("../models/notification");
+const Organization = require("../models/organization");
+const { serviceModelIncludesPortfolioReporting } = require("../services/boutiquePolicy");
 
 const router = express.Router();
 const PLATFORMS = ["ios", "android", "web"];
@@ -131,6 +133,15 @@ router.delete("/devices", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const query = notificationOwner(req);
+    if (req.user.accountScope !== "afterlight_resource"
+      && !(req.user.platformRole === "platform_admin" && !req.user.assumedOrganization)) {
+      const organization = await Organization.findById(req.user.organizationId)
+        .select("serviceModel")
+        .lean();
+      if (organization && !serviceModelIncludesPortfolioReporting(organization)) {
+        query.type = { $ne: "monthly_portfolio_summary_ready" };
+      }
+    }
     if (req.query.unread === "true") query.readAt = null;
     const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(50).lean();
     res.json(notifications);

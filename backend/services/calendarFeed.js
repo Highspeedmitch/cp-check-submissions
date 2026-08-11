@@ -96,6 +96,43 @@ function assignmentEventLines(assignment, organization, generatedAt) {
   return lines;
 }
 
+function routeEventLines(assignments, generatedAt) {
+  const ordered = [...assignments].sort(
+    (first, second) => (first.routeStopIndex || 0) - (second.routeStopIndex || 0)
+  );
+  const first = ordered[0];
+  const canceled = ordered.every((assignment) => assignment.status === "canceled")
+    || (ordered.some((assignment) => assignment.status === "canceled")
+      && !ordered.some((assignment) => assignment.status === "scheduled"));
+  const routeName = first.routeName || "Property route";
+  const stopCount = first.routeStopCount || ordered.length;
+  const workspacePath = first.resourceProfileId ? "/resource" : "/dashboard";
+  const latestUpdatedAt = ordered.reduce((latest, assignment) => {
+    const candidate = new Date(assignment.updatedAt || generatedAt);
+    return candidate > latest ? candidate : latest;
+  }, new Date(first.updatedAt || generatedAt));
+  const sequence = Math.max(...ordered.map((assignment) => Number(assignment.calendarSequence || 0)));
+  const stopSummary = ordered.map((assignment) =>
+    `${Number(assignment.routeStopIndex || 0) + 1}. ${assignment.propertyName}`
+  ).join("; ");
+  return [
+    "BEGIN:VEVENT",
+    `UID:route-${first.routeRunId}@afterlightinspections.com`,
+    `DTSTAMP:${calendarTimestamp(generatedAt)}`,
+    `CREATED:${calendarTimestamp(first.createdAt || generatedAt)}`,
+    `LAST-MODIFIED:${calendarTimestamp(latestUpdatedAt)}`,
+    `SEQUENCE:${sequence}`,
+    `DTSTART;VALUE=DATE:${calendarDate(first.startDate)}`,
+    `DTEND;VALUE=DATE:${calendarDate(first.endDate, 1)}`,
+    `SUMMARY:${escapeCalendarText(`ROUTE: ${routeName} (${stopCount} stops)`)}`,
+    `STATUS:${canceled ? "CANCELLED" : "CONFIRMED"}`,
+    "TRANSP:OPAQUE",
+    `DESCRIPTION:${escapeCalendarText(`ROUTE assignment with ${stopCount} stops: ${stopSummary}. Open Afterlight for current route details.`)}`,
+    `URL:${buildFrontendUrl(workspacePath)}`,
+    "END:VEVENT",
+  ];
+}
+
 function buildAssignmentCalendar({ assignments = [], organizations = [], generatedAt = new Date() } = {}) {
   const organizationsById = new Map(organizations.map((organization) => [
     String(organization._id),
@@ -111,12 +148,23 @@ function buildAssignmentCalendar({ assignments = [], organizations = [], generat
     "X-PUBLISHED-TTL:PT1H",
     "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
   ];
+  const emittedRouteRuns = new Set();
   for (const assignment of assignments) {
-    lines.push(...assignmentEventLines(
-      assignment,
-      organizationsById.get(String(assignment.organizationId)),
-      generatedAt
-    ));
+    if (assignment.routeRunId) {
+      const routeRunId = String(assignment.routeRunId);
+      if (emittedRouteRuns.has(routeRunId)) continue;
+      emittedRouteRuns.add(routeRunId);
+      lines.push(...routeEventLines(
+        assignments.filter((candidate) => String(candidate.routeRunId || "") === routeRunId),
+        generatedAt
+      ));
+    } else {
+      lines.push(...assignmentEventLines(
+        assignment,
+        organizationsById.get(String(assignment.organizationId)),
+        generatedAt
+      ));
+    }
   }
   lines.push("END:VCALENDAR");
   return `${lines.map(foldCalendarLine).join("\r\n")}\r\n`;
@@ -155,7 +203,7 @@ async function feedAssignments(userId, {
   else query.$or = scope;
 
   const assignments = await AssignmentModel.find(query).select(
-    "_id organizationId propertyName startDate endDate eventType status resourceProfileId calendarSequence createdAt updatedAt"
+    "_id organizationId propertyName propertyId startDate endDate eventType status resourceProfileId calendarSequence createdAt updatedAt routeRunId routeId routeName routeStopIndex routeStopCount serviceDate"
   ).sort({ startDate: 1 }).lean();
   const organizationIds = [...new Set(assignments.map(({ organizationId }) => String(organizationId)))];
   const organizations = organizationIds.length

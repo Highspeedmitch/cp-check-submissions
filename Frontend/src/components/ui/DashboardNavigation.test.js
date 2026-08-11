@@ -144,3 +144,21 @@ test("opens the monthly archive when Reporting has an unread summary", () => {
   fireEvent.click(screen.getByRole("button", { name: /Reporting/ }));
   expect(defaults.navigate).toHaveBeenCalledWith("/reporting?view=monthly");
 });
+
+test("hides portfolio reporting and its badge for Boutique organizations", () => {
+  render(
+    <MemoryRouter>
+      <DashboardNavigation
+        {...defaults}
+        role="property_manager"
+        accountScope="organization"
+        serviceModel="boutique"
+        portfolioReportingIncluded={false}
+        notificationBadges={{ reporting: 3 }}
+      />
+    </MemoryRouter>
+  );
+
+  expect(screen.queryByRole("button", { name: /Reporting/ })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(/unread notifications/)).not.toBeInTheDocument();
+});

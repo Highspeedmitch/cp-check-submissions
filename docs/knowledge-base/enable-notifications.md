@@ -40,6 +40,8 @@ You receive only events relevant to your role and work. Depending on your access
 
 Opening the related section marks its in-app alert read. A push opens the relevant Afterlight screen when the operating system and browser provide its route.
 
+A grouped route assignment produces one assignment notification labeled **ROUTE** and identifies that it contains multiple stops. It does not send a separate assignment notification for every constituent property.
+
 An **AP email queued** alert means the email provider accepted the message for processing. It does not prove that the destination mailbox ultimately received it. Review the invoice delivery status in Afterlight if AP reports a problem.
 
 ## If something goes wrong

@@ -7,7 +7,7 @@ jest.mock("../services/api", () => ({
 }));
 
 const weeklyEstimate = {
-  version: 5,
+  version: 6,
   pricingMode: "single",
   estimatedPerVisitCents: 12500,
   estimatedMonthlyCents: 45000,
@@ -29,7 +29,7 @@ const weeklyEstimate = {
 };
 
 const clusterEstimate = {
-  version: 5,
+  version: 6,
   pricingMode: "cluster",
   estimatedPerVisitCents: 10000,
   estimatedMonthlyCents: 10000,
@@ -65,7 +65,7 @@ const clusterEstimate = {
 };
 
 const routeAwareEstimate = {
-  version: 5,
+  version: 6,
   pricingMode: "route_aware",
   estimatedPerVisitCents: 5000,
   estimatedMonthlyCents: 5000,
@@ -115,6 +115,14 @@ const routeAwareEstimate = {
       nearestPropertyDistanceMiles: 0.91,
     },
     route: {
+      source: "saved_route",
+      routeId: "route-1",
+      routeName: "East/Central",
+      routeRegion: "Tucson - East/Central",
+      routeVersion: 2,
+      stopCount: 2,
+      maximumStops: 6,
+      capacityRemaining: 4,
       confidence: 0.6,
       commitment: "modeled",
       fitScore: 0.9567,
@@ -127,6 +135,19 @@ const routeAwareEstimate = {
       insertionBeforePropertyName: "Tucson operations base",
     },
   },
+};
+
+const organizationWithRoutes = {
+  organizationId: "organization-1",
+  name: "Example Organization",
+  routes: [{
+    routeId: "route-1",
+    name: "East/Central",
+    region: "Tucson - East/Central",
+    version: 2,
+    stopCount: 2,
+    status: "active",
+  }],
 };
 
 beforeEach(() => {
@@ -280,7 +301,7 @@ test("calculates an eligible three-property cluster with a standalone comparison
   expect(screen.getByText("Primary")).toBeInTheDocument();
 });
 
-test("calculates a portfolio-aware estimate with backend geographic context", async () => {
+test("calculates a route-aware estimate against a selected saved route", async () => {
   api.post.mockImplementation((url) => {
     if (url === "/api/platform/pricing-locations") {
       return Promise.resolve({
@@ -296,14 +317,14 @@ test("calculates a portfolio-aware estimate with backend geographic context", as
     }
     return Promise.resolve(routeAwareEstimate);
   });
-  render(<PricingEstimator organizations={[{
-    organizationId: "organization-1",
-    name: "Example Organization",
-  }]} />);
+  render(<PricingEstimator organizations={[organizationWithRoutes]} />);
 
-  fireEvent.click(screen.getByRole("radio", { name: /Portfolio-aware property/ }));
+  fireEvent.click(screen.getByRole("radio", { name: /Route-aware property/ }));
   fireEvent.change(screen.getByLabelText("Organization"), {
     target: { value: "organization-1" },
+  });
+  fireEvent.change(screen.getByLabelText("Pricing route"), {
+    target: { value: "route-1" },
   });
   fireEvent.change(screen.getByLabelText("Proposed property address"), {
     target: { value: "100 Example Road, Tucson, AZ" },
@@ -324,6 +345,7 @@ test("calculates a portfolio-aware estimate with backend geographic context", as
     {
       pricingMode: "route_aware",
       organizationId: "organization-1",
+      routeId: "route-1",
       candidate: {
         id: "address.1",
         name: "100 Example Road, Tucson, Arizona 85710, United States",
@@ -338,10 +360,12 @@ test("calculates a portfolio-aware estimate with backend geographic context", as
       includeManagedServiceFee: false,
     }
   ));
-  expect(await screen.findByRole("heading", { name: "Portfolio-aware planning estimate" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Route-aware planning estimate" })).toBeInTheDocument();
   expect(within(screen.getByText("Estimated per visit").closest("article"))
     .getByText("$50")).toBeInTheDocument();
   expect(screen.getByText("Road matrix")).toBeInTheDocument();
+  expect(screen.getByText("East/Central - Tucson - East/Central (v2)")).toBeInTheDocument();
+  expect(screen.getByText("2 of 6")).toBeInTheDocument();
   expect(screen.getByText("8.6 mi · 20.64 min")).toBeInTheDocument();
   expect(screen.getByText("96% · Direct-route marginal price")).toBeInTheDocument();
   expect(screen.getByText("Broadway Center → Tucson operations base")).toBeInTheDocument();
@@ -349,12 +373,9 @@ test("calculates a portfolio-aware estimate with backend geographic context", as
   expect(screen.queryByText("Manual pricing review required")).not.toBeInTheDocument();
 });
 
-test("portfolio-aware pricing requires a confirmed address result", async () => {
-  render(<PricingEstimator organizations={[{
-    organizationId: "organization-1",
-    name: "Example Organization",
-  }]} />);
-  fireEvent.click(screen.getByRole("radio", { name: /Portfolio-aware property/ }));
+test("route-aware pricing requires a confirmed address result", async () => {
+  render(<PricingEstimator organizations={[organizationWithRoutes]} />);
+  fireEvent.click(screen.getByRole("radio", { name: /Route-aware property/ }));
   fireEvent.change(screen.getByLabelText("Organization"), {
     target: { value: "organization-1" },
   });
@@ -371,7 +392,7 @@ test("portfolio-aware pricing requires a confirmed address result", async () => 
   expect(api.post).not.toHaveBeenCalled();
 });
 
-test("portfolio-aware pricing labels a live-routing fallback for review", async () => {
+test("route-aware pricing labels a live-routing fallback for review", async () => {
   api.post.mockImplementation((url) => {
     if (url === "/api/platform/pricing-locations") {
       return Promise.resolve({ results: [{
@@ -389,11 +410,8 @@ test("portfolio-aware pricing labels a live-routing fallback for review", async 
       geography: { ...routeAwareEstimate.geography, method: "modeled_coordinates" },
     });
   });
-  render(<PricingEstimator organizations={[{
-    organizationId: "organization-1",
-    name: "Example Organization",
-  }]} />);
-  fireEvent.click(screen.getByRole("radio", { name: /Portfolio-aware property/ }));
+  render(<PricingEstimator organizations={[organizationWithRoutes]} />);
+  fireEvent.click(screen.getByRole("radio", { name: /Route-aware property/ }));
   fireEvent.change(screen.getByLabelText("Organization"), {
     target: { value: "organization-1" },
   });
@@ -408,6 +426,86 @@ test("portfolio-aware pricing labels a live-routing fallback for review", async 
   fireEvent.click(screen.getByRole("button", { name: "Calculate estimate" }));
   expect(await screen.findByText("Coordinate fallback")).toBeInTheDocument();
   expect(screen.getByText(/Live road routing was unavailable/)).toBeInTheDocument();
+});
+
+test("standalone route-aware pricing sends no route commitment or implicit credit scope", async () => {
+  api.post.mockImplementation((url) => {
+    if (url === "/api/platform/pricing-locations") {
+      return Promise.resolve({ results: [{
+        locationId: "address.1",
+        label: "100 Example Road, Tucson, Arizona",
+        lat: 32.22,
+        lng: -110.88,
+        confidence: "high",
+      }] });
+    }
+    return Promise.resolve({
+      ...routeAwareEstimate,
+      geography: {
+        ...routeAwareEstimate.geography,
+        portfolio: { propertyCount: 0, densityScore: 0, nearestPropertyDistanceMiles: null },
+        route: {
+          ...routeAwareEstimate.geography.route,
+          source: "standalone",
+          routeId: null,
+          routeName: null,
+          routeRegion: null,
+          routeVersion: null,
+          stopCount: 0,
+          capacityRemaining: 6,
+          commitment: "none",
+          confidence: 0,
+          modeledStopNames: [],
+        },
+      },
+    });
+  });
+  render(<PricingEstimator organizations={[organizationWithRoutes]} />);
+  fireEvent.click(screen.getByRole("radio", { name: /Route-aware property/ }));
+  fireEvent.change(screen.getByLabelText("Organization"), {
+    target: { value: "organization-1" },
+  });
+  expect(screen.getByText(/receives no saved-route or route-density credit/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Proposed property address"), {
+    target: { value: "100 Example Road, Tucson, AZ" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Find address" }));
+  fireEvent.click(await screen.findByRole("radio", { name: /100 Example Road/ }));
+  fireEvent.change(screen.getByLabelText("Gross square footage"), {
+    target: { value: "18000" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate estimate" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenNthCalledWith(
+    2,
+    "/api/platform/pricing-estimate",
+    expect.objectContaining({ routeId: null, routeCommitment: "none" })
+  ));
+  expect(await screen.findByText("Standalone trip / new route", { selector: "dd" })).toBeInTheDocument();
+});
+
+test("full saved routes cannot be selected for another property", () => {
+  render(<PricingEstimator organizations={[{
+    ...organizationWithRoutes,
+    routes: [{ ...organizationWithRoutes.routes[0], stopCount: 6 }],
+  }]} />);
+  fireEvent.click(screen.getByRole("radio", { name: /Route-aware property/ }));
+  fireEvent.change(screen.getByLabelText("Organization"), {
+    target: { value: "organization-1" },
+  });
+  expect(screen.getByRole("option", { name: /East\/Central \(6\/6 stops/ })).toBeDisabled();
+});
+
+test("opens the dedicated Boutique estimator without changing the standard estimate", () => {
+  render(<PricingEstimator />);
+
+  fireEvent.click(screen.getByRole("button", { name: /Boutique/ }));
+
+  expect(screen.getByRole("dialog", { name: "Boutique estimate" })).toBeInTheDocument();
+  expect(screen.getByText(/\$75 organization fee is included once/i)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close Boutique estimator" }));
+  expect(screen.queryByRole("dialog", { name: "Boutique estimate" })).not.toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: /Single property/ })).toBeChecked();
 });
 
 test("formats a copyable summary without persisting prospect information", () => {

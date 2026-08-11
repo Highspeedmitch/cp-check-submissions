@@ -1,4 +1,5 @@
 const BillingPolicy = require("../models/billingPolicy");
+const { effectivePropertyManagerIds } = require("./routeScopes");
 const Organization = require("../models/organization");
 
 const DEFAULT_POLICY_VERSION = 2;
@@ -113,11 +114,15 @@ function sameId(left, right) {
   return Boolean(left && right && left.toString() === right.toString());
 }
 
-function isManagedProperty(property, user) {
+function isManagedProperty(property, user, organization = null) {
+  if (organization) {
+    return effectivePropertyManagerIds(organization, property)
+      .some((id) => sameId(id, user.userId));
+  }
   return property?.propertyManagers?.some((id) => sameId(id, user.userId));
 }
 
-function evaluatePolicyAction({ policy, action, user, invoice, property }) {
+function evaluatePolicyAction({ policy, action, user, invoice, property, organization }) {
   if (!policy?.active) {
     return { allowed: false, reason: "The organization does not have an active billing policy." };
   }
@@ -135,7 +140,7 @@ function evaluatePolicyAction({ policy, action, user, invoice, property }) {
     }
     if (user.role === "property_manager"
       && policy.approval.requireManagedProperty
-      && !isManagedProperty(property, user)) {
+      && !isManagedProperty(property, user, organization)) {
       return { allowed: false, reason: "Property managers can only review properties assigned to them." };
     }
     return { allowed: true };
@@ -170,7 +175,7 @@ function evaluatePolicyAction({ policy, action, user, invoice, property }) {
     }
     if (user.role === "property_manager"
       && policy.payment.requireManagedProperty
-      && !isManagedProperty(property, user)) {
+      && !isManagedProperty(property, user, organization)) {
       return { allowed: false, reason: "Property managers can only update properties assigned to them." };
     }
     return { allowed: true };
@@ -192,7 +197,7 @@ async function evaluateOrganizationBillingAction({
     ? organization.properties.id(targetPropertyId)
     : null;
   return {
-    ...evaluatePolicyAction({ policy, action, user, invoice, property }),
+    ...evaluatePolicyAction({ policy, action, user, invoice, property, organization }),
     organization,
     policy,
     property,

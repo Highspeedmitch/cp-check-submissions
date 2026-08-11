@@ -180,6 +180,9 @@ test("scheduler resources expose deployment scope without internal contractor ra
     resourceProfileId: "resource-1",
     resourceDeploymentId: "deployment-1",
     propertyIds: ["property-1"],
+    directPropertyIds: ["property-1"],
+    routeIds: [],
+    scopeMode: "selected",
   }]);
 });
 
@@ -198,6 +201,23 @@ test("SaaS organizations cannot load deployed Afterlight resources into the sche
 
   assert.deepEqual(resources, []);
   assert.equal(deploymentLookup, false);
+});
+
+test("Boutique organizations can load deployed Afterlight resources into the scheduler", async () => {
+  let deploymentLookup = false;
+  const resources = await deployedSchedulerResources({
+    organizationId: "org-1",
+    serviceModel: "boutique",
+    ResourceDeploymentModel: {
+      find() {
+        deploymentLookup = true;
+        return leanResult([]);
+      },
+    },
+  });
+
+  assert.deepEqual(resources, []);
+  assert.equal(deploymentLookup, true);
 });
 
 test("Afterlight staff assignments require a deployed employee or owner without contractor pay", async () => {

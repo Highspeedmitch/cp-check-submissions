@@ -6,6 +6,7 @@ const MODEL_LABELS = {
   platform: "Full-stack SaaS",
   managed: "Managed service",
   hybrid: "Hybrid",
+  boutique: "Boutique service",
 };
 
 const TIER_LABELS = {

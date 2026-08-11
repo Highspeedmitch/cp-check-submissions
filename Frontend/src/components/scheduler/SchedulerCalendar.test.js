@@ -152,3 +152,24 @@ test("keeps selected-day details inline on compact screens", () => {
     end: thirdDate,
   }));
 });
+
+test("labels a grouped calendar entry as a multi-stop route assignment", () => {
+  const routeEvent = {
+    _id: "route-run-1",
+    routeRunId: "route-run-1",
+    propertyName: "Tucson - East/Central",
+    routeStopCount: 4,
+    assigneeLabel: "Alex@example.com",
+    start: calendarDate,
+    end: nextDate,
+    tone: "customer",
+  };
+  const onSelectEvent = jest.fn();
+  renderCalendar({ events: [routeEvent], onSelectEvent });
+
+  fireEvent.click(screen.getByRole("button", { name: /View 1 assignment on Tuesday, August 11/i }));
+
+  expect(screen.getByText(/ROUTE assignment.*4 stops.*Alex@example.com/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit ROUTE Tucson - East/Central assignment" }));
+  expect(onSelectEvent).toHaveBeenCalledWith(routeEvent);
+});
