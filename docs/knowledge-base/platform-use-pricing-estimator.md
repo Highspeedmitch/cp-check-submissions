@@ -2,7 +2,7 @@
 
 **Audience:** Afterlight platform administrators
 
-Use **Marketing tools > Pricing Estimator** to calculate preliminary customer-facing service pricing for a single property, an eligible property cluster, or a route-aware property during a prospect conversation. The estimator uses the same versioned single-property formula as internal bid estimates, but it does not create a bid request, upload an attachment, notify a customer, or save prospect information.
+Use **Marketing tools > Pricing Estimator** to calculate preliminary customer-facing service pricing for a single property, an eligible property cluster, a route-aware property, or a Boutique service portfolio during a prospect conversation. The estimator uses versioned server-controlled formulas, but it does not create a bid request, upload an attachment, notify a customer, or save prospect information.
 
 This tool estimates client pricing. Route-aware mode includes a bounded operational travel adjustment, but the estimator does not calculate contractor compensation, total overhead, profitability, or an approved customer quote.
 
@@ -25,6 +25,26 @@ Formula version 6 retains the diminishing-marginal-cost retail-center curve intr
 The $50 minimum remains the floor for an individually priced, non-cluster property. Cluster calculations continue to price the primary property at its standalone amount and each eligible additional property at 50%.
 
 Select **Copy summary** to place a plain-language internal summary on your clipboard. Review and revise the wording before moving it into customer-facing material.
+
+## Calculate Boutique service
+
+Boutique service is for one to three small commercial properties operated through Afterlight fulfillment. The monthly estimate consists of one $75 organization license plus the calculated visit charge for every property. The license is applied once whether the portfolio contains one, two, or three properties.
+
+Every proposed property must have a gross area below 5,000 square feet. A property at exactly 5,000 square feet, a missing size, a fourth property, or a non-monthly service schedule is not eligible for the Boutique calculation and should be evaluated under another service model.
+
+1. Select **Boutique service**.
+2. Add one to three proposed properties.
+3. Enter each address and confirm the applicable Mapbox result.
+4. Enter each property's gross square footage and property type.
+5. Mark known concerns when the prospect has identified unusual work or risk.
+6. For two or three properties, confirm whether they will normally be serviced on the same route and service date.
+7. Select **Calculate Boutique estimate**.
+
+Each property retains at least the $50 visit-work floor. The estimator then measures operational travel from the private operations base. The first 10 round-trip miles and 30 round-trip minutes are included. Excess mileage and loaded travel time are priced by backend policy and rounded to the nearest $5. Boutique travel is not limited by the ordinary route-aware percentage surcharge cap, because a low-cost visit can otherwise understate the real cost of serving a distant standalone property.
+
+When multiple properties will be serviced together, the estimator calculates one home-base loop, selects the efficient stop order, and allocates that loop's travel cost across the properties. When they will be serviced separately, it calculates an independent home-base round trip for each property. Route efficiency reduces travel only; it never discounts the $75 organization license or a property's visit-work floor.
+
+The result separates the organization license, property-work charge, allocated travel charge, per-property visit total, visit-service subtotal, and estimated monthly contract total. It also displays the modeled stop order and any manual-review reason. The private operations-base coordinates and Mapbox token remain backend-only.
 
 ## Calculate a property cluster
 
@@ -76,7 +96,7 @@ For ad-hoc service, the tool provides a per-visit estimate but intentionally doe
 
 ## Protect prospect information
 
-- Do not enter names, email addresses, access instructions, or other personal information. Single-property and cluster calculations do not require an address. Route-aware address results remain stateless and are used only for the current calculation.
+- Do not enter names, email addresses, access instructions, or other personal information. Single-property and cluster calculations do not require an address. Route-aware and Boutique address results remain stateless and are used only for the current calculation.
 - Estimates are stateless and are not added to the bid repository.
 - Use **Reset** before beginning another prospect calculation.
 - Create a formal bid request through the customer workflow when supporting property information, review status, and retained history are required.

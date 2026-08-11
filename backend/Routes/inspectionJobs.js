@@ -42,6 +42,7 @@ router.post("/", uploadLimiter, async (req, res) => {
     console.error("Unable to create inspection job:", error.message);
     res.status(error.status || 500).json({
       message: error.status ? error.message : "Unable to prepare the inspection upload.",
+      code: error.status ? error.code : undefined,
     });
   }
 });

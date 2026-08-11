@@ -1,4 +1,10 @@
 const { resolveServicePlanPricing } = require("./servicePlanPricing");
+const {
+  BOUTIQUE_ADMIN_LIMIT,
+  BOUTIQUE_MAX_PROPERTIES,
+  BOUTIQUE_USER_LIMIT,
+  serviceModelIncludesPortfolioReporting,
+} = require("./boutiquePolicy");
 
 const LICENSE_TIERS = ["tier_1", "tier_2", "tier_3"];
 const METERED_SERVICE_MODELS = new Set(["platform", "hybrid"]);
@@ -12,6 +18,11 @@ const HYBRID_PORTFOLIO_MINIMUMS = Object.freeze({
   tier_1: 15,
   tier_2: 12,
   tier_3: 10,
+});
+const BOUTIQUE_LIMITS = Object.freeze({
+  adminLimit: BOUTIQUE_ADMIN_LIMIT,
+  userLimit: BOUTIQUE_USER_LIMIT,
+  propertyLimit: BOUTIQUE_MAX_PROPERTIES,
 });
 
 function isPositiveInteger(value) {
@@ -28,17 +39,20 @@ function minimumAdminLimit(value) {
 }
 
 function resolveLicenseEntitlements(organization = {}) {
-  const serviceModel = ["platform", "managed", "hybrid"].includes(organization.serviceModel)
+  const serviceModel = ["platform", "managed", "hybrid", "boutique"].includes(organization.serviceModel)
     ? organization.serviceModel
     : "managed";
   const tier = normalizedTier(serviceModel, organization.license?.tier);
   const managed = serviceModel === "managed";
-  const defaults = tier ? TIER_LIMITS[tier] : {
+  const boutique = serviceModel === "boutique";
+  const defaults = boutique ? BOUTIQUE_LIMITS : tier ? TIER_LIMITS[tier] : {
     adminLimit: null,
     userLimit: null,
     propertyLimit: null,
   };
-  const configuredAdminLimit = minimumAdminLimit(organization.license?.adminLimit);
+  const configuredAdminLimit = boutique
+    ? BOUTIQUE_ADMIN_LIMIT
+    : minimumAdminLimit(organization.license?.adminLimit);
   const configuredUserLimit = isPositiveInteger(organization.license?.userLimit)
     ? organization.license.userLimit
     : null;
@@ -51,16 +65,20 @@ function resolveLicenseEntitlements(organization = {}) {
     serviceModel,
     tier,
     unmeteredAdmins: managed,
-    adminLimit: managed ? null : configuredAdminLimit || defaults.adminLimit,
-    userLimit: managed ? null : configuredUserLimit || defaults.userLimit,
-    propertyLimit: managed ? null : configuredPropertyLimit || defaults.propertyLimit,
+    adminLimit: managed ? null : boutique ? BOUTIQUE_ADMIN_LIMIT : configuredAdminLimit || defaults.adminLimit,
+    userLimit: managed ? null : boutique ? BOUTIQUE_USER_LIMIT : configuredUserLimit || defaults.userLimit,
+    propertyLimit: managed ? null : boutique ? BOUTIQUE_MAX_PROPERTIES : configuredPropertyLimit || defaults.propertyLimit,
     afterlightPortfolioMinimumPercent: serviceModel === "hybrid"
       ? HYBRID_PORTFOLIO_MINIMUMS[tier]
       : null,
     ...pricing,
-    label: managed
-      ? "Managed service"
-      : `${serviceModel === "platform" ? "Full Stack SaaS" : "Hybrid"} Tier ${tier.slice(-1)}`,
+    portfolioReportingIncluded: serviceModelIncludesPortfolioReporting(serviceModel),
+    monthlyExecutiveSummaryIncluded: serviceModelIncludesPortfolioReporting(serviceModel),
+    label: boutique
+      ? "Boutique service"
+      : managed
+        ? "Managed service"
+        : `${serviceModel === "platform" ? "Full Stack SaaS" : "Hybrid"} Tier ${tier.slice(-1)}`,
   };
 }
 
@@ -131,6 +149,7 @@ module.exports = {
   LICENSE_TIERS,
   METERED_SERVICE_MODELS,
   TIER_LIMITS,
+  BOUTIQUE_LIMITS,
   HYBRID_PORTFOLIO_MINIMUMS,
   normalizedTier,
   resolveLicenseEntitlements,

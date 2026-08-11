@@ -138,7 +138,7 @@ function OrganizationCapabilitiesDialog({ organization, busy, error, onClose, on
   }, [organization]);
   if (!organization) return null;
 
-  const supported = ["managed", "hybrid"].includes(organization.serviceModel);
+  const supported = ["boutique", "managed", "hybrid"].includes(organization.serviceModel);
   const incompleteApSetup = organization.emailApPropertyCount < organization.propertyCount;
   return (
     <div className="beta-dialog-overlay" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
@@ -161,7 +161,7 @@ function OrganizationCapabilitiesDialog({ organization, busy, error, onClose, on
             <option value="secure_email_link" disabled={!supported}>Secure email approval</option>
           </select>
         </label>
-        {!supported && <p className="beta-alert notice">Secure email approval is currently limited to Managed service and Hybrid organizations.</p>}
+        {!supported && <p className="beta-alert notice">Secure email approval is currently limited to Boutique, Managed service, and Hybrid organizations.</p>}
         {experience === "secure_email_link" && incompleteApSetup && (
           <p className="beta-alert notice">
             {organization.emailApPropertyCount} of {organization.propertyCount} properties currently have AP email delivery configured. Ineligible invoices will continue using standard Afterlight review.

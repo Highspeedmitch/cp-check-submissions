@@ -56,6 +56,10 @@ const {
   resolveOrganizationTravelContext,
 } = require("../services/platformPricingContext");
 const { createMapboxPricingClient } = require("../services/mapboxPricing");
+const {
+  estimateBoutiquePricing,
+  resolveBoutiqueTravelContext,
+} = require("../services/boutiquePricing");
 
 const router = express.Router();
 const PROSPECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -136,6 +140,20 @@ function createPricingEstimateHandler({
 } = {}) {
   return async (req, res) => {
     try {
+      if (req.body.pricingMode === "boutique") {
+        const resolved = await resolveBoutiqueTravelContext({
+          properties: req.body.properties,
+          sameScheduledVisit: req.body.sameScheduledVisit !== false,
+          homeBase: homeBaseResolver(),
+          routingClient: routingClientResolver(),
+        });
+        return res.json(estimateBoutiquePricing({
+          properties: resolved.properties,
+          travelContext: resolved.travelContext,
+          hasKnownIssues: req.body.hasKnownIssues === true,
+          serviceFrequency: req.body.serviceFrequency,
+        }));
+      }
       if (req.body.pricingMode === "cluster") {
         return res.json(estimateClusterPricing({
           properties: req.body.properties,
@@ -257,7 +275,8 @@ router.post("/organizations", authenticateToken, requirePlatformAdmin, async (re
     if (error?.code === 11000) {
       return res.status(409).json({ error: "An organization with that name already exists." });
     }
-    if (/Organization name|organization type|reporting timezone|valid invitation email/i.test(error.message || "")) {
+    if (error?.status === 400
+      || /Organization name|organization type|reporting timezone|valid invitation email/i.test(error.message || "")) {
       return res.status(400).json({ error: error.message });
     }
     console.error("Organization creation error:", error.message);
@@ -321,9 +340,9 @@ router.put("/organizations/:organizationId/billing-capabilities",
       const organization = await Organization.findById(req.params.organizationId);
       if (!organization) return res.status(404).json({ error: "Organization not found." });
       if (invoiceApprovalExperience === "secure_email_link"
-        && !["managed", "hybrid"].includes(organization.serviceModel || "managed")) {
+        && !["boutique", "managed", "hybrid"].includes(organization.serviceModel || "managed")) {
         return res.status(409).json({
-          error: "Secure email approval is currently limited to Managed service and Hybrid organizations.",
+          error: "Secure email approval is currently limited to Boutique, Managed service, and Hybrid organizations.",
         });
       }
 

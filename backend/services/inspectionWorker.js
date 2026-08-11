@@ -39,6 +39,7 @@ const {
 const { issuerSnapshotForInvoice } = require("./invoiceIssuer");
 const { mergePropertyInspectionRecipients } = require("./propertyEmails");
 const { effectivePropertyManagerIds } = require("./routeScopes");
+const { requireBoutiqueInspectionAssignment } = require("./boutiquePolicy");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -111,6 +112,31 @@ function assignmentFulfillmentSnapshot(assignment, organization, job) {
     ? assignment.fulfillment.toObject()
     : assignment.fulfillment;
   return { ...stored };
+}
+
+async function resolveInspectionAssignment(job, { AssignmentModel = Assignment } = {}) {
+  if (job.assignmentId) {
+    const assignment = await AssignmentModel.findOne({
+      _id: job.assignmentId,
+      organizationId: job.organizationId,
+      userId: job.userId,
+      propertyName: job.propertyName,
+      status: { $in: ["scheduled", "completed"] },
+    });
+    if (!assignment) {
+      const error = new Error("The assigned work item is no longer available for this inspection.");
+      error.code = "INSPECTION_ASSIGNMENT_INVALID";
+      error.permanent = true;
+      throw error;
+    }
+    return assignment;
+  }
+  return AssignmentModel.findOne({
+    organizationId: job.organizationId,
+    propertyName: job.propertyName,
+    userId: job.userId,
+    status: "scheduled",
+  });
 }
 
 async function ensureSubmission(job, organization, property, assignment) {
@@ -391,14 +417,11 @@ async function processInspectionJob(job) {
     error.permanent = true;
     throw error;
   }
-  const assignment = job.assignmentId
-    ? await Assignment.findById(job.assignmentId)
-    : await Assignment.findOne({
-        organizationId: job.organizationId,
-        propertyName: job.propertyName,
-        userId: job.userId,
-        status: "scheduled",
-      });
+  const assignment = await resolveInspectionAssignment(job);
+  requireBoutiqueInspectionAssignment(
+    organization,
+    job.assignmentId ? assignment : null
+  );
   const summaryResult = await ensureInspectionSummary(job, { organization });
   const generated = await ensurePdf(job, {
     coverSummary: summaryResult.coverSummary,
@@ -563,6 +586,7 @@ module.exports = {
   LEASE_MS,
   claimInspectionJob,
   processInspectionJob,
+  resolveInspectionAssignment,
   recordJobFailure,
   processNextInspectionJob,
   cleanupExpiredInspectionUploads,

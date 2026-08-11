@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  BOUTIQUE_LIMITS,
   TIER_LIMITS,
   resolveLicenseEntitlements,
   summarizeAdminSeats,
@@ -35,6 +36,42 @@ test("managed service administrator seats are unmetered", () => {
   assert.equal(entitlements.adminLimit, null);
   assert.equal(entitlements.tier, null);
   assert.equal(entitlements.afterlightPortfolioMinimumPercent, null);
+});
+
+test("Boutique has fixed untiered capacity, visit billing, and no portfolio reporting", () => {
+  assert.deepEqual(BOUTIQUE_LIMITS, {
+    adminLimit: 1,
+    userLimit: 2,
+    propertyLimit: 3,
+  });
+  const entitlements = resolveLicenseEntitlements({
+    serviceModel: "boutique",
+    license: {
+      tier: "tier_3",
+      adminLimit: 99,
+      userLimit: 99,
+      propertyLimit: 99,
+    },
+  });
+  assert.equal(entitlements.label, "Boutique service");
+  assert.equal(entitlements.tier, null);
+  assert.equal(entitlements.unmeteredAdmins, false);
+  assert.equal(entitlements.adminLimit, 1);
+  assert.equal(entitlements.userLimit, 2);
+  assert.equal(entitlements.propertyLimit, 3);
+  assert.equal(entitlements.recurringMonthlyFeeCents, 7500);
+  assert.equal(entitlements.currency, "USD");
+  assert.equal(entitlements.visitChargesBilledSeparately, true);
+  assert.equal(entitlements.afterlightPortfolioMinimumPercent, null);
+  assert.equal(entitlements.portfolioReportingIncluded, false);
+  assert.equal(entitlements.monthlyExecutiveSummaryIncluded, false);
+
+  for (const serviceModel of ["platform", "managed", "hybrid"]) {
+    const tier = ["platform", "hybrid"].includes(serviceModel) ? "tier_1" : null;
+    const plan = resolveLicenseEntitlements({ serviceModel, license: { tier } });
+    assert.equal(plan.portfolioReportingIncluded, true);
+    assert.equal(plan.monthlyExecutiveSummaryIncluded, true);
+  }
 });
 
 test("hybrid tiers expose their contracted Afterlight portfolio minimum", () => {

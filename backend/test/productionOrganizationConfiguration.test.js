@@ -29,7 +29,29 @@ test("production configuration rejects fulfillment that conflicts with the servi
     name: "SaaS Organization",
     serviceModel: "platform",
     defaultFulfillmentSource: "afterlight_staff",
-  }), /Managed Service and Hybrid/);
+  }), /Boutique, Managed Service, and Hybrid/);
+});
+
+test("Production configuration cannot move an ineligible portfolio into Boutique service", () => {
+  const configuration = {
+    name: "Small Customer",
+    serviceModel: "boutique",
+    defaultFulfillmentSource: "afterlight_staff",
+  };
+  assert.throws(() => buildProductionOrganizationPlan({
+    _id: "org-small",
+    name: "Small Customer",
+    orgType: "COM",
+    serviceModel: "managed",
+    properties: [{ name: "Too Large", grossSquareFeet: 5000 }],
+  }, configuration), /under 5,000 square feet/i);
+  assert.doesNotThrow(() => buildProductionOrganizationPlan({
+    _id: "org-small",
+    name: "Small Customer",
+    orgType: "COM",
+    serviceModel: "managed",
+    properties: [{ name: "Eligible", grossSquareFeet: 4999 }],
+  }, configuration));
 });
 
 test("applying production organization configuration requires two explicit guards", () => {

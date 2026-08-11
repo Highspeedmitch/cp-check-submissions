@@ -25,7 +25,7 @@ Use **Approve and apply** only after confirming the contract, pricing, operation
 Approval takes effect immediately. Afterlight:
 
 - changes the organization's service model;
-- applies the explicitly requested tier for SaaS or Hybrid, or clears tier limits for Managed service;
+- applies the explicitly requested tier for SaaS or Hybrid, applies Boutique fixed capacity, or clears tier limits for Managed service;
 - selects the service model's standard fulfillment default;
 - clears property-level fulfillment overrides;
 - increments the fulfillment policy version;
@@ -35,7 +35,9 @@ Approval takes effect immediately. Afterlight:
 
 Approval records the plan price but does not generate, change, or collect a recurring corporate invoice. Complete any contract and billing-provider changes through the approved billing process until recurring organization billing is automated.
 
-Existing assignments and invoices keep their saved fulfillment and billing routing. An ended deployment removes the resource from the organization's future staffing choices; it does not remove the resource from an assignment created before the transition. Moving back to Hybrid or Managed service does not automatically reactivate prior deployments. A platform administrator must deploy the appropriate resources again.
+Existing assignments and invoices keep their saved fulfillment and billing routing. An ended deployment removes the resource from the organization's future staffing choices; it does not remove the resource from an assignment created before the transition. Moving back to Boutique, Hybrid, or Managed service does not automatically reactivate prior deployments. A platform administrator must deploy the appropriate resources again.
+
+Before approving Boutique service, confirm that the organization type is **Commercial**, that the organization has no more than three properties, and that every property has a recorded gross area below 5,000 square feet. Boutique uses Afterlight fulfillment, includes one administrator and two other organization users, and excludes Portfolio Reporting and monthly executive summaries. Do not approve the transition when the organization is non-commercial, a property is missing its size, or a property is exactly 5,000 square feet.
 
 ## Approve a tier-increase request
 
@@ -64,6 +66,7 @@ Enter the reason in **Platform response**, then select **Deny**. No organization
 - Tier increases are accepted only for SaaS and Hybrid and must target a higher standard tier.
 - Custom administrator capacity is accepted only for Tier 3 SaaS and Hybrid organizations and must be greater than the current administrator limit.
 - Service-model changes into SaaS or Hybrid require an explicit tier.
+- Service-model changes into Boutique require no tier and fail when the organization is not Commercial or when property-count or property-size eligibility is not satisfied.
 - SaaS permits only customer employees and customer-managed contractors for new assignments. Server-side validation rejects Afterlight fulfillment even if a stale client attempts to submit it.
 - Denial and information requests require a written platform response.
 - Direct organization-admin service-model, tier, and custom-capacity changes remain rejected by the API.

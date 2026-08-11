@@ -5,6 +5,7 @@ import ContextualHelpLink from "./help/ContextualHelpLink";
 const MODEL_LABELS = {
   platform: "Full-stack SaaS",
   managed: "Managed service",
+  boutique: "Boutique",
   hybrid: "Hybrid",
 };
 

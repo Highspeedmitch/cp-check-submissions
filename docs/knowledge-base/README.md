@@ -74,6 +74,8 @@ The screenshots are source-verified UI illustrations built from the current appl
 
 > **Role note:** Organization administrators can manage Scheduler assignments across the organization. Property managers can manage assignments only for properties assigned to them.
 
+> **Plan note:** Portfolio Reporting and monthly executive summaries are available only when the organization's service plan includes them. Boutique service users review individual property reports instead.
+
 > **Contractor billing note:** Afterlight Resource Network contractors do not prepare customer invoices. Their earnings appear in the Resource Portal and are paid separately through Gusto.
 
 ## Short-term rental property owners

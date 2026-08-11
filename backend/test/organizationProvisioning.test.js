@@ -72,7 +72,39 @@ test("organization setup stores the selected Tier 2 SaaS limits", () => {
     orgType: "COM",
     serviceModel: "platform",
     defaultFulfillmentSource: "afterlight_staff",
-  }), /Managed Service and Hybrid/);
+  }), /Boutique, Managed Service, and Hybrid/);
+});
+
+test("organization setup provisions Boutique without a tier and with Afterlight fulfillment", () => {
+  const setup = normalizeOrganizationSetup({
+    name: "Small Property Group",
+    orgType: "COM",
+    serviceModel: "boutique",
+    licenseTier: "tier_3",
+  });
+
+  assert.equal(setup.serviceModel, "boutique");
+  assert.deepEqual(setup.license, {
+    tier: null,
+    adminLimit: 1,
+    userLimit: 2,
+    propertyLimit: 3,
+    adminSeatVersion: 0,
+    capacityVersion: 0,
+  });
+  assert.equal(setup.fulfillmentPolicy.defaultSource, "afterlight_staff");
+  assert.throws(() => normalizeOrganizationSetup({
+    name: "Customer Fulfilled Boutique",
+    orgType: "COM",
+    serviceModel: "boutique",
+    defaultFulfillmentSource: "customer_employee",
+  }), /Boutique|Afterlight fulfillment/i);
+  assert.throws(() => normalizeOrganizationSetup({
+    name: "Residential Boutique",
+    orgType: "RES",
+    serviceModel: "boutique",
+  }), (error) => error.status === 400
+    && error.code === "BOUTIQUE_ORGANIZATION_TYPE_NOT_ELIGIBLE");
 });
 
 test("organization name matching is exact and case insensitive", () => {

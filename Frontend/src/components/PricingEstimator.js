@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { api } from "../services/api";
+import BoutiquePricingDialog from "./BoutiquePricingDialog";
 
 const MAX_ROUTE_PROPERTIES = 6;
 const MAX_CLUSTER_PROPERTIES = MAX_ROUTE_PROPERTIES;
@@ -135,6 +136,7 @@ export default function PricingEstimator({ organizations = [] }) {
   const [locationResults, setLocationResults] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [boutiqueOpen, setBoutiqueOpen] = useState(false);
   const clusterMode = form.pricingMode === "cluster";
   const routeAwareMode = form.pricingMode === "route_aware";
   const selectedOrganization = organizations.find(
@@ -373,6 +375,9 @@ export default function PricingEstimator({ organizations = [] }) {
               onChange={() => updateMode("route_aware")} />
             <span><strong>Route-aware property</strong><small>Price a saved route insertion or a standalone trip.</small></span>
           </label>
+          <button type="button" className="platform-pricing-mode-button" onClick={() => setBoutiqueOpen(true)}>
+            <span><strong>Boutique</strong><small>Price one to three sub-5,000 sq ft properties with the $75 monthly fee.</small></span>
+          </button>
         </fieldset>
 
         {routeAwareMode && (
@@ -748,6 +753,7 @@ export default function PricingEstimator({ organizations = [] }) {
           </div>
         </section>
       )}
+      {boutiqueOpen && <BoutiquePricingDialog onClose={() => setBoutiqueOpen(false)} />}
     </section>
   );
 }

@@ -496,6 +496,18 @@ test("full saved routes cannot be selected for another property", () => {
   expect(screen.getByRole("option", { name: /East\/Central \(6\/6 stops/ })).toBeDisabled();
 });
 
+test("opens the dedicated Boutique estimator without changing the standard estimate", () => {
+  render(<PricingEstimator />);
+
+  fireEvent.click(screen.getByRole("button", { name: /Boutique/ }));
+
+  expect(screen.getByRole("dialog", { name: "Boutique estimate" })).toBeInTheDocument();
+  expect(screen.getByText(/\$75 organization fee is included once/i)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close Boutique estimator" }));
+  expect(screen.queryByRole("dialog", { name: "Boutique estimate" })).not.toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: /Single property/ })).toBeChecked();
+});
+
 test("formats a copyable summary without persisting prospect information", () => {
   expect(estimateSummaryText({
     grossSquareFeet: "18000",

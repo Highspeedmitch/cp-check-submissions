@@ -74,3 +74,29 @@ test("platform metrics merge grouped tenant counts without per-organization quer
     "2026-06-29T12:00:00.000Z"
   );
 });
+
+test("platform metrics present Boutique pricing and service delivery", async () => {
+  const result = await getPlatformOrganizationMetrics({
+    OrganizationModel: { aggregate: async () => [{
+      _id: "boutique-org",
+      name: "Boutique Client",
+      orgType: "COM",
+      serviceModel: "boutique",
+      license: { tier: null, adminLimit: 1, userLimit: 2, propertyLimit: 3 },
+      propertyCount: 1,
+      routes: [],
+    }] },
+    UserModel: { aggregate: async () => [] },
+    SubmissionModel: { aggregate: async () => [] },
+    BidRequestModel: { aggregate: async () => [] },
+    InvoiceModel: { aggregate: async () => [] },
+    InvitationModel: { aggregate: async () => [] },
+  });
+
+  assert.equal(result.organizations[0].serviceModel, "boutique");
+  assert.equal(result.organizations[0].planLabel, "Boutique service");
+  assert.equal(result.organizations[0].recurringMonthlyFeeCents, 7500);
+  assert.equal(result.organizations[0].visitChargesBilledSeparately, true);
+  assert.equal(result.organizations[0].portfolioReportingIncluded, false);
+  assert.equal(result.organizations[0].monthlyExecutiveSummaryIncluded, false);
+});

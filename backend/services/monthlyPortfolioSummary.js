@@ -10,6 +10,7 @@ const {
   reportingTimezone,
   submissionIssueOccurrences,
 } = require("./reporting");
+const { serviceModelIncludesPortfolioReporting } = require("./boutiquePolicy");
 
 const PORTFOLIO_SUMMARY_MODES = new Set(["off", "preview", "live"]);
 const PORTFOLIO_NARRATIVE_PROMPT_VERSION = "monthly-portfolio-v1";
@@ -34,6 +35,7 @@ function monthlyPortfolioSummaryOrganizationAllowlist(env = process.env) {
 }
 
 function isMonthlyPortfolioSummaryOrganizationAllowed(organization, env = process.env) {
+  if (!serviceModelIncludesPortfolioReporting(organization)) return false;
   const allowlist = monthlyPortfolioSummaryOrganizationAllowlist(env);
   if (!allowlist.size) return false;
   return [organization?._id, organization?.name]

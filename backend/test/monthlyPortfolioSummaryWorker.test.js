@@ -5,6 +5,8 @@ const {
   deliverPortfolioEmail,
   enqueueMonthlyPortfolioSummary,
   monthlyPortfolioSummaryEmail,
+  processMonthlyPortfolioSummary,
+  seedMonthlyPortfolioSummaries,
 } = require("../services/monthlyPortfolioSummaryWorker");
 
 test("monthly summaries enqueue with an immutable recipient property snapshot", async () => {
@@ -53,6 +55,70 @@ test("monthly summaries enqueue with an immutable recipient property snapshot", 
     name: "Broadway",
   }]);
   assert.equal(captured.options.upsert, true);
+});
+
+test("automatic monthly seeding excludes Boutique even when the organization is allowlisted", async () => {
+  let userQueries = 0;
+  let reportWrites = 0;
+  const result = await seedMonthlyPortfolioSummaries({
+    env: {
+      MONTHLY_PORTFOLIO_SUMMARY_MODE: "preview",
+      MONTHLY_PORTFOLIO_SUMMARY_ORGANIZATION_ALLOWLIST: "Boutique Client,org-boutique",
+    },
+    now: new Date("2026-08-01T12:00:00.000Z"),
+    OrganizationModel: {
+      async find() {
+        return [{
+          _id: "org-boutique",
+          name: "Boutique Client",
+          orgType: "COM",
+          serviceModel: "boutique",
+          reportingTimezone: "America/Phoenix",
+          properties: [{ _id: "property-1", name: "Small Office", propertyManagers: ["pm-1"] }],
+        }];
+      },
+    },
+    UserModel: {
+      find() {
+        userQueries += 1;
+        throw new Error("Boutique recipients must not be queried");
+      },
+    },
+    ReportModel: {
+      async findOneAndUpdate() {
+        reportWrites += 1;
+      },
+    },
+  });
+
+  assert.deepEqual(result, { organizations: 1, recipients: 0, reports: 0 });
+  assert.equal(userQueries, 0);
+  assert.equal(reportWrites, 0);
+});
+
+test("a queued monthly summary cannot process after its organization moves to Boutique", async () => {
+  let downstreamCalls = 0;
+  await assert.rejects(() => processMonthlyPortfolioSummary({
+    organizationId: "org-boutique",
+  }, {
+    env: {
+      MONTHLY_PORTFOLIO_SUMMARY_MODE: "live",
+      MONTHLY_PORTFOLIO_SUMMARY_ORGANIZATION_ALLOWLIST: "Boutique Client",
+    },
+    OrganizationModel: {
+      async findById() {
+        return {
+          _id: "org-boutique",
+          name: "Boutique Client",
+          serviceModel: "boutique",
+        };
+      },
+    },
+    async bedrockClient() { downstreamCalls += 1; },
+    async sendEmail() { downstreamCalls += 1; },
+    async notify() { downstreamCalls += 1; },
+  }), (error) => error.permanent === true && /not enabled/i.test(error.message));
+  assert.equal(downstreamCalls, 0);
 });
 
 test("monthly summary claims use an atomic lease and increment attempts", async () => {

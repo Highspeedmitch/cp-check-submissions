@@ -40,7 +40,7 @@ Activation is blocked until the resource has a linked Afterlight user. Contracto
 ## Deploy the resource
 
 1. Under **Deploy a Resource**, select an active resource.
-2. Select an eligible managed or hybrid organization.
+2. Select an eligible Boutique, Managed service, or Hybrid organization.
 3. For a contractor, optionally enter a deployment-specific pay-rate override. Employee and owner deployments have no per-assignment payable rate.
 4. Under **Future scheduling scope**, choose **All organization properties** or **Selected properties and routes**. In selected scope, choose any required individual properties, active routes, or both.
 5. Select **Save Deployment**.
@@ -54,7 +54,7 @@ Use deployment editing to change where a resource can be scheduled in the future
 1. Find the deployment in the table below **Deploy a Resource**.
 2. Select **Edit**.
 3. In **Edit Resource Deployment**, review the organization, property/route scope, and contractor pay override when applicable.
-4. Select a different managed or hybrid organization when the resource must move, or change the property and route scope within the current organization.
+4. Select a different Boutique, Managed service, or Hybrid organization when the resource must move, or change the property and route scope within the current organization.
 5. Select **Save Changes**.
 
 Changing deployment scope affects future scheduling only. Existing assignments, completed inspections, earnings, and audit history remain linked to the original deployment context. Moving a resource to another organization does not move those historical records.

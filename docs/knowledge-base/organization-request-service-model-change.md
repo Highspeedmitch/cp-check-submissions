@@ -1,6 +1,6 @@
 # Request a service plan change
 
-Use this process when your organization wants to move between Full-stack SaaS, Managed service, or Hybrid delivery, or when a SaaS or Hybrid organization needs a higher license tier. These are contracted settings, so organization administrators submit a request instead of changing them directly.
+Use this process when your organization wants to move between Boutique, Full-stack SaaS, Managed service, or Hybrid delivery, or when a SaaS or Hybrid organization needs a higher license tier. These are contracted settings, so organization administrators submit a request instead of changing them directly.
 
 ## Before you begin
 
@@ -18,6 +18,7 @@ Only one active service-plan request can exist for an organization at a time.
 | Hybrid Tier 1 | $300/month | Same Tier 1 capacity, plus a 15% monthly portfolio minimum assigned to Afterlight |
 | Hybrid Tier 2 | $700/month | Same Tier 2 capacity, plus a 12% monthly portfolio minimum assigned to Afterlight |
 | Hybrid Tier 3 | $1,000/month | Same Tier 3 capacity, plus a 10% monthly portfolio minimum assigned to Afterlight |
+| Boutique service | $75/month | Commercial organizations only; 1 administrator, 2 other users, and 1-3 properties under 5,000 square feet; visits billed separately; Portfolio Reporting excluded |
 | Managed service | $500/month | Property visits are billed separately |
 
 The Service Delivery page displays contract pricing, but it does not currently generate a recurring organization invoice. Existing visit invoices remain separate.
@@ -27,7 +28,7 @@ The Service Delivery page displays contract pricing, but it does not currently g
 1. From the organization dashboard, open **Service Delivery**.
 2. Review the current plan in the **Service plan** section.
 3. Under **Change service model**, select the requested model.
-4. If the requested model is Full-stack SaaS or Hybrid, select its requested license tier.
+4. If the requested model is Full-stack SaaS or Hybrid, select its requested license tier. Boutique and Managed service do not use a tier.
 5. Optionally choose a requested effective date. This is a planning request, not a guaranteed activation date.
 6. Enter the business reason and operational context.
 7. Select **Request service model change**.
@@ -70,7 +71,7 @@ Previous decisions remain available under **Previous service plan requests**.
 
 ## What approval changes
 
-A service-model approval takes effect immediately, establishes an explicit tier when the destination is SaaS or Hybrid, selects the standard fulfillment default, and removes property-level fulfillment overrides. Existing assignments, inspection submissions, invoices, and saved billing routes do not change.
+A service-model approval takes effect immediately, establishes an explicit tier when the destination is SaaS or Hybrid, selects the standard fulfillment default, and removes property-level fulfillment overrides. Boutique approval is available only to organizations configured with the **Commercial** organization type, with no more than three properties, and with every property recording a gross area below 5,000 square feet. Boutique also removes access to Portfolio Reporting and stops future monthly executive-summary generation. Existing assignments, inspection submissions, invoices, saved reports, and saved billing routes do not change.
 
 A tier-increase approval takes effect immediately and increases licensed administrator, user, and property capacity. It does not change the service model, fulfillment policy, property overrides, assignments, or invoices.
 

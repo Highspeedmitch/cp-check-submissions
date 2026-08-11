@@ -99,6 +99,8 @@ async function getPlatformOrganizationMetrics({
       recurringMonthlyFeeCents: entitlements.recurringMonthlyFeeCents,
       currency: entitlements.currency,
       visitChargesBilledSeparately: entitlements.visitChargesBilledSeparately,
+      portfolioReportingIncluded: entitlements.portfolioReportingIncluded,
+      monthlyExecutiveSummaryIncluded: entitlements.monthlyExecutiveSummaryIncluded,
       propertyCount: organization.propertyCount || 0,
       emailApPropertyCount: organization.emailApPropertyCount || 0,
       invoiceApprovalExperience:

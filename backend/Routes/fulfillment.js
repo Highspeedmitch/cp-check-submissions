@@ -23,6 +23,7 @@ const {
 const {
   TIER_RECURRING_MONTHLY_PRICES_CENTS,
   MANAGED_SERVICE_BASE_MONTHLY_CENTS,
+  BOUTIQUE_SERVICE_BASE_MONTHLY_CENTS,
 } = require("../services/servicePlanPricing");
 
 const router = express.Router();
@@ -54,6 +55,7 @@ function serializeSettings(organization) {
     organization: {
       id: organization._id,
       name: organization.name,
+      orgType: organization.orgType,
       serviceModel: organization.serviceModel || "managed",
       defaultSource: organizationSource,
       policyVersion: Number(organization.fulfillmentPolicy?.version || 1),
@@ -67,6 +69,8 @@ function serializeSettings(organization) {
         recurringMonthlyFeeCents: entitlements.recurringMonthlyFeeCents,
         currency: entitlements.currency,
         visitChargesBilledSeparately: entitlements.visitChargesBilledSeparately,
+        portfolioReportingIncluded: entitlements.portfolioReportingIncluded,
+        monthlyExecutiveSummaryIncluded: entitlements.monthlyExecutiveSummaryIncluded,
         planLabel: entitlements.label,
       },
     },
@@ -94,6 +98,7 @@ function serializeSettings(organization) {
       hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
       tierRecurringMonthlyPricesCents: TIER_RECURRING_MONTHLY_PRICES_CENTS,
       managedServiceBaseMonthlyCents: MANAGED_SERVICE_BASE_MONTHLY_CENTS,
+      boutiqueServiceBaseMonthlyCents: BOUTIQUE_SERVICE_BASE_MONTHLY_CENTS,
       meteredServiceModels: [...METERED_SERVICE_MODELS],
     },
   };

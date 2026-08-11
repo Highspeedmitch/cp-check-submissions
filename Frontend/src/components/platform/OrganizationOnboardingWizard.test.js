@@ -70,3 +70,44 @@ test("SaaS onboarding offers only customer-controlled fulfillment", () => {
   expect(screen.queryByRole("option", { name: "Afterlight staff" })).not.toBeInTheDocument();
   expect(screen.queryByRole("option", { name: "Afterlight contractor" })).not.toBeInTheDocument();
 });
+
+test("Boutique onboarding applies the $75 non-tiered plan and Afterlight fulfillment", async () => {
+  const onCreate = jest.fn().mockResolvedValue(true);
+  render(
+    <OrganizationOnboardingWizard open busy={false} error="" onClose={jest.fn()} onCreate={onCreate} />
+  );
+
+  fireEvent.change(screen.getByLabelText("Organization name"), { target: { value: "Small Firm" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByLabelText(/Boutique/));
+
+  expect(screen.queryByRole("combobox", { name: /License tier/i })).not.toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: /Default fulfillment/i })).toHaveValue("afterlight_staff");
+  expect(screen.queryByRole("option", { name: "Customer employee" })).not.toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Afterlight contractor" })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.change(screen.getByLabelText("Administrator email"), { target: { value: "owner@small.example" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByText(/Boutique.*\$75\/month \+ visit costs/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Launch Organization" }));
+
+  await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
+    serviceModel: "boutique",
+    licenseTier: null,
+    defaultFulfillmentSource: "afterlight_staff",
+  })));
+});
+
+test("Boutique is unavailable for non-commercial organizations", () => {
+  render(
+    <OrganizationOnboardingWizard open busy={false} error="" onClose={jest.fn()} onCreate={jest.fn()} />
+  );
+
+  fireEvent.change(screen.getByLabelText("Organization name"), { target: { value: "Residential Firm" } });
+  fireEvent.change(screen.getByLabelText("Organization type"), { target: { value: "RES" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(screen.getByLabelText(/Boutique/)).toBeDisabled();
+  expect(screen.getByText(/Commercial organizations only/)).toBeInTheDocument();
+});

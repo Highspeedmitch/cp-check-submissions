@@ -315,7 +315,7 @@ test("SaaS organizations cannot create Afterlight assignments through a crafted 
   }, res);
 
   assert.equal(res.statusCode, 400);
-  assert.match(res.body.error, /Managed Service and Hybrid/i);
+  assert.match(res.body.error, /Boutique, Managed Service, and Hybrid/i);
   assert.equal(assigneeResolutionAttempted, false);
 });
 

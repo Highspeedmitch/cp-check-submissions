@@ -57,4 +57,5 @@ test("SaaS hides an empty Afterlight queue but retains existing Afterlight work"
   expect(showAfterlightQueue(undefined, 0)).toBe(false);
   expect(showAfterlightQueue("platform", 1)).toBe(true);
   expect(showAfterlightQueue("hybrid", 0)).toBe(true);
+  expect(showAfterlightQueue("boutique", 0)).toBe(true);
 });

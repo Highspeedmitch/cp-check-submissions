@@ -6,6 +6,7 @@ import {
 } from "../../services/organizationOnboardingStatus";
 import WorkspaceSwitcher from "../WorkspaceSwitcher";
 import ThemeToggle from "./ThemeToggle";
+import { portfolioReportingEnabled } from "../../services/servicePlanAccess";
 
 const NAVIGATION_SECTION_STORAGE_KEY = "afterlight.dashboard-navigation.sections.v1";
 
@@ -97,6 +98,8 @@ export default function DashboardNavigation({
   notificationBadges = {},
   accountScope = "organization",
   activeRoute = "dashboard",
+  serviceModel = localStorage.getItem("serviceModel") || "",
+  portfolioReportingIncluded = localStorage.getItem("portfolioReportingIncluded") !== "false",
 }) {
   const isAdmin = role === "admin";
   const isManager = role === "property_manager";
@@ -106,6 +109,10 @@ export default function DashboardNavigation({
   );
   const showSetupGuide = setupGuideNavigationVisible(onboardingStatus);
   const externalConnectionsAllowed = canAccessExternalConnections({ role, accountScope });
+  const showPortfolioReporting = isManagement && portfolioReportingEnabled({
+    serviceModel,
+    portfolioReportingIncluded,
+  });
   const dashboardRoute = accountScope === "afterlight_resource" ? "/resource" : "/dashboard";
   const [sections, setSections] = useState(() => initialSectionState(accountScope, activeRoute));
   const toggleSection = (section) => {
@@ -147,7 +154,7 @@ export default function DashboardNavigation({
               onToggle={() => toggleSection("workspace")}
               badge={badgeTotal(
                 notificationBadges.dashboard,
-                notificationBadges.reporting,
+                showPortfolioReporting ? notificationBadges.reporting : 0,
                 notificationBadges.billing,
                 notificationBadges.bids
               )}
@@ -161,7 +168,7 @@ export default function DashboardNavigation({
               {externalConnectionsAllowed && (
                 <NavButton active={activeRoute === "external-connections"} onClick={() => go("/external-connections")}>External Connections</NavButton>
               )}
-              {isManagement && (
+              {showPortfolioReporting && (
                 <NavButton
                   badge={notificationBadges.reporting}
                   onClick={() => go(notificationBadges.reporting ? "/reporting?view=monthly" : "/reporting")}

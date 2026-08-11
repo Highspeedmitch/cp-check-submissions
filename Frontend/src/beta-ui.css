@@ -1775,9 +1775,10 @@ select:focus-visible {
 .platform-onboarding-stage-copy { margin-bottom: 20px; }
 .platform-onboarding-stage-copy h3 { margin: 0 0 6px; color: var(--beta-ink); font-size: 20px; }
 .platform-onboarding-stage-copy p { margin: 0; color: var(--beta-muted); line-height: 1.5; }
-.platform-service-model-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; padding: 0; border: 0; }
+.platform-service-model-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; padding: 0; border: 0; }
 .platform-service-model-options label { display: flex; min-width: 0; gap: 10px; padding: 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); cursor: pointer; }
 .platform-service-model-options label.selected { border-color: var(--beta-blue); background: var(--beta-soft-blue); box-shadow: 0 0 0 1px var(--beta-blue); }
+.platform-service-model-options label.unavailable { opacity: 0.58; cursor: not-allowed; }
 .platform-service-model-options input { width: auto; flex: 0 0 auto; margin: 3px 0 0; }
 .platform-service-model-options span { display: grid; gap: 5px; min-width: 0; }
 .platform-service-model-options strong { color: var(--beta-ink); font-size: 13px; }
@@ -3069,10 +3070,12 @@ select:focus-visible {
 .platform-pricing-estimator > .beta-section-heading { margin-bottom: -4px; }
 .platform-pricing-disclaimer { margin: 0; }
 .platform-pricing-form { display: grid; gap: 20px; margin: 0; }
-.platform-pricing-mode { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 0; }
+.platform-pricing-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 0; }
 .platform-pricing-mode legend,
 .platform-pricing-eligibility legend { grid-column: 1 / -1; margin-bottom: 10px; color: var(--beta-ink); font-size: 13px; font-weight: 800; }
 .platform-pricing-mode label { display: flex; align-items: flex-start; gap: 10px; padding: 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); cursor: pointer; }
+.platform-pricing-mode-button { display: flex; width: auto; min-width: 0; align-items: flex-start; gap: 10px; margin: 0; padding: 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); color: inherit; text-align: left; box-shadow: none; cursor: pointer; }
+.platform-pricing-mode-button:hover { border-color: var(--beta-primary); background: var(--beta-primary-soft); box-shadow: none; }
 .platform-pricing-mode label:has(input:checked) { border-color: var(--beta-primary); box-shadow: 0 0 0 1px var(--beta-primary); }
 .platform-pricing-mode input[type="radio"] { flex: 0 0 18px; width: 18px; height: 18px; min-height: 0; margin: 2px 0 0; padding: 0; border: 0; border-radius: 50%; accent-color: var(--beta-blue); }
 .platform-pricing-mode span { display: grid; gap: 3px; }
@@ -3141,6 +3144,25 @@ select:focus-visible {
 .platform-pricing-assumptions dt { color: var(--beta-muted); font-size: 12px; font-weight: 700; }
 .platform-pricing-assumptions dd { margin: 0; color: var(--beta-ink); font-size: 13px; font-weight: 750; }
 
+.boutique-pricing-dialog { display: block; width: min(100%, 880px); }
+.boutique-pricing-form { display: grid; gap: 18px; }
+.boutique-pricing-properties { display: grid; gap: 14px; }
+.boutique-pricing-property { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--beta-border); border-radius: 12px; background: var(--beta-subtle); }
+.boutique-pricing-property .beta-form-grid { margin: 0; }
+.boutique-pricing-property .platform-pricing-location-results { background: var(--beta-surface); }
+.boutique-pricing-controls { display: flex; align-items: center; gap: 12px; }
+.boutique-pricing-controls .beta-button { width: auto; margin: 0; }
+.boutique-pricing-controls span { color: var(--beta-muted); font-size: 12px; font-weight: 750; }
+.boutique-pricing-result { display: grid; gap: 18px; margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--beta-border); }
+.boutique-pricing-result > .beta-section-heading { margin: 0; }
+.boutique-pricing-result > .beta-section-heading h3 { margin: 4px 0 0; color: var(--beta-ink); font-size: 20px; }
+.boutique-pricing-result > .beta-section-heading .beta-button { width: auto; margin: 0; }
+.platform-pricing-metrics.boutique { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.boutique-route-summary { padding: 14px 16px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); }
+.boutique-route-summary strong { color: var(--beta-ink); }
+.boutique-route-summary p { margin: 7px 0 0; color: var(--beta-muted); font-size: 13px; line-height: 1.45; }
+.boutique-pricing-result .beta-alert ul { margin: 8px 0 0; padding-left: 20px; }
+
 @media (max-width: 620px) {
   .platform-pricing-mode,
   .platform-pricing-property { grid-template-columns: 1fr; }
@@ -3153,9 +3175,16 @@ select:focus-visible {
   .platform-pricing-metrics,
   .platform-pricing-metrics.cluster,
   .platform-pricing-metrics.route-aware,
+  .platform-pricing-metrics.boutique,
   .platform-pricing-route-factors,
   .platform-pricing-assumptions dl { grid-template-columns: 1fr; }
   .platform-pricing-breakdown-heading { align-items: stretch; flex-direction: column; }
+  .boutique-pricing-dialog { padding: 18px; }
+  .boutique-pricing-property { padding: 14px; }
+  .boutique-pricing-controls { align-items: stretch; flex-direction: column; }
+  .boutique-pricing-controls .beta-button { width: 100%; }
+  .boutique-pricing-result > .beta-section-heading { align-items: stretch; flex-direction: column; }
+  .boutique-pricing-result > .beta-section-heading .beta-button { width: 100%; }
 }
 .platform-organization-actions .beta-button { width: 100%; }
 .platform-capability-summary { color: var(--beta-muted); text-align: center; }

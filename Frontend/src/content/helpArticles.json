@@ -69,6 +69,7 @@
     "roles": ["admin", "property_manager"],
     "accountScopes": ["organization"],
     "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "excludedServiceModels": ["boutique"],
     "file": "use-reporting-dashboard.md",
     "estimatedTime": "2-4 min",
     "keywords": ["activity", "average submission time", "field operator", "filters", "issues", "portfolio", "reporting", "trends"]

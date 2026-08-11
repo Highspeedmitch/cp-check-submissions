@@ -24,12 +24,14 @@ A named region makes the property eligible for an administrator-created route bu
 
 Open **Service Delivery** to review the organization's contracted service model, organization default, and property overrides.
 
+Boutique service uses Afterlight fulfillment only. Its $75 monthly organization fee is separate from visit charges, and its portfolio is limited to three properties under 5,000 square feet each. Portfolio Reporting and monthly executive summaries are not included with Boutique service.
+
 - **Customer employee** and **Customer contractor** route work through the customer-assigned queue.
 - **Afterlight staff** and **Afterlight contractor** route work through Afterlight Coverage and Afterlight service billing when applicable.
 - Saving a new organization default requires the organization administrative action passkey.
 - A property can remain on **Use organization default** or select a different default for future assignments.
 
-The service model and license tier are contract controlled. Use [Request a service plan change](organization-request-service-model-change.md) when the organization needs to move between Full-stack SaaS, Managed service, or Hybrid delivery or request a higher tier.
+The service model and license tier are contract controlled. Use [Request a service plan change](organization-request-service-model-change.md) when the organization needs to move between Boutique, Full-stack SaaS, Managed service, or Hybrid delivery or request a higher tier.
 
 ## Configure commercial billing
 

@@ -11,6 +11,7 @@ const MONTHLY_ASSIGNMENT_LABELS = {
 function PropertyCard({
   property,
   isManagement,
+  canStartInspection = true,
   isCompleted,
   hasNewActivity,
   role,
@@ -39,7 +40,9 @@ function PropertyCard({
           <p>
             {isManagement
               ? "Inspection history and property activity"
-              : "Property inspection checklist"}
+              : canStartInspection
+                ? "Property inspection checklist"
+                : "Afterlight-managed property"}
           </p>
         </div>
         <div className="beta-property-status-stack">
@@ -54,7 +57,7 @@ function PropertyCard({
                   ? "Unassigned"
                 : isManagement
                   ? "Managed"
-                  : "Ready"}
+                  : canStartInspection ? "Ready" : "Afterlight"}
           </span>
           {isManagement && monthlyStatus && (
             <span className={`beta-status beta-monthly-assignment-status is-${monthlyStatus}`}
@@ -65,9 +68,11 @@ function PropertyCard({
         </div>
       </div>
       <div className="beta-card-actions beta-property-actions">
-        <button className="beta-button" onClick={() => onOpen(property)}>
-          {isManagement ? "View Submissions" : "Start Inspection"}
-        </button>
+        {(isManagement || canStartInspection) && (
+          <button className="beta-button" onClick={() => onOpen(property)}>
+            {isManagement ? "View Submissions" : "Start Inspection"}
+          </button>
+        )}
         {role === "admin" && (
           <button
             type="button"

@@ -41,6 +41,7 @@ export default function PropertyFormSettings() {
   const [error, setError] = useState("");
   const [regions, setRegions] = useState([]);
   const isAdmin = localStorage.getItem("role") === "admin";
+  const boutiqueOrganization = localStorage.getItem("serviceModel") === "boutique";
 
   useEffect(() => {
     api.get(`/api/inspection-templates/properties/${encodeURIComponent(property)}/effective`)
@@ -91,6 +92,12 @@ export default function PropertyFormSettings() {
 
   const savePropertyDetails = async () => {
     if (!propertyDetails || detailsSaving) return;
+    const squareFeet = Number(propertyDetails.grossSquareFeet);
+    if (boutiqueOrganization
+      && (!Number.isInteger(squareFeet) || squareFeet < 1 || squareFeet >= 5000)) {
+      setError("Boutique properties require a gross square footage below 5,000.");
+      return;
+    }
     setDetailsSaving(true);
     setError("");
     setMessage("");
@@ -209,6 +216,21 @@ export default function PropertyFormSettings() {
                 <label className="beta-form-field">Property code
                   <input value={propertyDetails?.propertyCode || ""}
                     onChange={(event) => setPropertyDetails({ ...propertyDetails, propertyCode: event.target.value })} />
+                </label>
+                <label className="beta-form-field">Gross square footage
+                  <input type="number" min="1" max={boutiqueOrganization ? "4999" : undefined}
+                    step="1" required={boutiqueOrganization} value={propertyDetails?.grossSquareFeet ?? ""}
+                    onChange={(event) => setPropertyDetails({ ...propertyDetails, grossSquareFeet: event.target.value })} />
+                  {boutiqueOrganization && <small className="beta-field-help">Boutique properties must remain under 5,000 square feet.</small>}
+                </label>
+                <label className="beta-form-field">Property type
+                  <select value={propertyDetails?.propertyType || "free_standing"}
+                    required={boutiqueOrganization}
+                    onChange={(event) => setPropertyDetails({ ...propertyDetails, propertyType: event.target.value })}>
+                    <option value="free_standing">Free standing</option>
+                    <option value="strip_mall">Strip mall</option>
+                    <option value="individual_suite">Individual suite</option>
+                  </select>
                 </label>
                 <label className="beta-form-field full">Region
                   <input

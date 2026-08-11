@@ -223,7 +223,7 @@ test("future scheduling scope remains hidden until an organization is selected",
   await screen.findByRole("heading", { name: "Deploy a Resource" });
   expect(screen.queryByRole("group", { name: "Future scheduling scope" })).not.toBeInTheDocument();
 
-  fireEvent.change(screen.getByLabelText("Managed or hybrid organization"), { target: { value: "org-1" } });
+  fireEvent.change(screen.getByLabelText("Afterlight-serviced organization"), { target: { value: "org-1" } });
   expect(screen.getByRole("radio", { name: /All organization properties/ })).toBeChecked();
   fireEvent.click(screen.getByRole("radio", { name: /Selected properties and routes/ }));
   expect(screen.getByRole("checkbox", { name: /Property A/ })).toBeInTheDocument();
@@ -284,12 +284,12 @@ test("current deployments can move organizations and change eligible property sc
   expect(screen.getByRole("heading", { name: "Edit Resource Deployment" })).toBeInTheDocument();
   expect(screen.getByLabelText("Resource")).toHaveValue("resource-1");
   expect(screen.getByLabelText("Resource")).toBeDisabled();
-  expect(screen.getByLabelText("Managed or hybrid organization")).toHaveValue("org-1");
+  expect(screen.getByLabelText("Afterlight-serviced organization")).toHaveValue("org-1");
   expect(screen.getByLabelText("Contractor pay override")).toHaveValue(90);
   expect(screen.getByRole("radio", { name: /Selected properties and routes/ })).toBeChecked();
   expect(screen.getByRole("checkbox", { name: /Property A/ })).toBeChecked();
 
-  fireEvent.change(screen.getByLabelText("Managed or hybrid organization"), { target: { value: "org-2" } });
+  fireEvent.change(screen.getByLabelText("Afterlight-serviced organization"), { target: { value: "org-2" } });
   fireEvent.click(screen.getByRole("radio", { name: /Selected properties and routes/ }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Property B/ }));
   fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
@@ -328,7 +328,7 @@ test("a resource deployment can use a route as dynamic future scope", async () =
 
   await screen.findByRole("heading", { name: "Deploy a Resource" });
   fireEvent.change(screen.getByLabelText("Active resource"), { target: { value: "resource-1" } });
-  fireEvent.change(screen.getByLabelText("Managed or hybrid organization"), { target: { value: "org-1" } });
+  fireEvent.change(screen.getByLabelText("Afterlight-serviced organization"), { target: { value: "org-1" } });
   fireEvent.click(screen.getByRole("radio", { name: /Selected properties and routes/ }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Tucson - Central Route/ }));
   fireEvent.click(screen.getByRole("button", { name: "Save Deployment" }));

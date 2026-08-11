@@ -119,6 +119,104 @@ test("platform pricing estimation calculates eligible property clusters", () => 
   assert.equal(res.body.estimatedPerVisitCents, 10000);
 });
 
+test("platform pricing estimation calculates a Boutique contract from backend road travel", async () => {
+  let matrixPoints;
+  const handler = platformRouter.createPricingEstimateHandler({
+    OrganizationModel: {
+      findById() { throw new Error("Boutique prospect pricing must not query an organization"); },
+    },
+    homeBaseResolver: () => ({
+      id: "operations-base",
+      name: "Tucson operations base",
+      lat: 32.25,
+      lng: -110.93,
+    }),
+    routingClientResolver: () => ({
+      async getDrivingMatrix(points) {
+        matrixPoints = points;
+        return {
+          provider: "mapbox",
+          distancesMeters: [
+            [0, 15 * 1609.344],
+            [15 * 1609.344, 0],
+          ],
+          durationsSeconds: [
+            [0, 30 * 60],
+            [30 * 60, 0],
+          ],
+        };
+      },
+    }),
+  });
+  const res = response();
+  await handler({ body: {
+    pricingMode: "boutique",
+    properties: [{
+      grossSquareFeet: 1500,
+      propertyType: "free_standing",
+      candidate: {
+        id: "address.1",
+        name: "Small Office",
+        lat: 32.22,
+        lng: -110.88,
+      },
+    }],
+    sameScheduledVisit: true,
+  } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.version, "boutique-1");
+  assert.equal(res.body.pricingMode, "boutique");
+  assert.equal(res.body.baseVisitTotalCents, 5000);
+  assert.equal(res.body.travelAdjustmentCents, 3000);
+  assert.equal(res.body.estimatedMonthlyCents, 8000);
+  assert.equal(res.body.boutiqueService.baseMonthlyFeeCents, 7500);
+  assert.equal(res.body.boutiqueService.estimatedContractMonthlyCents, 15500);
+  assert.equal(res.body.properties[0].baseVisitCents, 5000);
+  assert.equal(res.body.properties[0].travelAdjustmentCents, 3000);
+  assert.equal(res.body.properties[0].estimatedMonthlyCents, 8000);
+  assert.equal(res.body.geography.method, "road_matrix");
+  assert.equal(matrixPoints.length, 2);
+  assert.equal(JSON.stringify(res.body).includes("32.25"), false);
+  assert.equal(JSON.stringify(res.body).includes("-110.93"), false);
+});
+
+test("platform Boutique pricing rejects a fourth property and the exclusive size boundary", async () => {
+  const handler = platformRouter.createPricingEstimateHandler({
+    homeBaseResolver: () => ({ lat: 32.25, lng: -110.93 }),
+    routingClientResolver: () => null,
+  });
+  const candidate = (index, grossSquareFeet = 1000) => ({
+    grossSquareFeet,
+    propertyType: "free_standing",
+    candidate: { lat: 32.2 + (index / 100), lng: -110.9 - (index / 100) },
+  });
+  const tooMany = response();
+  await handler({ body: {
+    pricingMode: "boutique",
+    properties: [candidate(1), candidate(2), candidate(3), candidate(4)],
+  } }, tooMany);
+  assert.equal(tooMany.statusCode, 400);
+  assert.match(tooMany.body.error, /between 1 and 3 properties/i);
+
+  const tooLarge = response();
+  await handler({ body: {
+    pricingMode: "boutique",
+    properties: [candidate(1, 5000)],
+  } }, tooLarge);
+  assert.equal(tooLarge.statusCode, 409);
+  assert.match(tooLarge.body.error, /under 5,000 square feet/i);
+
+  const weekly = response();
+  await handler({ body: {
+    pricingMode: "boutique",
+    serviceFrequency: "weekly",
+    properties: [candidate(1)],
+  } }, weekly);
+  assert.equal(weekly.statusCode, 400);
+  assert.match(weekly.body.error, /only for monthly visits/i);
+});
+
 test("platform pricing estimation returns safe validation errors", () => {
   const res = response();
   pricingRoute().stack[2].handle({

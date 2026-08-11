@@ -11,10 +11,14 @@ const {
 } = require("../services/licensedCapacityOperations");
 const { normalizePropertyEmails } = require("../services/propertyEmails");
 const {
-  validateFulfillmentSource,
+  validateFulfillmentSourceForServiceModel,
   propertyDefaultSource,
 } = require("../services/fulfillmentPolicy");
 const { activeRoutes, normalizeRegion, routePropertyIds } = require("../services/routeScopes");
+const {
+  normalizePropertySquareFeet,
+  normalizePropertyType,
+} = require("../services/boutiquePolicy");
 
 const router = express.Router();
 
@@ -33,6 +37,7 @@ router.post("/add-property", async (req, res) => {
       defaultInspectionAmountCents, apMethod, apEmail, apPortal,
       billingInstructions, purchaseOrder, propertyManagerId,
       defaultFulfillmentSource,
+      grossSquareFeet, propertyType,
     } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Property name is required" });
@@ -40,8 +45,18 @@ router.post("/add-property", async (req, res) => {
     const isSTR = organization.orgType === "STR";
     const isCOM = organization.orgType === "COM";
     const fulfillmentOverride = defaultFulfillmentSource
-      ? validateFulfillmentSource(defaultFulfillmentSource)
+      ? validateFulfillmentSourceForServiceModel(defaultFulfillmentSource, organization)
       : null;
+    const normalizedGrossSquareFeet = normalizePropertySquareFeet(
+      grossSquareFeet,
+      organization,
+      { required: organization.serviceModel === "boutique" }
+    );
+    const normalizedPropertyType = normalizePropertyType(
+      propertyType,
+      organization,
+      { required: organization.serviceModel === "boutique" }
+    );
     if (isCOM && (!propertyCode || !physicalAddress || !billingAddress)) {
       return res.status(400).json({
         error: "Property code, physical address, and billing address are required for commercial properties.",
@@ -82,6 +97,8 @@ router.post("/add-property", async (req, res) => {
         }
         currentOrganization.properties.push({
           name,
+          grossSquareFeet: normalizedGrossSquareFeet,
+          propertyType: normalizedPropertyType,
           lat,
           lng,
           emails: normalizePropertyEmails(emails || [], {

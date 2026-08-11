@@ -6,6 +6,7 @@ const {
 } = require("./licenseEntitlements");
 const { capacitySnapshot: licensedCapacitySnapshot } = require("./licenseCapacity");
 const { validateServiceModel } = require("./fulfillmentPolicy");
+const { validateBoutiquePortfolio } = require("./boutiquePolicy");
 
 function normalizedName(value) {
   return String(value || "").trim().replace(/\s+/g, " ");
@@ -44,7 +45,8 @@ function normalizeProductionLicenseConfiguration(input = {}) {
 
   if (!metered) {
     if (input.tier != null || input.adminLimit != null || input.userLimit != null || input.propertyLimit != null) {
-      throw new Error(`Managed Service organization ${name} cannot define metered license limits.`);
+      const planLabel = serviceModel === "boutique" ? "Boutique service" : "Managed Service";
+      throw new Error(`${planLabel} organization ${name} cannot define custom license limits.`);
     }
     return {
       name,
@@ -128,6 +130,16 @@ function overCapacity(capacity, license) {
 }
 
 function buildProductionLicensePlan(organization, configuration, capacity) {
+  if (configuration.serviceModel === "boutique") {
+    const snapshot = typeof organization?.toObject === "function"
+      ? organization.toObject()
+      : organization;
+    validateBoutiquePortfolio({
+      ...(snapshot || {}),
+      serviceModel: "boutique",
+      properties: organization?.properties || snapshot?.properties || [],
+    });
+  }
   const previous = storedLicenseSnapshot(organization);
   const next = {
     ...configuration.license,

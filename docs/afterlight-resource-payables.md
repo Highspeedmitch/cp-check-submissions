@@ -6,7 +6,7 @@ Afterlight contractors use the same authentication system as every other user, b
 
 - `User` is the shared login identity. The active session `accountScope` routes the user, while a linked `ResourceProfile` grants Resource Portal entitlement. A user with both organization membership and a resource profile can switch workspaces without a second account.
 - `ResourceProfile` is the Afterlight-owned worker record, including status, availability, skills, regions, rate, and non-sensitive Gusto references.
-- `ResourceDeployment` makes one resource eligible for a managed or hybrid customer organization. It may cover all properties or a selected property list and may override the resource's default rate.
+- `ResourceDeployment` makes one resource eligible for a Boutique, Managed service, or Hybrid customer organization. It may cover all properties or a selected property list and may override the resource's default rate.
 - `Assignment` references the selected resource and deployment. It snapshots the agreed per-assignment compensation so later profile or deployment rate changes cannot rewrite historical pay.
 - `ContractorEarning` is created idempotently when a contractor inspection is completed. It starts in `pending_approval` and is separate from any customer invoice generated from the same submission. An Afterlight-service customer invoice is owned and prepared by platform billing; the resource remains identified only as the inspection performer.
 - `ContractorPayoutBatch` groups approved earnings by resource, snapshots the Gusto matching email, and tracks the check date, submission reference, and reconciliation state. An optional contractor UUID remains available for a future approved API integration.
@@ -19,7 +19,7 @@ Afterlight does not store bank accounts, tax identification numbers, W-9 data, o
 2. If the email already belongs to an eligible submitter, Afterlight links the resource profile to that identity. Otherwise, the contractor accepts a normal invitation and their login uses the hidden Afterlight workforce organization as its authentication home.
 3. The platform administrator onboards the contractor in Gusto. The matching email and onboarding state drive the manual workflow; the optional UUID is reserved for a future approved API connection.
 4. The resource can be activated only after the Afterlight account exists and Gusto onboarding is marked complete.
-5. The platform administrator deploys the resource to an eligible managed or hybrid organization and optionally limits the deployment to selected properties.
+5. The platform administrator deploys the resource to an eligible Boutique, Managed service, or Hybrid organization and optionally limits the deployment to selected properties.
 6. An organization administrator or property manager sees the resource in the scheduler only when the selected fulfillment source is **Afterlight contractor**, the deployment is active, and the selected property is in scope.
 7. Creating an assignment snapshots the effective default or deployment-specific rate.
 8. The contractor opens or switches into the Resource Portal and submits the inspection through that exact assignment. Cross-tenant property access is authorized by the assignment, not by changing the user's organization membership.

@@ -69,7 +69,7 @@ SaaS organizations can create new assignments only for customer employees or cus
 
 On desktop, you can also drag a scheduled assignment to new dates. Open it afterward to verify the start and end dates.
 
-If an organization moves from Hybrid or Managed Service to SaaS, previously scheduled Afterlight assignments remain available for completion, rescheduling, or cancellation. The Afterlight resource is retained only on that existing work. To change its property or assignee, first change fulfillment to a customer source and select an eligible organization user.
+If an organization moves from Boutique, Hybrid, or Managed Service to SaaS, previously scheduled Afterlight assignments remain available for completion, rescheduling, or cancellation. The Afterlight resource is retained only on that existing work. To change its property or assignee, first change fulfillment to a customer source and select an eligible organization user.
 
 ## Review completed and canceled work
 

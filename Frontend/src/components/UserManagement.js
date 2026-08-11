@@ -470,6 +470,11 @@ export default function UserManagement() {
               <button className="beta-button compact" type="button" onClick={() => setAdminInviteOpen(true)}>
                 Invite Administrator
               </button>
+            ) : data.license?.serviceModel === "boutique" ? (
+              <button className="beta-button secondary compact" type="button"
+                disabled={Boolean(busyAction)} onClick={() => navigate("/service-delivery")}>
+                Review Service Plan
+              </button>
             ) : (
               <button className="beta-button secondary compact" type="button"
                 disabled={Boolean(busyAction)} onClick={() => setLicenseRequestOpen(true)}>
@@ -564,7 +569,9 @@ export default function UserManagement() {
         {data.capacity?.users?.remaining === 0 && (
           <p className="beta-alert notice">
             All licensed user seats are allocated. Revoke an unused invitation, archive an inactive user,
-            or request a higher tier from Service Delivery.
+            or {data.license?.serviceModel === "boutique"
+              ? "review Managed Service options in Service Delivery."
+              : "request a higher tier from Service Delivery."}
           </p>
         )}
         {inviteOpen && (

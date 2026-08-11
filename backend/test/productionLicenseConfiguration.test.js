@@ -127,6 +127,40 @@ test("metered Production license configurations require a valid tier and cannot 
   });
 });
 
+test("Boutique Production configuration uses canonical fixed capacity", () => {
+  const normalized = normalizeProductionLicenseConfiguration({
+    name: "Boutique Customer",
+    serviceModel: "boutique",
+  });
+  assert.deepEqual(normalized.license, {
+    tier: null,
+    adminLimit: 1,
+    userLimit: 2,
+    propertyLimit: 3,
+    adminSeatVersion: 0,
+    capacityVersion: 0,
+  });
+  assert.throws(() => normalizeProductionLicenseConfiguration({
+    name: "Boutique Customer",
+    serviceModel: "boutique",
+    propertyLimit: 4,
+  }), /Boutique service.*cannot define custom license limits/);
+  assert.throws(() => buildProductionLicensePlan(
+    organization({
+      name: "Boutique Customer",
+      orgType: "COM",
+      serviceModel: "boutique",
+      properties: [{ name: "Too Large", grossSquareFeet: 5000 }],
+    }),
+    normalized,
+    {
+      allocatedAdministrators: 1,
+      allocatedUsers: 1,
+      properties: 1,
+    }
+  ), /under 5,000 square feet/i);
+});
+
 test("Managed Service migration writes an explicit unmetered license record", () => {
   const plan = buildProductionLicensePlan(
     organization({ license: undefined }),

@@ -14,10 +14,36 @@ test("service models provide safe fulfillment defaults", () => {
   assert.equal(organizationDefaultSource({ serviceModel: "platform" }), "customer_employee");
   assert.equal(organizationDefaultSource({ serviceModel: "managed" }), "afterlight_staff");
   assert.equal(organizationDefaultSource({ serviceModel: "hybrid" }), "customer_employee");
+  assert.equal(organizationDefaultSource({ serviceModel: "boutique" }), "afterlight_staff");
   assert.equal(organizationDefaultSource({
     serviceModel: "platform",
     fulfillmentPolicy: { defaultSource: "afterlight_staff" },
   }), "customer_employee");
+});
+
+test("Boutique exposes only Afterlight-operated fulfillment", () => {
+  assert.deepEqual(fulfillmentSourcesForServiceModel("boutique"), [
+    "afterlight_staff",
+    "afterlight_contractor",
+  ]);
+  assert.equal(serviceModelAllowsAfterlightResources("boutique"), true);
+  assert.equal(resolveAssignmentFulfillment({
+    organization: { serviceModel: "boutique" },
+    property: {},
+    actorUserId: "admin-1",
+  }).source, "afterlight_staff");
+  assert.throws(() => resolveAssignmentFulfillment({
+    organization: { serviceModel: "boutique" },
+    property: {},
+    requestedSource: "customer_employee",
+    actorUserId: "admin-1",
+  }), /Boutique|Afterlight fulfillment/i);
+  assert.throws(() => resolveAssignmentFulfillment({
+    organization: { serviceModel: "boutique" },
+    property: {},
+    requestedSource: "customer_contractor",
+    actorUserId: "admin-1",
+  }), /Boutique|Afterlight fulfillment/i);
 });
 
 test("SaaS organizations expose only customer-controlled fulfillment", () => {
@@ -39,7 +65,7 @@ test("SaaS assignment overrides cannot request Afterlight fulfillment", () => {
     property: { fulfillmentPolicy: { defaultSource: null } },
     requestedSource: "afterlight_staff",
     actorUserId: "admin-1",
-  }), /only to Managed Service and Hybrid/i);
+  }), /only to Boutique, Managed Service, and Hybrid/i);
 });
 
 test("stale SaaS property overrides safely inherit customer fulfillment", () => {
@@ -100,6 +126,19 @@ test("direct organization submissions are employee work even in a managed organi
   assert.equal(snapshot.inheritedSource, "afterlight_staff");
   assert.equal(snapshot.invoiceRequired, false);
   assert.equal(snapshot.invoiceRouting, "none");
+});
+
+test("Boutique cannot fall back to direct customer-employee fulfillment", () => {
+  assert.throws(() => resolveDirectSubmissionFulfillment({
+    organization: {
+      serviceModel: "boutique",
+      fulfillmentPolicy: { defaultSource: "afterlight_staff", version: 1 },
+    },
+    actorUserId: "customer-user-1",
+  }), (error) => (
+    error.status === 403
+    && error.code === "BOUTIQUE_ASSIGNMENT_REQUIRED"
+  ));
 });
 
 test("Afterlight service invoices are hidden from the performing resource", () => {

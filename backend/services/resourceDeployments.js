@@ -47,7 +47,9 @@ async function updateResourceDeploymentScope({
   PlatformAuditModel = PlatformAudit,
   startSession = () => mongoose.startSession(),
 }) {
-  if (!organizationId) throw operationError("Select an eligible managed or hybrid organization.", 400);
+  if (!organizationId) {
+    throw operationError("Select an eligible Boutique, Managed Service, or Hybrid organization.", 400);
+  }
   const requestedIds = cleanIds(propertyIds);
   const requestedRouteIds = cleanIds(routeIds);
   const requestedScopeMode = scopeMode === "all" || scopeMode === "selected"
@@ -77,11 +79,13 @@ async function updateResourceDeploymentScope({
         withSession(OrganizationModel.findOne({
           _id: organizationId,
           workspaceType: { $ne: "afterlight_workforce" },
-          serviceModel: { $in: ["managed", "hybrid"] },
+          serviceModel: { $in: ["boutique", "managed", "hybrid"] },
         }), session),
       ]);
       if (!resource || resource.archivedAt) throw operationError("Current resource not found.", 404);
-      if (!organization) throw operationError("Select an eligible managed or hybrid organization.", 400);
+      if (!organization) {
+        throw operationError("Select an eligible Boutique, Managed Service, or Hybrid organization.", 400);
+      }
 
       const validPropertyIds = new Set((organization.properties || []).map((property) => String(property._id)));
       if (requestedIds.some((propertyId) => !validPropertyIds.has(propertyId))) {

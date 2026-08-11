@@ -158,3 +158,13 @@ test("searches titles, summaries, categories, and keywords", () => {
   expect(matchesHelpSearch(invoiceArticle, "photos")).toBe(false);
   expect(matchesHelpSearch(invoiceArticle, "")).toBe(true);
 });
+
+test("Boutique organizations do not receive portfolio reporting guidance", () => {
+  const articles = visibleHelpArticles({
+    role: "property_manager",
+    orgType: "COM",
+    accountScope: "organization",
+    serviceModel: "boutique",
+  });
+  expect(articles.map(({ slug }) => slug)).not.toContain("review-portfolio-reporting");
+});

@@ -110,6 +110,51 @@ test("managed service bulk onboarding remains unmetered", async () => {
   assert.equal(preview.canCommit, true);
 });
 
+test("Boutique property preview enforces required size and the strict 5,000-square-foot boundary", async () => {
+  const preview = await previewBulkOnboarding({
+    organization: organization({ serviceModel: "boutique", license: undefined }),
+    type: "properties",
+    csv: [
+      "name,property_code,physical_address,billing_address,gross_square_feet,property_type",
+      "Eligible,E-1,10 Main St,10 Main St,4999,free_standing",
+      "Boundary,B-1,20 Main St,20 Main St,5000,free_standing",
+      "Missing,M-1,30 Main St,30 Main St,,free_standing",
+    ].join("\n"),
+    ...models(),
+  });
+
+  assert.equal(preview.rows[0].errors.length, 0);
+  assert.equal(preview.rows[0].data.grossSquareFeet, 4999);
+  assert.equal(preview.rows[0].data.propertyType, "free_standing");
+  assert.match(preview.rows[1].errors.join(" "), /under 5,000 square feet/i);
+  assert.match(preview.rows[2].errors.join(" "), /square footage is required/i);
+  assert.equal(preview.canCommit, false);
+});
+
+test("Boutique property preview cannot expand an organization beyond three properties", async () => {
+  const preview = await previewBulkOnboarding({
+    organization: organization({
+      serviceModel: "boutique",
+      license: undefined,
+      properties: [
+        { _id: "p-1", name: "One", propertyCode: "P-1", grossSquareFeet: 1000 },
+        { _id: "p-2", name: "Two", propertyCode: "P-2", grossSquareFeet: 2000 },
+      ],
+    }),
+    type: "properties",
+    csv: [
+      "name,property_code,physical_address,billing_address,gross_square_feet",
+      "Three,P-3,30 Main St,30 Main St,3000",
+      "Four,P-4,40 Main St,40 Main St,4000",
+    ].join("\n"),
+    ...models(),
+  });
+
+  assert.equal(preview.capacity.properties.limit, 3);
+  assert.equal(preview.capacityError.code, "PROPERTY_LIMIT_REACHED");
+  assert.equal(preview.canCommit, false);
+});
+
 test("user preview normalizes Field Operator assignment types", async () => {
   const preview = await previewBulkOnboarding({
     organization: organization(),

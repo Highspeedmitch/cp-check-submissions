@@ -151,3 +151,23 @@ test("platform administrators can review custom administrator capacity requests"
   expect(screen.getByText(/changes only the organization's administrator-seat capacity/)).toBeInTheDocument();
   expect(screen.queryByText("Property overrides")).not.toBeInTheDocument();
 });
+
+test("platform administrators see Boutique pricing and capacity in a plan request", async () => {
+  api.get.mockResolvedValue([{
+    ...request,
+    requestedServiceModel: "boutique",
+    organizationSnapshot: {
+      ...request.organizationSnapshot,
+      requestedAdminLimit: 1,
+      requestedUserLimit: 2,
+      requestedPropertyLimit: 3,
+      requestedRecurringMonthlyFeeCents: 7500,
+    },
+  }]);
+
+  render(<PlatformServiceModelChanges />);
+
+  expect(await screen.findByRole("heading", { name: /Full-stack SaaS.*Boutique/ })).toBeInTheDocument();
+  expect(screen.getByText("$300/month → $75/month")).toBeInTheDocument();
+  expect(screen.getByText("10 → 3")).toBeInTheDocument();
+});

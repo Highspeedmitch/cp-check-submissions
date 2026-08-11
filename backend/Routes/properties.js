@@ -63,6 +63,8 @@ router.get("/", requireCurrentOrganizationPresence, async (req, res) => {
         lng: property.lng,
         region: normalizeRegion(property.region),
         physicalAddress: property.physicalAddress,
+        grossSquareFeet: property.grossSquareFeet ?? null,
+        propertyType: property.propertyType || null,
         emails: withoutAutomaticPropertyEmails(property.emails, automaticEmails),
         propertyManagers: property.propertyManagers || [],
         ...(["admin", "property_manager"].includes(req.user.role) && {
@@ -246,6 +248,8 @@ router.get("/:propertyId/details", requireCurrentOrganizationPresence, async (re
       name: property.name,
       propertyCode: property.propertyCode,
       physicalAddress: property.physicalAddress,
+      grossSquareFeet: property.grossSquareFeet ?? null,
+      propertyType: property.propertyType || null,
       lat: property.lat,
       lng: property.lng,
       region: normalizeRegion(property.region),
@@ -270,7 +274,9 @@ router.put("/:propertyId/details", requireCurrentOrganizationPresence, async (re
     const details = normalizePropertyDetails({
       ...req.body,
       region: req.body.region ?? property.region,
-    }, organization.orgType);
+      grossSquareFeet: req.body.grossSquareFeet ?? property.grossSquareFeet,
+      propertyType: req.body.propertyType ?? property.propertyType,
+    }, organization.orgType, organization);
     if (req.user.role !== "admin"
       && normalizeRegion(property.region).toLowerCase() !== details.region.toLowerCase()) {
       return res.status(403).json({ error: "Only organization administrators can change property regions." });
@@ -296,6 +302,8 @@ router.put("/:propertyId/details", requireCurrentOrganizationPresence, async (re
     property.name = details.name;
     property.propertyCode = details.propertyCode;
     property.physicalAddress = details.physicalAddress;
+    property.grossSquareFeet = details.grossSquareFeet;
+    property.propertyType = details.propertyType;
     property.lat = details.lat;
     property.lng = details.lng;
     property.region = details.region;
@@ -344,6 +352,8 @@ router.put("/:propertyId/details", requireCurrentOrganizationPresence, async (re
         name: property.name,
         propertyCode: property.propertyCode,
         physicalAddress: property.physicalAddress,
+        grossSquareFeet: property.grossSquareFeet ?? null,
+        propertyType: property.propertyType || null,
         lat: property.lat,
         lng: property.lng,
         region: normalizeRegion(property.region),

@@ -15,6 +15,7 @@ const settings = {
   organization: {
     id: "org-1",
     name: "Example Organization",
+    orgType: "COM",
     serviceModel: "managed",
     license: {
       tier: null,
@@ -32,7 +33,7 @@ const settings = {
   },
   properties: [],
   options: {
-    serviceModels: ["platform", "managed", "hybrid"],
+    serviceModels: ["platform", "boutique", "managed", "hybrid"],
     meteredServiceModels: ["platform", "hybrid"],
     licenseTiers: ["tier_1", "tier_2", "tier_3"],
     tierLimits: {
@@ -43,6 +44,7 @@ const settings = {
     hybridPortfolioMinimums: { tier_1: 15, tier_2: 12, tier_3: 10 },
     tierRecurringMonthlyPricesCents: { tier_1: 30000, tier_2: 70000, tier_3: 100000 },
     managedServiceBaseMonthlyCents: 50000,
+    boutiqueServiceBaseMonthlyCents: 7500,
     fulfillmentSources: [
       "customer_employee",
       "customer_contractor",
@@ -151,6 +153,34 @@ test("managed-service organizations do not see license tier controls", async () 
   expect(screen.queryByLabelText("Requested license tier")).not.toBeInTheDocument();
 });
 
+test("Boutique organizations see the constrained $75 plan without reporting or tier controls", async () => {
+  const boutiqueSettings = {
+    ...settings,
+    organization: {
+      ...settings.organization,
+      serviceModel: "boutique",
+      license: {
+        tier: null,
+        adminLimit: 1,
+        userLimit: 2,
+        propertyLimit: 3,
+        recurringMonthlyFeeCents: 7500,
+        currency: "USD",
+        visitChargesBilledSeparately: true,
+        planLabel: "Boutique",
+      },
+    },
+  };
+  api.get.mockImplementation(async (path) => path === "/api/fulfillment" ? boutiqueSettings : []);
+
+  render(<MemoryRouter><ServiceDeliverySettings /></MemoryRouter>);
+
+  expect(await screen.findByText("$75/month organization fee")).toBeInTheDocument();
+  expect(screen.getByText(/one to three properties under 5,000 square feet/i)).toBeInTheDocument();
+  expect(screen.getByText(/does not include portfolio reporting/i)).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Increase license tier" })).not.toBeInTheDocument();
+});
+
 test("an organization administrator can request a service model change without a passkey", async () => {
   render(
     <MemoryRouter>
@@ -180,6 +210,18 @@ test("an organization administrator can request a service model change without a
   });
   expect(api.put).not.toHaveBeenCalled();
   expect(await screen.findByText(/platform administration was notified/i)).toBeInTheDocument();
+});
+
+test("non-commercial organizations are not offered Boutique service", async () => {
+  api.get.mockImplementation(async (path) => path === "/api/fulfillment" ? {
+    ...settings,
+    organization: { ...settings.organization, orgType: "RES" },
+  } : []);
+
+  render(<MemoryRouter><ServiceDeliverySettings /></MemoryRouter>);
+
+  const modelSelect = await screen.findByLabelText("Requested service model");
+  expect([...modelSelect.options].map(({ value }) => value)).not.toContain("boutique");
 });
 
 test("a SaaS administrator can request only a higher license tier", async () => {

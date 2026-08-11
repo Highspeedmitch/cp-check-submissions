@@ -3,6 +3,7 @@ import {
   customerEngagementMatchesFulfillment,
   inferredCustomerEngagementType,
 } from "./organizationUsers";
+import { afterlightCoverageExpected } from "./servicePlanAccess";
 
 export function schedulerAssigneeLabel(user) {
   const name = user.displayName || user.email;
@@ -44,5 +45,5 @@ export function shouldShowSuggestedClientAmount(policy) {
 }
 
 export function showAfterlightQueue(serviceModel, assignmentCount) {
-  return ["managed", "hybrid"].includes(serviceModel) || Number(assignmentCount) > 0;
+  return afterlightCoverageExpected(serviceModel) || Number(assignmentCount) > 0;
 }

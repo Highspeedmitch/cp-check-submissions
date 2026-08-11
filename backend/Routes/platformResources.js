@@ -133,7 +133,7 @@ router.get("/dashboard", async (_req, res) => {
       ResourceDeployment.find().populate("organizationId", "name serviceModel properties._id properties.name properties.region routes._id routes.name routes.region routes.propertyIds routes.status").sort({ createdAt: -1 }).lean(),
       Organization.find({
         workspaceType: { $ne: "afterlight_workforce" },
-        serviceModel: { $in: ["managed", "hybrid"] },
+        serviceModel: { $in: ["boutique", "managed", "hybrid"] },
       }).select("name serviceModel properties._id properties.name properties.region routes._id routes.name routes.region routes.propertyIds routes.status").sort({ name: 1 }).lean(),
       ContractorEarning.find().populate("resourceProfileId", "displayName email gusto")
         .populate("organizationId", "name").sort({ earnedAt: -1 }).limit(250).lean(),
@@ -432,12 +432,12 @@ router.post("/resources/:resourceId/deployments", async (req, res) => {
       Organization.findOne({
         _id: req.body.organizationId,
         workspaceType: { $ne: "afterlight_workforce" },
-        serviceModel: { $in: ["managed", "hybrid"] },
+        serviceModel: { $in: ["boutique", "managed", "hybrid"] },
       }),
     ]);
     if (!resource) return res.status(404).json({ error: "Resource not found." });
     if (resource.status !== "active") return res.status(400).json({ error: "Only active resources can be deployed." });
-    if (!organization) return res.status(400).json({ error: "Select an eligible managed or hybrid organization." });
+    if (!organization) return res.status(400).json({ error: "Select an eligible Boutique, Managed Service, or Hybrid organization." });
     const requestedIds = cleanList(req.body.propertyIds, 500);
     const requestedRouteIds = cleanList(req.body.routeIds, 500);
     const scopeMode = req.body.scopeMode === "all" || req.body.scopeMode === "selected"

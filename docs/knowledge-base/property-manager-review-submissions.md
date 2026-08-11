@@ -53,7 +53,7 @@ Afterlight displays 10 records per page. When more than 10 records match, use **
 
 The property’s new-activity notification is marked read when you open its submission history.
 
-For trends across multiple submissions, return to the Dashboard and open **Reporting**. You can filter Reporting by date range, property, and Field Operator.
+When the organization's service plan includes Portfolio Reporting, return to the Dashboard and open **Reporting** for trends across multiple submissions. You can filter Reporting by date range, property, and Field Operator. Boutique service does not include this aggregate reporting area or monthly executive summaries; review the individual property PDFs instead.
 
 ## If something goes wrong
 

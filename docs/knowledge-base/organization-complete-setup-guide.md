@@ -18,6 +18,8 @@ The progress panel shows how many required items are complete. Return to the gui
 
 Select **Review service delivery** and confirm the contracted service model, default fulfillment route, and reporting behavior.
 
+For Boutique service, confirm that Afterlight fulfillment is selected and that Portfolio Reporting and monthly executive summaries are shown as not included.
+
 The service model and tier are contract controlled. If either needs to change, use the service-plan request workflow instead of trying to change it directly. See [Request a service plan change](organization-request-service-model-change.md).
 
 ### Secure administrator actions

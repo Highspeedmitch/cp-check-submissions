@@ -203,6 +203,23 @@ test("SaaS organizations cannot load deployed Afterlight resources into the sche
   assert.equal(deploymentLookup, false);
 });
 
+test("Boutique organizations can load deployed Afterlight resources into the scheduler", async () => {
+  let deploymentLookup = false;
+  const resources = await deployedSchedulerResources({
+    organizationId: "org-1",
+    serviceModel: "boutique",
+    ResourceDeploymentModel: {
+      find() {
+        deploymentLookup = true;
+        return leanResult([]);
+      },
+    },
+  });
+
+  assert.deepEqual(resources, []);
+  assert.equal(deploymentLookup, true);
+});
+
 test("Afterlight staff assignments require a deployed employee or owner without contractor pay", async () => {
   const result = await resolveAssignmentAssignee({
     fulfillment: { source: "afterlight_staff" },

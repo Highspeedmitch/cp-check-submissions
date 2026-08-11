@@ -24,6 +24,12 @@ const MaintenanceCategorySchema = new mongoose.Schema({
 
 const PropertySchema = new mongoose.Schema({
   name: { type: String, required: true },
+  grossSquareFeet: { type: Number, min: 1, default: null },
+  propertyType: {
+    type: String,
+    enum: ["free_standing", "strip_mall", "individual_suite", null],
+    default: null,
+  },
   propertyCode: { type: String, default: "" },
   defaultInspectionAmountCents: { type: Number, min: 0, default: null },
   autoSubmitCustomerContractorInvoices: { type: Boolean, default: false },
@@ -153,7 +159,7 @@ const OrganizationLicenseSchema = new mongoose.Schema({
     enum: ["tier_1", "tier_2", "tier_3", null],
     default: null,
   },
-  adminLimit: { type: Number, min: 2, default: null },
+  adminLimit: { type: Number, min: 1, default: null },
   userLimit: { type: Number, min: 1, default: null },
   propertyLimit: { type: Number, min: 1, default: null },
   adminSeatVersion: { type: Number, min: 0, default: 0 },
@@ -206,7 +212,7 @@ const OrganizationSchema = new mongoose.Schema({
   workScopeConfiguredUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   serviceModel: {
     type: String,
-    enum: ["platform", "managed", "hybrid"],
+    enum: ["platform", "managed", "hybrid", "boutique"],
     default: "managed",
   },
   license: {

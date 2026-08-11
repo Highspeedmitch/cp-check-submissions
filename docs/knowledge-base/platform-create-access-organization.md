@@ -12,6 +12,7 @@ Before creating the workspace, confirm the customer's legal operating name, orga
 2. Under **Organization profile**, enter the unique **Organization name**, select the organization type and reporting timezone, and select **Continue**.
 3. Under **Service delivery**, choose the contracted service model:
    - **Full-stack SaaS:** Customer-operated fulfillment by default.
+   - **Boutique service:** Afterlight-operated service for one to three commercial properties under 5,000 square feet each.
    - **Managed service:** Afterlight staff fulfillment by default.
    - **Hybrid:** Customer-operated default with property-level or assignment-level Afterlight coverage when configured.
 4. For Full-stack SaaS or Hybrid, select the contracted **License tier**:
@@ -21,6 +22,8 @@ Before creating the workspace, confirm the customer's legal operating name, orga
    | Tier 1 | $300 | 2 | 5 | 10 | 15% |
    | Tier 2 | $700 | 3 | 20 | 50 | 12% |
    | Tier 3 | $1,000 | 5 | 50 | 250 | 10% |
+
+   Boutique service is $75 per month plus property visit costs. It includes one administrator, two other organization users, and no more than three properties. Every Boutique property must be under 5,000 square feet. Boutique uses Afterlight fulfillment and does not include Portfolio Reporting or monthly executive summaries. No license-tier selection appears.
 
    Managed service is $500 per month plus property visit costs. Its administrator seats are not metered and no license-tier selection appears. The Hybrid percentage is the minimum share of the monthly portfolio assigned to Afterlight, not a percentage surcharge.
 5. Confirm the **Default fulfillment** selection. Change the model-derived default only when the approved operating plan requires it, then select **Continue**.
@@ -38,7 +41,7 @@ After accepting the invitation, the customer administrator uses **Setup Guide** 
 
 ## Manage invoice approval capabilities
 
-Secure email invoice approval is an organization-specific, platform-controlled capability for Managed service and Hybrid customers. The default remains the standard signed-in Afterlight review.
+Secure email invoice approval is an organization-specific, platform-controlled capability for Boutique, Managed service, and Hybrid customers. The default remains the standard signed-in Afterlight review.
 
 1. Find the organization under **Organization Overview**.
 2. Select **Manage capabilities**.
@@ -49,7 +52,7 @@ Secure email invoice approval is an organization-specific, platform-controlled c
 
 When enabled, eligible managed-service review emails contain an individual, one-time **Approve & Send to AP** link for each assigned property manager. Invoices configured for portal, download, or another ineligible route continue using standard Afterlight review. Restoring **Standard Afterlight review** immediately revokes outstanding email-approval links.
 
-If the organization later changes to Full-stack SaaS, Afterlight automatically restores standard signed-in review and revokes every unused email-approval link. Returning to Managed service or Hybrid does not automatically re-enable the capability; a platform administrator must review and enable it again.
+If the organization later changes to Full-stack SaaS, Afterlight automatically restores standard signed-in review and revokes every unused email-approval link. Returning to Boutique, Managed service, or Hybrid does not automatically re-enable the capability; a platform administrator must review and enable it again.
 
 ## Open an audited Admin View
 
@@ -78,7 +81,7 @@ Do not share an assumed session, leave it open on an unattended device, or use a
 - **The authenticator code is refused:** Wait for a new code and try once more. A code already used during that time step cannot be replayed.
 - **Identity confirmation is unavailable:** Sign out, sign in again to refresh MFA, and retry. Escalate the deployment configuration if the error remains.
 - **The pending Admin View request expired:** Return to Platform Administration, select **Open Admin View**, and enter the reason again.
-- **Secure email approval is unavailable:** Confirm the organization uses Managed service or Hybrid delivery. Full-stack SaaS organizations continue using standard review.
+- **Secure email approval is unavailable:** Confirm the organization uses Boutique, Managed service, or Hybrid delivery. Full-stack SaaS organizations continue using standard review.
 - **Some properties are not ready for email approval:** Configure an AP email destination for those properties. Their invoices continue using standard review until then.
 
 [Back to the knowledge base](README.md)

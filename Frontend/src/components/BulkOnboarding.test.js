@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import BulkOnboarding from "./BulkOnboarding";
+import BulkOnboarding, { TEMPLATES } from "./BulkOnboarding";
 import { api } from "../services/api";
 
 jest.mock("../services/api", () => ({
@@ -98,6 +98,11 @@ test("uses the contextual property entry point to preset the import type", () =>
   expect(screen.getByRole("button", { name: "Properties" })).not.toHaveClass("secondary");
   expect(screen.getByRole("button", { name: "Users" })).toHaveClass("secondary");
   expect(screen.getByRole("button", { name: "Download properties template" })).toBeInTheDocument();
+});
+
+test("the property CSV template captures Boutique eligibility metadata", () => {
+  expect(TEMPLATES.properties.split("\n")[0]).toContain("gross_square_feet,property_type");
+  expect(TEMPLATES.properties.split("\n")[1]).toContain("4500,free_standing");
 });
 
 test("submits an assistance request without attaching CSV data", async () => {

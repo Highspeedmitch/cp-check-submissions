@@ -42,6 +42,37 @@ test("managed service capacity is unmetered across every customer dimension", ()
   assert.doesNotThrow(() => assertLicenseCapacity({ summary, dimension: "users", additional: 1000 }));
 });
 
+test("Boutique capacity stops at one administrator, two users, and three properties", () => {
+  const summary = summarizeLicenseCapacity({
+    organization: { serviceModel: "boutique" },
+    capacity: {
+      activeAdministrators: 1,
+      activeUsers: 1,
+      pendingUsers: 1,
+      properties: 3,
+    },
+  });
+
+  assert.equal(summary.administrators.limit, 1);
+  assert.equal(summary.administrators.remaining, 0);
+  assert.equal(summary.users.limit, 2);
+  assert.equal(summary.users.remaining, 0);
+  assert.equal(summary.properties.limit, 3);
+  assert.equal(summary.properties.remaining, 0);
+  assert.throws(
+    () => assertLicenseCapacity({ summary, dimension: "administrators", additional: 1 }),
+    (error) => error.code === "ADMIN_LIMIT_REACHED"
+  );
+  assert.throws(
+    () => assertLicenseCapacity({ summary, dimension: "users", additional: 1 }),
+    (error) => error.code === "USER_LIMIT_REACHED"
+  );
+  assert.throws(
+    () => assertLicenseCapacity({ summary, dimension: "properties", additional: 1 }),
+    (error) => error.code === "PROPERTY_LIMIT_REACHED"
+  );
+});
+
 test("capacity enforcement returns a stable conflict code and the current capacity snapshot", () => {
   const summary = summarizeLicenseCapacity({
     organization: { serviceModel: "hybrid", license: { tier: "tier_1" } },

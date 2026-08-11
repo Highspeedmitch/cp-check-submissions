@@ -131,6 +131,17 @@ test("submitter retains a single inspection action", async () => {
   expect(screen.queryByLabelText("Current month scheduling coverage")).not.toBeInTheDocument();
 });
 
+test("Boutique organization users do not receive a direct inspection launcher", async () => {
+  localStorage.setItem("serviceModel", "boutique");
+  localStorage.setItem("accountScope", "organization");
+  renderDashboard("user");
+
+  expect(await screen.findByRole("heading", { name: property.name })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Start Inspection" })).not.toBeInTheDocument();
+  expect(screen.getByText("Afterlight resources complete inspections for this service plan.")).toBeInTheDocument();
+  expect(screen.getByText("Afterlight-managed property")).toBeInTheDocument();
+});
+
 test("management dashboards show an unavailable state instead of false unscheduled statuses", async () => {
   const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
   api.get.mockImplementation(async (path) => {

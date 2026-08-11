@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const SERVICE_MODELS = ["platform", "managed", "hybrid"];
+const SERVICE_MODELS = ["platform", "managed", "hybrid", "boutique"];
 const CHANGE_TYPES = ["service_model", "license_tier", "custom_capacity"];
 const LICENSE_TIERS = ["tier_1", "tier_2", "tier_3"];
 const ACTIVE_STATUSES = ["pending_review", "information_requested"];
