@@ -22,19 +22,7 @@ import {
 } from "../services/notificationCenter";
 import { api, apiUrl } from "../services/api";
 import { inspectionSubmissionEnabled } from "../services/servicePlanAccess";
-
-// Helper function to open Apple Maps on iOS, or Google Maps elsewhere
-function openNativeMaps(lat, lng) {
-  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  if (isIOS) {
-    window.open(`maps://maps.apple.com/?daddr=${lat},${lng}`, "_blank");
-  } else {
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
-      "_blank"
-    );
-  }
-}
+import { openNativeMaps } from "../services/mapNavigation";
 
 function Dashboard({ setUser }) {
   const navigate = useNavigate();
