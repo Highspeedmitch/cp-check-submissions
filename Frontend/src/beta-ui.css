@@ -1636,6 +1636,36 @@ select:focus-visible {
 .platform-search { width: min(100%, 310px); }
 .platform-search input { width: 100%; min-height: 42px; margin: 0; }
 .platform-organization-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
+.platform-war-room-directory { margin-top: 30px; }
+.platform-war-room-heading { align-items: end; }
+.platform-war-room-filters { display: grid; grid-template-columns: minmax(180px, 1fr) repeat(2, minmax(170px, 220px)); gap: 12px; margin: 16px 0; padding: 14px; border: 1px solid var(--beta-border); border-radius: 12px; background: var(--beta-surface); }
+.platform-war-room-filters label { display: grid; gap: 6px; color: var(--beta-muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.platform-war-room-filters input, .platform-war-room-filters select { width: 100%; min-height: 40px; margin: 0; }
+.platform-war-room-grid { display: grid; gap: 14px; }
+.platform-war-room-card { overflow: hidden; border: 1px solid var(--beta-border); border-left: 4px solid var(--beta-blue); border-radius: 13px; background: var(--beta-surface); box-shadow: 0 8px 22px rgba(25, 38, 61, .055); }
+.platform-war-room-card.status-complete, .platform-war-room-card.status-on_track { border-left-color: var(--beta-success); }
+.platform-war-room-card.status-at_risk { border-left-color: var(--beta-warning); }
+.platform-war-room-card.status-behind { border-left-color: var(--beta-danger); }
+.platform-war-room-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 17px 18px 14px; border-bottom: 1px solid var(--beta-border); }
+.platform-war-room-card-header h3 { margin: 3px 0 0; color: var(--beta-ink); font-size: 19px; }
+.platform-war-room-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.platform-war-room-metrics > div { min-width: 0; padding: 15px 18px; border-right: 1px solid var(--beta-border); }
+.platform-war-room-metrics > div:last-child { border-right: 0; }
+.platform-war-room-metrics span, .platform-war-room-metrics small { display: block; color: var(--beta-muted); font-size: 10px; font-weight: 700; }
+.platform-war-room-metrics strong { display: block; margin: 5px 0 4px; color: var(--beta-ink); font-size: 22px; }
+.platform-war-room-hybrid { margin: 0 18px 15px; padding: 13px 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); }
+.platform-war-room-hybrid > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.platform-war-room-hybrid span { color: var(--beta-muted); font-size: 11px; font-weight: 750; }
+.platform-war-room-hybrid strong { color: var(--beta-ink); font-size: 13px; }
+.platform-war-room-hybrid small { display: block; margin-top: 7px; color: var(--beta-muted); font-size: 10px; }
+.platform-war-room-progress { height: 9px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: var(--beta-border); }
+.platform-war-room-progress span { display: block; height: 100%; border-radius: inherit; background: var(--beta-warning); transition: width .2s ease; }
+.platform-war-room-hybrid.met .platform-war-room-progress span { background: var(--beta-success); }
+.platform-war-room-reasons { margin: 0 18px 15px; padding: 11px 14px 11px 30px; border-radius: 9px; background: var(--beta-warning-bg); color: var(--beta-warning); font-size: 11px; font-weight: 700; line-height: 1.45; }
+.platform-war-room-card.status-behind .platform-war-room-reasons { background: var(--beta-danger-bg); color: var(--beta-danger); }
+.platform-war-room-clear { margin: 0 18px 15px; color: var(--beta-success); font-size: 11px; font-weight: 750; }
+.platform-war-room-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 18px; border-top: 1px solid var(--beta-border); background: var(--beta-subtle); }
+.platform-war-room-card-footer span { color: var(--beta-muted); font-size: 10px; font-weight: 700; }
 .platform-organization-card {
   display: flex;
   min-width: 0;
@@ -2665,6 +2695,16 @@ select:focus-visible {
   .platform-organization-grid { grid-template-columns: 1fr; }
   .platform-organizations-heading { align-items: stretch; flex-direction: column; }
   .platform-search { width: 100%; }
+  .platform-war-room-heading { align-items: stretch; flex-direction: column; }
+  .platform-war-room-heading .beta-button { width: 100%; }
+  .platform-war-room-filters { grid-template-columns: 1fr; }
+  .platform-war-room-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .platform-war-room-metrics > div { border-right: 1px solid var(--beta-border); border-bottom: 1px solid var(--beta-border); }
+  .platform-war-room-metrics > div:nth-child(2n) { border-right: 0; }
+  .platform-war-room-metrics > div:nth-last-child(-n+2) { border-bottom: 0; }
+  .platform-war-room-hybrid > div:first-child { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .platform-war-room-card-footer { align-items: stretch; flex-direction: column; }
+  .platform-war-room-card-footer .beta-button { width: 100%; }
   .platform-onboarding-wizard { padding: 18px; }
   .platform-onboarding-steps { margin: 18px 0 22px; }
   .platform-onboarding-steps li small { max-width: 70px; }

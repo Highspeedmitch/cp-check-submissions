@@ -12,6 +12,7 @@ import PlatformResources from "./PlatformResources";
 import PlatformServiceBilling from "./PlatformServiceBilling";
 import PlatformFinancialOverview from "./PlatformFinancialOverview";
 import PlatformServiceModelChanges from "./PlatformServiceModelChanges";
+import PlatformWarRoom from "./PlatformWarRoom";
 import OrganizationOnboardingWizard, {
   ORGANIZATION_TYPES,
 } from "./platform/OrganizationOnboardingWizard";
@@ -24,6 +25,20 @@ import {
 const PENDING_ADMIN_VIEW_STEP_UP = "afterlightPendingAdminViewStepUp";
 const PENDING_CAPABILITY_STEP_UP = "afterlightPendingCapabilityStepUp";
 const PENDING_ADMIN_VIEW_LIFETIME_MS = 10 * 60 * 1000;
+const PLATFORM_VIEWS = new Set([
+  "overview",
+  "war-room",
+  "billing",
+  "finance",
+  "resources",
+  "service-models",
+  "prospects",
+  "pricing",
+]);
+
+function normalizedPlatformView(requestedView) {
+  return PLATFORM_VIEWS.has(requestedView) ? requestedView : "overview";
+}
 
 function PlatformNavigation({ open, activeView, notificationBadges, onClose, onView, onNewOrganization, onHelp, onLogout }) {
   const go = (view) => {
@@ -47,6 +62,7 @@ function PlatformNavigation({ open, activeView, notificationBadges, onClose, onV
         <nav>
           <p className="beta-nav-label">Platform</p>
           <button type="button" className={`beta-nav-item${activeView === "overview" ? " active" : ""}`} onClick={() => go("overview")}><span>Overview</span>{notificationBadges.platformOrganizations > 0 && <span className="beta-nav-badge">{notificationBadges.platformOrganizations > 9 ? "9+" : notificationBadges.platformOrganizations}</span>}</button>
+          <button type="button" className={`beta-nav-item${activeView === "war-room" ? " active" : ""}`} onClick={() => go("war-room")}><span>Weekly War Room</span>{notificationBadges.warRoom > 0 && <span className="beta-nav-badge">{notificationBadges.warRoom > 9 ? "9+" : notificationBadges.warRoom}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "billing" ? " active" : ""}`} onClick={() => go("billing")}><span>Service Billing</span>{notificationBadges.platformBilling > 0 && <span className="beta-nav-badge">{notificationBadges.platformBilling > 9 ? "9+" : notificationBadges.platformBilling}</span>}</button>
           <button type="button" className={`beta-nav-item${activeView === "finance" ? " active" : ""}`} onClick={() => go("finance")}><span>Financial Overview</span></button>
           <button type="button" className={`beta-nav-item${activeView === "resources" ? " active" : ""}`} onClick={() => go("resources")}><span>Resources &amp; Payables</span>{notificationBadges.resources > 0 && <span className="beta-nav-badge">{notificationBadges.resources > 9 ? "9+" : notificationBadges.resources}</span>}</button>
@@ -263,48 +279,49 @@ function OrganizationCard({ organization, busy, onEnter, onManageCapabilities, o
 export default function PlatformDashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const requestedView = normalizedPlatformView(searchParams.get("view"));
   const [report, setReport] = useState(null);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [activeView, setActiveView] = useState(() => {
-    const requestedView = searchParams.get("view");
-    return ["overview", "billing", "finance", "resources", "service-models", "prospects", "pricing"].includes(requestedView)
-      ? requestedView
-      : "overview";
-  });
+  const [activeView, setActiveView] = useState(requestedView);
   const [navOpen, setNavOpen] = useState(false);
   const [newOrganizationOpen, setNewOrganizationOpen] = useState(false);
   const [organizationError, setOrganizationError] = useState("");
   const [capabilityOrganization, setCapabilityOrganization] = useState(null);
   const [capabilityError, setCapabilityError] = useState("");
   const [stepUpRequest, setStepUpRequest] = useState(null);
+  useEffect(() => { setActiveView(requestedView); }, [requestedView]);
   const notificationBadges = useNotificationBadges(true);
   const helpSlug = activeView === "billing"
     ? "process-afterlight-service-invoices"
-    : activeView === "finance"
-      ? "process-afterlight-service-invoices"
-    : activeView === "resources"
-      ? "manage-resources-and-payables"
-      : activeView === "service-models"
-        ? "review-service-model-change-requests"
-        : activeView === "pricing"
-          ? "calculate-preliminary-service-pricing"
-          : activeView === "prospects"
-            ? "create-complimentary-prospect-reports"
-            : activeView === "overview"
-              ? "create-and-access-an-organization"
-              : "";
+    : activeView === "war-room"
+      ? "use-weekly-war-room"
+      : activeView === "finance"
+        ? "process-afterlight-service-invoices"
+        : activeView === "resources"
+          ? "manage-resources-and-payables"
+          : activeView === "service-models"
+            ? "review-service-model-change-requests"
+            : activeView === "pricing"
+              ? "calculate-preliminary-service-pricing"
+              : activeView === "prospects"
+                ? "create-complimentary-prospect-reports"
+                : activeView === "overview"
+                  ? "create-and-access-an-organization"
+                  : "";
   const activeNotificationTypes = activeView === "billing"
     ? NOTIFICATION_SECTIONS.platformBilling
-    : activeView === "resources"
-      ? NOTIFICATION_SECTIONS.resources
-      : activeView === "service-models"
-        ? NOTIFICATION_SECTIONS.serviceModels
-        : activeView === "overview"
-          ? NOTIFICATION_SECTIONS.platformOrganizations
-          : [];
+    : activeView === "war-room"
+      ? NOTIFICATION_SECTIONS.warRoom
+      : activeView === "resources"
+        ? NOTIFICATION_SECTIONS.resources
+        : activeView === "service-models"
+          ? NOTIFICATION_SECTIONS.serviceModels
+          : activeView === "overview"
+            ? NOTIFICATION_SECTIONS.platformOrganizations
+            : [];
   useMarkNotificationsRead(activeNotificationTypes);
 
   const selectView = useCallback((view) => {
@@ -596,13 +613,13 @@ export default function PlatformDashboard() {
           <strong>Platform</strong><span className="beta-avatar" aria-hidden="true">A</span>
         </div>
         <PageHeader eyebrow="Platform administration"
-          title={activeView === "overview" ? "Organization Overview" : activeView === "billing" ? "Service Billing" : activeView === "finance" ? "Financial Overview" : activeView === "resources" ? "Resources & Payables" : activeView === "service-models" ? "Service Plan Requests" : activeView === "pricing" ? "Pricing Estimator" : "Complimentary Reports"}
-          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "finance" ? "Track monthly revenue, resource payouts, operating costs, and projected net results." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization service-model and license-tier requests." : activeView === "pricing" ? "Calculate preliminary service pricing for prospective customer conversations." : "Create and manage standalone property opportunity reports."}
+          title={activeView === "overview" ? "Organization Overview" : activeView === "war-room" ? "Weekly War Room" : activeView === "billing" ? "Service Billing" : activeView === "finance" ? "Financial Overview" : activeView === "resources" ? "Resources & Payables" : activeView === "service-models" ? "Service Plan Requests" : activeView === "pricing" ? "Pricing Estimator" : "Complimentary Reports"}
+          subtitle={activeView === "overview" ? "Portfolio health, tenant activity, and audited support access." : activeView === "war-room" ? "See monthly coverage, weekly execution, Hybrid commitments, and the portfolios that need attention." : activeView === "billing" ? "Prepare and reconcile invoices for Afterlight-delivered work." : activeView === "finance" ? "Track monthly revenue, resource payouts, operating costs, and projected net results." : activeView === "resources" ? "Deploy Afterlight resources and reconcile contractor payments through Gusto." : activeView === "service-models" ? "Review and apply organization service-model and license-tier requests." : activeView === "pricing" ? "Calculate preliminary service pricing for prospective customer conversations." : "Create and manage standalone property opportunity reports."}
           actions={<ContextualHelpLink slug={helpSlug} />} />
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}
 
-        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "pricing" ? <PricingEstimator organizations={report?.organizations || []} /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "finance" ? <PlatformFinancialOverview /> : activeView === "resources" ? <PlatformResources /> : activeView === "service-models" ? <PlatformServiceModelChanges /> : !report ? (
+        {activeView === "prospects" ? <ProspectAssessments /> : activeView === "pricing" ? <PricingEstimator organizations={report?.organizations || []} /> : activeView === "war-room" ? <PlatformWarRoom busy={busy} onOpenOrganization={enterOrganization} /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "finance" ? <PlatformFinancialOverview /> : activeView === "resources" ? <PlatformResources /> : activeView === "service-models" ? <PlatformServiceModelChanges /> : !report ? (
           <div className="beta-empty-state">Loading platform metrics...</div>
         ) : (
           <>

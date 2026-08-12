@@ -11,6 +11,7 @@ const { ensureAssignmentSchedulingIndex } = require("./services/assignmentIndexe
 const CalendarFeedSubscription = require("./models/calendarFeedSubscription");
 const MonthlyPortfolioSummary = require("./models/monthlyPortfolioSummary");
 const RouteRun = require("./models/routeRun");
+const WarRoomNotificationEvent = require("./models/warRoomNotificationEvent");
 
 const PROSPECT_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -46,6 +47,7 @@ async function startServer() {
   await CalendarFeedSubscription.createIndexes();
   await MonthlyPortfolioSummary.createIndexes();
   await RouteRun.createIndexes();
+  await WarRoomNotificationEvent.createIndexes();
 
   if (String(process.env.RUN_INSPECTION_WORKER || "true").toLowerCase() !== "false") {
     require("./services/inspectionWorker").startInspectionWorker();
@@ -54,6 +56,10 @@ async function startServer() {
   if (String(process.env.RUN_MONTHLY_PORTFOLIO_SUMMARY_WORKER || "true").toLowerCase() !== "false") {
     require("./services/monthlyPortfolioSummaryWorker").startMonthlyPortfolioSummaryWorker();
     console.log("Monthly portfolio summary worker started in the web process.");
+  }
+  if (String(process.env.RUN_WAR_ROOM_NOTIFICATION_WORKER || "true").toLowerCase() !== "false") {
+    require("./services/warRoomNotifications").startWarRoomNotificationWorker();
+    console.log("War Room notification worker started in the web process.");
   }
 
   const port = process.env.PORT || 10000;

@@ -132,6 +132,7 @@ test("platform guidance is isolated from organization and assumed-access help", 
     assumedOrganization: false,
   };
   expect(visibleHelpArticles(platformAudience).map(({ slug }) => slug)).toEqual([
+    "use-weekly-war-room",
     "process-afterlight-service-invoices",
     "manage-resources-and-payables",
     "configure-gusto-contractor-payments",

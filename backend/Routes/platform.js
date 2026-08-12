@@ -29,6 +29,7 @@ const {
   hasRecentStepUpAuthentication,
 } = require("../services/platformAccess");
 const { getPlatformOrganizationMetrics } = require("../services/platformMetrics");
+const { getPlatformWarRoom } = require("../services/platformWarRoom");
 const { getJwtSecret } = require("../config/security");
 const { workspaceAuthentication } = require("../services/workspaceAccess");
 const { uploadLimiter } = require("../middleware/rateLimits");
@@ -105,6 +106,15 @@ router.get("/organizations", authenticateToken, requirePlatformAdmin, async (req
   } catch (error) {
     console.error("Platform metrics error:", error);
     return res.status(500).json({ error: "Unable to load platform metrics." });
+  }
+});
+
+router.get("/war-room", authenticateToken, requirePlatformAdmin, async (req, res) => {
+  try {
+    return res.json(await getPlatformWarRoom());
+  } catch (error) {
+    console.error("Platform War Room error:", error);
+    return res.status(500).json({ error: "Unable to load the Weekly War Room." });
   }
 });
 

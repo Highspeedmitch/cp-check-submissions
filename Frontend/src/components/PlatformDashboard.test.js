@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 import PlatformDashboard from "./PlatformDashboard";
 import { api } from "../services/api";
 import { storeAuthentication } from "../services/session";
@@ -22,6 +22,7 @@ jest.mock("../services/notificationCenter", () => ({
     resources: [],
     serviceModels: [],
     platformOrganizations: [],
+    warRoom: [],
   },
   useMarkNotificationsRead: jest.fn(),
   useNotificationBadges: () => ({
@@ -29,6 +30,7 @@ jest.mock("../services/notificationCenter", () => ({
     resources: 0,
     serviceModels: 0,
     platformOrganizations: 0,
+    warRoom: 0,
   }),
 }));
 jest.mock("./ProspectAssessments", () => () => <div>Prospects view</div>);
@@ -37,6 +39,7 @@ jest.mock("./PlatformResources", () => () => <div>Resources view</div>);
 jest.mock("./PlatformServiceBilling", () => () => <div>Billing view</div>);
 jest.mock("./PlatformFinancialOverview", () => () => <div>Financial overview view</div>);
 jest.mock("./PlatformServiceModelChanges", () => () => <div>Service models view</div>);
+jest.mock("./PlatformWarRoom", () => () => <div>War Room view</div>);
 jest.mock("./ui/ThemeToggle", () => () => <button type="button">Theme</button>);
 
 const report = {
@@ -74,6 +77,11 @@ function renderDashboard(initialEntry = "/platform") {
       <PlatformDashboard />
     </MemoryRouter>
   );
+}
+
+function PlatformRouteControl() {
+  const navigate = useNavigate();
+  return <button type="button" onClick={() => navigate("/platform?view=war-room")}>Open War Room notification</button>;
 }
 
 function stepUpRequiredError() {
@@ -253,6 +261,31 @@ test("platform navigation opens the private financial overview", async () => {
 
   expect(await screen.findByText("Financial overview view")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Financial Overview" })).toBeInTheDocument();
+});
+
+test("platform navigation opens the Weekly War Room", async () => {
+  renderDashboard();
+  await screen.findByRole("heading", { name: "Organizations" });
+
+  fireEvent.click(screen.getByRole("button", { name: "Weekly War Room" }));
+
+  expect(await screen.findByText("War Room view")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Weekly War Room" })).toBeInTheDocument();
+});
+
+test("a War Room notification route updates an already-mounted platform dashboard", async () => {
+  render(
+    <MemoryRouter initialEntries={["/platform?view=billing"]}>
+      <PlatformRouteControl />
+      <PlatformDashboard />
+    </MemoryRouter>
+  );
+  expect(await screen.findByText("Billing view")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Open War Room notification" }));
+
+  expect(await screen.findByText("War Room view")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Weekly War Room" })).toBeInTheDocument();
 });
 
 test("platform administrators can configure secure email approval per organization", async () => {
