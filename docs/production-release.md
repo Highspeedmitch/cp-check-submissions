@@ -69,9 +69,7 @@ Portfolio-aware pricing configuration:
 Optional identity controls:
 
 - set `TOTP_MFA_ENABLED=true` with a base64-encoded 32-byte
-  `MFA_ENCRYPTION_KEY` to enable TOTP;
-- set `OKTA_ISSUER`, `OKTA_CLIENT_IDS`, and `OKTA_ENFORCEMENT_ENABLED` only when
-  the matching Production Okta application is ready.
+  `MFA_ENCRYPTION_KEY` to enable TOTP.
 
 Optional inspection AI controls:
 
@@ -103,10 +101,6 @@ Build the Production frontend with:
 - `REACT_APP_DEPLOY_ENV=production`;
 - `REACT_APP_ALLOW_PUBLIC_REGISTRATION=false`;
 - `REACT_APP_MAPBOX_ACCESS_TOKEN` set to a Production-authorized token.
-
-If Okta sign-in is enabled, also set `REACT_APP_OKTA_ISSUER`,
-`REACT_APP_OKTA_CLIENT_ID`, and `REACT_APP_OKTA_LOGIN_ENABLED=true`. The Okta
-application must allow the Production `/login/callback` redirect URI.
 
 The S3 bucket CORS policy must allow browser `POST` requests from the exact
 Production frontend origin. Verify the versioned inspection upload CORS rule for the configured S3 bucket before smoke testing photo submission. See [inspection-processing.md](inspection-processing.md).

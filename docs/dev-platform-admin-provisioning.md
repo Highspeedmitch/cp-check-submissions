@@ -26,7 +26,7 @@ After the command reports success:
 2. Select **Forgot password**.
 3. Enter `dev@afterlightinspections.com`.
 4. Use the emailed link to establish the password.
-5. Sign in and complete the configured MFA or Okta enrollment.
+5. Sign in and complete authenticator enrollment.
 6. Confirm that the user lands on **Platform administration** and can open **Help Center**.
 
 The approval environment variable should not remain configured as a persistent service variable.

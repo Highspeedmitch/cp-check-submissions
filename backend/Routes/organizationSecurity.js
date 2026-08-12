@@ -6,7 +6,6 @@ const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
 const RefreshSession = require("../models/refreshSession");
 const { issueGrant } = require("../services/organizationPasskeys");
-const { oktaConfig } = require("../services/oktaAuth");
 const {
   config: totpConfig,
   verifyTotp,
@@ -41,7 +40,6 @@ router.get("/", async (req, res) => {
   const organization = await Organization.findById(req.user.organizationId)
     .select("security").lean();
   if (!organization) return res.status(404).json({ error: "Organization not found." });
-  const okta = oktaConfig();
   const totp = totpConfig();
   const user = await User.findById(req.user.userId)
     .select("mfa.totpEnabled mfa.enrolledAt mfa.lastVerifiedAt +mfa.recoveryCodeHashes").lean();
@@ -49,8 +47,6 @@ router.get("/", async (req, res) => {
     configured: Boolean(organization.security?.adminActionPasskeyHash),
     version: organization.security?.adminActionPasskeyVersion || 0,
     rotatedAt: organization.security?.adminActionPasskeyRotatedAt || null,
-    oktaConfigured: okta.configured,
-    oktaEnforcementEnabled: okta.enforcementEnabled,
     requireMfaForAllUsers: Boolean(organization.security?.requireMfaForAllUsers),
     totpConfigured: totp.enabled,
     totpEnabled: Boolean(user?.mfa?.totpEnabled),

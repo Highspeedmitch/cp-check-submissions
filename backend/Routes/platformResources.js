@@ -29,6 +29,10 @@ const {
   archiveResourceProfile,
   restoreResourceProfile,
 } = require("../services/directoryArchival");
+const {
+  recordsById,
+  deploymentSummariesByResource,
+} = require("../services/directoryStats");
 
 const router = express.Router();
 router.use(authenticateToken, requirePlatformAdmin);
@@ -163,25 +167,43 @@ router.get("/resources", async (req, res) => {
       .populate("archivedBy", "username email")
       .sort({ displayName: 1 }).lean();
     if (directory !== "archived") return res.json({ resources: profiles });
-    const resources = await Promise.all(profiles.map(async (profile) => {
-      const [assignmentCount, completedAssignmentCount, earningCount, deployments] = await Promise.all([
-        Assignment.countDocuments({ resourceProfileId: profile._id }),
-        Assignment.countDocuments({ resourceProfileId: profile._id, status: "completed" }),
-        ContractorEarning.countDocuments({ resourceProfileId: profile._id }),
-        ResourceDeployment.find({ resourceProfileId: profile._id })
-          .populate("organizationId", "name").select("organizationId status").lean(),
-      ]);
+    if (!profiles.length) return res.json({ resources: [] });
+    const profileIds = profiles.map((profile) => profile._id);
+    const [assignmentRows, earningRows, deployments] = await Promise.all([
+      Assignment.aggregate([
+        { $match: { resourceProfileId: { $in: profileIds } } },
+        { $group: {
+          _id: "$resourceProfileId",
+          assignmentCount: { $sum: 1 },
+          completedAssignmentCount: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
+        } },
+      ]),
+      ContractorEarning.aggregate([
+        { $match: { resourceProfileId: { $in: profileIds } } },
+        { $group: { _id: "$resourceProfileId", earningCount: { $sum: 1 } } },
+      ]),
+      ResourceDeployment.find({ resourceProfileId: { $in: profileIds } })
+        .populate("organizationId", "name").select("resourceProfileId organizationId").lean(),
+    ]);
+    const assignmentsByResource = recordsById(assignmentRows);
+    const earningsByResource = recordsById(earningRows);
+    const deploymentsByResource = deploymentSummariesByResource(deployments);
+    const resources = profiles.map((profile) => {
+      const resourceId = String(profile._id);
+      const assignmentStats = assignmentsByResource.get(resourceId) || {};
+      const earningStats = earningsByResource.get(resourceId) || {};
+      const deploymentStats = deploymentsByResource.get(resourceId) || {};
       return {
         ...profile,
-        assignmentCount,
-        completedAssignmentCount,
-        earningCount,
-        deploymentCount: deployments.length,
-        deployedOrganizations: [...new Set(deployments
-          .map((deployment) => deployment.organizationId?.name)
-          .filter(Boolean))],
+        assignmentCount: assignmentStats.assignmentCount || 0,
+        completedAssignmentCount: assignmentStats.completedAssignmentCount || 0,
+        earningCount: earningStats.earningCount || 0,
+        deploymentCount: deploymentStats.deploymentCount || 0,
+        deployedOrganizations: deploymentStats.deployedOrganizations || [],
       };
-    }));
+    });
     return res.json({ resources });
   } catch (error) {
     console.error("Resource directory error:", error.message);
