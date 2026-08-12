@@ -35,6 +35,7 @@ beforeEach(() => {
       message: "Efficient order suggested from live road travel times.",
     }
     : { message: "Route created." });
+  api.put.mockResolvedValue({ message: "Route updated." });
   window.scrollTo = jest.fn();
 });
 
@@ -76,4 +77,56 @@ test("caps a route at six properties and saves the suggested stop order", async 
     region: "Tucson - East/Central",
     propertyIds: ["property-6", "property-5", "property-4", "property-3", "property-2", "property-1"],
   }));
+});
+
+test("warns before stop changes leave scheduled route assignments on their snapshots", async () => {
+  const route = {
+    _id: "route-1",
+    name: "Tucson - East/Central",
+    region: "Tucson - East/Central",
+    propertyIds: ["property-1", "property-2"],
+    properties: properties.slice(0, 2).map((property, stopIndex) => ({ ...property, stopIndex })),
+    version: 1,
+    status: "active",
+  };
+  api.get.mockImplementation(async (path) => path.startsWith("/api/service-routes")
+    ? {
+      routes: [route],
+      regions: ["Tucson - East/Central"],
+      maxPropertiesPerRoute: 6,
+    }
+    : properties);
+  api.put
+    .mockRejectedValueOnce(Object.assign(new Error("Scheduled assignments retain their snapshots."), {
+      status: 409,
+      data: {
+        code: "ROUTE_SNAPSHOT_CONFIRMATION_REQUIRED",
+        scheduledRouteAssignmentCount: 2,
+        currentStopCount: 2,
+        updatedStopCount: 3,
+      },
+    }))
+    .mockResolvedValueOnce({ message: "Route updated." });
+
+  render(<MemoryRouter><RouteManagement /></MemoryRouter>);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Edit route" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /Property 3/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Save route changes" }));
+
+  const dialog = await screen.findByRole("dialog", { name: "This route has scheduled assignments" });
+  expect(within(dialog).getByText(/2 scheduled route assignments will keep their existing 2-stop snapshots/i)).toBeInTheDocument();
+  expect(dialog).toHaveTextContent("Added: Property 3");
+  expect(api.put).toHaveBeenCalledTimes(1);
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save Route Anyway" }));
+
+  await waitFor(() => expect(api.put).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(4));
+  expect(api.put).toHaveBeenNthCalledWith(2, "/api/service-routes/route-1", {
+    name: "Tucson - East/Central",
+    region: "Tucson - East/Central",
+    propertyIds: ["property-1", "property-2", "property-3"],
+    confirmScheduledSnapshotImpact: true,
+  });
 });

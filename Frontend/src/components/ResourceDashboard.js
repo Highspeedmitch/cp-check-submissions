@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import { openNativeMaps } from "../services/mapNavigation";
 import { logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
@@ -132,7 +133,7 @@ export default function ResourceDashboard({ setUser }) {
                     <div className="beta-card-actions">
                       <button type="button" className="beta-button" onClick={() => navigate(inspectionRoute(assignment))}>Start Inspection</button>
                       {assignment.property?.lat && assignment.property?.lng && (
-                        <button type="button" className="beta-button secondary" onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${assignment.property.lat},${assignment.property.lng}`, "_blank")}>Navigate</button>
+                        <button type="button" className="beta-button secondary" onClick={() => openNativeMaps(assignment.property.lat, assignment.property.lng)}>Navigate</button>
                       )}
                     </div>
                   </article>

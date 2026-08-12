@@ -20,6 +20,7 @@ export const NOTIFICATION_SECTIONS = {
   ],
   bids: ["bid_request_submitted", "bid_request_received", "bid_request_status_changed"],
   reporting: ["monthly_portfolio_summary_ready"],
+  warRoom: ["war_room_organization_behind", "war_room_weekly_digest"],
   resources: [
     "contractor_earning_created",
     "contractor_earning_approved",
@@ -64,8 +65,9 @@ export function groupUnreadNotifications(notifications) {
     section,
     unread.filter((notification) => {
       if (!types.includes(notification.type)) return false;
-      if (section === "platformBilling") return notification.recipientScope === "platform";
-      if (section === "platformOrganizations") return notification.recipientScope === "platform";
+      if (["platformBilling", "platformOrganizations", "warRoom"].includes(section)) {
+        return notification.recipientScope === "platform";
+      }
       if (section === "billing") return notification.recipientScope !== "platform";
       return true;
     }).length,
@@ -90,6 +92,7 @@ export function useNotificationBadges(enabled = true) {
     billing: 0,
     bids: 0,
     reporting: 0,
+    warRoom: 0,
     resources: 0,
     serviceModels: 0,
     platformBilling: 0,

@@ -210,6 +210,19 @@
     "keywords": ["approved", "compensation", "contractor", "earning", "gusto", "paid", "payable", "payment", "pending approval", "queued"]
   },
   {
+    "slug": "use-weekly-war-room",
+    "title": "Use the Weekly War Room",
+    "summary": "Monitor Managed Service and Hybrid monthly coverage, weekly execution, exceptions, and Afterlight portfolio commitments.",
+    "category": "Platform operations",
+    "roles": ["admin", "property_manager", "user", "client", "contractor", "cleaner"],
+    "platformRoles": ["platform_admin"],
+    "accountScopes": ["organization"],
+    "orgTypes": ["COM", "STR", "LTR", "RES"],
+    "file": "platform-use-weekly-war-room.md",
+    "estimatedTime": "2-4 min",
+    "keywords": ["afterlight coverage", "at risk", "behind", "completion", "dashboard", "digest", "hybrid", "managed service", "monthly coverage", "notification", "on track", "platform admin", "schedule", "weekly", "war room"]
+  },
+  {
     "slug": "process-afterlight-service-invoices",
     "title": "Process Afterlight service invoices",
     "summary": "Monitor automatically prepared customer charges, resolve exceptions, and reconcile AP payment separately from contractor earnings.",

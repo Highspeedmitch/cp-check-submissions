@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import ContextualHelpLink from "./help/ContextualHelpLink";
@@ -8,6 +8,77 @@ const EMPTY_ROUTE = { name: "", region: "", propertyIds: [] };
 
 function id(value) {
   return String(value?._id || value || "");
+}
+
+function stopChanges(currentRoute, draft, propertyById) {
+  const currentIds = (currentRoute?.propertyIds || []).map(String);
+  const updatedIds = (draft.propertyIds || []).map(String);
+  const currentSet = new Set(currentIds);
+  const updatedSet = new Set(updatedIds);
+  const nameFor = (propertyId) => propertyById.get(propertyId)?.name || "Property";
+  return {
+    added: updatedIds.filter((propertyId) => !currentSet.has(propertyId)).map(nameFor),
+    removed: currentIds.filter((propertyId) => !updatedSet.has(propertyId)).map(nameFor),
+    reordered: currentIds.length === updatedIds.length
+      && currentIds.every((propertyId) => updatedSet.has(propertyId))
+      && currentIds.some((propertyId, index) => propertyId !== updatedIds[index]),
+  };
+}
+
+function RouteSnapshotWarningDialog({ impact, onClose, onConfirm, onReview }) {
+  const cancelButtonRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    cancelButtonRef.current?.focus();
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, []);
+
+  const assignmentLabel = impact.count === 1 ? "assignment" : "assignments";
+  return (
+    <div className="beta-dialog-overlay" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section className="beta-dialog beta-route-snapshot-dialog" role="dialog" aria-modal="true"
+        aria-labelledby="route-snapshot-warning-title" aria-describedby="route-snapshot-warning-description">
+        <div className="beta-dialog-header">
+          <div>
+            <span className="beta-eyebrow">Scheduled route impact</span>
+            <h2 id="route-snapshot-warning-title">This route has scheduled assignments</h2>
+          </div>
+          <button type="button" className="beta-dialog-close" aria-label="Close scheduled route warning"
+            onClick={onClose}>×</button>
+        </div>
+        <p id="route-snapshot-warning-description" className="beta-dialog-copy">
+          {impact.count} scheduled route {assignmentLabel} will keep {impact.count === 1 ? "its" : "their"} existing {impact.currentStopCount}-stop
+          {impact.count === 1 ? " snapshot" : " snapshots"}. The updated {impact.updatedStopCount}-stop route will apply only to new assignments.
+        </p>
+        <div className="beta-route-impact-details">
+          {impact.added.length > 0 && <p><strong>Added:</strong> {impact.added.join(", ")}</p>}
+          {impact.removed.length > 0 && <p><strong>Removed:</strong> {impact.removed.join(", ")}</p>}
+          {impact.reordered && <p><strong>Stop order changed.</strong></p>}
+          <p>To use these changes for existing scheduled work, cancel and recreate the affected route assignments in Scheduler.</p>
+        </div>
+        <div className="beta-dialog-actions">
+          <button ref={cancelButtonRef} type="button" className="beta-button secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="beta-button secondary" onClick={onReview}>Review Scheduler</button>
+          <button type="button" className="beta-button" onClick={onConfirm}>Save Route Anyway</button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export default function RouteManagement() {
@@ -22,6 +93,7 @@ export default function RouteManagement() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [snapshotWarning, setSnapshotWarning] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +136,7 @@ export default function RouteManagement() {
     setDraft({ ...EMPTY_ROUTE, region: regions[0] || "" });
     setMessage("");
     setError("");
+    setSnapshotWarning(null);
   }
 
   function editRoute(route) {
@@ -75,6 +148,7 @@ export default function RouteManagement() {
     });
     setMessage("");
     setError("");
+    setSnapshotWarning(null);
     window.scrollTo?.({ top: 0, behavior: "smooth" });
   }
 
@@ -116,25 +190,42 @@ export default function RouteManagement() {
     }
   }
 
-  async function save(event) {
-    event.preventDefault();
+  async function persistRoute(confirmScheduledSnapshotImpact = false) {
     if (busy) return;
     setBusy("save");
     setMessage("");
     setError("");
     try {
       const result = editingId
-        ? await api.put(`/api/service-routes/${editingId}`, draft)
+        ? await api.put(`/api/service-routes/${editingId}`, {
+          ...draft,
+          ...(confirmScheduledSnapshotImpact ? { confirmScheduledSnapshotImpact: true } : {}),
+        })
         : await api.post("/api/service-routes", draft);
       setMessage(result.message || (editingId ? "Route updated." : "Route created."));
+      setSnapshotWarning(null);
       setEditingId("");
       setDraft({ ...EMPTY_ROUTE, region: regions[0] || "" });
       await load();
     } catch (err) {
+      if (err.data?.code === "ROUTE_SNAPSHOT_CONFIRMATION_REQUIRED") {
+        setSnapshotWarning({
+          count: err.data.scheduledRouteAssignmentCount,
+          currentStopCount: err.data.currentStopCount,
+          updatedStopCount: err.data.updatedStopCount,
+          ...stopChanges(currentRoute, draft, propertyById),
+        });
+        return;
+      }
       setError(err.message || "Unable to save the route.");
     } finally {
       setBusy("");
     }
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    await persistRoute();
   }
 
   async function changeStatus(route, status) {
@@ -203,6 +294,13 @@ export default function RouteManagement() {
 
         {message && <p className="beta-alert success" role="status">{message}</p>}
         {error && <p className="beta-alert error" role="alert">{error}</p>}
+
+        {snapshotWarning && <RouteSnapshotWarningDialog
+          impact={snapshotWarning}
+          onClose={() => setSnapshotWarning(null)}
+          onConfirm={() => persistRoute(true)}
+          onReview={() => navigate("/scheduler")}
+        />}
 
         <section className="beta-panel beta-route-editor" aria-labelledby="route-editor-title">
           <div className="beta-section-heading">

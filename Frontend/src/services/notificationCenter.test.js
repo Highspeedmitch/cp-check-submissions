@@ -17,6 +17,7 @@ test("groups only unread notifications into their destination sections", () => {
     billing: 2,
     bids: 1,
     reporting: 0,
+    warRoom: 0,
     resources: 0,
     serviceModels: 0,
     platformBilling: 0,
@@ -39,6 +40,7 @@ test("separates platform billing events and groups new operational notifications
     billing: 1,
     bids: 0,
     reporting: 0,
+    warRoom: 0,
     resources: 2,
     serviceModels: 3,
     platformBilling: 1,
@@ -61,6 +63,15 @@ test("routes organization-level platform requests to the overview badge", () => 
   ]);
   expect(grouped.platformOrganizations).toBe(2);
   expect(grouped.serviceModels).toBe(0);
+});
+
+test("routes platform War Room alerts to the War Room badge", () => {
+  const grouped = groupUnreadNotifications([
+    { type: "war_room_organization_behind", recipientScope: "platform", readAt: null },
+    { type: "war_room_weekly_digest", recipientScope: "platform", readAt: null },
+    { type: "war_room_organization_behind", recipientScope: "organization", readAt: null },
+  ]);
+  expect(grouped.warRoom).toBe(2);
 });
 
 test("identifies properties with unread inspection activity", () => {

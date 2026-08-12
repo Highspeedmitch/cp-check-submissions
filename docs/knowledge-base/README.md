@@ -9,6 +9,7 @@ The screenshots are source-verified UI illustrations built from the current appl
 | Task | Article | Typical time |
 | --- | --- | --- |
 | Launch a licensed customer workspace and open its audited Admin View | [Create and securely access an organization](platform-create-access-organization.md) | 4-8 minutes |
+| Monitor Managed Service and Hybrid execution and exceptions | [Use the Weekly War Room](platform-use-weekly-war-room.md) | 2-4 minutes |
 | Review and decide organization service plan requests | [Review service plan change requests](platform-review-service-model-changes.md) | 3-8 minutes |
 | Prepare and reconcile customer invoices for Afterlight-delivered work | [Process Afterlight service invoices](platform-process-service-invoices.md) | 3-5 minutes |
 | Onboard, deploy, and pay Resource Network contractors | [Manage Afterlight resources and contractor payables](platform-manage-resources-payables.md) | 8-15 minutes |
