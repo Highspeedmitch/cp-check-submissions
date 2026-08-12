@@ -78,3 +78,89 @@ test("route order suggestion uses current road travel metrics and corrected prop
     lng: -110.872634,
   });
 });
+
+test("route stop changes require confirmation when scheduled assignments keep the old snapshot", async () => {
+  const savedOrganization = organization();
+  savedOrganization.save = async () => {};
+  let impactQuery;
+  let auditCount = 0;
+  const handlers = createServiceRouteHandlers({
+    OrganizationModel: { async findById() { return savedOrganization; } },
+    RouteRunModel: {
+      async countDocuments(query) {
+        impactQuery = query;
+        return 2;
+      },
+    },
+    PlatformAuditModel: { async create() { auditCount += 1; } },
+  });
+  const request = {
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    params: { routeId: "r1" },
+    body: {
+      name: "Tucson - East/Central",
+      region: "Tucson - East/Central",
+      propertyIds: ["p2", "p1"],
+    },
+    get: () => "",
+  };
+  const warning = response();
+
+  await handlers.updateRoute(request, warning);
+
+  assert.equal(warning.statusCode, 409);
+  assert.deepEqual(warning.body, {
+    error: "This route has scheduled assignments that will keep their existing stop snapshots.",
+    code: "ROUTE_SNAPSHOT_CONFIRMATION_REQUIRED",
+    scheduledRouteAssignmentCount: 2,
+    currentStopCount: 2,
+    updatedStopCount: 2,
+  });
+  assert.deepEqual(impactQuery, {
+    organizationId: "org-1",
+    routeId: "r1",
+    status: "scheduled",
+  });
+  assert.deepEqual(savedOrganization.routes[0].propertyIds, ["p1", "p2"]);
+  assert.equal(auditCount, 0);
+
+  const confirmed = response();
+  await handlers.updateRoute({
+    ...request,
+    body: { ...request.body, confirmScheduledSnapshotImpact: true },
+  }, confirmed);
+
+  assert.equal(confirmed.statusCode, 200);
+  assert.deepEqual(savedOrganization.routes[0].propertyIds, ["p2", "p1"]);
+  assert.equal(savedOrganization.routes[0].version, 2);
+  assert.equal(auditCount, 1);
+});
+
+test("route metadata edits do not require scheduled snapshot confirmation", async () => {
+  const savedOrganization = organization();
+  savedOrganization.save = async () => {};
+  const handlers = createServiceRouteHandlers({
+    OrganizationModel: { async findById() { return savedOrganization; } },
+    RouteRunModel: {
+      async countDocuments() {
+        assert.fail("metadata-only edits must not query scheduled route impact");
+      },
+    },
+    PlatformAuditModel: { async create() {} },
+  });
+  const res = response();
+
+  await handlers.updateRoute({
+    user: { role: "admin", userId: "admin-1", organizationId: "org-1" },
+    params: { routeId: "r1" },
+    body: {
+      name: "East - Central",
+      region: "Tucson - East/Central",
+      propertyIds: ["p1", "p2"],
+    },
+    get: () => "",
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(savedOrganization.routes[0].name, "East - Central");
+});

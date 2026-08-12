@@ -2822,6 +2822,10 @@ select:focus-visible {
 .beta-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .beta-dialog-actions .beta-button { width: auto; min-width: 112px; margin: 0; }
 .beta-dialog button:disabled { cursor: not-allowed; opacity: .58; }
+.beta-route-snapshot-dialog { width: min(100%, 620px); }
+.beta-route-impact-details { margin: 0; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--beta-warning) 45%, var(--beta-border)); border-radius: 10px; background: var(--beta-warning-bg); color: var(--beta-ink); }
+.beta-route-impact-details p { margin: 0; line-height: 1.5; }
+.beta-route-impact-details p + p { margin-top: 8px; }
 .beta-admin-access-dialog { width: min(100%, 560px); }
 .beta-admin-access-properties { margin: 16px 0 0; padding: 14px; border: 1px solid var(--beta-border); border-radius: 10px; }
 .beta-admin-access-properties legend { padding: 0 6px; color: var(--beta-ink); font-weight: 800; }

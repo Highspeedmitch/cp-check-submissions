@@ -1,6 +1,7 @@
 const express = require("express");
 const Organization = require("../models/organization");
 const PlatformAudit = require("../models/platformAudit");
+const RouteRun = require("../models/routeRun");
 const { createMapboxPricingClient } = require("../services/mapboxPricing");
 const { managedProperties } = require("../services/propertyAccess");
 const {
@@ -20,9 +21,15 @@ function routeError(message, status = 400) {
   return error;
 }
 
+function sameOrderedIds(first = [], second = []) {
+  return first.length === second.length
+    && first.every((value, index) => String(value) === String(second[index]));
+}
+
 function createServiceRouteHandlers({
   OrganizationModel = Organization,
   PlatformAuditModel = PlatformAudit,
+  RouteRunModel = RouteRun,
   routingClientResolver = () => createMapboxPricingClient(),
   now = () => new Date(),
 } = {}) {
@@ -182,6 +189,23 @@ function createServiceRouteHandlers({
         propertyIds: routePropertyIds(route),
         version: route.version || 1,
       };
+      const stopSequenceChanged = !sameOrderedIds(previous.propertyIds, definition.propertyIds);
+      if (stopSequenceChanged && req.body.confirmScheduledSnapshotImpact !== true) {
+        const scheduledRouteAssignmentCount = await RouteRunModel.countDocuments({
+          organizationId: req.user.organizationId,
+          routeId: route._id,
+          status: "scheduled",
+        });
+        if (scheduledRouteAssignmentCount > 0) {
+          return res.status(409).json({
+            error: "This route has scheduled assignments that will keep their existing stop snapshots.",
+            code: "ROUTE_SNAPSHOT_CONFIRMATION_REQUIRED",
+            scheduledRouteAssignmentCount,
+            currentStopCount: previous.propertyIds.length,
+            updatedStopCount: definition.propertyIds.length,
+          });
+        }
+      }
       route.name = definition.name;
       route.region = definition.region;
       route.propertyIds = definition.propertyIds;
