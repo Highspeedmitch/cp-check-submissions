@@ -38,7 +38,9 @@ function requireProductionApplyApproval({ apply, env = process.env }) {
 }
 
 function limitsLabel(license = {}) {
-  if (license.adminLimit === null) return "Managed Service, unmetered";
+  if (license.adminLimit === null) {
+    return `${license.tier}, Managed Service, unmetered organization accounts, ${license.propertyLimit} properties`;
+  }
   return `${license.tier}, ${license.adminLimit} admins, ${license.userLimit} users, ${license.propertyLimit} properties`;
 }
 

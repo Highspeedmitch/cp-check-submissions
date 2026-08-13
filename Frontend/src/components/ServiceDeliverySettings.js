@@ -77,6 +77,9 @@ function requestSummary(request) {
 }
 
 function limitSummary(limits) {
+  if (limits.adminLimit == null && limits.userLimit == null) {
+    return `organization users and administrators are not seat-metered, ${limits.propertyLimit} properties`;
+  }
   return `${limits.adminLimit} administrators, ${limits.userLimit} users, ${limits.propertyLimit} properties`;
 }
 
@@ -90,26 +93,31 @@ function currencyAmount(cents, currency = "USD") {
 }
 
 function planMonthlyFee(settings, serviceModel, tier) {
-  if (serviceModel === "managed") return settings.options.managedServiceBaseMonthlyCents;
   if (serviceModel === "boutique") return settings.options.boutiqueServiceBaseMonthlyCents;
-  return settings.options.tierRecurringMonthlyPricesCents?.[tier];
+  return settings.options.serviceModelTierRecurringMonthlyPricesCents?.[serviceModel]?.[tier]
+    ?? (serviceModel === "managed"
+      ? settings.options.managedServiceBaseMonthlyCents
+      : settings.options.tierRecurringMonthlyPricesCents?.[tier]);
 }
 
 function serviceModelOptionLabel(settings, serviceModel) {
-  if (serviceModel === "managed") {
-    return `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(settings.options.managedServiceBaseMonthlyCents)}/month + visit charges`;
-  }
   if (serviceModel === "boutique") {
     return `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(settings.options.boutiqueServiceBaseMonthlyCents)}/month + visit charges · 1-3 properties under 5,000 sq ft`;
   }
-  const prices = Object.values(settings.options.tierRecurringMonthlyPricesCents || {});
+  const prices = Object.values(
+    settings.options.serviceModelTierRecurringMonthlyPricesCents?.[serviceModel]
+      || (serviceModel === "managed" ? {} : settings.options.tierRecurringMonthlyPricesCents)
+      || {}
+  );
   return prices.length
-    ? `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(Math.min(...prices))}-${currencyAmount(Math.max(...prices))}/month by tier`
+    ? `${SERVICE_MODEL_LABELS[serviceModel]} · ${currencyAmount(Math.min(...prices))}-${currencyAmount(Math.max(...prices))}/month by tier${serviceModel === "managed" ? " + visit charges" : ""}`
     : SERVICE_MODEL_LABELS[serviceModel];
 }
 
 function tierOptionSummary(settings, serviceModel, tier) {
-  const capacity = limitSummary(settings.options.tierLimits[tier]);
+  const limits = settings.options.tierLimitsByServiceModel?.[serviceModel]?.[tier]
+    || settings.options.tierLimits[tier];
+  const capacity = limitSummary(limits);
   const monthlyFee = `${currencyAmount(planMonthlyFee(settings, serviceModel, tier))}/month`;
   const hybridMinimum = serviceModel === "hybrid"
     ? settings.options.hybridPortfolioMinimums?.[tier]
@@ -264,7 +272,8 @@ export default function ServiceDeliverySettings() {
   };
 
   const selectRequestedServiceModel = (requestedServiceModel) => {
-    const tiered = settings.options.meteredServiceModels?.includes(requestedServiceModel);
+    const tiered = (settings.options.tieredServiceModels || settings.options.meteredServiceModels || [])
+      .includes(requestedServiceModel);
     setRequestDraft((current) => ({
       ...current,
       requestedServiceModel,
@@ -296,14 +305,16 @@ export default function ServiceDeliverySettings() {
 
   const activeRequest = requests.find((request) => ["pending_review", "information_requested"].includes(request.status));
   const tieredOrganization = Boolean(
-    settings?.options.meteredServiceModels?.includes(settings.organization.serviceModel)
+    (settings?.options.tieredServiceModels || settings?.options.meteredServiceModels || [])
+      .includes(settings?.organization?.serviceModel)
   );
   const currentTier = settings?.organization.license?.tier || null;
   const availableTierIncreases = tieredOrganization
     ? (settings.options.licenseTiers || []).slice((settings.options.licenseTiers || []).indexOf(currentTier) + 1)
     : [];
   const requestedModelUsesTiers = Boolean(
-    settings?.options.meteredServiceModels?.includes(requestDraft.requestedServiceModel)
+    (settings?.options.tieredServiceModels || settings?.options.meteredServiceModels || [])
+      .includes(requestDraft.requestedServiceModel)
   );
   const selectableServiceModels = settings
     ? settings.options.serviceModels.filter((model) => (

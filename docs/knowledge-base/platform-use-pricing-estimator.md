@@ -15,12 +15,13 @@ This tool estimates client pricing. Route-aware mode includes a bounded operatio
 5. Select **Free standing**, **Strip mall**, or **Individual suite**.
 6. Select **Monthly**, **Weekly**, or **Ad-hoc** service.
 7. Select **Known site concerns are expected** when the prospect has identified issues that may affect scope.
-8. Select **Include the organization-level $500 managed-service base in this quote** only when preparing a new or repriced managed-service agreement. Leave it off when adding a property to an organization that already pays the base.
-9. Select **Calculate estimate**.
+8. Select **Include the organization-level Managed Service fee in this quote** only when preparing a new or repriced Managed Service agreement. Leave it off when adding a property to an organization that already pays the organization fee.
+9. When included, choose Tier 1 ($500 and up to 25 properties), Tier 2 ($1,250 and up to 75 properties), or Tier 3 ($2,500 and up to 250 properties).
+10. Select **Calculate estimate**.
 
-Afterlight displays estimated pricing per visit and, when supported, the monthly visit-service subtotal. When the managed-service base is included, it also displays the $500 organization-level base and the combined monthly contract total. The base is applied once per organization, never once per property.
+Afterlight displays estimated pricing per visit and, when supported, the monthly visit-service subtotal. When the Managed Service fee is included, it also displays the selected tier fee and the combined monthly contract total. The fee is applied once per organization, never once per property.
 
-Formula version 6 retains the diminishing-marginal-cost retail-center curve introduced in version 4. It is calibrated to these per-visit benchmarks: $50 at 1,500 square feet, $125 at 18,000 square feet, $200 at 40,000 square feet, and $250 at 78,000 square feet. Values between the benchmarks are linearly interpolated; larger properties continue at the final marginal rate and still trigger manual review above 250,000 square feet. These anchors represent strip-mall or retail-center work. Free-standing properties and individual suites retain lower relative complexity modifiers.
+Formula version 7 retains the diminishing-marginal-cost retail-center curve introduced in version 4 and records the selected Managed Service tier. It is calibrated to these per-visit benchmarks: $50 at 1,500 square feet, $125 at 18,000 square feet, $200 at 40,000 square feet, and $250 at 78,000 square feet. Values between the benchmarks are linearly interpolated; larger properties continue at the final marginal rate and still trigger manual review above 250,000 square feet. These anchors represent strip-mall or retail-center work. Free-standing properties and individual suites retain lower relative complexity modifiers.
 
 The $50 minimum remains the floor for an individually priced, non-cluster property. Cluster calculations continue to price the primary property at its standalone amount and each eligible additional property at 50%.
 
@@ -57,7 +58,7 @@ A cluster may contain no more than six properties, matching the operational rout
 3. Select the shared service frequency.
 4. Confirm that every property is within 0.5 mile of the primary property.
 5. Confirm that every property will be serviced during the same scheduled visit.
-6. Choose whether this quote should include the organization-level managed-service base.
+6. Choose whether this quote should include the organization-level Managed Service fee and, when included, select its tier.
 7. Select **Calculate estimate**.
 
 The result compares the combined cluster price with the total price of estimating every property independently. Distance alone does not qualify properties for cluster pricing. Properties with different service schedules or separate visits must be estimated independently.
@@ -75,12 +76,12 @@ Route-aware pricing separates the property-work estimate from geographic adjustm
 5. Enter the proposed property address and select **Find address**.
 6. Confirm the correct Mapbox address result. The estimator will not calculate until a result is confirmed.
 7. Enter the property size, type, service frequency, and known concerns.
-8. Choose whether this quote should include the organization-level managed-service base.
+8. Choose whether this quote should include the organization-level Managed Service fee and, when included, select its tier.
 9. Select **Calculate estimate**.
 
 Only properties already saved to the selected route, assigned to an Afterlight fulfillment source, and containing valid coordinates are included. Customer-employee and customer-contractor properties cannot be used as route-pricing stops. Region membership alone does not create a route or density credit. Standalone/new-route pricing deliberately receives no route or density credit.
 
-The estimator uses Mapbox's stable driving profile for road distance and travel time. It preserves the stop order saved by the organization administrator, wraps that route with the private operations base, and measures the least-expensive insertion point for the proposed property. Formula version 6 converts the added detour miles and minutes into a route-fit score. A near-zero-detour stop can receive up to a 70% direct-route credit, while the modeled-route assumption retains a 10% confidence reserve. Selected-route density credit is calculated independently and can contribute up to 15%. Combined credits are capped at 80%, distance surcharges remain bounded, and the final result cannot fall below the $50 standalone minimum.
+The estimator uses Mapbox's stable driving profile for road distance and travel time. It preserves the stop order saved by the organization administrator, wraps that route with the private operations base, and measures the least-expensive insertion point for the proposed property. Formula version 7 converts the added detour miles and minutes into a route-fit score. A near-zero-detour stop can receive up to a 70% direct-route credit, while the modeled-route assumption retains a 10% confidence reserve. Selected-route density credit is calculated independently and can contribute up to 15%. Combined credits are capped at 80%, distance surcharges remain bounded, and the final result cannot fall below the $50 standalone minimum.
 
 The result identifies **Direct-route marginal price**, **Near-route price**, or **Standard route price**. It also snapshots and displays the selected route name, region, version, stop count, saved stop order, insertion leg, and route-fit percentage so the assumption can be checked before presenting a quote. Future estimates use the route's current membership and order after an administrator edits it; an already-calculated result retains the route snapshot used for that calculation.
 

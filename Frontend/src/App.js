@@ -1,8 +1,6 @@
 import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./components/Login";
-import OktaCallback from "./components/OktaCallback";
-import PushNotifications from "./components/PushNotifications";
 import AssumedAccessBanner from "./components/AssumedAccessBanner";
 import SessionStatusBanner from "./components/SessionStatusBanner";
 import PwaUpdateBanner from "./components/PwaUpdateBanner";
@@ -16,6 +14,7 @@ import {
 } from "./services/servicePlanAccess";
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
+const PushNotifications = lazy(() => import("./components/PushNotifications"));
 const ClientDashboard = lazy(() => import("./components/ClientDashboard"));
 const ClientProfitStatement = lazy(() => import("./components/ClientProfitStatement"));
 const ScheduleConsultation = lazy(() => import("./components/ScheduleConsultation"));
@@ -247,7 +246,11 @@ function App() {
     <AssumedAccessBanner />
     <PwaUpdateBanner />
     {user === true && <SessionStatusBanner />}
-    <PushNotifications enabled={user === true && (!platformRole || assumedOrganization)} />
+    {user === true && (!platformRole || assumedOrganization) && (
+      <Suspense fallback={null}>
+        <PushNotifications enabled />
+      </Suspense>
+    )}
     <Suspense fallback={<RouteLoading />}>
       <Routes>
       <Route path="/" element={!user
@@ -262,8 +265,6 @@ function App() {
           ? "/platform"
           : accountScope === "afterlight_resource" ? "/resource" : "/dashboard"} />
         : <Login setUser={setUser} />} />
-      <Route path="/login/callback" element={<OktaCallback setUser={setUser} />} />
-      <Route path="/login/okta/callback" element={<OktaCallback setUser={setUser} />} />
       <Route path="/platform" element={
         user && platformRole === "platform_admin" && !assumedOrganization
           ? <PlatformDashboard />

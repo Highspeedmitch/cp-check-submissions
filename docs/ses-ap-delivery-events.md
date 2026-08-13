@@ -1,14 +1,19 @@
-# SES AP invoice delivery events
+# SES invoice delivery events
 
 Afterlight records Amazon SES acceptance as `accepted`, then uses signed SES
 delivery events to move the invoice to `delivered` or `failed`. SES delivery
 means that the recipient mail server accepted the message; it does not prove
 that a person opened it or that it avoided a spam folder.
 
+The same event stream records platform-admin review-email resend attempts. A
+review resend updates its own delivery-attempt record and never changes the
+invoice's approval or AP-delivery state.
+
 ## Architecture
 
-1. AP invoice email is sent with `SES_AP_CONFIGURATION_SET` and non-sensitive
-   `message_type` and `invoice_id` tags.
+1. AP invoice and invoice-review resend emails are sent with
+   `SES_AP_CONFIGURATION_SET` and non-sensitive `message_type`, `invoice_id`,
+   and attempt-correlation tags.
 2. SES publishes delivery, delay, bounce, complaint, reject, and rendering
    failure events to an encrypted SNS topic.
 3. SNS signs the HTTPS notification with signature version 2 and sends it to
@@ -16,7 +21,7 @@ that a person opened it or that it avoided a spam folder.
 4. The API validates the exact topic ARN, regional certificate URL, certificate
    validity, and RSA-SHA256 signature before processing the event.
 5. The API correlates `mail.messageId` to the stored SES provider message ID and
-   performs an idempotent, timestamp-ordered invoice update.
+   performs an idempotent, timestamp-ordered AP invoice or review-attempt update.
 6. Undeliverable webhook events are retained in a customer-key-encrypted SQS
    dead-letter queue for 14 days. CloudWatch alarms publish webhook failures
    and non-empty DLQ state to a separate encrypted operations topic.

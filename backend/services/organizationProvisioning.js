@@ -6,7 +6,7 @@ const {
 } = require("./fulfillmentPolicy");
 const {
   LICENSE_TIERS,
-  METERED_SERVICE_MODELS,
+  TIERED_SERVICE_MODELS,
   defaultStoredLicense,
 } = require("./licenseEntitlements");
 const { validateBoutiqueOrganizationType } = require("./boutiquePolicy");
@@ -16,7 +16,7 @@ function normalizeOrganizationSetup(input = {}) {
   const orgType = String(input.orgType || "").trim().toUpperCase();
   const reportingTimezone = String(input.reportingTimezone || "America/Phoenix").trim();
   const serviceModel = validateServiceModel(String(input.serviceModel || "managed").trim());
-  const licenseTier = METERED_SERVICE_MODELS.has(serviceModel)
+  const licenseTier = TIERED_SERVICE_MODELS.has(serviceModel)
     ? String(input.licenseTier || "tier_1").trim()
     : null;
   const defaultSource = validateFulfillmentSourceForServiceModel(

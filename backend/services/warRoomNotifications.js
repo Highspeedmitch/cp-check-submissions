@@ -2,6 +2,8 @@ const os = require("os");
 const WarRoomNotificationEvent = require("../models/warRoomNotificationEvent");
 const { notifyPlatformAdministrators } = require("./notifications");
 const { getPlatformWarRoom } = require("./platformWarRoom");
+const { captureBackendException } = require("../monitoring");
+const { startPollingWorker } = require("./pollingWorker");
 
 const DEFAULT_POLL_MS = 30 * 1000;
 const EVALUATION_INTERVAL_MS = 60 * 60 * 1000;
@@ -149,6 +151,14 @@ async function processNextWarRoomNotification(options = {}) {
     await deliverWarRoomNotificationEvent(event, options);
   } catch (error) {
     console.error(`War Room notification ${event.dedupeKey} failed:`, error.message);
+    captureBackendException(error, {
+      tags: {
+        component: "background-worker",
+        worker: "war-room-notification",
+        phase: "process-event",
+      },
+      extra: { eventId: String(event._id), dedupeKey: event.dedupeKey },
+    });
     await recordWarRoomNotificationFailure(event, error, options.now || new Date());
   }
   return event;
@@ -158,29 +168,18 @@ function startWarRoomNotificationWorker({
   pollMs = DEFAULT_POLL_MS,
   evaluationIntervalMs = EVALUATION_INTERVAL_MS,
 } = {}) {
-  let stopped = false;
-  let timer = null;
   let lastEvaluatedAt = 0;
-  async function poll() {
-    if (stopped) return;
-    try {
+  return startPollingWorker({
+    name: "war-room-notification",
+    pollMs,
+    async runOnce() {
       if (Date.now() - lastEvaluatedAt >= evaluationIntervalMs) {
         await evaluateWarRoomNotifications();
         lastEvaluatedAt = Date.now();
       }
-      const processed = await processNextWarRoomNotification();
-      if (!stopped) timer = setTimeout(poll, processed ? 0 : pollMs);
-    } catch (error) {
-      console.error("War Room notification worker polling error:", error.message);
-      if (!stopped) timer = setTimeout(poll, pollMs);
-    }
-    timer.unref?.();
-  }
-  poll();
-  return () => {
-    stopped = true;
-    if (timer) clearTimeout(timer);
-  };
+      return processNextWarRoomNotification();
+    },
+  });
 }
 
 module.exports = {

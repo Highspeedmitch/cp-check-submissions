@@ -1,6 +1,6 @@
 # Review service plan change requests
 
-Platform administrators review organization requests to change a service model, increase a SaaS or Hybrid license tier, or add custom Tier 3 administrator capacity. Organization administrators cannot apply these contract changes themselves.
+Platform administrators review organization requests to change a service model, increase a SaaS, Managed service, or Hybrid license tier, or add custom Tier 3 administrator capacity. Organization administrators cannot apply these contract changes themselves.
 
 ## Open the review queue
 
@@ -25,7 +25,7 @@ Use **Approve and apply** only after confirming the contract, pricing, operation
 Approval takes effect immediately. Afterlight:
 
 - changes the organization's service model;
-- applies the explicitly requested tier for SaaS or Hybrid, applies Boutique fixed capacity, or clears tier limits for Managed service;
+- applies the explicitly requested tier for SaaS, Managed service, or Hybrid, or applies Boutique fixed capacity;
 - selects the service model's standard fulfillment default;
 - clears property-level fulfillment overrides;
 - increments the fulfillment policy version;
@@ -41,7 +41,7 @@ Before approving Boutique service, confirm that the organization type is **Comme
 
 ## Approve a tier-increase request
 
-Confirm that the organization is still on the service model and tier recorded when the request was submitted. Approval immediately applies the requested standard tier and its administrator, user, and property limits.
+Confirm that the organization is still on the service model and tier recorded when the request was submitted. Approval immediately applies the requested standard tier. SaaS and Hybrid change administrator, user, and property limits; Managed service changes property capacity while keeping organization accounts unmetered.
 
 A tier approval does not change fulfillment policy, property overrides, existing assignments, or invoices. Existing organization-specific capacity overrides that exceed the new tier standard are retained so an upgrade cannot reduce capacity. The approval records the previous and applied tier and capacity in the platform audit trail and alerts the requester.
 
@@ -63,9 +63,9 @@ Enter the reason in **Platform response**, then select **Deny**. No organization
 
 - Only one active service-plan request is allowed per organization.
 - A request cannot be approved if the organization's service model or source tier changed after submission.
-- Tier increases are accepted only for SaaS and Hybrid and must target a higher standard tier.
+- Tier increases are accepted only for SaaS, Managed service, and Hybrid and must target a higher standard tier.
 - Custom administrator capacity is accepted only for Tier 3 SaaS and Hybrid organizations and must be greater than the current administrator limit.
-- Service-model changes into SaaS or Hybrid require an explicit tier.
+- Service-model changes into SaaS, Managed service, or Hybrid require an explicit tier.
 - Service-model changes into Boutique require no tier and fail when the organization is not Commercial or when property-count or property-size eligibility is not satisfied.
 - SaaS permits only customer employees and customer-managed contractors for new assignments. Server-side validation rejects Afterlight fulfillment even if a stale client attempts to submit it.
 - Denial and information requests require a written platform response.

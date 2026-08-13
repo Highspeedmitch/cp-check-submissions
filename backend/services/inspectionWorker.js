@@ -40,6 +40,8 @@ const { issuerSnapshotForInvoice } = require("./invoiceIssuer");
 const { mergePropertyInspectionRecipients } = require("./propertyEmails");
 const { effectivePropertyManagerIds } = require("./routeScopes");
 const { requireBoutiqueInspectionAssignment } = require("./boutiquePolicy");
+const { captureBackendException } = require("../monitoring");
+const { startPollingWorker } = require("./pollingWorker");
 
 const DEFAULT_POLL_MS = 2000;
 const LEASE_MS = 15 * 60 * 1000;
@@ -526,6 +528,10 @@ async function processNextInspectionJob(options = {}) {
     return await processInspectionJob(job);
   } catch (error) {
     console.error(`Inspection job ${job._id} failed on attempt ${job.attempts}:`, error.message);
+    captureBackendException(error, {
+      tags: { component: "background-worker", worker: "inspection", phase: "process-job" },
+      extra: { jobId: String(job._id), attempt: job.attempts },
+    });
     return recordJobFailure(job, error);
   }
 }
@@ -557,29 +563,18 @@ async function cleanupExpiredInspectionUploads({ JobModel = InspectionJob, now =
 }
 
 function startInspectionWorker({ pollMs = DEFAULT_POLL_MS } = {}) {
-  let stopped = false;
-  let timer = null;
   let lastCleanupAt = 0;
-  async function poll() {
-    if (stopped) return;
-    try {
+  return startPollingWorker({
+    name: "inspection",
+    pollMs,
+    async runOnce() {
       if (Date.now() - lastCleanupAt >= 60 * 60 * 1000) {
         await cleanupExpiredInspectionUploads();
         lastCleanupAt = Date.now();
       }
-      const processed = await processNextInspectionJob();
-      timer = setTimeout(poll, processed ? 0 : pollMs);
-    } catch (error) {
-      console.error("Inspection worker polling error:", error.message);
-      timer = setTimeout(poll, pollMs);
-    }
-    timer.unref?.();
-  }
-  poll();
-  return () => {
-    stopped = true;
-    if (timer) clearTimeout(timer);
-  };
+      return processNextInspectionJob();
+    },
+  });
 }
 
 module.exports = {

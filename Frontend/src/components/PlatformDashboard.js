@@ -1,18 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import { storeAuthentication, logoutSession } from "../services/session";
-import { beginOktaLogin, oktaConfigured } from "../services/okta";
 import PageHeader from "./ui/PageHeader";
 import ContextualHelpLink from "./help/ContextualHelpLink";
-import ProspectAssessments from "./ProspectAssessments";
-import PricingEstimator from "./PricingEstimator";
 import ThemeToggle from "./ui/ThemeToggle";
-import PlatformResources from "./PlatformResources";
-import PlatformServiceBilling from "./PlatformServiceBilling";
-import PlatformFinancialOverview from "./PlatformFinancialOverview";
-import PlatformServiceModelChanges from "./PlatformServiceModelChanges";
-import PlatformWarRoom from "./PlatformWarRoom";
 import OrganizationOnboardingWizard, {
   ORGANIZATION_TYPES,
 } from "./platform/OrganizationOnboardingWizard";
@@ -22,9 +14,14 @@ import {
   useNotificationBadges,
 } from "../services/notificationCenter";
 
-const PENDING_ADMIN_VIEW_STEP_UP = "afterlightPendingAdminViewStepUp";
-const PENDING_CAPABILITY_STEP_UP = "afterlightPendingCapabilityStepUp";
-const PENDING_ADMIN_VIEW_LIFETIME_MS = 10 * 60 * 1000;
+const ProspectAssessments = lazy(() => import("./ProspectAssessments"));
+const PricingEstimator = lazy(() => import("./PricingEstimator"));
+const PlatformResources = lazy(() => import("./PlatformResources"));
+const PlatformServiceBilling = lazy(() => import("./PlatformServiceBilling"));
+const PlatformFinancialOverview = lazy(() => import("./PlatformFinancialOverview"));
+const PlatformServiceModelChanges = lazy(() => import("./PlatformServiceModelChanges"));
+const PlatformWarRoom = lazy(() => import("./PlatformWarRoom"));
+
 const PLATFORM_VIEWS = new Set([
   "overview",
   "war-room",
@@ -339,7 +336,9 @@ export default function PlatformDashboard() {
       setError(requestError.message);
     }
   }, []);
-  useEffect(() => { loadReport(); }, [loadReport]);
+  useEffect(() => {
+    if (!report && ["overview", "pricing"].includes(activeView)) loadReport();
+  }, [activeView, loadReport, report]);
 
   const organizations = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -359,32 +358,6 @@ export default function PlatformDashboard() {
         working: false,
         error: "",
       });
-      return;
-    }
-    if (challenge.provider === "okta") {
-      if (!oktaConfigured) {
-        throw new Error("Okta identity confirmation is not available in this application build.");
-      }
-      const storageKey = pending.kind === "capability"
-        ? PENDING_CAPABILITY_STEP_UP
-        : PENDING_ADMIN_VIEW_STEP_UP;
-      sessionStorage.setItem(storageKey, JSON.stringify({
-        organizationId: organization.organizationId,
-        reason,
-        ...pending,
-        createdAt: Date.now(),
-      }));
-      try {
-        await beginOktaLogin({
-          returnTo: pending.kind === "capability"
-            ? "/platform?resumeCapability=1"
-            : "/platform?resumeAdminView=1",
-          stepUp: true,
-        });
-      } catch (requestError) {
-        sessionStorage.removeItem(storageKey);
-        throw requestError;
-      }
       return;
     }
     throw new Error(challenge.message || "Identity confirmation is unavailable.");
@@ -408,8 +381,7 @@ export default function PlatformDashboard() {
         ? `Secure email invoice approval enabled for ${organization.name}.`
         : `Standard Afterlight invoice review restored for ${organization.name}.`);
     } catch (requestError) {
-      const stepUpRequired = ["STEP_UP_REQUIRED", "OKTA_REAUTH_REQUIRED"]
-        .includes(requestError.data?.code);
+      const stepUpRequired = requestError.data?.code === "STEP_UP_REQUIRED";
       if (allowStepUp && stepUpRequired) {
         try {
           await beginIdentityConfirmation(organization, capability.reason, {
@@ -439,8 +411,7 @@ export default function PlatformDashboard() {
       window.location.assign("/dashboard");
     } catch (requestError) {
       setBusy("");
-      const stepUpRequired = ["STEP_UP_REQUIRED", "OKTA_REAUTH_REQUIRED"]
-        .includes(requestError.data?.code);
+      const stepUpRequired = requestError.data?.code === "STEP_UP_REQUIRED";
       if (allowStepUp && stepUpRequired) {
         try {
           await beginIdentityConfirmation(organization, reason);
@@ -452,66 +423,6 @@ export default function PlatformDashboard() {
       setError(requestError.message);
     }
   }, [beginIdentityConfirmation]);
-
-  useEffect(() => {
-    if (!report || searchParams.get("resumeAdminView") !== "1") return;
-    const pendingValue = sessionStorage.getItem(PENDING_ADMIN_VIEW_STEP_UP);
-    sessionStorage.removeItem(PENDING_ADMIN_VIEW_STEP_UP);
-    setSearchParams({});
-    if (!pendingValue) {
-      setError("The pending Admin View request could not be restored. Please try again.");
-      return;
-    }
-    try {
-      const pending = JSON.parse(pendingValue);
-      if (
-        !pending.createdAt
-        || Date.now() - pending.createdAt > PENDING_ADMIN_VIEW_LIFETIME_MS
-      ) {
-        setError("The pending Admin View request expired. Please try again.");
-        return;
-      }
-      const organization = report.organizations.find(
-        (candidate) => candidate.organizationId === pending.organizationId
-      );
-      if (!organization || !pending.reason) {
-        setError("The pending Admin View request could not be restored. Please try again.");
-        return;
-      }
-      attemptOrganizationAccess(organization, pending.reason, false);
-    } catch (_parseError) {
-      setError("The pending Admin View request could not be restored. Please try again.");
-    }
-  }, [attemptOrganizationAccess, report, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (!report || searchParams.get("resumeCapability") !== "1") return;
-    const pendingValue = sessionStorage.getItem(PENDING_CAPABILITY_STEP_UP);
-    sessionStorage.removeItem(PENDING_CAPABILITY_STEP_UP);
-    setSearchParams({});
-    if (!pendingValue) {
-      setError("The pending capability change could not be restored. Please try again.");
-      return;
-    }
-    try {
-      const pending = JSON.parse(pendingValue);
-      const organization = report.organizations.find(
-        (candidate) => candidate.organizationId === pending.organizationId
-      );
-      if (!organization || !pending.reason || !pending.invoiceApprovalExperience
-        || !pending.createdAt || Date.now() - pending.createdAt > PENDING_ADMIN_VIEW_LIFETIME_MS) {
-        setError("The pending capability change expired or could not be restored. Please try again.");
-        return;
-      }
-      setCapabilityOrganization(organization);
-      attemptCapabilityUpdate(organization, {
-        invoiceApprovalExperience: pending.invoiceApprovalExperience,
-        reason: pending.reason,
-      }, false);
-    } catch (_parseError) {
-      setError("The pending capability change could not be restored. Please try again.");
-    }
-  }, [attemptCapabilityUpdate, report, searchParams, setSearchParams]);
 
   async function createOrganization(draft) {
     if (busy) return false;
@@ -619,6 +530,7 @@ export default function PlatformDashboard() {
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {message && <p className="beta-alert success" role="status">{message}</p>}
 
+        <Suspense fallback={<div className="beta-empty-state">Loading platform view...</div>}>
         {activeView === "prospects" ? <ProspectAssessments /> : activeView === "pricing" ? <PricingEstimator organizations={report?.organizations || []} /> : activeView === "war-room" ? <PlatformWarRoom busy={busy} onOpenOrganization={enterOrganization} /> : activeView === "billing" ? <PlatformServiceBilling /> : activeView === "finance" ? <PlatformFinancialOverview /> : activeView === "resources" ? <PlatformResources /> : activeView === "service-models" ? <PlatformServiceModelChanges /> : !report ? (
           <div className="beta-empty-state">Loading platform metrics...</div>
         ) : (
@@ -642,6 +554,7 @@ export default function PlatformDashboard() {
             </section>
           </>
         )}
+        </Suspense>
       </div>
       <OrganizationOnboardingWizard open={newOrganizationOpen} busy={busy === "create-organization"} error={organizationError}
         onClose={() => !busy && setNewOrganizationOpen(false)} onCreate={createOrganization} />

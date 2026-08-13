@@ -1,47 +1,71 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
+import {
+  ASSIGNMENT_VIEWS,
+  assignmentDateRangeLabel,
+  assignmentTimingLabel,
+  assignmentUrgency,
+  buildAssignmentQueue,
+} from "../../services/assignmentUrgency";
+import AssignmentQueueControls, { assignmentEmptyMessage } from "./AssignmentQueueControls";
 
-function AssignmentSection({ assignments, properties, onOpenProperty, onNavigate }) {
-  if (assignments.length === 0) return null;
-  const groupedAssignments = [];
+function groupAssignments(assignments) {
+  const groups = [];
   const routeGroups = new Map();
   assignments.forEach((assignment) => {
     if (!assignment.routeRunId) {
-      groupedAssignments.push({ type: "property", assignments: [assignment] });
+      groups.push({ type: "property", assignments: [assignment] });
       return;
     }
     const routeRunId = String(assignment.routeRunId);
     if (!routeGroups.has(routeRunId)) {
       const group = { type: "route", routeRunId, assignments: [] };
       routeGroups.set(routeRunId, group);
-      groupedAssignments.push(group);
+      groups.push(group);
     }
     routeGroups.get(routeRunId).assignments.push(assignment);
   });
   routeGroups.forEach((group) => group.assignments.sort(
     (first, second) => (first.routeStopIndex || 0) - (second.routeStopIndex || 0)
   ));
+  return groups;
+}
+
+function AssignmentSection({ assignments, properties, onOpenProperty, onNavigate }) {
+  const [activeView, setActiveView] = useState(ASSIGNMENT_VIEWS.ATTENTION);
+  const assignmentQueue = useMemo(() => buildAssignmentQueue(assignments), [assignments]);
+  const groupedAssignments = useMemo(
+    () => groupAssignments(assignmentQueue[activeView]),
+    [activeView, assignmentQueue]
+  );
+  const counts = {
+    [ASSIGNMENT_VIEWS.ATTENTION]: assignmentQueue[ASSIGNMENT_VIEWS.ATTENTION].length,
+    [ASSIGNMENT_VIEWS.UPCOMING]: assignmentQueue[ASSIGNMENT_VIEWS.UPCOMING].length,
+    [ASSIGNMENT_VIEWS.ALL]: assignmentQueue[ASSIGNMENT_VIEWS.ALL].length,
+  };
 
   return (
     <section className="beta-section">
       <div className="beta-section-heading">
         <div>
           <h2>My Assignments</h2>
-          <p>Your scheduled property work.</p>
+          <p>Prioritize scheduled property work by its due date.</p>
         </div>
       </div>
-      <div className="beta-assignment-grid">
-        {groupedAssignments.slice(0, 4).map((group) => {
+      <AssignmentQueueControls activeView={activeView} counts={counts} onChange={setActiveView} />
+      {groupedAssignments.length ? <div className="beta-assignment-grid" role="tabpanel">
+        {groupedAssignments.map((group) => {
           const assignment = group.assignments[0];
+          const urgency = assignmentUrgency(assignment);
           if (group.type === "route") {
             return (
-              <article className="beta-assignment-card beta-route-work-card" key={group.routeRunId}>
+              <article className={`beta-assignment-card beta-route-work-card is-${urgency}`} key={group.routeRunId}>
                 <div className="beta-card-header">
                   <div>
-                    <span className="beta-eyebrow">ROUTE assignment · {assignment.routeStopCount || group.assignments.length} stops</span>
+                    <span className="beta-eyebrow">ROUTE assignment &middot; {assignment.routeStopCount || group.assignments.length} stops</span>
                     <h3>{assignment.routeName || "Property route"}</h3>
-                    <p>{new Date(assignment.startDate).toLocaleDateString()}</p>
+                    <p>{assignmentDateRangeLabel(assignment)}</p>
                   </div>
-                  <span className="beta-status warning">Scheduled</span>
+                  <span className={`beta-assignment-deadline is-${urgency}`}>{assignmentTimingLabel(assignment)}</span>
                 </div>
                 {assignment.oneTimeCheckRequest && (
                   <div className="beta-assignment-note">
@@ -52,7 +76,7 @@ function AssignmentSection({ assignments, properties, onOpenProperty, onNavigate
                 <ol className="beta-route-work-stops">
                   {group.assignments.map((stop, index) => {
                     const property = properties.find((item) =>
-                      String(item._id) === String(stop.propertyId)
+                      (stop.propertyId && String(item._id) === String(stop.propertyId))
                       || item.name === stop.propertyName
                     );
                     return (
@@ -72,16 +96,17 @@ function AssignmentSection({ assignments, properties, onOpenProperty, onNavigate
             );
           }
           const property = properties.find(
-            (item) => item.name === assignment.propertyName
+            (item) => (assignment.propertyId && String(item._id) === String(assignment.propertyId))
+              || item.name === assignment.propertyName
           );
           return (
-            <article className="beta-assignment-card" key={assignment._id}>
+            <article className={`beta-assignment-card is-${urgency}`} key={assignment._id}>
               <div className="beta-card-header">
                 <div>
                   <h3>{assignment.propertyName}</h3>
-                  <p>{new Date(assignment.startDate).toLocaleDateString()}</p>
+                  <p>{assignmentDateRangeLabel(assignment)}</p>
                 </div>
-                <span className="beta-status warning">Scheduled</span>
+                <span className={`beta-assignment-deadline is-${urgency}`}>{assignmentTimingLabel(assignment)}</span>
               </div>
               {assignment.oneTimeCheckRequest && (
                 <div className="beta-assignment-note">
@@ -107,7 +132,9 @@ function AssignmentSection({ assignments, properties, onOpenProperty, onNavigate
             </article>
           );
         })}
-      </div>
+      </div> : <div className="beta-empty-state beta-assignment-empty" role="tabpanel">
+        {assignmentEmptyMessage(activeView)}
+      </div>}
     </section>
   );
 }

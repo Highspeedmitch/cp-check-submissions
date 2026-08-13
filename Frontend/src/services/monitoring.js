@@ -34,16 +34,27 @@ export function captureFrontendException(error, context = {}) {
 }
 
 export function MonitoringBoundary({ children }) {
-  if (!initialized) return children;
   return (
     <Sentry.ErrorBoundary fallback={({ resetError }) => (
       <div className="beta-page">
         <main className="beta-page-shell">
           <div className="beta-empty-state" role="alert">
             <h1>Something went wrong</h1>
-            <p>The problem was reported. You can retry this screen or return to the dashboard.</p>
+            <p>
+              {initialized ? "The problem was reported. " : ""}
+              Reload the app to recover, or return to the dashboard.
+            </p>
             <div className="beta-card-actions">
-              <button type="button" className="beta-button" onClick={resetError}>Try again</button>
+              <button
+                type="button"
+                className="beta-button"
+                onClick={() => {
+                  resetError();
+                  window.location.reload();
+                }}
+              >
+                Reload app
+              </button>
               <a className="beta-button secondary" href="/dashboard">Dashboard</a>
             </div>
           </div>

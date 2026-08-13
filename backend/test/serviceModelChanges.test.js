@@ -4,7 +4,10 @@ const ServiceModelChangeRequest = require("../models/serviceModelChangeRequest")
 const {
   createServiceModelChangeHandlers,
 } = require("../Routes/serviceModelChanges");
-const { defaultStoredLicense } = require("../services/licenseEntitlements");
+const {
+  defaultStoredLicense,
+  resolveLicenseEntitlements,
+} = require("../services/licenseEntitlements");
 
 function response() {
   return {
@@ -132,7 +135,7 @@ test("organization administrators submit a non-mutating request and notify platf
   assert.equal(createdRequest.currentServiceModel, "managed");
   assert.equal(createdRequest.requestedServiceModel, "platform");
   assert.equal(createdRequest.changeType, "service_model");
-  assert.equal(createdRequest.currentLicenseTier, null);
+  assert.equal(createdRequest.currentLicenseTier, "tier_1");
   assert.equal(createdRequest.requestedLicenseTier, "tier_1");
   assert.equal(createdRequest.organizationSnapshot.propertyCount, 2);
   assert.equal(createdRequest.organizationSnapshot.propertyOverrideCount, 1);
@@ -292,7 +295,7 @@ test("platform approval applies the model to future work and clears property ove
   assert.equal(org.license.tier, "tier_1");
   assert.equal(org.license.adminLimit, 2);
   assert.equal(org.license.userLimit, 5);
-  assert.equal(org.license.propertyLimit, 10);
+  assert.equal(org.license.propertyLimit, 25);
   assert.equal(org.fulfillmentPolicy.defaultSource, "customer_employee");
   assert.equal(org.fulfillmentPolicy.version, 5);
   assert.equal(org.billingCapabilities.invoiceApprovalExperience, "authenticated_portal");
@@ -535,25 +538,97 @@ test("tiered organizations can request a higher tier without mutating their lice
   assert.equal(platformNotification.event.type, "license_tier_change_requested");
 });
 
-test("managed-service organizations cannot submit license tier requests", async () => {
+test("managed-service organizations can request a higher property tier", async () => {
   const org = organization();
   const requester = { _id: "admin-1", email: "admin@example.com", username: "Admin" };
+  let createdRequest;
   const handlers = createServiceModelChangeHandlers({
     OrganizationModel: { async findById() { return org; } },
     UserModel: userModel(requester),
     InvitationModel: invitationModel(),
-    RequestModel: { async findOne() { return null; } },
+    RequestModel: {
+      async findOne() { return null; },
+      async create(details) {
+        createdRequest = {
+          _id: "request-managed-tier-1",
+          ...details,
+          status: "pending_review",
+          notification: {},
+          createdAt: new Date("2026-08-12T12:00:00.000Z"),
+          updatedAt: new Date("2026-08-12T12:00:00.000Z"),
+          async save() {},
+        };
+        return createdRequest;
+      },
+    },
+    PlatformAuditModel: { async create() {} },
+    sendPlatformEmail: async () => {},
+    notifyPlatform: async () => {},
   });
   const res = response();
 
   await handlers.createRequest(organizationRequest({
     changeType: "license_tier",
     requestedLicenseTier: "tier_2",
-    reason: "This should not be available.",
+    reason: "The managed portfolio is growing beyond 25 properties.",
   }), res);
 
-  assert.equal(res.statusCode, 400);
-  assert.match(res.body.error, /only for SaaS and Hybrid/i);
+  assert.equal(res.statusCode, 201);
+  assert.equal(createdRequest.currentLicenseTier, "tier_1");
+  assert.equal(createdRequest.requestedLicenseTier, "tier_2");
+  assert.equal(createdRequest.organizationSnapshot.currentPropertyLimit, 25);
+  assert.equal(createdRequest.organizationSnapshot.requestedPropertyLimit, 75);
+  assert.equal(createdRequest.organizationSnapshot.currentAdminLimit, null);
+  assert.equal(createdRequest.organizationSnapshot.requestedAdminLimit, null);
+  assert.equal(createdRequest.organizationSnapshot.requestedRecurringMonthlyFeeCents, 125000);
+  assert.equal(org.saveCount, 0);
+});
+
+test("platform approval applies a Managed tier increase without metering organization accounts", async () => {
+  const org = organization({ serviceModel: "managed", tier: "tier_1" });
+  const requester = { _id: "admin-1", email: "admin@example.com", username: "Admin" };
+  const request = {
+    _id: "request-managed-tier-2",
+    organizationId: "org-1",
+    requestedBy: "admin-1",
+    changeType: "license_tier",
+    currentServiceModel: "managed",
+    requestedServiceModel: "managed",
+    currentLicenseTier: "tier_1",
+    requestedLicenseTier: "tier_2",
+    reason: "Portfolio growth",
+    status: "pending_review",
+    organizationSnapshot: {
+      requestedAdminLimit: null,
+      requestedUserLimit: null,
+      requestedPropertyLimit: 75,
+      requestedRecurringMonthlyFeeCents: 125000,
+    },
+    messages: [],
+    notification: {},
+    async save() {},
+  };
+  const previousPolicy = { ...org.fulfillmentPolicy };
+  const handlers = createServiceModelChangeHandlers({
+    RequestModel: { async findOne() { return request; } },
+    OrganizationModel: { async findById() { return org; } },
+    UserModel: userModel(requester),
+    PlatformAuditModel: { async create() {} },
+    sendRequesterEmail: async () => {},
+    notifyUser: async () => {},
+    now: () => new Date("2026-08-12T14:00:00.000Z"),
+  });
+  const res = response();
+
+  await handlers.reviewRequest(platformRequest({ action: "approve", response: "Approved." }, request._id), res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(org.license.tier, "tier_2");
+  assert.equal(org.license.adminLimit, null);
+  assert.equal(org.license.userLimit, null);
+  assert.equal(org.license.propertyLimit, 75);
+  assert.deepEqual(org.fulfillmentPolicy, previousPolicy);
+  assert.equal(resolveLicenseEntitlements(org).recurringMonthlyFeeCents, 125000);
 });
 
 test("platform approval applies a tier increase without changing fulfillment", async () => {
@@ -610,13 +685,13 @@ test("platform approval applies a tier increase without changing fulfillment", a
   assert.equal(org.license.tier, "tier_2");
   assert.equal(org.license.adminLimit, 3);
   assert.equal(org.license.userLimit, 20);
-  assert.equal(org.license.propertyLimit, 60);
+  assert.equal(org.license.propertyLimit, 75);
   assert.equal(org.license.adminSeatVersion, 7);
   assert.deepEqual(org.fulfillmentPolicy, previousPolicy);
   assert.equal(org.properties[0].fulfillmentPolicy.defaultSource, previousOverride);
   assert.equal(fulfillmentAuditCreated, false);
   assert.equal(platformAudit.action, "license_tier_change_approved");
-  assert.deepEqual(platformAudit.metadata.requestedLimits, { admin: 3, users: 20, properties: 60 });
+  assert.deepEqual(platformAudit.metadata.requestedLimits, { admin: 3, users: 20, properties: 75 });
   assert.equal(platformAudit.metadata.requestedAfterlightPortfolioMinimumPercent, 12);
   assert.equal(requesterNotification.type, "license_tier_change_approved");
 });

@@ -6,11 +6,19 @@ import { logoutSession } from "../services/session";
 import PageHeader from "./ui/PageHeader";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import DashboardNavigation from "./ui/DashboardNavigation";
+import AssignmentQueueControls, { assignmentEmptyMessage } from "./dashboard/AssignmentQueueControls";
 import {
   NOTIFICATION_SECTIONS,
   useMarkNotificationsRead,
   useNotificationBadges,
 } from "../services/notificationCenter";
+import {
+  ASSIGNMENT_VIEWS,
+  assignmentDateRangeLabel,
+  assignmentTimingLabel,
+  assignmentUrgency,
+  buildAssignmentQueue,
+} from "../services/assignmentUrgency";
 
 const STATUS_LABELS = {
   pending_approval: "Pending approval",
@@ -40,6 +48,7 @@ export default function ResourceDashboard({ setUser }) {
   const [navOpen, setNavOpen] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [activeAssignmentView, setActiveAssignmentView] = useState(ASSIGNMENT_VIEWS.ATTENTION);
   const notificationBadges = useNotificationBadges(true);
   useMarkNotificationsRead([
     ...NOTIFICATION_SECTIONS.dashboard,
@@ -58,6 +67,13 @@ export default function ResourceDashboard({ setUser }) {
   const scheduled = useMemo(() => (data?.assignments || []).filter(
     (assignment) => assignment.status === "scheduled"
   ), [data]);
+  const assignmentQueue = useMemo(() => buildAssignmentQueue(scheduled), [scheduled]);
+  const visibleAssignments = assignmentQueue[activeAssignmentView];
+  const assignmentCounts = {
+    [ASSIGNMENT_VIEWS.ATTENTION]: assignmentQueue[ASSIGNMENT_VIEWS.ATTENTION].length,
+    [ASSIGNMENT_VIEWS.UPCOMING]: assignmentQueue[ASSIGNMENT_VIEWS.UPCOMING].length,
+    [ASSIGNMENT_VIEWS.ALL]: assignmentQueue[ASSIGNMENT_VIEWS.ALL].length,
+  };
   const earningsTotal = useMemo(() => (data?.earnings || [])
     .filter((earning) => earning.status !== "void")
     .reduce((sum, earning) => sum + earning.grossAmountCents + (earning.reimbursementCents || 0), 0), [data]);
@@ -116,29 +132,39 @@ export default function ResourceDashboard({ setUser }) {
             </section>
 
             <section className="beta-section">
-              <div className="beta-section-heading"><div><h2>My Assignments</h2><p>Only work explicitly deployed and assigned to you appears here.</p></div></div>
-              {scheduled.length ? <div className="beta-assignment-grid">
-                {scheduled.map((assignment) => (
-                  <article className="beta-assignment-card" key={assignment._id}>
-                    <div className="beta-card-header">
-                      <div><h3>{assignment.propertyName}</h3><p>{assignment.organizationName}</p></div>
-                      <span className="beta-status warning">Scheduled</span>
-                    </div>
-                    <p>{new Date(assignment.startDate).toLocaleDateString()} to {new Date(assignment.endDate).toLocaleDateString()}</p>
-                    {assignment.oneTimeCheckRequest && <div className="beta-assignment-note"><strong>Special instructions</strong><p>{assignment.oneTimeCheckRequest}</p></div>}
-                    {isContractor && <div className="beta-fulfillment-preview">
-                      <span>Assignment compensation</span>
-                      <strong>{money(assignment.compensationSnapshot?.amountCents, assignment.compensationSnapshot?.currency)}</strong>
-                    </div>}
-                    <div className="beta-card-actions">
-                      <button type="button" className="beta-button" onClick={() => navigate(inspectionRoute(assignment))}>Start Inspection</button>
-                      {assignment.property?.lat && assignment.property?.lng && (
-                        <button type="button" className="beta-button secondary" onClick={() => openNativeMaps(assignment.property.lat, assignment.property.lng)}>Navigate</button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div> : <div className="beta-empty-state">No scheduled assignments.</div>}
+              <div className="beta-section-heading"><div><h2>My Assignments</h2><p>Only work explicitly deployed and assigned to you appears here, prioritized by due date.</p></div></div>
+              <AssignmentQueueControls
+                activeView={activeAssignmentView}
+                counts={assignmentCounts}
+                onChange={setActiveAssignmentView}
+              />
+              {visibleAssignments.length ? <div className="beta-assignment-grid" role="tabpanel">
+                {visibleAssignments.map((assignment) => {
+                  const urgency = assignmentUrgency(assignment);
+                  return (
+                    <article className={`beta-assignment-card is-${urgency}`} key={assignment._id}>
+                      <div className="beta-card-header">
+                        <div><h3>{assignment.propertyName}</h3><p>{assignment.organizationName}</p></div>
+                        <span className={`beta-assignment-deadline is-${urgency}`}>{assignmentTimingLabel(assignment)}</span>
+                      </div>
+                      <p>{assignmentDateRangeLabel(assignment)}</p>
+                      {assignment.oneTimeCheckRequest && <div className="beta-assignment-note"><strong>Special instructions</strong><p>{assignment.oneTimeCheckRequest}</p></div>}
+                      {isContractor && <div className="beta-fulfillment-preview">
+                        <span>Assignment compensation</span>
+                        <strong>{money(assignment.compensationSnapshot?.amountCents, assignment.compensationSnapshot?.currency)}</strong>
+                      </div>}
+                      <div className="beta-card-actions">
+                        <button type="button" className="beta-button" onClick={() => navigate(inspectionRoute(assignment))}>Start Inspection</button>
+                        {assignment.property?.lat && assignment.property?.lng && (
+                          <button type="button" className="beta-button secondary" onClick={() => openNativeMaps(assignment.property.lat, assignment.property.lng)}>Navigate</button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div> : <div className="beta-empty-state beta-assignment-empty" role="tabpanel">
+                {assignmentEmptyMessage(activeAssignmentView)}
+              </div>}
             </section>
 
             {isContractor && <section className="beta-panel">

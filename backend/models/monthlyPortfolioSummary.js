@@ -87,5 +87,6 @@ MonthlyPortfolioSummarySchema.index(
 );
 MonthlyPortfolioSummarySchema.index({ status: 1, availableAt: 1, createdAt: 1 });
 MonthlyPortfolioSummarySchema.index({ status: 1, lockedAt: 1 });
+MonthlyPortfolioSummarySchema.index({ failedAt: 1 });
 
 module.exports = mongoose.model("MonthlyPortfolioSummary", MonthlyPortfolioSummarySchema);

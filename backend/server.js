@@ -1,80 +1,76 @@
-require("dotenv").config();
-require("./instrument");
+const { initializeRuntime } = require("./runtimeBootstrap");
 const mongoose = require("mongoose");
-const { captureBackendException } = require("./monitoring");
-const { validateRuntimeConfig } = require("./config/security");
-const { initializeFirebase } = require("./config/firebase");
-const { config: validateTotpConfig } = require("./services/totpMfa");
+const { captureBackendException, flushBackendMonitoring } = require("./monitoring");
 const { createApp } = require("./app");
+const { ensureBackgroundWorkerIndexes, startBackgroundWorkers } = require("./backgroundWorkers");
+const { createShutdownCoordinator, installShutdownHandlers } = require("./runtimeShutdown");
 const { purgeExpiredProspectAssessments } = require("./services/prospectRetention");
-const { ensureAssignmentSchedulingIndex } = require("./services/assignmentIndexes");
+const { startPollingWorker } = require("./services/pollingWorker");
 const CalendarFeedSubscription = require("./models/calendarFeedSubscription");
-const MonthlyPortfolioSummary = require("./models/monthlyPortfolioSummary");
-const RouteRun = require("./models/routeRun");
-const WarRoomNotificationEvent = require("./models/warRoomNotificationEvent");
+const InvoiceReviewEmailAttempt = require("./models/invoiceReviewEmailAttempt");
 
 const PROSPECT_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
-function scheduleProspectCleanup() {
-  purgeExpiredProspectAssessments().catch((error) => {
-    console.error("Initial prospect assessment cleanup error:", error);
-    captureBackendException(error, { tags: { job: "prospect-retention-cleanup", phase: "initial" } });
+function scheduleProspectCleanup({
+  intervalMs = PROSPECT_CLEANUP_INTERVAL_MS,
+  purge = purgeExpiredProspectAssessments,
+} = {}) {
+  return startPollingWorker({
+    name: "prospect-retention-cleanup",
+    pollMs: intervalMs,
+    async runOnce() {
+      await purge();
+      return false;
+    },
   });
-  const timer = setInterval(() => {
-    purgeExpiredProspectAssessments().catch((error) => {
-      console.error("Prospect assessment cleanup error:", error);
-      captureBackendException(error, { tags: { job: "prospect-retention-cleanup", phase: "scheduled" } });
-    });
-  }, PROSPECT_CLEANUP_INTERVAL_MS);
-  timer.unref();
-  return timer;
 }
 
 async function startServer() {
-  validateRuntimeConfig();
-  validateTotpConfig();
-  initializeFirebase();
+  initializeRuntime();
 
   await mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
   console.log("MongoDB connected.");
-  const assignmentIndex = await ensureAssignmentSchedulingIndex();
+  const { assignmentIndex } = await ensureBackgroundWorkerIndexes();
   if (assignmentIndex.changed) {
     console.log("Assignment scheduling index migrated to scheduled-only uniqueness.");
   }
-  await CalendarFeedSubscription.createIndexes();
-  await MonthlyPortfolioSummary.createIndexes();
-  await RouteRun.createIndexes();
-  await WarRoomNotificationEvent.createIndexes();
+  await Promise.all([
+    CalendarFeedSubscription.createIndexes(),
+    InvoiceReviewEmailAttempt.createIndexes(),
+  ]);
 
-  if (String(process.env.RUN_INSPECTION_WORKER || "true").toLowerCase() !== "false") {
-    require("./services/inspectionWorker").startInspectionWorker();
-    console.log("Inspection job worker started in the web process.");
-  }
-  if (String(process.env.RUN_MONTHLY_PORTFOLIO_SUMMARY_WORKER || "true").toLowerCase() !== "false") {
-    require("./services/monthlyPortfolioSummaryWorker").startMonthlyPortfolioSummaryWorker();
-    console.log("Monthly portfolio summary worker started in the web process.");
-  }
-  if (String(process.env.RUN_WAR_ROOM_NOTIFICATION_WORKER || "true").toLowerCase() !== "false") {
-    require("./services/warRoomNotifications").startWarRoomNotificationWorker();
-    console.log("War Room notification worker started in the web process.");
-  }
+  const workerRuntime = startBackgroundWorkers();
 
   const port = process.env.PORT || 10000;
   const server = createApp().listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
   });
-  const prospectCleanupTimer = scheduleProspectCleanup();
-  return { server, prospectCleanupTimer };
+  const prospectCleanupWorker = scheduleProspectCleanup();
+  const shutdown = createShutdownCoordinator({
+    server,
+    workers: [...workerRuntime.controllers, prospectCleanupWorker],
+    disconnect: () => mongoose.disconnect(),
+  });
+  const removeShutdownHandlers = installShutdownHandlers(shutdown);
+  return {
+    server,
+    prospectCleanupWorker,
+    workerRuntime,
+    shutdown,
+    removeShutdownHandlers,
+  };
 }
 
 if (require.main === module) {
-  startServer().catch((error) => {
+  startServer().catch(async (error) => {
     console.error("Server startup error:", error);
     captureBackendException(error, { tags: { phase: "server-startup" } });
-    process.exit(1);
+    await mongoose.disconnect().catch(() => {});
+    await flushBackendMonitoring(2000);
+    process.exitCode = 1;
   });
 }
 

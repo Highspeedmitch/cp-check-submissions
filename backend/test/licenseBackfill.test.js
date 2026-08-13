@@ -13,20 +13,20 @@ test("license backfill assigns Tier 1 defaults to existing SaaS organizations", 
     tier: "tier_1",
     adminLimit: 2,
     userLimit: 5,
-    propertyLimit: 10,
+    propertyLimit: 25,
     adminSeatVersion: 0,
     capacityVersion: 0,
   });
 });
 
-test("license backfill keeps managed organizations unmetered", () => {
+test("license backfill assigns Managed Tier 1 property capacity", () => {
   const plan = planOrganizationLicenseBackfill({
     _id: "org-2",
     name: "Managed Customer",
     serviceModel: "managed",
   });
-  assert.equal(plan.next.tier, null);
+  assert.equal(plan.next.tier, "tier_1");
   assert.equal(plan.next.adminLimit, null);
   assert.equal(plan.next.userLimit, null);
-  assert.equal(plan.next.propertyLimit, null);
+  assert.equal(plan.next.propertyLimit, 25);
 });

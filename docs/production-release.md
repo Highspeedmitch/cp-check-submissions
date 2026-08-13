@@ -69,9 +69,7 @@ Portfolio-aware pricing configuration:
 Optional identity controls:
 
 - set `TOTP_MFA_ENABLED=true` with a base64-encoded 32-byte
-  `MFA_ENCRYPTION_KEY` to enable TOTP;
-- set `OKTA_ISSUER`, `OKTA_CLIENT_IDS`, and `OKTA_ENFORCEMENT_ENABLED` only when
-  the matching Production Okta application is ready.
+  `MFA_ENCRYPTION_KEY` to enable TOTP.
 
 Optional inspection AI controls:
 
@@ -92,6 +90,16 @@ Optional monthly portfolio summary controls:
 
 The backend identity needs least-privilege `bedrock:InvokeModel`, `s3:PutObject`, and `s3:GetObject` access for the configured model and `portfolio-summaries/` bucket prefix. See [monthly-portfolio-summaries.md](monthly-portfolio-summaries.md) for architecture, snapshot semantics, rollout, and QA.
 
+Worker observability controls:
+
+- set `WORKER_METRICS_ENABLED=true` on the process that runs the background workers only after the identity has namespace-restricted `cloudwatch:PutMetricData` permission;
+- set `WORKER_METRICS_ENVIRONMENT=production`, matching the health stack `EnvironmentName` exactly;
+- leave `WORKER_METRICS_NAMESPACE=Afterlight/Workers` unless the matching CloudFormation parameter is changed at the same time;
+- verify one-minute worker and queue metrics before enabling the CloudFormation worker alarms;
+- expect `SIGTERM` shutdown to stop new polling, drain active worker work for up to 25 seconds, disconnect MongoDB, and flush backend monitoring.
+
+See [error-monitoring-and-health-alerts.md](error-monitoring-and-health-alerts.md) for the least-privilege policy and DEV-first alarm rollout.
+
 Firebase credentials are not required for PWA Web Push. The current Gusto
 handoff is manual and does not require a Gusto API credential.
 
@@ -103,10 +111,6 @@ Build the Production frontend with:
 - `REACT_APP_DEPLOY_ENV=production`;
 - `REACT_APP_ALLOW_PUBLIC_REGISTRATION=false`;
 - `REACT_APP_MAPBOX_ACCESS_TOKEN` set to a Production-authorized token.
-
-If Okta sign-in is enabled, also set `REACT_APP_OKTA_ISSUER`,
-`REACT_APP_OKTA_CLIENT_ID`, and `REACT_APP_OKTA_LOGIN_ENABLED=true`. The Okta
-application must allow the Production `/login/callback` redirect URI.
 
 The S3 bucket CORS policy must allow browser `POST` requests from the exact
 Production frontend origin. Verify the versioned inspection upload CORS rule for the configured S3 bucket before smoke testing photo submission. See [inspection-processing.md](inspection-processing.md).
@@ -187,8 +191,8 @@ idempotent. Remove both confirmation variables after use.
 
 The source-controlled license manifest is
 `backend/config/productionOrganizationLicenses.js`. Configuration version
-`2026-08-06-production-license-dispositions-v1` explicitly assigns Picor to
-Managed Service with unmetered administrator, user, and property capacity. It
+`2026-08-12-production-license-managed-tiers-v2` explicitly assigns Picor to
+Managed Service Tier 1 with unmetered organization accounts and capacity for 25 properties. It
 also records AzRoots, HSLD, and Breezykeyzy as retained historical
 organizations rather than licensed customer tenants.
 
@@ -226,7 +230,7 @@ To apply the reviewed manifest, set all three write guards and pass `--apply`:
 ```powershell
 $env:NODE_ENV = "production"
 $env:CONFIRM_PRODUCTION_LICENSE_CONFIGURATION = "I_UNDERSTAND_THIS_CHANGES_PRODUCTION_LICENSES"
-$env:PRODUCTION_LICENSE_CONFIGURATION_VERSION = "2026-08-06-production-license-dispositions-v1"
+$env:PRODUCTION_LICENSE_CONFIGURATION_VERSION = "2026-08-12-production-license-managed-tiers-v2"
 npm run configure-production-licenses -- --apply
 ```
 
@@ -235,9 +239,10 @@ preserves the administrator-seat version, writes only changed license records,
 and creates a platform audit record. Re-running it is idempotent. Remove both
 confirmation variables after use.
 
-The current release hard-enforces administrator seats. User and property
-limits are stored and displayed but are not yet enforced on creation. Afterlight
-resource accounts do not consume organization user capacity.
+The current release enforces administrator, user, and property capacity on
+capacity-bearing writes. Managed Service organization accounts remain unmetered,
+while its 25/75/250 property bands are enforced. Afterlight resource accounts do
+not consume organization user capacity.
 
 ## 7. Promotion order
 
@@ -250,8 +255,8 @@ resource accounts do not consume organization user capacity.
 5. Deploy the API web service and inspection worker from the same release SHA.
    Keep the in-web worker enabled until a separate background worker is healthy;
    then set `RUN_INSPECTION_WORKER=false` on the web service.
-6. Confirm `/health`, startup index work, worker polling, S3 access, and SES
-   configuration before continuing.
+6. Confirm `/health`, startup index work, worker polling, worker health and queue
+   metrics, S3 access, and SES configuration before continuing.
 7. Run the Production organization configurator in dry-run mode. Apply only
    after the Picor plan is reviewed.
 8. Run the historical-access retirement dry run. Review the exact memberships
@@ -259,8 +264,8 @@ resource accounts do not consume organization user capacity.
    all three organizations report `already retired`.
 9. Run the Production license configurator in dry-run mode and confirm all three
    historical organizations report `historical retained`. Apply the reviewed
-   manifest. Picor is Managed Service and therefore remains unmetered while its
-   explicit record is being established.
+   manifest. Picor is Managed Service Tier 1, with unmetered organization
+   accounts and a 25-property capacity limit.
 10. Deploy the frontend from the same release SHA.
 11. Complete the smoke tests below before announcing the release.
 
@@ -288,9 +293,9 @@ response.
   lifecycle push and an in-app notification.
 - Confirm Picor reports `managed` / `afterlight_staff` before creating its first
   new Production assignment.
-- Confirm Picor reports Managed Service and unmetered administrator capacity in
-  User Management. Confirm Afterlight resources do not appear in its customer
-  seat allocation.
+- Confirm Picor reports Managed Service Tier 1, unmetered administrator and user
+  accounts, and a 25-property limit. Confirm Afterlight resources do not appear
+  in its customer seat allocation.
 - Confirm AzRoots, HSLD, and Breezykeyzy remain visible to the platform with
   their historical properties and zero active organization users. Confirm one
   retired organization identity cannot enter its organization workspace.

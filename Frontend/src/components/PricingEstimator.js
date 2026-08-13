@@ -27,6 +27,7 @@ function emptyForm(pricingMode = "single") {
     serviceFrequency: "monthly",
     hasKnownIssues: false,
     includeManagedServiceFee: false,
+    managedServiceTier: "tier_1",
     withinHalfMile: false,
     sameScheduledVisit: false,
     properties: pricingMode === "cluster"
@@ -291,6 +292,7 @@ export default function PricingEstimator({ organizations = [] }) {
         withinHalfMile: form.withinHalfMile,
         sameScheduledVisit: form.sameScheduledVisit,
         includeManagedServiceFee: form.includeManagedServiceFee,
+        managedServiceTier: form.managedServiceTier,
       }
       : routeAwareMode ? {
         pricingMode: "route_aware",
@@ -308,12 +310,14 @@ export default function PricingEstimator({ organizations = [] }) {
         serviceFrequency: form.serviceFrequency,
         hasKnownIssues: form.hasKnownIssues,
         includeManagedServiceFee: form.includeManagedServiceFee,
+        managedServiceTier: form.managedServiceTier,
       } : {
         grossSquareFeet: properties[0].grossSquareFeet,
         propertyType: properties[0].propertyType,
         serviceFrequency: form.serviceFrequency,
         hasKnownIssues: form.hasKnownIssues,
         includeManagedServiceFee: form.includeManagedServiceFee,
+        managedServiceTier: form.managedServiceTier,
       };
     try {
       setEstimate(await api.post("/api/platform/pricing-estimate", payload));
@@ -538,8 +542,19 @@ export default function PricingEstimator({ organizations = [] }) {
           <label className="beta-template-checkbox">
             <input type="checkbox" checked={form.includeManagedServiceFee}
               onChange={(event) => update("includeManagedServiceFee", event.target.checked)} />
-            Include the organization-level $500 managed-service base in this quote
+            Include the organization-level Managed Service fee in this quote
           </label>
+          {form.includeManagedServiceFee && (
+            <label className="beta-form-field">
+              Managed Service tier
+              <select value={form.managedServiceTier}
+                onChange={(event) => update("managedServiceTier", event.target.value)}>
+                <option value="tier_1">Tier 1 · $500/month · up to 25 properties</option>
+                <option value="tier_2">Tier 2 · $1,250/month · up to 75 properties</option>
+                <option value="tier_3">Tier 3 · $2,500/month · up to 250 properties</option>
+              </select>
+            </label>
+          )}
           <p>Leave this off when pricing an added property for an organization that already pays the monthly base.</p>
         </fieldset>
 

@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const { v4: uuidv4 } = require("uuid");
 const requirePlatformAdmin = require("../middleware/requirePlatformAdmin");
 const Invoice = require("../models/invoice");
+const InvoiceReviewEmailAttempt = require("../models/invoiceReviewEmailAttempt");
 const User = require("../models/user");
 const Organization = require("../models/organization");
 const PlatformAudit = require("../models/platformAudit");
@@ -35,6 +36,11 @@ const {
 } = require("../services/serviceBilling");
 const { billingWorkspaceAccess } = require("../services/billingAccess");
 const { ensureInvoiceIssuerSnapshot } = require("../services/invoiceIssuer");
+const {
+  eligibleReviewRecipients,
+  publicAttempt,
+  resendInvoiceReviewEmail,
+} = require("../services/invoiceReviewResend");
 
 const router = express.Router();
 
@@ -427,6 +433,107 @@ router.post("/platform-service-invoices/:id/submit", requirePlatformAdmin, async
   } catch (error) {
     console.error("Platform service invoice submission error:", error.message);
     return res.status(500).json({ error: "Unable to submit the Afterlight service invoice." });
+  }
+});
+
+router.get("/platform-service-invoices/:id/review-recipients", requirePlatformAdmin, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    const invoice = await Invoice.findOne(afterlightServiceInvoiceScope({
+      _id: req.params.id,
+      archivedAt: null,
+      status: "pending_review",
+    }));
+    if (!invoice) {
+      return res.status(404).json({
+        error: "An Afterlight service invoice awaiting customer review was not found.",
+      });
+    }
+    const [recipients, lastAttempt] = await Promise.all([
+      eligibleReviewRecipients(invoice),
+      InvoiceReviewEmailAttempt.findOne({ invoiceId: invoice._id })
+        .sort({ createdAt: -1 }),
+    ]);
+    return res.json({
+      invoiceId: invoice._id,
+      reviewCycle: invoice.review?.cycle || 0,
+      recipients,
+      lastAttempt: publicAttempt(lastAttempt),
+    });
+  } catch (error) {
+    console.error("Platform invoice review recipient error:", error.message);
+    return res.status(500).json({ error: "Unable to load review email recipients." });
+  }
+});
+
+router.post("/platform-service-invoices/:id/resend-review", requirePlatformAdmin, async (req, res) => {
+  let invoice;
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ error: "Invalid invoice." });
+    invoice = await Invoice.findOne(afterlightServiceInvoiceScope({
+      _id: req.params.id,
+      archivedAt: null,
+      status: "pending_review",
+    }));
+    if (!invoice) {
+      return res.status(404).json({
+        error: "An Afterlight service invoice awaiting customer review was not found.",
+      });
+    }
+    const result = await resendInvoiceReviewEmail({
+      invoice,
+      recipientUserIds: req.body.recipientUserIds,
+      reason: req.body.reason,
+      requestId: req.body.requestId,
+      requestedBy: req.user.userId,
+    });
+    if (!result.duplicate) {
+      await PlatformAudit.create(platformAuditDetails(
+        req,
+        invoice,
+        "afterlight_service_invoice_review_email_resent",
+        {
+          invoiceNumber: invoice.invoiceNumber,
+          attemptId: result.attempt?._id,
+          requestId: result.attempt?.requestId,
+          reason: result.attempt?.reason,
+          recipientUserIds: (result.attempt?.recipients || []).map(
+            (recipient) => recipient.userId
+          ),
+          deliveryStatus: result.attempt?.status,
+        }
+      ));
+    }
+    return res.json({
+      ...result,
+      message: result.duplicate
+        ? "This resend request was already completed."
+        : "The review email was accepted by the email provider.",
+    });
+  } catch (error) {
+    if (invoice && error.attempt) {
+      await PlatformAudit.create(platformAuditDetails(
+        req,
+        invoice,
+        "afterlight_service_invoice_review_email_resend_failed",
+        {
+          invoiceNumber: invoice.invoiceNumber,
+          attemptId: error.attempt._id,
+          requestId: error.attempt.requestId,
+          reason: error.attempt.reason,
+          recipientUserIds: (error.attempt.recipients || []).map(
+            (recipient) => recipient.userId
+          ),
+          deliveryStatus: error.attempt.status,
+        }
+      )).catch(() => {});
+    }
+    if (error.status === 429) res.set("Retry-After", "60");
+    if (error.status) {
+      return res.status(error.status).json({ error: error.message, code: error.code });
+    }
+    console.error("Platform invoice review resend error:", error.message);
+    return res.status(500).json({ error: "Unable to resend the customer review email." });
   }
 });
 

@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const {
   LICENSE_TIERS,
-  METERED_SERVICE_MODELS,
+  TIERED_SERVICE_MODELS,
   defaultStoredLicense,
 } = require("./licenseEntitlements");
 const { capacitySnapshot: licensedCapacitySnapshot } = require("./licenseCapacity");
@@ -41,9 +41,9 @@ function normalizeProductionLicenseConfiguration(input = {}) {
     return { name, disposition };
   }
   const serviceModel = validateServiceModel(String(input.serviceModel || "").trim());
-  const metered = METERED_SERVICE_MODELS.has(serviceModel);
+  const tiered = TIERED_SERVICE_MODELS.has(serviceModel);
 
-  if (!metered) {
+  if (!tiered) {
     if (input.tier != null || input.adminLimit != null || input.userLimit != null || input.propertyLimit != null) {
       const planLabel = serviceModel === "boutique" ? "Boutique service" : "Managed Service";
       throw new Error(`${planLabel} organization ${name} cannot define custom license limits.`);
@@ -60,14 +60,21 @@ function normalizeProductionLicenseConfiguration(input = {}) {
     throw new Error(`${name} must define a valid license tier.`);
   }
   const defaults = defaultStoredLicense(serviceModel, input.tier);
+  if (serviceModel === "managed" && (input.adminLimit != null || input.userLimit != null)) {
+    throw new Error(`Managed Service organization ${name} cannot define administrator or user limits.`);
+  }
   return {
     name,
     disposition,
     serviceModel,
     license: {
       tier: defaults.tier,
-      adminLimit: configuredLimit(input.adminLimit, defaults.adminLimit, `${name} administrator limit`),
-      userLimit: configuredLimit(input.userLimit, defaults.userLimit, `${name} user limit`),
+      adminLimit: defaults.adminLimit === null
+        ? null
+        : configuredLimit(input.adminLimit, defaults.adminLimit, `${name} administrator limit`),
+      userLimit: defaults.userLimit === null
+        ? null
+        : configuredLimit(input.userLimit, defaults.userLimit, `${name} user limit`),
       propertyLimit: configuredLimit(input.propertyLimit, defaults.propertyLimit, `${name} property limit`),
       adminSeatVersion: 0,
       capacityVersion: 0,

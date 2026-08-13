@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { storeAuthentication } from "../services/session";
 import { apiUrl } from "../services/api";
-import { beginOktaLogin, oktaLoginEnabled } from "../services/okta";
 import { LOGIN_UNAVAILABLE_MESSAGE, loginFailureMessage } from "../services/authMessages";
 import ThemeToggle from "./ui/ThemeToggle";
 
@@ -87,8 +86,6 @@ function Login({ setUser }) {
       } else if (data.code === "MFA_REQUIRED") {
         setMfa({ mode: "verification", challengeToken: data.challengeToken });
         setPassword("");
-      } else if (data.code === "OKTA_REQUIRED") {
-        await beginOktaLogin({ loginHint: email.toLowerCase(), returnTo });
       } else {
         setError(loginFailureMessage(response.status));
       }
@@ -271,11 +268,6 @@ function Login({ setUser }) {
             {working ? "Signing in..." : "Sign in"}
           </button>
         </form>
-        {oktaLoginEnabled && (
-          <button type="button" className="afterlight-button afterlight-button-secondary" onClick={() => beginOktaLogin({ loginHint: email.toLowerCase(), returnTo }).catch(() => setError("Secure sign-in could not be started. Please try again."))}>
-            Sign in with Okta
-          </button>
-        )}
         <div className="afterlight-auth-footer">
           <p>Have an invitation? <Link to="/join">Create your account</Link></p>
           <Link className="afterlight-owner-link" to="/join">Property owner invitation <span aria-hidden="true">→</span></Link>

@@ -15,17 +15,17 @@ Before creating the workspace, confirm the customer's legal operating name, orga
    - **Boutique service:** Afterlight-operated service for one to three commercial properties under 5,000 square feet each.
    - **Managed service:** Afterlight staff fulfillment by default.
    - **Hybrid:** Customer-operated default with property-level or assignment-level Afterlight coverage when configured.
-4. For Full-stack SaaS or Hybrid, select the contracted **License tier**:
+4. For Full-stack SaaS, Managed service, or Hybrid, select the contracted **License tier**. All three models use 25/75/250-property bands:
 
    | Tier | Monthly organization fee | Administrators | Users | Properties | Hybrid portfolio minimum |
    | --- | ---: | ---: | ---: | ---: | ---: |
-   | Tier 1 | $300 | 2 | 5 | 10 | 15% |
-   | Tier 2 | $700 | 3 | 20 | 50 | 12% |
+   | Tier 1 | $300 | 2 | 5 | 25 | 15% |
+   | Tier 2 | $700 | 3 | 20 | 75 | 12% |
    | Tier 3 | $1,000 | 5 | 50 | 250 | 10% |
 
    Boutique service is $75 per month plus property visit costs. It includes one administrator, two other organization users, and no more than three properties. Every Boutique property must be under 5,000 square feet. Boutique uses Afterlight fulfillment and does not include Portfolio Reporting or monthly executive summaries. No license-tier selection appears.
 
-   Managed service is $500 per month plus property visit costs. Its administrator seats are not metered and no license-tier selection appears. The Hybrid percentage is the minimum share of the monthly portfolio assigned to Afterlight, not a percentage surcharge.
+   Managed service is $500, $1,250, or $2,500 per month for Tier 1, 2, or 3, plus property visit costs. Its organization accounts are not seat-metered, but its selected tier enforces the same 25/75/250 property bands. The Hybrid percentage is the minimum share of the monthly portfolio assigned to Afterlight, not a percentage surcharge.
 5. Confirm the **Default fulfillment** selection. Change the model-derived default only when the approved operating plan requires it, then select **Continue**.
 6. Enter the designated **Administrator email** and select **Continue**.
 7. Under **Review and launch**, verify every value. Use the corresponding **Edit** control if anything is incorrect.

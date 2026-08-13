@@ -28,7 +28,6 @@ const UserSchema = new mongoose.Schema({
     default: null,
     index: true,
   },
-  oktaSubject: { type: String, default: "", index: true },
   mfa: {
     totpEnabled: { type: Boolean, default: false },
     totpSecretEncrypted: { type: String, default: "", select: false },

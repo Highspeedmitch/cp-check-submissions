@@ -52,7 +52,7 @@ test("platform metrics merge grouped tenant counts without per-organization quer
   assert.equal(result.summary.activeUserCount, 3);
   assert.equal(result.summary.recentSubmissionCount, 4);
   assert.equal(result.organizations[0].pendingBidCount, 1);
-  assert.equal(result.organizations[0].planLabel, "Managed service");
+  assert.equal(result.organizations[0].planLabel, "Managed service Tier 1");
   assert.equal(result.organizations[0].recurringMonthlyFeeCents, 50000);
   assert.equal(result.organizations[0].onboarding.requiredComplete, 3);
   assert.deepEqual(result.organizations[0].routes, [{

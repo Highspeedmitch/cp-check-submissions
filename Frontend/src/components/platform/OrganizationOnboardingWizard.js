@@ -26,7 +26,7 @@ export const SERVICE_MODELS = {
   },
   managed: {
     label: "Managed service",
-    description: "Afterlight supplies and coordinates the default inspection workforce. $500/month plus per-visit costs.",
+    description: "Afterlight supplies and coordinates the default inspection workforce. $500-$2,500/month by tier plus per-visit costs.",
   },
   boutique: {
     label: "Boutique",
@@ -46,9 +46,9 @@ export const SERVICE_MODEL_DEFAULTS = {
 };
 
 export const LICENSE_TIERS = {
-  tier_1: { label: "Tier 1", monthlyPrice: "$300/month", hybridMinimum: "15% Afterlight minimum", limits: "2 administrators, 5 users, 10 properties" },
-  tier_2: { label: "Tier 2", monthlyPrice: "$700/month", hybridMinimum: "12% Afterlight minimum", limits: "3 administrators, 20 users, 50 properties" },
-  tier_3: { label: "Tier 3", monthlyPrice: "$1,000/month", hybridMinimum: "10% Afterlight minimum", limits: "5 administrators, 50 users, 250 properties" },
+  tier_1: { label: "Tier 1", monthlyPrice: "$300/month", managedMonthlyPrice: "$500/month", hybridMinimum: "15% Afterlight minimum", limits: "2 administrators, 5 users, 25 properties", propertyLimit: 25 },
+  tier_2: { label: "Tier 2", monthlyPrice: "$700/month", managedMonthlyPrice: "$1,250/month", hybridMinimum: "12% Afterlight minimum", limits: "3 administrators, 20 users, 75 properties", propertyLimit: 75 },
+  tier_3: { label: "Tier 3", monthlyPrice: "$1,000/month", managedMonthlyPrice: "$2,500/month", hybridMinimum: "10% Afterlight minimum", limits: "5 administrators, 50 users, 250 properties", propertyLimit: 250 },
 };
 
 export const FULFILLMENT_SOURCES = {
@@ -65,12 +65,21 @@ export const SERVICE_MODEL_FULFILLMENT_SOURCES = {
   hybrid: Object.keys(FULFILLMENT_SOURCES),
 };
 
-const TIERED_SERVICE_MODELS = new Set(["platform", "hybrid"]);
+const TIERED_SERVICE_MODELS = new Set(["platform", "managed", "hybrid"]);
 
 function serviceModelPriceSummary(serviceModel) {
-  if (serviceModel === "managed") return "$500/month + visit costs";
   if (serviceModel === "boutique") return "$75/month + visit costs";
   return "";
+}
+
+function tierMonthlyPrice(serviceModel, tier) {
+  return serviceModel === "managed" ? tier.managedMonthlyPrice : tier.monthlyPrice;
+}
+
+function tierLimitsSummary(serviceModel, tier) {
+  return serviceModel === "managed"
+    ? `organization users and administrators not seat-metered, ${tier.propertyLimit} properties`
+    : tier.limits;
 }
 
 function serviceModelAllowedForOrganization(serviceModel, orgType) {
@@ -261,11 +270,11 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
                   <select value={draft.licenseTier} onChange={(event) => update("licenseTier", event.target.value)}>
                     {Object.entries(LICENSE_TIERS).map(([value, tier]) => (
                       <option key={value} value={value}>
-                        {tier.label} - {tier.monthlyPrice} - {tier.limits}{draft.serviceModel === "hybrid" ? ` - ${tier.hybridMinimum}` : ""}
+                        {tier.label} - {tierMonthlyPrice(draft.serviceModel, tier)} - {tierLimitsSummary(draft.serviceModel, tier)}{draft.serviceModel === "hybrid" ? ` - ${tier.hybridMinimum}` : ""}
                       </option>
                     ))}
                   </select>
-                  <small className="beta-field-help">Administrator invitations, users, and properties are enforced against these contracted limits. Pricing is recorded as a contract term; organization-level recurring invoices are not generated yet.</small>
+                  <small className="beta-field-help">Property capacity follows the contracted tier. SaaS and Hybrid also enforce administrator and user limits; Managed organization accounts remain unmetered. Pricing is recorded as a contract term; organization-level recurring invoices are not generated yet.</small>
                 </label>
               )}
               <label className="beta-form-field platform-onboarding-default-source">Default fulfillment
@@ -303,7 +312,7 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
                 <div><dt>Organization</dt><dd>{draft.name}</dd><button type="button" onClick={() => goToStep(0)}>Edit</button></div>
                 <div><dt>Type and timezone</dt><dd>{ORGANIZATION_TYPES[draft.orgType]} · {draft.reportingTimezone.replaceAll("_", " ")}</dd><button type="button" onClick={() => goToStep(0)}>Edit</button></div>
                 <div><dt>Service model</dt><dd>{SERVICE_MODELS[draft.serviceModel].label} · {serviceModelPriceSummary(draft.serviceModel) ? `${serviceModelPriceSummary(draft.serviceModel)} · ` : ""}{FULFILLMENT_SOURCES[draft.defaultFulfillmentSource]}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>
-                {TIERED_SERVICE_MODELS.has(draft.serviceModel) && <div><dt>License tier</dt><dd>{LICENSE_TIERS[draft.licenseTier].label} · {LICENSE_TIERS[draft.licenseTier].monthlyPrice} · {LICENSE_TIERS[draft.licenseTier].limits}{draft.serviceModel === "hybrid" ? ` · ${LICENSE_TIERS[draft.licenseTier].hybridMinimum}` : ""}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>}
+                {TIERED_SERVICE_MODELS.has(draft.serviceModel) && <div><dt>License tier</dt><dd>{LICENSE_TIERS[draft.licenseTier].label} · {tierMonthlyPrice(draft.serviceModel, LICENSE_TIERS[draft.licenseTier])} · {tierLimitsSummary(draft.serviceModel, LICENSE_TIERS[draft.licenseTier])}{draft.serviceModel === "hybrid" ? ` · ${LICENSE_TIERS[draft.licenseTier].hybridMinimum}` : ""}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>}
                 <div><dt>Administrator</dt><dd>{draft.initialAdminEmail}</dd><button type="button" onClick={() => goToStep(2)}>Edit</button></div>
               </dl>
               <p className="beta-dialog-note">The launch is audited. The workspace remains intact if invitation delivery fails, and the invitation can be resent from its organization card.</p>

@@ -12,8 +12,10 @@ Organization-level recurring prices are defined in `backend/services/servicePlan
 | Hybrid | Tier 1 | $300/month | Afterlight visits billed separately; 15% monthly portfolio minimum |
 | Hybrid | Tier 2 | $700/month | Afterlight visits billed separately; 12% monthly portfolio minimum |
 | Hybrid | Tier 3 | $1,000/month | Afterlight visits billed separately; 10% monthly portfolio minimum |
+| Managed service | Tier 1 | $500/month | Up to 25 properties; property visits billed separately |
+| Managed service | Tier 2 | $1,250/month | Up to 75 properties; property visits billed separately |
+| Managed service | Tier 3 | $2,500/month | Up to 250 properties; property visits billed separately |
 | Boutique service | Not tiered | $75/month | Afterlight visits billed separately; 1-3 properties under 5,000 square feet each |
-| Managed service | Not tiered | $500/month | Property visits billed separately |
 
 The Hybrid percentage is the minimum share of the monthly portfolio assigned to Afterlight. It is not a percentage surcharge on the license fee.
 
@@ -27,7 +29,7 @@ The service-plan interfaces display these contract terms and preserve the curren
 
 backend/services/licenseCapacity.js is the canonical source for administrator, user, and property allocation.
 
-For licensed SaaS and Hybrid organizations:
+For tiered SaaS, Hybrid, and Managed Service organizations:
 
 - active, non-archived organization administrators consume administrator seats;
 - pending, unexpired administrator invitations consume administrator seats;
@@ -37,7 +39,7 @@ For licensed SaaS and Hybrid organizations:
 - inactive or archived users do not consume user seats;
 - Afterlight resource accounts and resource invitations never consume customer seats.
 
-Managed Service organizations remain unmetered. Boutique organizations use fixed capacity of one administrator, two non-administrator users, and three properties even though they do not select a SaaS license tier.
+SaaS and Hybrid enforce administrator, user, and property capacity. Managed Service enforces the shared 25/75/250 property bands while organization administrator and user accounts remain unmetered. Boutique organizations use fixed capacity of one administrator, two non-administrator users, and three properties and do not select a tier.
 
 Capacity-bearing writes update the organization's license.capacityVersion in the same MongoDB transaction. This makes simultaneous requests contend on one organization record instead of independently passing a stale capacity check.
 
@@ -52,6 +54,22 @@ Enforcement covers:
 - bulk property creation.
 
 Public self-registration is retired so it cannot bypass invitation reservations or license checks.
+
+### DEV license backfill
+
+Legacy Managed Service records without a saved tier resolve safely as Tier 1 at runtime. After deploying the tier-aware backend to DEV, preview the persistent normalization from the backend directory:
+
+```powershell
+npm run backfill-dev-licenses
+```
+
+Review the organization names and before/after limits, then apply only to the DEV database:
+
+```powershell
+npm run backfill-dev-licenses -- --apply
+```
+
+The script refuses to apply when `NODE_ENV=production`. Production uses the separately reviewed organization-license manifest, where Picor is explicitly Managed Service Tier 1.
 
 ## CSV onboarding workflow
 

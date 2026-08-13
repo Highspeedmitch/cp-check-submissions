@@ -1,5 +1,11 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import AssignmentSection from "./AssignmentSection";
+import { todayDateKey } from "../../services/assignmentUrgency";
+
+function dateKeyWithOffset(offset) {
+  const [year, month, day] = todayDateKey().split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + offset)).toISOString().slice(0, 10);
+}
 
 test("starts an inspection with the exact scheduled assignment", () => {
   const property = { _id: "property-1", name: "Broadway Center", lat: 0, lng: 0 };
@@ -72,4 +78,39 @@ test("groups route stops into one clearly labeled assignment in suggested order"
 
   fireEvent.click(within(stopItems[0]).getByRole("button", { name: "Start" }));
   expect(onOpenProperty).toHaveBeenCalledWith(properties[0], assignments[1]);
+});
+
+test("defaults to urgent work and exposes every assignment through due-date views", () => {
+  const properties = Array.from({ length: 5 }, (_, index) => ({
+    _id: `property-${index + 1}`,
+    name: `Property ${index + 1}`,
+  }));
+  const assignments = properties.map((property, index) => ({
+    _id: `assignment-${index + 1}`,
+    propertyId: property._id,
+    propertyName: property.name,
+    startDate: dateKeyWithOffset(index < 2 ? -1 : index === 2 ? 0 : index),
+    endDate: dateKeyWithOffset(index < 2 ? -1 : index === 2 ? 0 : index),
+  }));
+
+  render(
+    <AssignmentSection
+      assignments={assignments}
+      properties={properties}
+      onOpenProperty={jest.fn()}
+      onNavigate={jest.fn()}
+    />
+  );
+
+  expect(screen.getByRole("tab", { name: "Needs attention 3" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("heading", { name: "Property 1" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Property 3" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Property 4" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("tab", { name: "Upcoming 2" }));
+  expect(screen.getByRole("heading", { name: "Property 4" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Property 1" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("tab", { name: "All assignments 5" }));
+  expect(screen.getAllByRole("article")).toHaveLength(5);
 });

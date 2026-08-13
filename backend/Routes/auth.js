@@ -30,7 +30,6 @@ const {
   getAllowedFrontendOrigins,
   buildFrontendUrl,
 } = require("../utils/frontendUrls");
-const { oktaConfig, requiresOkta, verifyOktaIdentity } = require("../services/oktaAuth");
 const { workspaceAuthentication } = require("../services/workspaceAccess");
 const {
   CHALLENGE_LIFETIME_MS,
@@ -46,7 +45,6 @@ const {
 } = require("../services/totpMfa");
 
 const router = express.Router();
-const OKTA_NONCE_COOKIE = "ig_okta_nonce";
 const INVALID_LOGIN_MESSAGE = "The email or password you entered is incorrect.";
 const PASSWORD_RESET_REQUEST_MESSAGE = "If the email matches an account, password reset instructions will be sent.";
 const INVALID_LOGIN_PASSWORD_HASH = "$2a$10$3fudv7Bzqvmo7wcDwXrYhuI/mmyj8y1PA4aZEb7YcPfcgxhSUUYW6";
@@ -58,23 +56,6 @@ function requireTrustedSessionOrigin(req, res, next) {
     return res.status(403).json({ message: "Untrusted session origin." });
   }
   return next();
-}
-
-function oktaNonceCookieSettings() {
-  const secure = process.env.NODE_ENV === "production" || Boolean(process.env.RENDER);
-  return {
-    httpOnly: true,
-    secure,
-    sameSite: secure ? "none" : "lax",
-    path: "/api/auth/okta",
-    maxAge: 10 * 60 * 1000,
-  };
-}
-
-function clearOktaNonceCookie(res) {
-  const settings = oktaNonceCookieSettings();
-  delete settings.maxAge;
-  res.clearCookie(OKTA_NONCE_COOKIE, settings);
 }
 
 async function activeMfaChallenge(challengeToken, purpose) {
@@ -151,14 +132,6 @@ router.post("/login", loginLimiter, requireTrustedSessionOrigin, async (req, res
           : "Enter the code from your authenticator app.",
         challengeToken,
         expiresInSeconds: Math.floor(CHALLENGE_LIFETIME_MS / 1000),
-      });
-    }
-    if (requiresOkta(user, user.organizationId)) {
-      const config = oktaConfig();
-      return res.status(428).json({
-        code: "OKTA_REQUIRED",
-        message: "Complete secure sign-in with Okta.",
-        okta: { issuer: config.issuer, clientId: config.clientIds[0] },
       });
     }
     const authentication = authResponse(user, getJwtSecret(), workspace);
@@ -367,13 +340,6 @@ router.post(
           expiresInSeconds: Math.floor(CHALLENGE_LIFETIME_MS / 1000),
         });
       }
-      if (requiresOkta(user, user.organizationId)) {
-        return res.json({
-          code: "OKTA_REQUIRED",
-          provider: "okta",
-          message: "Continue with Okta to confirm your identity.",
-        });
-      }
       return res.status(503).json({
         code: "STEP_UP_UNAVAILABLE",
         message: "Identity confirmation is not configured. Sign out and sign in again to continue.",
@@ -465,61 +431,6 @@ router.post(
     }
   }
 );
-
-router.post("/auth/okta/challenge", loginLimiter, requireTrustedSessionOrigin, (req, res) => {
-  if (!oktaConfig().configured) {
-    return res.status(503).json({ message: "Okta authentication is not configured." });
-  }
-  const nonce = crypto.randomBytes(32).toString("base64url");
-  res.cookie(OKTA_NONCE_COOKIE, nonce, oktaNonceCookieSettings());
-  return res.json({ nonce });
-});
-
-router.post("/auth/okta", loginLimiter, requireTrustedSessionOrigin, async (req, res) => {
-  try {
-    const expectedNonce = String(req.cookies[OKTA_NONCE_COOKIE] || "");
-    const claims = await verifyOktaIdentity({
-      idToken: String(req.body.idToken || ""),
-      expectedNonce,
-    });
-    clearOktaNonceCookie(res);
-    const email = String(claims.email || claims.preferred_username || "").trim().toLowerCase();
-    const subject = String(claims.sub || "");
-    if (!email || !subject) {
-      return res.status(401).json({ message: "Okta did not provide a usable identity." });
-    }
-    const user = await User.findOne({ email }).populate("organizationId");
-    if (!user || !user.organizationId || user.accountStatus === "inactive") {
-      return res.status(403).json({ message: "This Okta identity is not authorized for Afterlight." });
-    }
-    if (user.oktaSubject && user.oktaSubject !== subject) {
-      return res.status(403).json({ message: "This account is linked to a different Okta identity." });
-    }
-    if (!user.oktaSubject) {
-      user.oktaSubject = subject;
-      await user.save();
-    }
-    const mfaAuthenticatedAt = new Date(
-      Number(claims.auth_time || Math.floor(Date.now() / 1000)) * 1000
-    );
-    const workspace = await workspaceAuthentication(user);
-    await createRefreshSession({
-      user,
-      req,
-      res,
-      mfaAuthenticatedAt,
-      accountScope: workspace.accountScope,
-    });
-    return res.json({
-      message: "Login successful",
-      ...authResponse(user, getJwtSecret(), { mfaAuthenticatedAt, ...workspace }),
-    });
-  } catch (error) {
-    clearOktaNonceCookie(res);
-    console.error("Okta authentication failed:", error.message);
-    return res.status(401).json({ message: "Secure sign-in could not be verified." });
-  }
-});
 
 router.post("/auth/refresh", requireTrustedSessionOrigin, async (req, res) => {
   const refreshToken = req.cookies[REFRESH_COOKIE];

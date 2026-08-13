@@ -26,11 +26,11 @@ test("summarizes administrator, user, and property capacity from one entitlement
   assert.equal(summary.users.limit, 20);
   assert.equal(summary.users.allocated, 10);
   assert.equal(summary.users.remaining, 10);
-  assert.equal(summary.properties.limit, 50);
-  assert.equal(summary.properties.remaining, 38);
+  assert.equal(summary.properties.limit, 75);
+  assert.equal(summary.properties.remaining, 63);
 });
 
-test("managed service capacity is unmetered across every customer dimension", () => {
+test("managed service accounts are unmetered while Tier 1 property capacity is enforced", () => {
   const summary = summarizeLicenseCapacity({
     organization: { serviceModel: "managed" },
     capacity: { activeAdministrators: 20, activeUsers: 200, properties: 500 },
@@ -38,8 +38,14 @@ test("managed service capacity is unmetered across every customer dimension", ()
 
   assert.equal(summary.administrators.unmetered, true);
   assert.equal(summary.users.unmetered, true);
-  assert.equal(summary.properties.unmetered, true);
+  assert.equal(summary.properties.unmetered, false);
+  assert.equal(summary.properties.limit, 25);
+  assert.equal(summary.properties.overLimit, true);
   assert.doesNotThrow(() => assertLicenseCapacity({ summary, dimension: "users", additional: 1000 }));
+  assert.throws(
+    () => assertLicenseCapacity({ summary, dimension: "properties", additional: 1 }),
+    (error) => error.code === "PROPERTY_LIMIT_REACHED"
+  );
 });
 
 test("Boutique capacity stops at one administrator, two users, and three properties", () => {
@@ -76,7 +82,7 @@ test("Boutique capacity stops at one administrator, two users, and three propert
 test("capacity enforcement returns a stable conflict code and the current capacity snapshot", () => {
   const summary = summarizeLicenseCapacity({
     organization: { serviceModel: "hybrid", license: { tier: "tier_1" } },
-    capacity: { activeUsers: 4, pendingUsers: 1, properties: 10 },
+    capacity: { activeUsers: 4, pendingUsers: 1, properties: 25 },
   });
 
   assert.throws(

@@ -1,44 +1,34 @@
-require("dotenv").config();
+const { initializeRuntime } = require("./runtimeBootstrap");
 const mongoose = require("mongoose");
-const { validateRuntimeConfig } = require("./config/security");
-const { startInspectionWorker } = require("./services/inspectionWorker");
-const { startMonthlyPortfolioSummaryWorker } = require("./services/monthlyPortfolioSummaryWorker");
-const { ensureAssignmentSchedulingIndex } = require("./services/assignmentIndexes");
-const MonthlyPortfolioSummary = require("./models/monthlyPortfolioSummary");
-const WarRoomNotificationEvent = require("./models/warRoomNotificationEvent");
-
-validateRuntimeConfig();
+const { captureBackendException, flushBackendMonitoring } = require("./monitoring");
+const { ensureBackgroundWorkerIndexes, startBackgroundWorkers } = require("./backgroundWorkers");
+const { createShutdownCoordinator, installShutdownHandlers } = require("./runtimeShutdown");
 
 async function main() {
+  initializeRuntime();
   await mongoose.connect(process.env.MONGO_URI);
   console.log("Inspection worker connected to MongoDB.");
-  await ensureAssignmentSchedulingIndex();
-  await MonthlyPortfolioSummary.createIndexes();
-  await WarRoomNotificationEvent.createIndexes();
-  const stop = startInspectionWorker();
-  const stopMonthlyPortfolioSummaries = String(
-    process.env.RUN_MONTHLY_PORTFOLIO_SUMMARY_WORKER || "true"
-  ).toLowerCase() === "false"
-    ? () => {}
-    : startMonthlyPortfolioSummaryWorker();
-  const stopWarRoomNotifications = String(
-    process.env.RUN_WAR_ROOM_NOTIFICATION_WORKER || "true"
-  ).toLowerCase() === "false"
-    ? () => {}
-    : require("./services/warRoomNotifications").startWarRoomNotificationWorker();
-  async function shutdown(signal) {
-    console.log(`Inspection worker received ${signal}; shutting down.`);
-    stop();
-    stopMonthlyPortfolioSummaries();
-    stopWarRoomNotifications();
-    await mongoose.disconnect();
-    process.exit(0);
+  const { assignmentIndex } = await ensureBackgroundWorkerIndexes();
+  if (assignmentIndex.changed) {
+    console.log("Assignment scheduling index migrated to scheduled-only uniqueness.");
   }
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
-  process.on("SIGINT", () => shutdown("SIGINT"));
+  const workerRuntime = startBackgroundWorkers({ inspectionEnabled: true });
+  const shutdown = createShutdownCoordinator({
+    workers: workerRuntime.controllers,
+    disconnect: () => mongoose.disconnect(),
+  });
+  const removeShutdownHandlers = installShutdownHandlers(shutdown);
+  return { workerRuntime, shutdown, removeShutdownHandlers };
 }
 
-main().catch((error) => {
-  console.error("Inspection worker failed to start:", error);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(async (error) => {
+    console.error("Inspection worker failed to start:", error);
+    captureBackendException(error, { tags: { phase: "worker-startup" } });
+    await mongoose.disconnect().catch(() => {});
+    await flushBackendMonitoring(2000);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { main };

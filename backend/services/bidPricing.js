@@ -1,7 +1,10 @@
-const { MANAGED_SERVICE_BASE_MONTHLY_CENTS } = require("./servicePlanPricing");
+const {
+  MANAGED_SERVICE_BASE_MONTHLY_CENTS,
+  MANAGED_TIER_RECURRING_MONTHLY_PRICES_CENTS,
+} = require("./servicePlanPricing");
 const { MAX_ROUTE_PROPERTIES } = require("./routeScopes");
 
-const ESTIMATE_VERSION = 6;
+const ESTIMATE_VERSION = 7;
 const MINIMUM_PER_VISIT = 50;
 const MAX_CLUSTER_PROPERTIES = MAX_ROUTE_PROPERTIES;
 const CLUSTER_DISTANCE_MILES = 0.5;
@@ -69,15 +72,20 @@ function benchmarkSizePrice(squareFeet) {
     + (position * (upperAnchor.perVisitDollars - lowerAnchor.perVisitDollars));
 }
 
-function managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee) {
+function managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee, managedServiceTier = "tier_1") {
+  const baseMonthlyFeeCents = MANAGED_TIER_RECURRING_MONTHLY_PRICES_CENTS[managedServiceTier];
+  if (baseMonthlyFeeCents == null) {
+    throw new Error("Select a valid Managed Service tier.");
+  }
   const includedInContractTotal = includeManagedServiceFee === true;
   return {
-    baseMonthlyFeeCents: MANAGED_SERVICE_BASE_MONTHLY_CENTS,
+    tier: managedServiceTier,
+    baseMonthlyFeeCents,
     includedInContractTotal,
     estimatedContractMonthlyCents: estimatedMonthlyCents == null
       ? null
       : estimatedMonthlyCents
-        + (includedInContractTotal ? MANAGED_SERVICE_BASE_MONTHLY_CENTS : 0),
+        + (includedInContractTotal ? baseMonthlyFeeCents : 0),
   };
 }
 
@@ -123,6 +131,7 @@ function estimateBidPricing({
   serviceFrequency,
   hasKnownIssues = false,
   includeManagedServiceFee = false,
+  managedServiceTier = "tier_1",
 }) {
   const squareFeet = Number(grossSquareFeet);
   if (!Number.isFinite(squareFeet) || squareFeet <= 0) {
@@ -165,7 +174,7 @@ function estimateBidPricing({
     pricingMode: "single",
     estimatedPerVisitCents: estimatedPerVisit * 100,
     estimatedMonthlyCents,
-    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee),
+    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee, managedServiceTier),
     requiresManualReview: manualReviewReasons.length > 0,
     manualReviewReasons,
     inputs: {
@@ -188,6 +197,7 @@ function estimateClusterPricing({
   withinHalfMile = false,
   sameScheduledVisit = false,
   includeManagedServiceFee = false,
+  managedServiceTier = "tier_1",
 }) {
   if (!Array.isArray(properties) || properties.length < 2) {
     throw new Error("A cluster must include at least two properties.");
@@ -268,7 +278,7 @@ function estimateClusterPricing({
     pricingMode: "cluster",
     estimatedPerVisitCents,
     estimatedMonthlyCents,
-    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee),
+    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee, managedServiceTier),
     standalonePerVisitCents,
     standaloneMonthlyCents,
     clusterDiscountPerVisitCents: standalonePerVisitCents - estimatedPerVisitCents,
@@ -299,6 +309,7 @@ function estimateRouteAwarePricing({
   travelContext,
   policy = ROUTE_AWARE_POLICY,
   includeManagedServiceFee = false,
+  managedServiceTier = "tier_1",
 }) {
   if (!travelContext || typeof travelContext !== "object" || Array.isArray(travelContext)) {
     throw new Error("Route-aware pricing requires a travel context.");
@@ -419,7 +430,7 @@ function estimateRouteAwarePricing({
     pricingMode: "route_aware",
     estimatedPerVisitCents,
     estimatedMonthlyCents,
-    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee),
+    managedService: managedServiceQuote(estimatedMonthlyCents, includeManagedServiceFee, managedServiceTier),
     basePerVisitCents,
     travelSurchargeCents,
     routeCreditCents,

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Afterlight API health canary, notifications, alarms, and dashboard
+Description: Afterlight API and background worker health monitoring, alarms, and dashboard
 
 Parameters:
   EnvironmentName:
@@ -30,9 +30,47 @@ Parameters:
     Default: 5000
     MinValue: 1000
     Description: P90 canary duration threshold in milliseconds
+  WorkerMetricsNamespace:
+    Type: String
+    Default: Afterlight/Workers
+    AllowedPattern: "^[A-Za-z0-9/._-]{1,255}$"
+    Description: Custom CloudWatch namespace published by the application workers
+  EnableWorkerMetricAlarms:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Create worker and queue alarms after DEV metric publication is verified
+  MonitorMonthlyPortfolioWorker:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Monitor the monthly portfolio summary worker when it is enabled
+  MonitorWarRoomNotificationWorker:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Monitor the War Room notification worker when it is enabled
+  WorkerQueueAgeThresholdSeconds:
+    Type: Number
+    Default: 900
+    MinValue: 60
+    Description: Oldest queued item age that triggers an alert
 
 Conditions:
   HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+  WorkerMetricAlarmsEnabled: !Equals [!Ref EnableWorkerMetricAlarms, "true"]
+  MonthlyWorkerAlarmEnabled: !And
+    - !Condition WorkerMetricAlarmsEnabled
+    - !Equals [!Ref MonitorMonthlyPortfolioWorker, "true"]
+  WarRoomWorkerAlarmEnabled: !And
+    - !Condition WorkerMetricAlarmsEnabled
+    - !Equals [!Ref MonitorWarRoomNotificationWorker, "true"]
 
 Resources:
   CanaryArtifactsBucket:
@@ -231,6 +269,156 @@ Resources:
       OKActions:
         - !Ref HealthAlertTopic
 
+  InspectionWorkerHealthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WorkerMetricAlarmsEnabled
+    Properties:
+      AlarmName: !Sub "afterlight-${EnvironmentName}-inspection-worker-health"
+      AlarmDescription: Inspection worker heartbeat is unhealthy or missing
+      Namespace: !Ref WorkerMetricsNamespace
+      MetricName: WorkerHealthy
+      Dimensions:
+        - Name: Environment
+          Value: !Ref EnvironmentName
+        - Name: Worker
+          Value: inspection
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref HealthAlertTopic
+      OKActions:
+        - !Ref HealthAlertTopic
+
+  MonthlyPortfolioWorkerHealthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonthlyWorkerAlarmEnabled
+    Properties:
+      AlarmName: !Sub "afterlight-${EnvironmentName}-monthly-worker-health"
+      AlarmDescription: Monthly portfolio worker heartbeat is unhealthy or missing
+      Namespace: !Ref WorkerMetricsNamespace
+      MetricName: WorkerHealthy
+      Dimensions:
+        - Name: Environment
+          Value: !Ref EnvironmentName
+        - Name: Worker
+          Value: monthly-portfolio-summary
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref HealthAlertTopic
+      OKActions:
+        - !Ref HealthAlertTopic
+
+  WarRoomWorkerHealthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WarRoomWorkerAlarmEnabled
+    Properties:
+      AlarmName: !Sub "afterlight-${EnvironmentName}-war-room-worker-health"
+      AlarmDescription: War Room notification worker heartbeat is unhealthy or missing
+      Namespace: !Ref WorkerMetricsNamespace
+      MetricName: WorkerHealthy
+      Dimensions:
+        - Name: Environment
+          Value: !Ref EnvironmentName
+        - Name: Worker
+          Value: war-room-notification
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref HealthAlertTopic
+      OKActions:
+        - !Ref HealthAlertTopic
+
+  InspectionQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WorkerMetricAlarmsEnabled
+    Properties:
+      AlarmName: !Sub "afterlight-${EnvironmentName}-inspection-queue-age"
+      AlarmDescription: The oldest inspection job has waited beyond the reviewed threshold
+      Namespace: !Ref WorkerMetricsNamespace
+      MetricName: OldestQueuedAgeSeconds
+      Dimensions:
+        - Name: Environment
+          Value: !Ref EnvironmentName
+        - Name: Worker
+          Value: inspection
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref WorkerQueueAgeThresholdSeconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref HealthAlertTopic
+      OKActions:
+        - !Ref HealthAlertTopic
+
+  MonthlyPortfolioQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonthlyWorkerAlarmEnabled
+    Properties:
+      AlarmName: !Sub "afterlight-${EnvironmentName}-monthly-queue-age"
+      AlarmDescription: The oldest monthly summary has waited beyond the reviewed threshold
+      Namespace: !Ref WorkerMetricsNamespace
+      MetricName: OldestQueuedAgeSeconds
+      Dimensions:
+        - Name: Environment
+          Value: !Ref EnvironmentName
+        - Name: Worker
+          Value: monthly-portfolio-summary
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref WorkerQueueAgeThresholdSeconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref HealthAlertTopic
+      OKActions:
+        - !Ref HealthAlertTopic
+
+  WarRoomQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WarRoomWorkerAlarmEnabled
+    Properties:
+      AlarmName: !Sub "afterlight-${EnvironmentName}-war-room-queue-age"
+      AlarmDescription: The oldest War Room event has waited beyond the reviewed threshold
+      Namespace: !Ref WorkerMetricsNamespace
+      MetricName: OldestQueuedAgeSeconds
+      Dimensions:
+        - Name: Environment
+          Value: !Ref EnvironmentName
+        - Name: Worker
+          Value: war-room-notification
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref WorkerQueueAgeThresholdSeconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref HealthAlertTopic
+      OKActions:
+        - !Ref HealthAlertTopic
+
   MonitoringDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -271,6 +459,102 @@ Resources:
                   ["CloudWatchSynthetics", "Duration", "CanaryName", "${CanaryName}"]
                 ]
               }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "title": "Worker health",
+                "region": "${AWS::Region}",
+                "view": "timeSeries",
+                "stat": "Minimum",
+                "period": 60,
+                "yAxis": { "left": { "min": 0, "max": 1 } },
+                "metrics": [
+                  ["${WorkerMetricsNamespace}", "WorkerHealthy", "Environment", "${EnvironmentName}", "Worker", "inspection", { "label": "Inspection" }],
+                  ["${WorkerMetricsNamespace}", "WorkerHealthy", "Environment", "${EnvironmentName}", "Worker", "monthly-portfolio-summary", { "label": "Monthly portfolio" }],
+                  ["${WorkerMetricsNamespace}", "WorkerHealthy", "Environment", "${EnvironmentName}", "Worker", "war-room-notification", { "label": "War Room" }]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "title": "Queue depth",
+                "region": "${AWS::Region}",
+                "view": "timeSeries",
+                "stat": "Maximum",
+                "period": 60,
+                "metrics": [
+                  ["${WorkerMetricsNamespace}", "QueueDepth", "Environment", "${EnvironmentName}", "Worker", "inspection", { "label": "Inspection" }],
+                  ["${WorkerMetricsNamespace}", "QueueDepth", "Environment", "${EnvironmentName}", "Worker", "monthly-portfolio-summary", { "label": "Monthly portfolio" }],
+                  ["${WorkerMetricsNamespace}", "QueueDepth", "Environment", "${EnvironmentName}", "Worker", "war-room-notification", { "label": "War Room" }]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "title": "Oldest queued item age",
+                "region": "${AWS::Region}",
+                "view": "timeSeries",
+                "stat": "Maximum",
+                "period": 60,
+                "metrics": [
+                  ["${WorkerMetricsNamespace}", "OldestQueuedAgeSeconds", "Environment", "${EnvironmentName}", "Worker", "inspection", { "label": "Inspection" }],
+                  ["${WorkerMetricsNamespace}", "OldestQueuedAgeSeconds", "Environment", "${EnvironmentName}", "Worker", "monthly-portfolio-summary", { "label": "Monthly portfolio" }],
+                  ["${WorkerMetricsNamespace}", "OldestQueuedAgeSeconds", "Environment", "${EnvironmentName}", "Worker", "war-room-notification", { "label": "War Room" }]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Stale worker leases",
+                "region": "${AWS::Region}",
+                "view": "timeSeries",
+                "stat": "Maximum",
+                "period": 60,
+                "metrics": [
+                  ["${WorkerMetricsNamespace}", "StaleLeases", "Environment", "${EnvironmentName}", "Worker", "inspection", { "label": "Inspection" }],
+                  ["${WorkerMetricsNamespace}", "StaleLeases", "Environment", "${EnvironmentName}", "Worker", "monthly-portfolio-summary", { "label": "Monthly portfolio" }],
+                  ["${WorkerMetricsNamespace}", "StaleLeases", "Environment", "${EnvironmentName}", "Worker", "war-room-notification", { "label": "War Room" }]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Recent terminal failures",
+                "region": "${AWS::Region}",
+                "view": "timeSeries",
+                "stat": "Maximum",
+                "period": 60,
+                "metrics": [
+                  ["${WorkerMetricsNamespace}", "RecentFailures", "Environment", "${EnvironmentName}", "Worker", "inspection", { "label": "Inspection" }],
+                  ["${WorkerMetricsNamespace}", "RecentFailures", "Environment", "${EnvironmentName}", "Worker", "monthly-portfolio-summary", { "label": "Monthly portfolio" }],
+                  ["${WorkerMetricsNamespace}", "RecentFailures", "Environment", "${EnvironmentName}", "Worker", "war-room-notification", { "label": "War Room" }]
+                ]
+              }
             }
           ]
         }
@@ -288,3 +572,6 @@ Outputs:
   DashboardName:
     Description: CloudWatch dashboard name
     Value: !Ref MonitoringDashboard
+  WorkerMetricsNamespaceName:
+    Description: Application namespace for worker and queue metrics
+    Value: !Ref WorkerMetricsNamespace

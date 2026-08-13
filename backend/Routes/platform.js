@@ -172,6 +172,7 @@ function createPricingEstimateHandler({
           withinHalfMile: req.body.withinHalfMile === true,
           sameScheduledVisit: req.body.sameScheduledVisit === true,
           includeManagedServiceFee: req.body.includeManagedServiceFee === true,
+          managedServiceTier: req.body.managedServiceTier,
         }));
       }
       if (req.body.pricingMode === "route_aware") {
@@ -211,6 +212,7 @@ function createPricingEstimateHandler({
             hasKnownIssues: req.body.hasKnownIssues === true,
             travelContext,
             includeManagedServiceFee: req.body.includeManagedServiceFee === true,
+            managedServiceTier: req.body.managedServiceTier,
           }),
           organization: {
             organizationId: String(organization._id || req.body.organizationId),
@@ -224,6 +226,7 @@ function createPricingEstimateHandler({
         serviceFrequency: req.body.serviceFrequency,
         hasKnownIssues: req.body.hasKnownIssues === true,
         includeManagedServiceFee: req.body.includeManagedServiceFee === true,
+        managedServiceTier: req.body.managedServiceTier,
       }));
     } catch (error) {
       return res.status(error.status || 400).json({

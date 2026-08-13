@@ -3,7 +3,6 @@ import { MemoryRouter, useNavigate } from "react-router-dom";
 import PlatformDashboard from "./PlatformDashboard";
 import { api } from "../services/api";
 import { storeAuthentication } from "../services/session";
-import { beginOktaLogin } from "../services/okta";
 
 jest.mock("../services/api", () => ({
   api: { get: jest.fn(), post: jest.fn(), put: jest.fn() },
@@ -11,10 +10,6 @@ jest.mock("../services/api", () => ({
 jest.mock("../services/session", () => ({
   storeAuthentication: jest.fn(),
   logoutSession: jest.fn(),
-}));
-jest.mock("../services/okta", () => ({
-  beginOktaLogin: jest.fn(),
-  oktaConfigured: true,
 }));
 jest.mock("../services/notificationCenter", () => ({
   NOTIFICATION_SECTIONS: {
@@ -94,7 +89,6 @@ beforeEach(() => {
   jest.clearAllMocks();
   sessionStorage.clear();
   api.get.mockResolvedValue(report);
-  beginOktaLogin.mockResolvedValue(undefined);
   window.prompt = jest.fn(() => "Development and support");
 });
 
@@ -168,8 +162,6 @@ test("stale Admin View access opens an authenticator dialog and retries after ve
 
   const dialog = await screen.findByRole("dialog", { name: "Confirm your identity" });
   expect(dialog).toHaveTextContent("PICOR");
-  expect(screen.queryByText("Reauthenticate with Okta before entering an organization.")).not.toBeInTheDocument();
-
   const codeInput = screen.getByLabelText("Authentication code");
   const verifyButton = screen.getByRole("button", { name: "Verify and continue" });
   await waitFor(() => {
@@ -186,48 +178,6 @@ test("stale Admin View access opens an authenticator dialog and retries after ve
   expect(storeAuthentication).toHaveBeenCalledWith(
     expect.objectContaining({ token: "renewed-token" })
   );
-  expect(await screen.findByRole("alert")).toHaveTextContent("Navigation suppressed by test.");
-});
-
-test("Okta is used as a forced reauthentication fallback when the backend selects it", async () => {
-  api.post.mockImplementation((path) => {
-    if (path.endsWith("/assume")) return Promise.reject(stepUpRequiredError());
-    if (path === "/api/auth/mfa/step-up/challenge") {
-      return Promise.resolve({ provider: "okta" });
-    }
-    return Promise.reject(new Error(`Unexpected request: ${path}`));
-  });
-
-  renderDashboard();
-  fireEvent.click(await screen.findByRole("button", { name: "Open Admin View" }));
-
-  await waitFor(() => expect(beginOktaLogin).toHaveBeenCalledWith({
-    returnTo: "/platform?resumeAdminView=1",
-    stepUp: true,
-  }));
-  expect(JSON.parse(sessionStorage.getItem("afterlightPendingAdminViewStepUp")))
-    .toEqual(expect.objectContaining({
-      organizationId: "org-1",
-      reason: "Development and support",
-    }));
-});
-
-test("a completed Okta step-up restores and retries the pending Admin View request", async () => {
-  sessionStorage.setItem("afterlightPendingAdminViewStepUp", JSON.stringify({
-    organizationId: "org-1",
-    reason: "Investigating an invoice",
-    createdAt: Date.now(),
-  }));
-  api.post.mockRejectedValue(new Error("Navigation suppressed by test."));
-
-  renderDashboard("/platform?resumeAdminView=1");
-
-  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
-    "/api/platform/organizations/org-1/assume",
-    { reason: "Investigating an invoice" }
-  ));
-  expect(api.post).toHaveBeenCalledTimes(1);
-  expect(sessionStorage.getItem("afterlightPendingAdminViewStepUp")).toBeNull();
   expect(await screen.findByRole("alert")).toHaveTextContent("Navigation suppressed by test.");
 });
 
@@ -286,6 +236,13 @@ test("a War Room notification route updates an already-mounted platform dashboar
 
   expect(await screen.findByText("War Room view")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Weekly War Room" })).toBeInTheDocument();
+});
+
+test("direct platform tool links do not preload the organization overview", async () => {
+  renderDashboard("/platform?view=resources");
+
+  expect(await screen.findByText("Resources view")).toBeInTheDocument();
+  expect(api.get).not.toHaveBeenCalled();
 });
 
 test("platform administrators can configure secure email approval per organization", async () => {

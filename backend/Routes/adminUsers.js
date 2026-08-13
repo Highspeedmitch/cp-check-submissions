@@ -18,6 +18,7 @@ const {
   archiveOrganizationUser,
   restoreOrganizationUser,
 } = require("../services/directoryArchival");
+const { recordsById } = require("../services/directoryStats");
 const {
   ORGANIZATION_INVITE_ROLES,
   resendInvitation,
@@ -27,11 +28,15 @@ const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails")
 const {
   LICENSE_TIERS,
   TIER_LIMITS,
+  MANAGED_TIER_LIMITS,
   HYBRID_PORTFOLIO_MINIMUMS,
   resolveLicenseEntitlements,
   summarizeAdminSeats,
 } = require("../services/licenseEntitlements");
-const { TIER_RECURRING_MONTHLY_PRICES_CENTS } = require("../services/servicePlanPricing");
+const {
+  TIER_RECURRING_MONTHLY_PRICES_CENTS,
+  SERVICE_MODEL_TIER_RECURRING_MONTHLY_PRICES_CENTS,
+} = require("../services/servicePlanPricing");
 const { createLicensedAdminInvitations } = require("../services/licensedAdminInvitations");
 const { createLicensedOrganizationInvitation } = require("../services/licensedOrganizationInvitations");
 const {
@@ -107,23 +112,38 @@ router.get("/", async (req, res) => {
   ]);
   if (!organization) return res.status(404).json({ error: "Organization not found." });
   const capacity = await currentLicenseCapacity({ organization });
-  const usersWithStats = directory === "archived"
-    ? await Promise.all(users.map(async (user) => {
-        const [submissionCount, assignmentCount] = await Promise.all([
-          Submission.countDocuments({ organizationId: req.user.organizationId, userId: user._id }),
-          Assignment.countDocuments({ organizationId: req.user.organizationId, userId: user._id }),
-        ]);
-        return { ...user, submissionCount, assignmentCount };
-      }))
-    : users;
-  const usersWithScope = usersWithStats.map((user) => ({
-    ...user,
-    propertyIds: userScope(organization, user).directPropertyIds,
-    routeIds: userScope(organization, user).directRouteIds,
-    effectivePropertyIds: userScope(organization, user).effectivePropertyIds,
-    eligibleRouteIds: userScope(organization, user).eligibleRouteIds,
-    workScopeConfigured: userScope(organization, user).configured,
-  }));
+  let usersWithStats = users;
+  if (directory === "archived" && users.length) {
+    const userIds = users.map((user) => user._id);
+    const [submissionRows, assignmentRows] = await Promise.all([
+      Submission.aggregate([
+        { $match: { organizationId: organization._id, userId: { $in: userIds } } },
+        { $group: { _id: "$userId", count: { $sum: 1 } } },
+      ]),
+      Assignment.aggregate([
+        { $match: { organizationId: organization._id, userId: { $in: userIds } } },
+        { $group: { _id: "$userId", count: { $sum: 1 } } },
+      ]),
+    ]);
+    const submissionsByUser = recordsById(submissionRows);
+    const assignmentsByUser = recordsById(assignmentRows);
+    usersWithStats = users.map((user) => ({
+      ...user,
+      submissionCount: submissionsByUser.get(String(user._id))?.count || 0,
+      assignmentCount: assignmentsByUser.get(String(user._id))?.count || 0,
+    }));
+  }
+  const usersWithScope = usersWithStats.map((user) => {
+    const scope = userScope(organization, user);
+    return {
+      ...user,
+      propertyIds: scope.directPropertyIds,
+      routeIds: scope.directRouteIds,
+      effectivePropertyIds: scope.effectivePropertyIds,
+      eligibleRouteIds: scope.eligibleRouteIds,
+      workScopeConfigured: scope.configured,
+    };
+  });
   res.json({
     users: usersWithScope,
     invitations,
@@ -135,8 +155,14 @@ router.get("/", async (req, res) => {
     licenseOptions: {
       tiers: LICENSE_TIERS,
       tierLimits: TIER_LIMITS,
+      tierLimitsByServiceModel: {
+        platform: TIER_LIMITS,
+        hybrid: TIER_LIMITS,
+        managed: MANAGED_TIER_LIMITS,
+      },
       hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
       tierRecurringMonthlyPricesCents: TIER_RECURRING_MONTHLY_PRICES_CENTS,
+      serviceModelTierRecurringMonthlyPricesCents: SERVICE_MODEL_TIER_RECURRING_MONTHLY_PRICES_CENTS,
     },
     properties: organization.properties.map((property) => ({
       _id: property._id,

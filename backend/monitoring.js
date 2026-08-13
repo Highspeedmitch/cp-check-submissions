@@ -34,6 +34,11 @@ function captureBackendException(error, context = {}) {
   });
 }
 
+async function flushBackendMonitoring(timeoutMs = 2000) {
+  if (!initialized) return true;
+  return Sentry.flush(timeoutMs);
+}
+
 function backendMonitoringEnabled() {
   return initialized;
 }
@@ -42,6 +47,7 @@ module.exports = {
   backendMonitoringEnabled,
   boundedSampleRate,
   captureBackendException,
+  flushBackendMonitoring,
   initializeBackendMonitoring,
   setupBackendErrorHandler,
 };
