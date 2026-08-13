@@ -2220,32 +2220,62 @@ select:focus-visible {
 .platform-billing-heading { align-items: end; }
 .platform-billing-filter { width: min(250px, 100%); }
 .platform-service-invoice-controls { max-width: 320px; }
-.platform-review-resend-dialog { width: min(620px, 100%); }
+.platform-review-resend-dialog {
+  width: min(620px, 100%);
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
 .platform-review-resend-recipients {
   display: grid;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   margin: 0 0 18px;
   padding: 0;
   border: 0;
 }
 .platform-review-resend-recipients legend { margin-bottom: 10px; font-weight: 800; }
 .platform-review-resend-recipients label {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
   align-items: flex-start;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 12px;
   border: 1px solid var(--beta-border);
   border-radius: 12px;
   background: var(--beta-surface);
   cursor: pointer;
 }
-.platform-review-resend-recipients input { flex: 0 0 auto; margin: 3px 0 0; }
-.platform-review-resend-recipients span { display: grid; gap: 2px; min-width: 0; }
+.platform-review-resend-recipients input[type="checkbox"] {
+  display: block;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--beta-blue);
+}
+.platform-review-resend-recipients span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.platform-review-resend-recipients strong { min-width: 0; }
 .platform-review-resend-recipients small {
+  min-width: 0;
   overflow-wrap: anywhere;
   color: var(--beta-muted);
   font-weight: 500;
 }
+.platform-review-resend-dialog textarea { font-weight: 500; }
 .platform-finance-heading { align-items: end; }
 .platform-finance-heading > div { min-width: 0; max-width: 760px; }
 .platform-finance-month { width: min(220px, 100%); min-width: 0; max-width: 100%; }
