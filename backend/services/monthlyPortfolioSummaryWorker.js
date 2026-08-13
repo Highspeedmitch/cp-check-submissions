@@ -23,6 +23,8 @@ const {
 const { sendSystemEmail } = require("./systemEmail");
 const { sendUserNotification } = require("./notifications");
 const { monthlyPortfolioSummaryReady } = require("./notificationEvents");
+const { captureBackendException } = require("../monitoring");
+const { startPollingWorker } = require("./pollingWorker");
 const { serviceModelIncludesPortfolioReporting } = require("./boutiquePolicy");
 
 const DEFAULT_POLL_MS = 5000;
@@ -327,6 +329,14 @@ async function processNextMonthlyPortfolioSummary(options = {}) {
     return await processMonthlyPortfolioSummary(report, options);
   } catch (error) {
     console.error(`Monthly portfolio summary ${report._id} failed on attempt ${report.attempts}:`, error.message);
+    captureBackendException(error, {
+      tags: {
+        component: "background-worker",
+        worker: "monthly-portfolio-summary",
+        phase: "process-report",
+      },
+      extra: { reportId: String(report._id), attempt: report.attempts },
+    });
     return recordMonthlyPortfolioSummaryFailure(report, error);
   }
 }
@@ -336,29 +346,18 @@ function startMonthlyPortfolioSummaryWorker({
   seedIntervalMs = SEED_INTERVAL_MS,
   env = process.env,
 } = {}) {
-  let stopped = false;
-  let timer = null;
   let lastSeedAt = 0;
-  async function poll() {
-    if (stopped) return;
-    try {
+  return startPollingWorker({
+    name: "monthly-portfolio-summary",
+    pollMs,
+    async runOnce() {
       if (Date.now() - lastSeedAt >= seedIntervalMs) {
         await seedMonthlyPortfolioSummaries({ env });
         lastSeedAt = Date.now();
       }
-      const processed = await processNextMonthlyPortfolioSummary({ env });
-      timer = setTimeout(poll, processed ? 0 : pollMs);
-    } catch (error) {
-      console.error("Monthly portfolio summary worker polling error:", error.message);
-      timer = setTimeout(poll, pollMs);
-    }
-    timer.unref?.();
-  }
-  poll();
-  return () => {
-    stopped = true;
-    if (timer) clearTimeout(timer);
-  };
+      return processNextMonthlyPortfolioSummary({ env });
+    },
+  });
 }
 
 module.exports = {

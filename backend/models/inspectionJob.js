@@ -83,5 +83,6 @@ InspectionJobSchema.index(
 );
 InspectionJobSchema.index({ status: 1, availableAt: 1, createdAt: 1 });
 InspectionJobSchema.index({ status: 1, lockedAt: 1 });
+InspectionJobSchema.index({ failedAt: 1 });
 
 module.exports = mongoose.model("InspectionJob", InspectionJobSchema);

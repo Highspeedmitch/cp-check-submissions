@@ -90,6 +90,16 @@ Optional monthly portfolio summary controls:
 
 The backend identity needs least-privilege `bedrock:InvokeModel`, `s3:PutObject`, and `s3:GetObject` access for the configured model and `portfolio-summaries/` bucket prefix. See [monthly-portfolio-summaries.md](monthly-portfolio-summaries.md) for architecture, snapshot semantics, rollout, and QA.
 
+Worker observability controls:
+
+- set `WORKER_METRICS_ENABLED=true` on the process that runs the background workers only after the identity has namespace-restricted `cloudwatch:PutMetricData` permission;
+- set `WORKER_METRICS_ENVIRONMENT=production`, matching the health stack `EnvironmentName` exactly;
+- leave `WORKER_METRICS_NAMESPACE=Afterlight/Workers` unless the matching CloudFormation parameter is changed at the same time;
+- verify one-minute worker and queue metrics before enabling the CloudFormation worker alarms;
+- expect `SIGTERM` shutdown to stop new polling, drain active worker work for up to 25 seconds, disconnect MongoDB, and flush backend monitoring.
+
+See [error-monitoring-and-health-alerts.md](error-monitoring-and-health-alerts.md) for the least-privilege policy and DEV-first alarm rollout.
+
 Firebase credentials are not required for PWA Web Push. The current Gusto
 handoff is manual and does not require a Gusto API credential.
 
@@ -245,8 +255,8 @@ not consume organization user capacity.
 5. Deploy the API web service and inspection worker from the same release SHA.
    Keep the in-web worker enabled until a separate background worker is healthy;
    then set `RUN_INSPECTION_WORKER=false` on the web service.
-6. Confirm `/health`, startup index work, worker polling, S3 access, and SES
-   configuration before continuing.
+6. Confirm `/health`, startup index work, worker polling, worker health and queue
+   metrics, S3 access, and SES configuration before continuing.
 7. Run the Production organization configurator in dry-run mode. Apply only
    after the Picor plan is reviewed.
 8. Run the historical-access retirement dry run. Review the exact memberships

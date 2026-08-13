@@ -33,5 +33,6 @@ const WarRoomNotificationEventSchema = new mongoose.Schema({
 
 WarRoomNotificationEventSchema.index({ status: 1, availableAt: 1, createdAt: 1 });
 WarRoomNotificationEventSchema.index({ status: 1, lockedAt: 1 });
+WarRoomNotificationEventSchema.index({ failedAt: 1 });
 
 module.exports = mongoose.model("WarRoomNotificationEvent", WarRoomNotificationEventSchema);

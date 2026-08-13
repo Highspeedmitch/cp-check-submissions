@@ -90,3 +90,7 @@ The web service runs the worker by default, which makes this change backward-com
 3. Set `RUN_INSPECTION_WORKER=false` on the web service after the background worker is healthy.
 
 Only the web service should receive public traffic. Multiple workers are safe because jobs are claimed with an atomic MongoDB lease, but one worker is the recommended starting configuration.
+
+Both the web service and background worker use the same runtime initialization for security validation, Sentry, TOTP configuration, and Firebase. On `SIGTERM` or `SIGINT`, they stop scheduling new polls and wait up to 25 seconds for active work before disconnecting MongoDB. A timeout is reported to monitoring and produces a nonzero exit code so the deployment platform does not treat an interrupted drain as a clean stop.
+
+For the DEV observability rollout, enable `WORKER_METRICS_ENABLED=true`, set `WORKER_METRICS_ENVIRONMENT=dev`, and grant the backend identity namespace-restricted `cloudwatch:PutMetricData`. Confirm the inspection worker publishes `WorkerHealthy=1` and a zero or expected queue age before enabling worker alarms. See [error-monitoring-and-health-alerts.md](error-monitoring-and-health-alerts.md).
