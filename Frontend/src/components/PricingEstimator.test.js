@@ -7,7 +7,7 @@ jest.mock("../services/api", () => ({
 }));
 
 const weeklyEstimate = {
-  version: 6,
+  version: 7,
   pricingMode: "single",
   estimatedPerVisitCents: 12500,
   estimatedMonthlyCents: 45000,
@@ -29,7 +29,7 @@ const weeklyEstimate = {
 };
 
 const clusterEstimate = {
-  version: 6,
+  version: 7,
   pricingMode: "cluster",
   estimatedPerVisitCents: 10000,
   estimatedMonthlyCents: 10000,
@@ -65,7 +65,7 @@ const clusterEstimate = {
 };
 
 const routeAwareEstimate = {
-  version: 6,
+  version: 7,
   pricingMode: "route_aware",
   estimatedPerVisitCents: 5000,
   estimatedMonthlyCents: 5000,
@@ -181,6 +181,7 @@ test("calculates and copies an internal pricing estimate", async () => {
       serviceFrequency: "weekly",
       hasKnownIssues: false,
       includeManagedServiceFee: false,
+      managedServiceTier: "tier_1",
     }
   ));
   expect(within((await screen.findByText("Estimated per visit")).closest("article"))
@@ -202,9 +203,10 @@ test("adds the managed-service base once when preparing a new agreement quote", 
     estimatedPerVisitCents: 20000,
     estimatedMonthlyCents: 20000,
     managedService: {
-      baseMonthlyFeeCents: 50000,
+      tier: "tier_2",
+      baseMonthlyFeeCents: 125000,
       includedInContractTotal: true,
-      estimatedContractMonthlyCents: 70000,
+      estimatedContractMonthlyCents: 145000,
     },
   });
   render(<PricingEstimator />);
@@ -215,19 +217,18 @@ test("adds the managed-service base once when preparing a new agreement quote", 
   fireEvent.change(screen.getByLabelText("Property type"), {
     target: { value: "strip_mall" },
   });
-  fireEvent.click(screen.getByLabelText(
-    "Include the organization-level $500 managed-service base in this quote"
-  ));
+  fireEvent.click(screen.getByLabelText("Include the organization-level Managed Service fee in this quote"));
+  fireEvent.change(screen.getByLabelText("Managed Service tier"), { target: { value: "tier_2" } });
   fireEvent.click(screen.getByRole("button", { name: "Calculate estimate" }));
 
   await waitFor(() => expect(api.post).toHaveBeenCalledWith(
     "/api/platform/pricing-estimate",
-    expect.objectContaining({ includeManagedServiceFee: true })
+    expect.objectContaining({ includeManagedServiceFee: true, managedServiceTier: "tier_2" })
   ));
   expect(within((await screen.findByText("Managed-service base")).closest("article"))
-    .getByText("$500")).toBeInTheDocument();
+    .getByText("$1,250")).toBeInTheDocument();
   expect(within(screen.getByText("Contract monthly total").closest("article"))
-    .getByText("$700")).toBeInTheDocument();
+    .getByText("$1,450")).toBeInTheDocument();
 });
 
 test("shows manual review reasons and clears stale results when inputs change", async () => {
@@ -290,6 +291,7 @@ test("calculates an eligible three-property cluster with a standalone comparison
       withinHalfMile: true,
       sameScheduledVisit: true,
       includeManagedServiceFee: false,
+      managedServiceTier: "tier_1",
     }
   ));
   expect(await screen.findByRole("heading", { name: "Cluster planning estimate" })).toBeInTheDocument();
@@ -358,6 +360,7 @@ test("calculates a route-aware estimate against a selected saved route", async (
       serviceFrequency: "monthly",
       hasKnownIssues: false,
       includeManagedServiceFee: false,
+      managedServiceTier: "tier_1",
     }
   ));
   expect(await screen.findByRole("heading", { name: "Route-aware planning estimate" })).toBeInTheDocument();

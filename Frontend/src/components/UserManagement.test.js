@@ -51,7 +51,7 @@ const currentDirectory = {
     tier: "tier_1",
     adminLimit: 2,
     userLimit: 5,
-    propertyLimit: 10,
+    propertyLimit: 25,
     recurringMonthlyFeeCents: 30000,
     currency: "USD",
     label: "Full Stack SaaS Tier 1",
@@ -59,8 +59,8 @@ const currentDirectory = {
   licenseOptions: {
     tiers: ["tier_1", "tier_2", "tier_3"],
     tierLimits: {
-      tier_1: { adminLimit: 2, userLimit: 5, propertyLimit: 10 },
-      tier_2: { adminLimit: 3, userLimit: 20, propertyLimit: 50 },
+      tier_1: { adminLimit: 2, userLimit: 5, propertyLimit: 25 },
+      tier_2: { adminLimit: 3, userLimit: 20, propertyLimit: 75 },
       tier_3: { adminLimit: 5, userLimit: 50, propertyLimit: 250 },
     },
     hybridPortfolioMinimums: { tier_1: 15, tier_2: 12, tier_3: 10 },

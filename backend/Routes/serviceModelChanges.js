@@ -27,7 +27,8 @@ const { servicePlanChangeEvent } = require("../services/notificationEvents");
 const {
   BOUTIQUE_LIMITS,
   LICENSE_TIERS,
-  METERED_SERVICE_MODELS,
+  ACCOUNT_METERED_SERVICE_MODELS,
+  TIERED_SERVICE_MODELS,
   defaultStoredLicense,
   resolveLicenseEntitlements,
 } = require("../services/licenseEntitlements");
@@ -126,6 +127,11 @@ function storedLicense(organization, serviceModel, tier, updatedBy, updatedAt) {
     updatedBy,
     updatedAt,
   };
+}
+
+function nonDecreasingLimit(currentLimit, requestedLimit) {
+  if (requestedLimit == null) return null;
+  return Math.max(Number(currentLimit || 0), requestedLimit);
 }
 
 async function capacitySnapshot({ organization, UserModel, InvitationModel, now, session }) {
@@ -306,15 +312,15 @@ function createServiceModelChangeHandlers({
       let requestedAdminLimit = null;
 
       if (requestedChangeType === "license_tier") {
-        if (!METERED_SERVICE_MODELS.has(currentServiceModel)) {
-          return res.status(400).json({ error: "License tier increases are available only for SaaS and Hybrid organizations." });
+        if (!TIERED_SERVICE_MODELS.has(currentServiceModel)) {
+          return res.status(400).json({ error: "License tier increases are available only for tiered service plans." });
         }
         requestedLicenseTier = licenseTier(req.body.requestedLicenseTier, { required: true });
         if (LICENSE_TIERS.indexOf(requestedLicenseTier) <= LICENSE_TIERS.indexOf(currentLicenseTier)) {
           return res.status(400).json({ error: `Select a tier higher than the current ${tierLabel(currentLicenseTier)} plan.` });
         }
       } else if (requestedChangeType === "custom_capacity") {
-        if (!METERED_SERVICE_MODELS.has(currentServiceModel) || currentLicenseTier !== "tier_3") {
+        if (!ACCOUNT_METERED_SERVICE_MODELS.has(currentServiceModel) || currentLicenseTier !== "tier_3") {
           return res.status(400).json({ error: "Custom administrator capacity is available only for Tier 3 SaaS and Hybrid organizations." });
         }
         requestedAdminLimit = customAdminLimit(req.body.requestedAdminLimit, currentEntitlements.adminLimit);
@@ -323,7 +329,7 @@ function createServiceModelChangeHandlers({
         if (requestedServiceModel === currentServiceModel) {
           return res.status(400).json({ error: "Select a service model different from the current contract." });
         }
-        requestedLicenseTier = METERED_SERVICE_MODELS.has(requestedServiceModel)
+        requestedLicenseTier = TIERED_SERVICE_MODELS.has(requestedServiceModel)
           ? licenseTier(req.body.requestedLicenseTier, { required: true })
           : null;
       }
@@ -342,9 +348,9 @@ function createServiceModelChangeHandlers({
       } else if (requestedChangeType === "license_tier") {
         requestedEntitlements = {
           ...requestedEntitlements,
-          adminLimit: Math.max(currentEntitlements.adminLimit || 0, requestedEntitlements.adminLimit || 0),
-          userLimit: Math.max(currentEntitlements.userLimit || 0, requestedEntitlements.userLimit || 0),
-          propertyLimit: Math.max(currentEntitlements.propertyLimit || 0, requestedEntitlements.propertyLimit || 0),
+          adminLimit: nonDecreasingLimit(currentEntitlements.adminLimit, requestedEntitlements.adminLimit),
+          userLimit: nonDecreasingLimit(currentEntitlements.userLimit, requestedEntitlements.userLimit),
+          propertyLimit: nonDecreasingLimit(currentEntitlements.propertyLimit, requestedEntitlements.propertyLimit),
         };
       }
       const usage = await capacitySnapshot({
@@ -534,7 +540,7 @@ function createServiceModelChangeHandlers({
 
       if (action === "approve") {
         if (request.changeType === "custom_capacity") {
-          if (!METERED_SERVICE_MODELS.has(organization.serviceModel || "managed") || currentEntitlements.tier !== "tier_3") {
+          if (!ACCOUNT_METERED_SERVICE_MODELS.has(organization.serviceModel || "managed") || currentEntitlements.tier !== "tier_3") {
             return res.status(409).json({ error: "This organization is no longer on a Tier 3 tiered service plan." });
           }
           const approvedAdminLimit = customAdminLimit(
@@ -556,7 +562,7 @@ function createServiceModelChangeHandlers({
           await organization.save();
           appliedEntitlements = resolveLicenseEntitlements(organization);
         } else if ((request.changeType || "service_model") === "license_tier") {
-          if (!METERED_SERVICE_MODELS.has(organization.serviceModel || "managed")) {
+          if (!TIERED_SERVICE_MODELS.has(organization.serviceModel || "managed")) {
             return res.status(409).json({ error: "This organization no longer uses a tiered service model." });
           }
           const approvedTier = licenseTier(request.requestedLicenseTier, { required: true });
@@ -570,14 +576,14 @@ function createServiceModelChangeHandlers({
             req.user.userId,
             reviewedAt
           );
-          nextLicense.adminLimit = Math.max(currentEntitlements.adminLimit || 0, nextLicense.adminLimit || 0);
-          nextLicense.userLimit = Math.max(currentEntitlements.userLimit || 0, nextLicense.userLimit || 0);
-          nextLicense.propertyLimit = Math.max(currentEntitlements.propertyLimit || 0, nextLicense.propertyLimit || 0);
+          nextLicense.adminLimit = nonDecreasingLimit(currentEntitlements.adminLimit, nextLicense.adminLimit);
+          nextLicense.userLimit = nonDecreasingLimit(currentEntitlements.userLimit, nextLicense.userLimit);
+          nextLicense.propertyLimit = nonDecreasingLimit(currentEntitlements.propertyLimit, nextLicense.propertyLimit);
           organization.license = nextLicense;
           await organization.save();
           appliedEntitlements = resolveLicenseEntitlements(organization);
         } else {
-          const targetTier = METERED_SERVICE_MODELS.has(request.requestedServiceModel)
+          const targetTier = TIERED_SERVICE_MODELS.has(request.requestedServiceModel)
             ? licenseTier(request.requestedLicenseTier, { required: true })
             : null;
           const previousValue = {

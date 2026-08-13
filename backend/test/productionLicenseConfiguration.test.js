@@ -20,7 +20,7 @@ const PICOR_CONFIGURATION = {
   name: "Picor",
   disposition: "licensed",
   serviceModel: "managed",
-  tier: null,
+  tier: "tier_1",
 };
 
 const HISTORICAL_CONFIGURATIONS = [
@@ -81,15 +81,15 @@ function modelFixture({ organizations = [organization()], counts = {} } = {}) {
   return { OrganizationModel, UserModel, InvitationModel, ResourceDeploymentModel, queries };
 }
 
-test("Production license manifest explicitly configures Picor as Managed Service", () => {
-  assert.equal(manifest.version, "2026-08-06-production-license-dispositions-v1");
+test("Production license manifest explicitly configures Picor as Managed Service Tier 1", () => {
+  assert.equal(manifest.version, "2026-08-12-production-license-managed-tiers-v2");
   assert.deepEqual(manifest.organizations, [PICOR_CONFIGURATION, ...HISTORICAL_CONFIGURATIONS]);
   const normalized = normalizeProductionLicenseConfiguration(PICOR_CONFIGURATION);
   assert.deepEqual(normalized.license, {
-    tier: null,
+    tier: "tier_1",
     adminLimit: null,
     userLimit: null,
-    propertyLimit: null,
+    propertyLimit: 25,
     adminSeatVersion: 0,
     capacityVersion: 0,
   });
@@ -99,7 +99,7 @@ test("Production license manifest explicitly configures Picor as Managed Service
   );
 });
 
-test("metered Production license configurations require a valid tier and cannot undercut tier limits", () => {
+test("tiered Production license configurations require a valid tier and cannot undercut tier limits", () => {
   assert.throws(() => normalizeProductionLicenseConfiguration({
     name: "SaaS Customer",
     serviceModel: "platform",
@@ -125,6 +125,27 @@ test("metered Production license configurations require a valid tier and cannot 
     adminSeatVersion: 0,
     capacityVersion: 0,
   });
+
+  const managed = normalizeProductionLicenseConfiguration({
+    name: "Managed Customer",
+    serviceModel: "managed",
+    tier: "tier_2",
+    propertyLimit: 100,
+  });
+  assert.deepEqual(managed.license, {
+    tier: "tier_2",
+    adminLimit: null,
+    userLimit: null,
+    propertyLimit: 100,
+    adminSeatVersion: 0,
+    capacityVersion: 0,
+  });
+  assert.throws(() => normalizeProductionLicenseConfiguration({
+    name: "Managed Customer",
+    serviceModel: "managed",
+    tier: "tier_2",
+    adminLimit: 5,
+  }), /cannot define administrator or user limits/);
 });
 
 test("Boutique Production configuration uses canonical fixed capacity", () => {
@@ -161,7 +182,7 @@ test("Boutique Production configuration uses canonical fixed capacity", () => {
   ), /under 5,000 square feet/i);
 });
 
-test("Managed Service migration writes an explicit unmetered license record", () => {
+test("Managed Service migration writes Tier 1 property capacity and unmetered accounts", () => {
   const plan = buildProductionLicensePlan(
     organization({ license: undefined }),
     normalizeProductionLicenseConfiguration(PICOR_CONFIGURATION),
@@ -172,7 +193,7 @@ test("Managed Service migration writes an explicit unmetered license record", ()
       activeUsers: 20,
       pendingUsers: 2,
       allocatedUsers: 22,
-      properties: 50,
+      properties: 20,
     }
   );
   assert.equal(plan.status, "update");
@@ -306,8 +327,9 @@ test("apply rechecks inventory in a transaction, writes the license, and creates
   });
 
   assert.equal(plans[0].status, "update");
-  assert.equal(picor.license.tier, null);
+  assert.equal(picor.license.tier, "tier_1");
   assert.equal(picor.license.adminLimit, null);
+  assert.equal(picor.license.propertyLimit, 25);
   assert.equal(picor.license.updatedBy, "admin-1");
   assert.equal(picor.license.updatedAt.toISOString(), "2026-08-06T12:00:00.000Z");
   assert.deepEqual(picor.saved(), { count: 1, options: { session } });
@@ -320,10 +342,10 @@ test("apply rechecks inventory in a transaction, writes the license, and creates
 test("an already configured organization is idempotent", async () => {
   const picor = organization({
     license: {
-      tier: null,
+      tier: "tier_1",
       adminLimit: null,
       userLimit: null,
-      propertyLimit: null,
+      propertyLimit: 25,
       adminSeatVersion: 7,
     },
   });
@@ -435,10 +457,10 @@ test("plan summaries expose blocked state and capacity without sensitive configu
   const summary = summarizePlan({
     name: "Picor",
     status: "no_change",
-    next: { adminLimit: null },
+    next: { tier: "tier_1", adminLimit: null, propertyLimit: 25 },
     capacity: { allocatedAdministrators: 2, allocatedUsers: 5, properties: 10 },
   });
-  assert.match(summary, /Managed Service, unmetered/);
+  assert.match(summary, /tier_1, Managed Service, unmetered organization accounts, 25 properties/);
   assert.match(summary, /2 admins, 5 users, 10 properties/);
 
   const historical = summarizePlan({

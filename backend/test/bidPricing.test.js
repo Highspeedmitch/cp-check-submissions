@@ -84,13 +84,14 @@ test("clusters retain the primary property and discount each additional property
     sameScheduledVisit: true,
     includeManagedServiceFee: true,
   });
-  assert.equal(estimate.version, 6);
+  assert.equal(estimate.version, 7);
   assert.equal(estimate.pricingMode, "cluster");
   assert.equal(estimate.standalonePerVisitCents, 15000);
   assert.equal(estimate.estimatedPerVisitCents, 10000);
   assert.equal(estimate.estimatedMonthlyCents, 10000);
   assert.equal(estimate.clusterDiscountPerVisitCents, 5000);
   assert.deepEqual(estimate.managedService, {
+    tier: "tier_1",
     baseMonthlyFeeCents: 50000,
     includedInContractTotal: true,
     estimatedContractMonthlyCents: 60000,
@@ -205,7 +206,7 @@ test("route-aware pricing adds only travel beyond the included local trip", () =
       route: { confidence: 0, additionalMiles: 20, additionalMinutes: 60 },
     },
   });
-  assert.equal(estimate.version, 6);
+  assert.equal(estimate.version, 7);
   assert.equal(estimate.pricingMode, "route_aware");
   assert.equal(estimate.basePerVisitCents, 10000);
   assert.equal(estimate.travelSurchargeCents, 2200);
@@ -329,6 +330,7 @@ test("adds the managed-service base once without changing the visit estimate", (
   assert.equal(estimate.estimatedPerVisitCents, 20000);
   assert.equal(estimate.estimatedMonthlyCents, 20000);
   assert.deepEqual(estimate.managedService, {
+    tier: "tier_1",
     baseMonthlyFeeCents: 50000,
     includedInContractTotal: true,
     estimatedContractMonthlyCents: 70000,

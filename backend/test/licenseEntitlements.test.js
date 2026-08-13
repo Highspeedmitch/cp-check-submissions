@@ -13,6 +13,8 @@ test("SaaS and hybrid tiers include two, three, and five administrator seats", (
   assert.equal(TIER_LIMITS.tier_3.adminLimit, 5);
   assert.equal(resolveLicenseEntitlements({ serviceModel: "platform", license: { tier: "tier_2" } }).adminLimit, 3);
   assert.equal(resolveLicenseEntitlements({ serviceModel: "hybrid", license: { tier: "tier_3" } }).adminLimit, 5);
+  assert.equal(TIER_LIMITS.tier_1.propertyLimit, 25);
+  assert.equal(TIER_LIMITS.tier_2.propertyLimit, 75);
 });
 
 test("service plans expose their recurring organization fees", () => {
@@ -24,17 +26,22 @@ test("service plans expose their recurring organization fees", () => {
   assert.equal(managed.recurringMonthlyFeeCents, 50000);
   assert.equal(managed.currency, "USD");
   assert.equal(managed.visitChargesBilledSeparately, true);
+  assert.equal(resolveLicenseEntitlements({ serviceModel: "managed", license: { tier: "tier_2" } }).recurringMonthlyFeeCents, 125000);
+  assert.equal(resolveLicenseEntitlements({ serviceModel: "managed", license: { tier: "tier_3" } }).recurringMonthlyFeeCents, 250000);
   assert.equal(resolveLicenseEntitlements({ serviceModel: "platform" }).visitChargesBilledSeparately, false);
 });
 
-test("managed service administrator seats are unmetered", () => {
+test("managed service uses property tiers while organization accounts remain unmetered", () => {
   const entitlements = resolveLicenseEntitlements({
     serviceModel: "managed",
     license: { tier: "tier_1", adminLimit: 2 },
   });
   assert.equal(entitlements.unmeteredAdmins, true);
   assert.equal(entitlements.adminLimit, null);
-  assert.equal(entitlements.tier, null);
+  assert.equal(entitlements.userLimit, null);
+  assert.equal(entitlements.propertyLimit, 25);
+  assert.equal(entitlements.tier, "tier_1");
+  assert.equal(entitlements.label, "Managed service Tier 1");
   assert.equal(entitlements.afterlightPortfolioMinimumPercent, null);
 });
 
@@ -67,7 +74,7 @@ test("Boutique has fixed untiered capacity, visit billing, and no portfolio repo
   assert.equal(entitlements.monthlyExecutiveSummaryIncluded, false);
 
   for (const serviceModel of ["platform", "managed", "hybrid"]) {
-    const tier = ["platform", "hybrid"].includes(serviceModel) ? "tier_1" : null;
+    const tier = "tier_1";
     const plan = resolveLicenseEntitlements({ serviceModel, license: { tier } });
     assert.equal(plan.portfolioReportingIncluded, true);
     assert.equal(plan.monthlyExecutiveSummaryIncluded, true);

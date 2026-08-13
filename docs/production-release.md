@@ -181,8 +181,8 @@ idempotent. Remove both confirmation variables after use.
 
 The source-controlled license manifest is
 `backend/config/productionOrganizationLicenses.js`. Configuration version
-`2026-08-06-production-license-dispositions-v1` explicitly assigns Picor to
-Managed Service with unmetered administrator, user, and property capacity. It
+`2026-08-12-production-license-managed-tiers-v2` explicitly assigns Picor to
+Managed Service Tier 1 with unmetered organization accounts and capacity for 25 properties. It
 also records AzRoots, HSLD, and Breezykeyzy as retained historical
 organizations rather than licensed customer tenants.
 
@@ -220,7 +220,7 @@ To apply the reviewed manifest, set all three write guards and pass `--apply`:
 ```powershell
 $env:NODE_ENV = "production"
 $env:CONFIRM_PRODUCTION_LICENSE_CONFIGURATION = "I_UNDERSTAND_THIS_CHANGES_PRODUCTION_LICENSES"
-$env:PRODUCTION_LICENSE_CONFIGURATION_VERSION = "2026-08-06-production-license-dispositions-v1"
+$env:PRODUCTION_LICENSE_CONFIGURATION_VERSION = "2026-08-12-production-license-managed-tiers-v2"
 npm run configure-production-licenses -- --apply
 ```
 
@@ -229,9 +229,10 @@ preserves the administrator-seat version, writes only changed license records,
 and creates a platform audit record. Re-running it is idempotent. Remove both
 confirmation variables after use.
 
-The current release hard-enforces administrator seats. User and property
-limits are stored and displayed but are not yet enforced on creation. Afterlight
-resource accounts do not consume organization user capacity.
+The current release enforces administrator, user, and property capacity on
+capacity-bearing writes. Managed Service organization accounts remain unmetered,
+while its 25/75/250 property bands are enforced. Afterlight resource accounts do
+not consume organization user capacity.
 
 ## 7. Promotion order
 
@@ -253,8 +254,8 @@ resource accounts do not consume organization user capacity.
    all three organizations report `already retired`.
 9. Run the Production license configurator in dry-run mode and confirm all three
    historical organizations report `historical retained`. Apply the reviewed
-   manifest. Picor is Managed Service and therefore remains unmetered while its
-   explicit record is being established.
+   manifest. Picor is Managed Service Tier 1, with unmetered organization
+   accounts and a 25-property capacity limit.
 10. Deploy the frontend from the same release SHA.
 11. Complete the smoke tests below before announcing the release.
 
@@ -282,9 +283,9 @@ response.
   lifecycle push and an in-app notification.
 - Confirm Picor reports `managed` / `afterlight_staff` before creating its first
   new Production assignment.
-- Confirm Picor reports Managed Service and unmetered administrator capacity in
-  User Management. Confirm Afterlight resources do not appear in its customer
-  seat allocation.
+- Confirm Picor reports Managed Service Tier 1, unmetered administrator and user
+  accounts, and a 25-property limit. Confirm Afterlight resources do not appear
+  in its customer seat allocation.
 - Confirm AzRoots, HSLD, and Breezykeyzy remain visible to the platform with
   their historical properties and zero active organization users. Confirm one
   retired organization identity cannot enter its organization workspace.

@@ -12,7 +12,7 @@ function parseArguments(args = []) {
 function summarize(plan) {
   if (!plan.changed) return `${plan.name}: no change`;
   const format = (license) => license.adminLimit === null
-    ? "managed/unmetered"
+    ? `${license.tier}, managed, unmetered accounts, ${license.propertyLimit} properties`
     : `${license.tier}, ${license.adminLimit} admins, ${license.userLimit} users, ${license.propertyLimit} properties`;
   return `${plan.name}: ${format(plan.previous)} -> ${format(plan.next)}`;
 }

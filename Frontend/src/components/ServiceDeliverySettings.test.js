@@ -18,14 +18,14 @@ const settings = {
     orgType: "COM",
     serviceModel: "managed",
     license: {
-      tier: null,
+      tier: "tier_1",
       adminLimit: null,
       userLimit: null,
-      propertyLimit: null,
+      propertyLimit: 25,
       recurringMonthlyFeeCents: 50000,
       currency: "USD",
       visitChargesBilledSeparately: true,
-      planLabel: "Managed service",
+      planLabel: "Managed service Tier 1",
     },
     defaultSource: "afterlight_staff",
     policyVersion: 2,
@@ -34,15 +34,37 @@ const settings = {
   properties: [],
   options: {
     serviceModels: ["platform", "boutique", "managed", "hybrid"],
-    meteredServiceModels: ["platform", "hybrid"],
+    tieredServiceModels: ["platform", "managed", "hybrid"],
     licenseTiers: ["tier_1", "tier_2", "tier_3"],
     tierLimits: {
-      tier_1: { adminLimit: 2, userLimit: 5, propertyLimit: 10 },
-      tier_2: { adminLimit: 3, userLimit: 20, propertyLimit: 50 },
+      tier_1: { adminLimit: 2, userLimit: 5, propertyLimit: 25 },
+      tier_2: { adminLimit: 3, userLimit: 20, propertyLimit: 75 },
       tier_3: { adminLimit: 5, userLimit: 50, propertyLimit: 250 },
+    },
+    tierLimitsByServiceModel: {
+      platform: {
+        tier_1: { adminLimit: 2, userLimit: 5, propertyLimit: 25 },
+        tier_2: { adminLimit: 3, userLimit: 20, propertyLimit: 75 },
+        tier_3: { adminLimit: 5, userLimit: 50, propertyLimit: 250 },
+      },
+      hybrid: {
+        tier_1: { adminLimit: 2, userLimit: 5, propertyLimit: 25 },
+        tier_2: { adminLimit: 3, userLimit: 20, propertyLimit: 75 },
+        tier_3: { adminLimit: 5, userLimit: 50, propertyLimit: 250 },
+      },
+      managed: {
+        tier_1: { adminLimit: null, userLimit: null, propertyLimit: 25 },
+        tier_2: { adminLimit: null, userLimit: null, propertyLimit: 75 },
+        tier_3: { adminLimit: null, userLimit: null, propertyLimit: 250 },
+      },
     },
     hybridPortfolioMinimums: { tier_1: 15, tier_2: 12, tier_3: 10 },
     tierRecurringMonthlyPricesCents: { tier_1: 30000, tier_2: 70000, tier_3: 100000 },
+    serviceModelTierRecurringMonthlyPricesCents: {
+      platform: { tier_1: 30000, tier_2: 70000, tier_3: 100000 },
+      hybrid: { tier_1: 30000, tier_2: 70000, tier_3: 100000 },
+      managed: { tier_1: 50000, tier_2: 125000, tier_3: 250000 },
+    },
     managedServiceBaseMonthlyCents: 50000,
     boutiqueServiceBaseMonthlyCents: 7500,
     fulfillmentSources: [
@@ -83,7 +105,7 @@ beforeEach(() => {
         changeType: payload.changeType,
         currentServiceModel: "managed",
         requestedServiceModel: payload.requestedServiceModel,
-        currentLicenseTier: null,
+        currentLicenseTier: "tier_1",
         requestedLicenseTier: payload.requestedLicenseTier,
         reason: payload.reason,
         proposedEffectiveDate: payload.proposedEffectiveDate,
@@ -139,7 +161,7 @@ test("the service model is contract controlled while fulfillment policy remains 
   expect(await screen.findByText(/Organization defaults updated/)).toBeInTheDocument();
 });
 
-test("managed-service organizations do not see license tier controls", async () => {
+test("managed-service organizations can request a higher property tier", async () => {
   render(
     <MemoryRouter>
       <ServiceDeliverySettings />
@@ -149,8 +171,12 @@ test("managed-service organizations do not see license tier controls", async () 
   expect(await screen.findByRole("heading", { name: "Service plan" })).toBeInTheDocument();
   expect(screen.getByText("$500/month organization fee")).toBeInTheDocument();
   expect(screen.getByText(/property visits are billed separately/i)).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "Increase license tier" })).not.toBeInTheDocument();
-  expect(screen.queryByLabelText("Requested license tier")).not.toBeInTheDocument();
+  expect(screen.getByText("Tier 1")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Increase license tier" })).toBeInTheDocument();
+  const tierSelect = screen.getByLabelText("Requested license tier");
+  expect([...tierSelect.options].map(({ value }) => value)).toEqual(["tier_2", "tier_3"]);
+  expect(tierSelect.options[0]).toHaveTextContent("$1,250/month");
+  expect(tierSelect.options[0]).toHaveTextContent("75 properties");
 });
 
 test("Boutique organizations see the constrained $75 plan without reporting or tier controls", async () => {
@@ -235,7 +261,7 @@ test("a SaaS administrator can request only a higher license tier", async () => 
         tier: "tier_1",
         adminLimit: 2,
         userLimit: 5,
-        propertyLimit: 10,
+        propertyLimit: 25,
         recurringMonthlyFeeCents: 30000,
         currency: "USD",
         planLabel: "Full Stack SaaS Tier 1",

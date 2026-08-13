@@ -15,13 +15,15 @@ const {
 const { consumeGrant } = require("../services/organizationPasskeys");
 const {
   LICENSE_TIERS,
-  METERED_SERVICE_MODELS,
+  TIERED_SERVICE_MODELS,
   TIER_LIMITS,
+  MANAGED_TIER_LIMITS,
   HYBRID_PORTFOLIO_MINIMUMS,
   resolveLicenseEntitlements,
 } = require("../services/licenseEntitlements");
 const {
   TIER_RECURRING_MONTHLY_PRICES_CENTS,
+  SERVICE_MODEL_TIER_RECURRING_MONTHLY_PRICES_CENTS,
   MANAGED_SERVICE_BASE_MONTHLY_CENTS,
   BOUTIQUE_SERVICE_BASE_MONTHLY_CENTS,
 } = require("../services/servicePlanPricing");
@@ -95,11 +97,17 @@ function serializeSettings(organization) {
       sourcePolicies: SOURCE_POLICIES,
       licenseTiers: LICENSE_TIERS,
       tierLimits: TIER_LIMITS,
+      tierLimitsByServiceModel: {
+        platform: TIER_LIMITS,
+        hybrid: TIER_LIMITS,
+        managed: MANAGED_TIER_LIMITS,
+      },
       hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
       tierRecurringMonthlyPricesCents: TIER_RECURRING_MONTHLY_PRICES_CENTS,
+      serviceModelTierRecurringMonthlyPricesCents: SERVICE_MODEL_TIER_RECURRING_MONTHLY_PRICES_CENTS,
       managedServiceBaseMonthlyCents: MANAGED_SERVICE_BASE_MONTHLY_CENTS,
       boutiqueServiceBaseMonthlyCents: BOUTIQUE_SERVICE_BASE_MONTHLY_CENTS,
-      meteredServiceModels: [...METERED_SERVICE_MODELS],
+      tieredServiceModels: [...TIERED_SERVICE_MODELS],
     },
   };
 }

@@ -19,7 +19,7 @@ test("guides platform administrators through a reviewed organization launch", as
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("heading", { name: "Service delivery" })).toBeInTheDocument();
 
-  fireEvent.click(screen.getByLabelText(/Hybrid/));
+  fireEvent.click(screen.getByRole("radio", { name: /^Hybrid/ }));
   fireEvent.change(screen.getByRole("combobox", { name: /License tier/i }), { target: { value: "tier_2" } });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.change(screen.getByLabelText("Administrator email"), { target: { value: "ADMIN@EXAMPLE.COM" } });

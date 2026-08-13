@@ -1,4 +1,4 @@
-const CONFIGURATION_VERSION = "2026-08-06-production-license-dispositions-v1";
+const CONFIGURATION_VERSION = "2026-08-12-production-license-managed-tiers-v2";
 const HISTORICAL_ACCESS_RETIREMENT_VERSION = "2026-08-06-historical-access-retirement-v2";
 
 const organizations = Object.freeze([
@@ -6,7 +6,7 @@ const organizations = Object.freeze([
     name: "Picor",
     disposition: "licensed",
     serviceModel: "managed",
-    tier: null,
+    tier: "tier_1",
   }),
   Object.freeze({ name: "AzRoots", disposition: "historical" }),
   Object.freeze({ name: "HSLD", disposition: "historical" }),

@@ -28,11 +28,15 @@ const { withoutAutomaticPropertyEmails } = require("../services/propertyEmails")
 const {
   LICENSE_TIERS,
   TIER_LIMITS,
+  MANAGED_TIER_LIMITS,
   HYBRID_PORTFOLIO_MINIMUMS,
   resolveLicenseEntitlements,
   summarizeAdminSeats,
 } = require("../services/licenseEntitlements");
-const { TIER_RECURRING_MONTHLY_PRICES_CENTS } = require("../services/servicePlanPricing");
+const {
+  TIER_RECURRING_MONTHLY_PRICES_CENTS,
+  SERVICE_MODEL_TIER_RECURRING_MONTHLY_PRICES_CENTS,
+} = require("../services/servicePlanPricing");
 const { createLicensedAdminInvitations } = require("../services/licensedAdminInvitations");
 const { createLicensedOrganizationInvitation } = require("../services/licensedOrganizationInvitations");
 const {
@@ -151,8 +155,14 @@ router.get("/", async (req, res) => {
     licenseOptions: {
       tiers: LICENSE_TIERS,
       tierLimits: TIER_LIMITS,
+      tierLimitsByServiceModel: {
+        platform: TIER_LIMITS,
+        hybrid: TIER_LIMITS,
+        managed: MANAGED_TIER_LIMITS,
+      },
       hybridPortfolioMinimums: HYBRID_PORTFOLIO_MINIMUMS,
       tierRecurringMonthlyPricesCents: TIER_RECURRING_MONTHLY_PRICES_CENTS,
+      serviceModelTierRecurringMonthlyPricesCents: SERVICE_MODEL_TIER_RECURRING_MONTHLY_PRICES_CENTS,
     },
     properties: organization.properties.map((property) => ({
       _id: property._id,

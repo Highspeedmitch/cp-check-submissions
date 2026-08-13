@@ -17,10 +17,10 @@ test("organization setup normalizes platform input and starts guided onboarding"
     reportingTimezone: "America/Phoenix",
     serviceModel: "managed",
     license: {
-      tier: null,
+      tier: "tier_1",
       adminLimit: null,
       userLimit: null,
-      propertyLimit: null,
+      propertyLimit: 25,
       adminSeatVersion: 0,
       capacityVersion: 0,
     },
@@ -57,7 +57,7 @@ test("organization setup stores the selected Tier 2 SaaS limits", () => {
     tier: "tier_2",
     adminLimit: 3,
     userLimit: 20,
-    propertyLimit: 50,
+    propertyLimit: 75,
     adminSeatVersion: 0,
     capacityVersion: 0,
   });
