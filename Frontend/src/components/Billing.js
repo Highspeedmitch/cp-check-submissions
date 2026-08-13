@@ -50,6 +50,12 @@ function isAfterlightServiceInvoice(invoice) {
     || invoice.fulfillmentSnapshot?.invoiceRouting === "afterlight_service_billing";
 }
 
+export function apiRequestForMethod(method, path, body) {
+  const requestBody = body ?? {};
+  if (method === "PUT") return api.put(path, requestBody);
+  return api.post(path, requestBody);
+}
+
 export default function Billing() {
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
@@ -184,11 +190,6 @@ export default function Billing() {
     } finally {
       setBusy(actionKey, false);
     }
-  }
-
-  function apiRequestForMethod(method, path, body) {
-    if (method === "PUT") return api.put(path, body);
-    return api.post(path, body);
   }
 
   async function saveAmount(invoice) {

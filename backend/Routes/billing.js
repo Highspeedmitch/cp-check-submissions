@@ -860,46 +860,55 @@ router.get("/:id/review", async (req, res) => {
   }
 });
 
-router.post("/:id/approve", async (req, res) => {
-  try {
-    if (!validId(req.params.id)) {
-      return res.status(400).json({ error: "Invalid invoice." });
+function createApproveInvoiceHandler({
+  approveInvoice = approveInvoiceAndSendToAp,
+  logger = console,
+} = {}) {
+  return async (req, res) => {
+    try {
+      if (!validId(req.params.id)) {
+        return res.status(400).json({ error: "Invalid invoice." });
+      }
+      const { invoice, deliveryResult } = await approveInvoice({
+        invoiceId: req.params.id,
+        organizationId: req.user.organizationId,
+        actor: req.user,
+        approvalMethod: "authenticated_portal",
+        confirmationNumber: req.body?.confirmationNumber || "",
+      });
+      logger.info(JSON.stringify({
+        event: deliveryResult.status === "accepted"
+          ? "invoice_ap_delivery_accepted"
+          : "invoice_ap_delivery_recorded",
+        invoiceId: String(invoice._id),
+        organizationId: String(invoice.organizationId),
+        method: invoice.delivery.method,
+        deliveryStatus: invoice.delivery.status,
+        provider: invoice.delivery.provider,
+        providerMessageId: invoice.delivery.providerMessageId,
+        attemptCount: invoice.delivery.attemptCount,
+      }));
+      return res.json({ ...invoice.toObject(), warning: deliveryResult.warning });
+    } catch (error) {
+      logger.error(JSON.stringify({
+        event: error.deliveryFailure ? "invoice_ap_delivery_failed" : "invoice_approval_rejected",
+        invoiceId: error.invoice?._id ? String(error.invoice._id) : String(req.params.id),
+        organizationId: error.invoice?.organizationId
+          ? String(error.invoice.organizationId)
+          : String(req.user.organizationId),
+        errorCode: error.code || "INVOICE_APPROVAL_ERROR",
+        errorName: String(error.name || "Error").slice(0, 100),
+        errorMessage: String(error.message || "Unknown invoice approval error.").slice(0, 500),
+      }));
+      return res.status(error.status || 500).json({
+        error: error.status ? error.message : "Unable to approve and send this invoice.",
+        code: error.code || undefined,
+      });
     }
-    const { invoice, deliveryResult } = await approveInvoiceAndSendToAp({
-      invoiceId: req.params.id,
-      organizationId: req.user.organizationId,
-      actor: req.user,
-      approvalMethod: "authenticated_portal",
-      confirmationNumber: req.body.confirmationNumber,
-    });
-    console.info(JSON.stringify({
-      event: deliveryResult.status === "accepted"
-        ? "invoice_ap_delivery_accepted"
-        : "invoice_ap_delivery_recorded",
-      invoiceId: String(invoice._id),
-      organizationId: String(invoice.organizationId),
-      method: invoice.delivery.method,
-      deliveryStatus: invoice.delivery.status,
-      provider: invoice.delivery.provider,
-      providerMessageId: invoice.delivery.providerMessageId,
-      attemptCount: invoice.delivery.attemptCount,
-    }));
-    res.json({ ...invoice.toObject(), warning: deliveryResult.warning });
-  } catch (error) {
-    console.error(JSON.stringify({
-      event: error.deliveryFailure ? "invoice_ap_delivery_failed" : "invoice_approval_rejected",
-      invoiceId: error.invoice?._id ? String(error.invoice._id) : String(req.params.id),
-      organizationId: error.invoice?.organizationId
-        ? String(error.invoice.organizationId)
-        : String(req.user.organizationId),
-      errorCode: error.code || "INVOICE_APPROVAL_ERROR",
-    }));
-    res.status(error.status || 500).json({
-      error: error.status ? error.message : "Unable to approve and send this invoice.",
-      code: error.code || undefined,
-    });
-  }
-});
+  };
+}
+
+router.post("/:id/approve", createApproveInvoiceHandler());
 
 router.post("/:id/decline", async (req, res) => {
   try {
@@ -998,3 +1007,4 @@ router.post("/:id/mark-paid", async (req, res) => {
 });
 
 module.exports = router;
+module.exports.createApproveInvoiceHandler = createApproveInvoiceHandler;
