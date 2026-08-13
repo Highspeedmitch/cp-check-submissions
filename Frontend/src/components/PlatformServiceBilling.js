@@ -36,6 +36,90 @@ function apDestination(invoice) {
   return "Manual download";
 }
 
+function createResendRequestId() {
+  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `invoice_resend_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+}
+
+function resendAttemptLabel(status) {
+  return ({
+    sending: "sending",
+    accepted: "accepted by the email provider",
+    delayed: "delayed by the email provider",
+    delivered: "delivered to the recipient mail server",
+    partial_failure: "partially delivered",
+    failed: "failed",
+  })[status] || String(status || "completed").replaceAll("_", " ");
+}
+
+function ResendReviewDialog({ dialog, busy, onClose, onChange, onSubmit }) {
+  if (!dialog) return null;
+  const selected = new Set(dialog.recipientUserIds);
+  return (
+    <div className="beta-dialog-overlay" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !busy) onClose();
+    }}>
+      <form className="beta-dialog platform-review-resend-dialog" role="dialog" aria-modal="true"
+        aria-labelledby="review-resend-title" aria-describedby="review-resend-description"
+        onSubmit={onSubmit}>
+        <div className="beta-dialog-header">
+          <div>
+            <p className="beta-eyebrow">Customer review recovery</p>
+            <h2 id="review-resend-title">Resend review email</h2>
+          </div>
+          <button type="button" className="beta-dialog-close" disabled={busy}
+            onClick={onClose} aria-label="Close resend review dialog">&times;</button>
+        </div>
+        <p id="review-resend-description" className="beta-dialog-copy">
+          Resend the existing inspection report and invoice for {dialog.invoice.propertySnapshot?.name || "this property"}. The invoice and approval state will not change.
+        </p>
+
+        {dialog.loading ? <div className="beta-empty-state">Loading assigned property managers...</div> : (
+          <>
+            <fieldset className="platform-review-resend-recipients">
+              <legend>Recipients</legend>
+              {dialog.recipients.length ? dialog.recipients.map((recipient) => (
+                <label key={recipient._id}>
+                  <input type="checkbox" checked={selected.has(recipient._id)} disabled={busy}
+                    onChange={(event) => {
+                      const next = event.target.checked
+                        ? [...selected, recipient._id]
+                        : [...selected].filter((id) => id !== recipient._id);
+                      onChange({ recipientUserIds: next });
+                    }} />
+                  <span><strong>{recipient.name}</strong><small>{recipient.email}</small></span>
+                </label>
+              )) : <p className="beta-dialog-error">No active property manager with an email address is currently assigned.</p>}
+            </fieldset>
+            <label className="beta-field">Reason for resending
+              <textarea value={dialog.reason} maxLength={500} disabled={busy}
+                placeholder="For example: Customer mail quarantine was cleared."
+                onChange={(event) => onChange({ reason: event.target.value })} />
+            </label>
+            <p className="beta-dialog-note">
+              Each selected manager will receive a fresh approval link. The email provider accepting a message does not guarantee that it avoids the recipient's quarantine or spam controls.
+            </p>
+            {dialog.lastAttempt?.completedAt && (
+              <p className="beta-dialog-note">Last resend was {resendAttemptLabel(dialog.lastAttempt.status)} on {new Date(dialog.lastAttempt.completedAt).toLocaleString()}.</p>
+            )}
+          </>
+        )}
+
+        {dialog.error && <p className="beta-dialog-error" role="alert">{dialog.error}</p>}
+        <div className="beta-dialog-actions">
+          <button type="button" className="beta-button secondary" disabled={busy} onClick={onClose}>Cancel</button>
+          <button type="submit" className="beta-button" disabled={busy || dialog.loading
+            || !dialog.recipientUserIds.length || !dialog.reason.trim()}>
+            {busy ? "Resending..." : "Resend Email"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function PlatformServiceBilling() {
   const [invoices, setInvoices] = useState([]);
   const [amounts, setAmounts] = useState({});
@@ -44,6 +128,8 @@ export default function PlatformServiceBilling() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [resendDialog, setResendDialog] = useState(null);
+  const [resendBusy, setResendBusy] = useState(false);
 
   const loadInvoices = useCallback(async () => {
     setLoading(true);
@@ -91,6 +177,65 @@ export default function PlatformServiceBilling() {
       setError(requestError.message);
     } finally {
       setBusy("");
+    }
+  }
+
+  async function openResendDialog(invoice) {
+    if (busy || resendBusy) return;
+    setError("");
+    setMessage("");
+    setResendDialog({
+      invoice,
+      loading: true,
+      recipients: [],
+      recipientUserIds: [],
+      reason: "",
+      requestId: createResendRequestId(),
+      lastAttempt: null,
+      error: "",
+    });
+    try {
+      const result = await api.get(
+        `/api/billing/platform-service-invoices/${invoice._id}/review-recipients`
+      );
+      setResendDialog((current) => current?.invoice._id === invoice._id ? {
+        ...current,
+        loading: false,
+        recipients: result.recipients || [],
+        recipientUserIds: (result.recipients || []).map((recipient) => recipient._id),
+        lastAttempt: result.lastAttempt || null,
+      } : current);
+    } catch (requestError) {
+      setResendDialog((current) => current?.invoice._id === invoice._id ? {
+        ...current,
+        loading: false,
+        error: requestError.message,
+      } : current);
+    }
+  }
+
+  async function resendReviewEmail(event) {
+    event.preventDefault();
+    if (!resendDialog || resendBusy) return;
+    if (!resendDialog.recipientUserIds.length || !resendDialog.reason.trim()) return;
+    setResendBusy(true);
+    setResendDialog((current) => ({ ...current, error: "" }));
+    try {
+      const result = await api.post(
+        `/api/billing/platform-service-invoices/${resendDialog.invoice._id}/resend-review`,
+        {
+          recipientUserIds: resendDialog.recipientUserIds,
+          reason: resendDialog.reason.trim(),
+          requestId: resendDialog.requestId,
+        }
+      );
+      setResendDialog(null);
+      setMessage(result.warning || result.message || "The review email was accepted by the email provider.");
+      await loadInvoices();
+    } catch (requestError) {
+      setResendDialog((current) => ({ ...current, error: requestError.message }));
+    } finally {
+      setResendBusy(false);
     }
   }
 
@@ -168,6 +313,8 @@ export default function PlatformServiceBilling() {
                   {invoice.pdfUrl && <a className="beta-link-button compact" href={invoice.pdfUrl} target="_blank" rel="noreferrer">View PDF</a>}
                   {invoice.status === "unbilled" && invoice.pdfUrl && <button type="button" className="beta-button compact" disabled={actionBusy}
                     onClick={() => run(invoice._id, "submit", "Invoice sent for customer review.")}>Send for Customer Review</button>}
+                  {invoice.status === "pending_review" && <button type="button" className="beta-button secondary compact" disabled={actionBusy || resendBusy}
+                    onClick={() => openResendDialog(invoice)}>Resend Review Email</button>}
                   {invoice.status === "submitted" && <button type="button" className="beta-button compact" disabled={actionBusy}
                     onClick={() => window.confirm("Has Afterlight confirmed receipt of this customer payment?") && run(invoice._id, "mark-paid", "Customer invoice marked paid.")}>Mark Paid</button>}
                 </div>
@@ -176,6 +323,14 @@ export default function PlatformServiceBilling() {
           })}
         </div>
       ) : <div className="beta-empty-state">No Afterlight service invoices match this view.</div>}
+
+      <ResendReviewDialog
+        dialog={resendDialog}
+        busy={resendBusy}
+        onClose={() => !resendBusy && setResendDialog(null)}
+        onChange={(changes) => setResendDialog((current) => ({ ...current, ...changes }))}
+        onSubmit={resendReviewEmail}
+      />
     </div>
   );
 }

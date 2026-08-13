@@ -14,6 +14,7 @@ const {
 const {
   issueEmailApprovalAuthorization,
   secureEmailApprovalEligible,
+  stageEmailApprovalAuthorization,
 } = require("./invoiceEmailAuthorization");
 const { effectivePropertyManagerIds } = require("./routeScopes");
 
@@ -78,6 +79,9 @@ async function emailPropertyManagersForReview(
     storage = s3,
     OrganizationModel = Organization,
     issueAuthorization = issueEmailApprovalAuthorization,
+    stageAuthorization = stageEmailApprovalAuthorization,
+    preserveExistingAuthorizationOnFailure = false,
+    reviewAttemptId = "",
   } = {}
 ) {
   const recipients = managers.map((manager) => manager.email).filter(Boolean);
@@ -120,8 +124,10 @@ async function emailPropertyManagersForReview(
   if (secureEmailApprovalEligible(organization, invoice)) {
     const signedReviewUrl = buildFrontendUrl(`/billing/review/${invoice._id}`);
     const tokenHours = Number(organization.billingCapabilities?.emailApprovalTokenHours) || 24;
-    await Promise.all(managers.filter((manager) => manager.email).map(async (manager) => {
-      const issued = await issueAuthorization({ invoice, organization, manager });
+    return Promise.all(managers.filter((manager) => manager.email).map(async (manager) => {
+      const issued = preserveExistingAuthorizationOnFailure
+        ? await stageAuthorization({ invoice, organization, manager })
+        : await issueAuthorization({ invoice, organization, manager });
       const approverName = escapeHtml(manager.username || manager.email);
       const safeApprovalUrl = escapeHtml(issued.url);
       const safeSignedReviewUrl = escapeHtml(signedReviewUrl);
@@ -151,20 +157,44 @@ async function emailPropertyManagersForReview(
             <p>The approval link expires in ${tokenHours} hours and can be used once. Opening the link does not approve the invoice; you will confirm the action on a secure Afterlight page.</p>
           `,
           attachments,
+          ses: {
+            configurationSetName: process.env.SES_AP_CONFIGURATION_SET || "",
+            tags: [
+              { Name: "message_type", Value: "invoice_review" },
+              { Name: "invoice_id", Value: String(invoice._id) },
+              { Name: "review_cycle", Value: String(invoice.review?.cycle || 0) },
+              { Name: "reviewer_user_id", Value: String(manager._id) },
+              ...(reviewAttemptId
+                ? [{ Name: "review_attempt_id", Value: String(reviewAttemptId) }]
+                : []),
+            ],
+          },
         });
-        issued.authorization.emailSentAt = new Date();
-        issued.authorization.providerMessageId = result?.messageId || "";
-        await issued.authorization.save();
+        if (preserveExistingAuthorizationOnFailure) {
+          await issued.commit(result);
+        } else {
+          issued.authorization.emailSentAt = new Date();
+          issued.authorization.providerMessageId = result?.messageId || "";
+          await issued.authorization.save();
+        }
+        return {
+          reviewerUserId: manager._id,
+          email: String(manager.email).trim().toLowerCase(),
+          providerMessageId: result?.messageId || "",
+        };
       } catch (error) {
-        issued.authorization.deliveryError = "Review email delivery failed.";
-        await issued.authorization.save().catch(() => {});
+        if (preserveExistingAuthorizationOnFailure) {
+          await issued.rollback().catch(() => {});
+        } else {
+          issued.authorization.deliveryError = "Review email delivery failed.";
+          await issued.authorization.save().catch(() => {});
+        }
         throw error;
       }
     }));
-    return;
   }
 
-  await sendEmail({
+  const result = await sendEmail({
     to: process.env.SYSTEM_EMAIL_ADDRESS,
     bcc: recipients.join(","),
     ...(replyTo ? { replyTo } : {}),
@@ -185,7 +215,23 @@ async function emailPropertyManagersForReview(
       <p>You will be asked to sign in if your Afterlight session is not active.</p>
     `,
     attachments,
+    ses: {
+      configurationSetName: process.env.SES_AP_CONFIGURATION_SET || "",
+      tags: [
+        { Name: "message_type", Value: "invoice_review" },
+        { Name: "invoice_id", Value: String(invoice._id) },
+        { Name: "review_cycle", Value: String(invoice.review?.cycle || 0) },
+        ...(reviewAttemptId
+          ? [{ Name: "review_attempt_id", Value: String(reviewAttemptId) }]
+          : []),
+      ],
+    },
   });
+  return managers.filter((manager) => manager.email).map((manager) => ({
+    reviewerUserId: manager._id,
+    email: String(manager.email).trim().toLowerCase(),
+    providerMessageId: result?.messageId || "",
+  }));
 }
 
 async function generateInvoiceDocument(

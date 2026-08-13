@@ -220,6 +220,54 @@ test("secure email approval sends each property manager an individual one-time l
   assert.equal(messages[0].attachments.length, 2);
   assert.match(messages[0].html, /Approve &amp; Send to AP/);
   assert.match(messages[0].html, /Opening the link does not approve/);
+  assert.deepEqual(messages[0].ses.tags.slice(0, 3), [
+    { Name: "message_type", Value: "invoice_review" },
+    { Name: "invoice_id", Value: "invoice-1" },
+    { Name: "review_cycle", Value: "2" },
+  ]);
+});
+
+test("a failed secure resend rolls back the staged link", async () => {
+  const record = invoice({
+    invoiceNumber: "INV-24",
+    pdfKey: "invoice.pdf",
+    inspectionDate: new Date("2026-08-07T12:00:00Z"),
+    review: { cycle: 2 },
+    propertySnapshot: {
+      name: "Winterhaven Square",
+      propertyCode: "WH01",
+      apMethod: "email",
+      apEmail: "ap@client.example",
+    },
+  });
+  let rolledBack = false;
+  await assert.rejects(emailPropertyManagersForReview(record, [
+    { _id: "pm-1", username: "Jordan Lee", email: "jordan@client.example" },
+  ], {
+    inspectionPdf: { filename: "inspection.pdf", content: Buffer.from("inspection") },
+    preserveExistingAuthorizationOnFailure: true,
+    storage: {
+      getObject: () => ({ promise: async () => ({ Body: Buffer.from("invoice") }) }),
+    },
+    OrganizationModel: {
+      findById: () => ({
+        select: () => ({
+          lean: async () => ({
+            serviceModel: "managed",
+            billingCapabilities: { invoiceApprovalExperience: "secure_email_link" },
+          }),
+        }),
+      }),
+    },
+    stageAuthorization: async () => ({
+      url: "https://app.example/new-approval",
+      authorization: {},
+      commit: async () => assert.fail("failed email must not activate the staged link"),
+      rollback: async () => { rolledBack = true; },
+    }),
+    sendEmail: async () => { throw new Error("provider unavailable"); },
+  }), /provider unavailable/);
+  assert.equal(rolledBack, true);
 });
 
 test("the default organization experience retains authenticated review", async () => {

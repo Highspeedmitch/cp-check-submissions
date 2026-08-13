@@ -91,6 +91,8 @@ test("billing router exposes the platform-owned service invoice lifecycle", () =
     { path: "/platform-service-invoices/:id/amount", methods: ["put"] },
     { path: "/platform-service-invoices/:id/generate", methods: ["post"] },
     { path: "/platform-service-invoices/:id/submit", methods: ["post"] },
+    { path: "/platform-service-invoices/:id/review-recipients", methods: ["get"] },
+    { path: "/platform-service-invoices/:id/resend-review", methods: ["post"] },
     { path: "/platform-service-invoices/:id/mark-paid", methods: ["post"] },
   ]) {
     assert.deepEqual(inventory.find((candidate) => candidate.path === route.path), route);

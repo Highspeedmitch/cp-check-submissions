@@ -50,6 +50,16 @@ Saving a revised amount invalidates the previous PDF. Generate a new PDF before 
 
 The AP message identifies the approving property manager by name, provides that manager's email for questions, and uses the manager as the Reply-To contact. Afterlight preserves this approval-time contact snapshot even if the user's profile changes later.
 
+### Resend a customer review email
+
+If a review message was quarantined, deleted, or otherwise unavailable, open the invoice while it is still **Awaiting customer review** and select **Resend Review Email**.
+
+1. Confirm the currently assigned property manager recipients. Remove any manager who should not receive this copy.
+2. Enter a short operational reason for the audit record.
+3. Select **Resend Email**.
+
+The resend uses the existing invoice and inspection report PDFs and does not change the amount, invoice number, review cycle, or approval state. Secure-email recipients receive a fresh one-time approval link; a failed resend leaves the previous link available. The application reports when Amazon SES accepts the message, but acceptance does not prove that a customer's internal quarantine or spam controls allowed it into the inbox.
+
 ## Reconcile customer payment
 
 After Afterlight confirms receipt of the customer payment, return to **Platform > Service Billing** and select **Mark Paid**. Do not mark a customer invoice paid merely because its related contractor earning was paid through Gusto.

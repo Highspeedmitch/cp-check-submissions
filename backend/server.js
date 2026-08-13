@@ -7,6 +7,7 @@ const { createShutdownCoordinator, installShutdownHandlers } = require("./runtim
 const { purgeExpiredProspectAssessments } = require("./services/prospectRetention");
 const { startPollingWorker } = require("./services/pollingWorker");
 const CalendarFeedSubscription = require("./models/calendarFeedSubscription");
+const InvoiceReviewEmailAttempt = require("./models/invoiceReviewEmailAttempt");
 
 const PROSPECT_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -36,7 +37,10 @@ async function startServer() {
   if (assignmentIndex.changed) {
     console.log("Assignment scheduling index migrated to scheduled-only uniqueness.");
   }
-  await CalendarFeedSubscription.createIndexes();
+  await Promise.all([
+    CalendarFeedSubscription.createIndexes(),
+    InvoiceReviewEmailAttempt.createIndexes(),
+  ]);
 
   const workerRuntime = startBackgroundWorkers();
 

@@ -156,3 +156,64 @@ test("ignores events from an earlier AP delivery attempt", async () => {
   });
   assert.equal(result.reason, "old_attempt");
 });
+
+test("updates a durable review resend attempt from an SES delivery event", async () => {
+  const attempt = {
+    _id: "64f000000000000000000010",
+    invoiceId: INVOICE_ID,
+    organizationId: "64f000000000000000000002",
+    status: "accepted",
+    recipients: [{
+      userId: "64f000000000000000000004",
+      providerMessageId: "ses-review-message-1",
+      status: "accepted",
+      lastEventAt: null,
+      lastEventRank: 0,
+      lastEventMessageId: "",
+    }],
+    async save() { this.saved = true; },
+  };
+  const event = sesEvent("Delivery");
+  event.mail.messageId = "ses-review-message-1";
+  event.mail.tags = {
+    message_type: ["invoice_review"],
+    invoice_id: [INVOICE_ID],
+    review_attempt_id: [String(attempt._id)],
+  };
+  const result = await applySesDeliveryEvent(event, {
+    snsMessageId: "sns-review-1",
+    InvoiceModel: { findOne: () => assert.fail("AP invoice lookup should not run") },
+    AttemptModel: {
+      findOne: async () => attempt,
+      findById: async () => null,
+    },
+  });
+
+  assert.equal(result.scope, "invoice_review");
+  assert.equal(result.deliveryStatus, "delivered");
+  assert.equal(attempt.status, "delivered");
+  assert.equal(attempt.recipients[0].status, "delivered");
+  assert.equal(attempt.saved, true);
+});
+
+test("asks SNS to retry when a review event arrives before the attempt is saved", async () => {
+  const event = sesEvent("Delivery");
+  event.mail.messageId = "ses-review-message-2";
+  event.mail.tags = {
+    message_type: ["invoice_review"],
+    invoice_id: [INVOICE_ID],
+    review_attempt_id: ["64f000000000000000000011"],
+  };
+  const result = await applySesDeliveryEvent(event, {
+    snsMessageId: "sns-review-2",
+    AttemptModel: {
+      findOne: async () => null,
+      findById: async () => ({
+        status: "sending",
+        recipients: [{ providerMessageId: "" }],
+      }),
+    },
+  });
+  assert.equal(result.status, "retry");
+  assert.equal(result.reason, "review_attempt_not_ready");
+});

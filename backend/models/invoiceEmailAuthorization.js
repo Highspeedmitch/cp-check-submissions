@@ -22,6 +22,8 @@ const InvoiceEmailAuthorizationSchema = new mongoose.Schema({
   reviewerEmail: { type: String, required: true },
   reviewCycle: { type: Number, required: true, min: 1 },
   tokenHash: { type: String, required: true, unique: true, index: true, select: false },
+  pendingTokenHash: { type: String, default: "", select: false },
+  pendingExpiresAt: { type: Date, default: null },
   status: {
     type: String,
     enum: ["active", "consumed", "revoked"],
