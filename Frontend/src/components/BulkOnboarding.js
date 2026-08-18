@@ -41,7 +41,7 @@ function CapacitySummary({ preview }) {
   );
 }
 
-function CommitDialog({ type, busy, onClose, onCommit }) {
+function CommitDialog({ type, busy, onClose, onCommit, requiresPasskey = true }) {
   const [passkey, setPasskey] = useState("");
   return (
     <div className="beta-dialog-overlay">
@@ -49,7 +49,7 @@ function CommitDialog({ type, busy, onClose, onCommit }) {
         aria-labelledby="bulk-import-confirm-title"
         onSubmit={(event) => {
           event.preventDefault();
-          if (passkey.trim() && !busy) onCommit(passkey);
+          if ((!requiresPasskey || passkey.trim()) && !busy) onCommit(passkey);
         }}>
         <div className="beta-dialog-header">
           <div>
@@ -63,15 +63,17 @@ function CommitDialog({ type, busy, onClose, onCommit }) {
           The import is all-or-nothing. If any record or licensed capacity changed after preview,
           nothing will be created and you will be asked to review it again.
         </p>
-        <label className="beta-field" htmlFor="bulk-onboarding-passkey">
+        {requiresPasskey ? <label className="beta-field" htmlFor="bulk-onboarding-passkey">
           <span>Administrative action passkey</span>
           <input id="bulk-onboarding-passkey" type="password" autoComplete="off"
             value={passkey} disabled={busy}
             onChange={(event) => setPasskey(event.target.value)} />
-        </label>
+        </label> : (
+          <p className="beta-alert notice">Your protected, audited Admin View session authorizes this import.</p>
+        )}
         <div className="beta-dialog-actions">
           <button type="button" className="beta-button secondary" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="beta-button" disabled={!passkey.trim() || busy}>
+          <button type="submit" className="beta-button" disabled={(requiresPasskey && !passkey.trim()) || busy}>
             {busy ? "Importing…" : "Complete import"}
           </button>
         </div>
@@ -185,6 +187,8 @@ export default function BulkOnboarding() {
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [assistanceOpen, setAssistanceOpen] = useState(false);
+  const platformManagedAdminView = localStorage.getItem("assumedOrganization") === "true"
+    && localStorage.getItem("organizationAdministrationMode") === "platform_managed";
 
   function resetForType(nextType) {
     setType(nextType);
@@ -385,7 +389,8 @@ export default function BulkOnboarding() {
         </section>
       </main>
       {confirmOpen && (
-        <CommitDialog type={type} busy={busy} onClose={() => setConfirmOpen(false)} onCommit={commitImport} />
+        <CommitDialog type={type} busy={busy} onClose={() => setConfirmOpen(false)}
+          onCommit={commitImport} requiresPasskey={!platformManagedAdminView} />
       )}
       {assistanceOpen && (
         <AssistanceRequestDialog type={type} suggestedRows={preview?.rowCount}

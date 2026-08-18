@@ -4,8 +4,16 @@ const bcrypt = require("bcryptjs");
 const Organization = require("../models/organization");
 const User = require("../models/user");
 const UserAudit = require("../models/userAudit");
+const PlatformAudit = require("../models/platformAudit");
 const RefreshSession = require("../models/refreshSession");
-const { issueGrant } = require("../services/organizationPasskeys");
+const {
+  issueGrant,
+  issuePlatformManagedGrant,
+} = require("../services/organizationPasskeys");
+const {
+  PLATFORM_MANAGED_GRANT_PURPOSES,
+  isPlatformManagedAdminView,
+} = require("../services/organizationAdministration");
 const {
   config: totpConfig,
   verifyTotp,
@@ -31,6 +39,11 @@ const verificationLimiter = rateLimit({
 router.use((req, res, next) => {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Admins only." });
   if (req.user.assumedOrganization) {
+    if (req.method === "POST"
+      && req.path === "/grants"
+      && isPlatformManagedAdminView(req.user)) {
+      return next();
+    }
     return res.status(403).json({ error: "Security settings cannot be changed through assumed access." });
   }
   next();
@@ -195,6 +208,35 @@ router.post("/grants", verificationLimiter, async (req, res) => {
     return res.status(400).json({ error: "Invalid administrative action." });
   }
   try {
+    if (isPlatformManagedAdminView(req.user)) {
+      if (!PLATFORM_MANAGED_GRANT_PURPOSES.has(purpose)) {
+        return res.status(403).json({
+          error: "This administrative action requires a customer administrator.",
+        });
+      }
+      const organization = await Organization.findById(req.user.organizationId);
+      if (!organization) return res.status(404).json({ error: "Organization not found." });
+      const token = await issuePlatformManagedGrant({
+        organization,
+        userId: req.user.userId,
+        purpose,
+      });
+      if (!token) {
+        return res.status(403).json({ error: "Platform-managed administrator verification failed." });
+      }
+      await PlatformAudit.create({
+        actorUserId: req.user.userId,
+        action: "platform_managed_admin_grant_issued",
+        targetOrganizationId: organization._id,
+        metadata: {
+          purpose,
+          platformSessionId: req.user.platformSessionId,
+        },
+        ipAddress: req.ip || "",
+        userAgent: req.get("user-agent") || "",
+      });
+      return res.json({ grant: token, expiresInSeconds: 300, verification: "platform_session" });
+    }
     if (purpose === "remove_admin") {
       await verifyAdministratorAccessChange({
         organizationId: req.user.organizationId,

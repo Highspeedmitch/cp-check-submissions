@@ -11,7 +11,11 @@ test("organization setup normalizes platform input and starts guided onboarding"
     orgType: "com",
     reportingTimezone: "America/Phoenix",
   });
-  assert.deepEqual({ ...setup, onboarding: { ...setup.onboarding, initiatedAt: "timestamp" } }, {
+  assert.deepEqual({
+    ...setup,
+    administration: { ...setup.administration, updatedAt: "timestamp" },
+    onboarding: { ...setup.onboarding, initiatedAt: "timestamp" },
+  }, {
     name: "Example Commercial",
     orgType: "COM",
     reportingTimezone: "America/Phoenix",
@@ -28,12 +32,33 @@ test("organization setup normalizes platform input and starts guided onboarding"
       defaultSource: "afterlight_staff",
       version: 1,
     },
+    administration: {
+      mode: "customer_managed",
+      updatedAt: "timestamp",
+    },
     onboarding: {
       status: "invited",
       initiatedAt: "timestamp",
     },
   });
   assert.equal(setup.onboarding.initiatedAt instanceof Date, true);
+  assert.equal(setup.administration.updatedAt instanceof Date, true);
+});
+
+test("platform-managed setup starts without an invitation handoff state", () => {
+  const setup = normalizeOrganizationSetup({
+    name: "Managed Customer",
+    orgType: "COM",
+    administrationMode: "platform_managed",
+  });
+
+  assert.equal(setup.administration.mode, "platform_managed");
+  assert.equal(setup.onboarding.status, "in_progress");
+  assert.throws(() => normalizeOrganizationSetup({
+    name: "Invalid Mode",
+    orgType: "COM",
+    administrationMode: "unmanaged",
+  }), /administration mode/);
 });
 
 test("organization setup rejects unsupported types and timezones", () => {

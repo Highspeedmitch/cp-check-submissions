@@ -62,7 +62,9 @@ export default function OrganizationOnboarding() {
         {error && <p className="beta-alert error" role="alert">{error}</p>}
         {assumedOrganization && (
           <p className="beta-alert warning" role="status">
-            You are viewing this guide through audited Admin View. Organization security changes must be completed by the customer administrator.
+            {guide?.organization?.administrationMode === "platform_managed"
+              ? "You are administering this Afterlight-managed organization through protected, audited Admin View."
+              : "You are viewing this guide through audited Admin View. Organization security changes must be completed by the customer administrator."}
           </p>
         )}
 

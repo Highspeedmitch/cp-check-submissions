@@ -15,7 +15,7 @@ The platform administrator opens **New Organization** and completes four steps:
 
 1. Organization name, type, reporting timezone.
 2. Contracted service model and default fulfillment source.
-3. Initial organization administrator.
+3. Administration responsibility: customer administrator or Afterlight managed.
 4. Review and launch.
 
 The draft is stored in the administrator's browser until launch or **Start over**.
@@ -24,10 +24,17 @@ The existing audited organization-creation endpoint remains the system of record
 
 ### 2. Invitation handoff
 
-Launch creates the isolated workspace and sends the existing secure, single-use
-administrator invitation. The organization card continues to expose invitation
-delivery, expiration, and resend controls. Accepting the first administrator
-invitation advances a guided tenant from `invited` to `in_progress`.
+For customer-managed administration, launch creates the isolated workspace and
+sends the existing secure, single-use administrator invitation. The organization
+card continues to expose invitation delivery, expiration, and resend controls.
+Accepting the first administrator invitation advances a guided tenant from
+`invited` to `in_progress`.
+
+For Afterlight-managed administration, launch creates no customer administrator
+or invitation. Guided onboarding starts `in_progress`, and platform administrators
+continue setup through MFA-protected, reason-gated, time-limited Admin View. The
+platform identity remains distinct from organization users and does not consume an
+administrator seat.
 
 ### 3. Organization Setup Guide
 
@@ -35,13 +42,17 @@ Organization administrators can open **Setup Guide** from Admin tools while guid
 progress is derived from live configuration instead of manual checkboxes:
 
 - workspace settings are present;
-- an organization-owned administrative passkey is configured;
+- an organization-owned administrative passkey is configured, or the organization
+  is explicitly Afterlight managed;
 - at least one property exists.
 
 The guide also recommends inviting an operating team and completing a controlled
 first inspection. These remain visible after required onboarding is complete.
-Platform administrators using audited Admin View can inspect progress, but the
-customer administrator must make security changes.
+Platform administrators using audited Admin View can inspect progress. For
+customer-managed organizations, the customer administrator must make security
+changes. For Afterlight-managed organizations, the protected platform session is
+the administrative security control and can authorize delegated property,
+fulfillment, and bulk-onboarding actions without an organization passkey.
 
 ### 4. Completion and ongoing readiness
 

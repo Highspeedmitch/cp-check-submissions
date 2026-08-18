@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { serviceModelIncludesPortfolioReporting } = require("./boutiquePolicy");
+const { organizationAdministrationMode } = require("./organizationAdministration");
 
 const ASSUMED_ACCESS_LIFETIME = "30m";
 const ASSUMED_ACCESS_MS = 30 * 60 * 1000;
@@ -24,6 +25,7 @@ function assumedAccessPayload({ user, organization, platformSessionId }) {
     organizationId: organization._id,
     orgType: organization.orgType,
     serviceModel: organization.serviceModel || "managed",
+    organizationAdministrationMode: organizationAdministrationMode(organization),
     reportingEnabled: serviceModelIncludesPortfolioReporting(organization),
     platformRole: "platform_admin",
     accountScope: "organization",
@@ -41,6 +43,7 @@ function createAssumedAccessResponse({ user, organization, platformSessionId, se
     orgName: organization.name,
     orgType: organization.orgType,
     serviceModel: payload.serviceModel,
+    organizationAdministrationMode: payload.organizationAdministrationMode,
     reportingEnabled: payload.reportingEnabled,
     role: "admin",
     platformRole: "platform_admin",

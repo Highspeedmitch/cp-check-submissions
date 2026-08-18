@@ -43,6 +43,10 @@ const {
   caseInsensitiveExact,
 } = require("../services/organizationProvisioning");
 const {
+  CUSTOMER_MANAGED,
+  organizationAdministrationMode,
+} = require("../services/organizationAdministration");
+const {
   normalizeInvitationEmail,
   createInvitation,
   resendInvitation,
@@ -243,59 +247,84 @@ router.post(
   createPricingEstimateHandler()
 );
 
-router.post("/organizations", authenticateToken, requirePlatformAdmin, async (req, res) => {
-  try {
-    const setup = normalizeOrganizationSetup(req.body);
-    const initialAdminEmail = normalizeInvitationEmail(req.body.initialAdminEmail);
-    const [existing, existingUser] = await Promise.all([
-      Organization.findOne({ name: caseInsensitiveExact(setup.name) }).select("_id").lean(),
-      User.findOne({ email: initialAdminEmail }).select("_id").lean(),
-    ]);
-    if (existing) return res.status(409).json({ error: "An organization with that name already exists." });
-    if (existingUser) return res.status(409).json({ error: "The administrator email already belongs to an Afterlight account." });
+function createOrganizationHandler({
+  OrganizationModel = Organization,
+  UserModel = User,
+  PlatformAuditModel = PlatformAudit,
+  createOrganizationInvitation = createInvitation,
+} = {}) {
+  return async (req, res) => {
+    try {
+      const setup = normalizeOrganizationSetup(req.body);
+      const administrationMode = organizationAdministrationMode(setup);
+      const customerManaged = administrationMode === CUSTOMER_MANAGED;
+      const initialAdminEmail = customerManaged
+        ? normalizeInvitationEmail(req.body.initialAdminEmail)
+        : null;
+      const [existing, existingUser] = await Promise.all([
+        OrganizationModel.findOne({ name: caseInsensitiveExact(setup.name) }).select("_id").lean(),
+        initialAdminEmail
+          ? UserModel.findOne({ email: initialAdminEmail }).select("_id").lean()
+          : null,
+      ]);
+      if (existing) return res.status(409).json({ error: "An organization with that name already exists." });
+      if (existingUser) return res.status(409).json({ error: "The administrator email already belongs to an Afterlight account." });
 
-    const organization = await Organization.create(setup);
-    const invitation = await createInvitation({
-      organization,
-      email: initialAdminEmail,
-      role: "admin",
-      invitedBy: req.user.userId,
-      inviterScope: "platform",
-    });
-    await PlatformAudit.create({
-      actorUserId: req.user.userId,
-      action: "organization_created",
-      targetOrganizationId: organization._id,
-      metadata: {
+      setup.administration.updatedBy = req.user.userId;
+      const organization = await OrganizationModel.create(setup);
+      const invitation = customerManaged
+        ? await createOrganizationInvitation({
+          organization,
+          email: initialAdminEmail,
+          role: "admin",
+          invitedBy: req.user.userId,
+          inviterScope: "platform",
+        })
+        : null;
+      await PlatformAuditModel.create({
+        actorUserId: req.user.userId,
+        action: "organization_created",
+        targetOrganizationId: organization._id,
+        metadata: {
+          name: organization.name,
+          orgType: organization.orgType,
+          administrationMode,
+          initialAdminEmail,
+          invitationId: invitation?.invitation?._id || null,
+          invitationDelivered: invitation?.delivered ?? null,
+        },
+        ipAddress: req.ip || "",
+        userAgent: req.get("user-agent") || "",
+      });
+      return res.status(201).json({
+        organizationId: organization._id,
         name: organization.name,
         orgType: organization.orgType,
+        reportingTimezone: organization.reportingTimezone,
+        administrationMode,
         initialAdminEmail,
-        invitationId: invitation.invitation._id,
-        invitationDelivered: invitation.delivered,
-      },
-      ipAddress: req.ip || "",
-      userAgent: req.get("user-agent") || "",
-    });
-    return res.status(201).json({
-      organizationId: organization._id,
-      name: organization.name,
-      orgType: organization.orgType,
-      reportingTimezone: organization.reportingTimezone,
-      initialAdminEmail,
-      invitationDelivered: invitation.delivered,
-    });
-  } catch (error) {
-    if (error?.code === 11000) {
-      return res.status(409).json({ error: "An organization with that name already exists." });
+        invitationDelivered: invitation?.delivered ?? null,
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        return res.status(409).json({ error: "An organization with that name already exists." });
+      }
+      if (error?.status === 400
+        || /Organization name|organization type|reporting timezone|valid invitation email/i.test(error.message || "")) {
+        return res.status(400).json({ error: error.message });
+      }
+      console.error("Organization creation error:", error.message);
+      return res.status(500).json({ error: "Unable to create the organization." });
     }
-    if (error?.status === 400
-      || /Organization name|organization type|reporting timezone|valid invitation email/i.test(error.message || "")) {
-      return res.status(400).json({ error: error.message });
-    }
-    console.error("Organization creation error:", error.message);
-    return res.status(500).json({ error: "Unable to create the organization." });
-  }
-});
+  };
+}
+
+router.post(
+  "/organizations",
+  authenticateToken,
+  requirePlatformAdmin,
+  createOrganizationHandler()
+);
 
 router.post("/organizations/:organizationId/admin-invitations/:invitationId/resend",
   authenticateToken, requirePlatformAdmin, async (req, res) => {
@@ -576,7 +605,7 @@ router.post("/organizations/:organizationId/assume", authenticateToken, requireP
 
     const [user, organization] = await Promise.all([
       User.findById(req.user.userId),
-      Organization.findById(req.params.organizationId).select("name orgType"),
+      Organization.findById(req.params.organizationId).select("name orgType serviceModel administration"),
     ]);
     if (!user || user.platformRole !== "platform_admin") {
       return res.status(403).json({ error: "Platform administrator access required." });
@@ -630,5 +659,6 @@ router.post("/exit", authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.createOrganizationHandler = createOrganizationHandler;
 module.exports.createPricingLocationSearchHandler = createPricingLocationSearchHandler;
 module.exports.createPricingEstimateHandler = createPricingEstimateHandler;

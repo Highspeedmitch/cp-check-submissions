@@ -6,6 +6,7 @@ function AdminVerificationDialog({
   title = "Add a new property",
   description = "Enter your organization passkey to continue to property setup.",
   continueLabel = "Continue",
+  requiresPasskey = true,
 }) {
   const [passkey, setPasskey] = useState("");
   const [error, setError] = useState("");
@@ -19,7 +20,7 @@ function AdminVerificationDialog({
     const previouslyFocused = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    inputRef.current?.focus();
+    if (requiresPasskey) inputRef.current?.focus();
 
     const handleKeyDown = (event) => {
       if (event.key === "Escape" && !verifyingRef.current) onCloseRef.current();
@@ -31,17 +32,17 @@ function AdminVerificationDialog({
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };
-  }, []);
+  }, [requiresPasskey]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!passkey.trim() || verifying) return;
+    if ((requiresPasskey && !passkey.trim()) || verifying) return;
 
     verifyingRef.current = true;
     setVerifying(true);
     setError("");
     try {
-      const valid = await onVerify(passkey);
+      const valid = await onVerify(requiresPasskey ? passkey : "");
       if (!valid) setError("That passkey is not valid. Please try again.");
     } catch (verifyError) {
       console.error("Error verifying passkey:", verifyError);
@@ -85,7 +86,7 @@ function AdminVerificationDialog({
         <p id="admin-verification-description" className="beta-dialog-copy">
           {description}
         </p>
-        <label className="beta-field" htmlFor="admin-verification-passkey">
+        {requiresPasskey && <label className="beta-field" htmlFor="admin-verification-passkey">
           <span>Organization passkey</span>
           <input
             ref={inputRef}
@@ -101,13 +102,13 @@ function AdminVerificationDialog({
             aria-describedby={error ? "passkey-error" : undefined}
             disabled={verifying}
           />
-        </label>
+        </label>}
         {error && <p id="passkey-error" className="beta-dialog-error" role="alert">{error}</p>}
         <div className="beta-dialog-actions">
           <button type="button" className="beta-button secondary" onClick={onClose} disabled={verifying}>
             Cancel
           </button>
-          <button type="submit" className="beta-button" disabled={!passkey.trim() || verifying}>
+          <button type="submit" className="beta-button" disabled={(requiresPasskey && !passkey.trim()) || verifying}>
             {verifying ? "Verifying…" : continueLabel}
           </button>
         </div>

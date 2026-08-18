@@ -102,6 +102,19 @@ test("organization cards integrate service delivery and recurring price", async 
   expect(within(plan).getByText("Per-visit charges billed separately")).toBeInTheDocument();
 });
 
+test("organization cards identify Afterlight-managed administration", async () => {
+  api.get.mockResolvedValue({
+    ...report,
+    organizations: [{
+      ...report.organizations[0],
+      administrationMode: "platform_managed",
+    }],
+  });
+  renderDashboard();
+
+  expect(await screen.findByText("Afterlight managed")).toBeInTheDocument();
+});
+
 test("tiered service plans separate the delivery model from the tier", async () => {
   api.get.mockResolvedValue({
     ...report,

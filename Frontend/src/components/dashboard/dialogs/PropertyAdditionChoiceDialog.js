@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-export default function PropertyAdditionChoiceDialog({ onSingle, onBulk, onClose }) {
+export default function PropertyAdditionChoiceDialog({ onSingle, onBulk, onClose, platformManaged = false }) {
   const singleButtonRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -49,7 +49,9 @@ export default function PropertyAdditionChoiceDialog({ onSingle, onBulk, onClose
           </button>
         </div>
         <p className="beta-field-help">
-          Your organization passkey is verified immediately before data is created.
+          {platformManaged
+            ? "Your protected Admin View session is verified immediately before data is created."
+            : "Your organization passkey is verified immediately before data is created."}
         </p>
       </section>
     </div>

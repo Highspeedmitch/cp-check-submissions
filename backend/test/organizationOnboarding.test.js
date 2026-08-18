@@ -44,6 +44,21 @@ test("security and a first property make guided onboarding ready to complete", (
   assert.equal(result.steps.find((item) => item.id === "first_report").complete, true);
 });
 
+test("platform-managed onboarding treats audited platform access as the security control", () => {
+  const result = serializeOrganizationOnboarding({
+    organization: organization({
+      administration: { mode: "platform_managed" },
+      properties: [{ _id: "property-1" }],
+    }),
+  });
+
+  assert.equal(result.organization.administrationMode, "platform_managed");
+  assert.equal(result.progress.percent, 100);
+  assert.equal(result.canComplete, true);
+  assert.equal(result.steps.find((item) => item.id === "security").complete, true);
+  assert.match(result.steps.find((item) => item.id === "security").description, /Admin View/);
+});
+
 test("legacy organizations can use the guide without being enrolled or prompted", () => {
   const result = serializeOrganizationOnboarding({
     organization: organization({ onboarding: undefined }),

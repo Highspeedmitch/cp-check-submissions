@@ -192,6 +192,21 @@ const OrganizationBillingCapabilitiesSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: null },
 }, { _id: false });
 
+const OrganizationAdministrationSchema = new mongoose.Schema({
+  mode: {
+    type: String,
+    enum: ["customer_managed", "platform_managed"],
+    default: "customer_managed",
+    index: true,
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+  updatedAt: { type: Date, default: null },
+}, { _id: false });
+
 const OrganizationSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   workspaceType: {
@@ -236,6 +251,10 @@ const OrganizationSchema = new mongoose.Schema({
   },
   billingCapabilities: {
     type: OrganizationBillingCapabilitiesSchema,
+    default: () => ({}),
+  },
+  administration: {
+    type: OrganizationAdministrationSchema,
     default: () => ({}),
   },
   inspectionTemplateId: {

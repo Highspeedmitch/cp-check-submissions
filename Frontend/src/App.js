@@ -241,6 +241,9 @@ function App() {
 
   if (user === null) return null;
 
+  const platformManagedAdminView = assumedOrganization
+    && localStorage.getItem("organizationAdministrationMode") === "platform_managed";
+
   return (
     <>
     <AssumedAccessBanner />
@@ -352,7 +355,7 @@ function App() {
       <Route path="/admin/users" element={user && role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
       <Route path="/admin/routes" element={user && role === "admin" ? <RouteManagement /> : <Navigate to="/" />} />
       <Route path="/admin/bulk-onboarding" element={
-        user && role === "admin" && !assumedOrganization
+        user && role === "admin" && (!assumedOrganization || platformManagedAdminView)
           ? <BulkOnboarding />
           : <Navigate to="/" />
       } />

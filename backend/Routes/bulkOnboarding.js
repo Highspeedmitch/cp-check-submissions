@@ -6,12 +6,13 @@ const {
 } = require("../services/bulkOnboarding");
 const { licensedCapacityErrorBody } = require("../services/licensedCapacityOperations");
 const { requestBulkOnboardingAssistance } = require("../services/bulkOnboardingAssistance");
+const { isPlatformManagedAdminView } = require("../services/organizationAdministration");
 
 const router = express.Router();
 
 router.use((req, res, next) => {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Admins only." });
-  if (req.user.assumedOrganization) {
+  if (req.user.assumedOrganization && !isPlatformManagedAdminView(req.user)) {
     return res.status(403).json({ error: "Bulk onboarding cannot be performed through assumed access." });
   }
   return next();

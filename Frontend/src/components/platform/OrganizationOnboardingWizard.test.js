@@ -55,6 +55,30 @@ test("preserves a partial draft when the wizard is closed", () => {
   expect(screen.getByLabelText("Organization name")).toHaveValue("Saved Organization");
 });
 
+test("launches an Afterlight-managed organization without an administrator email", async () => {
+  const onCreate = jest.fn().mockResolvedValue(true);
+  render(
+    <OrganizationOnboardingWizard open busy={false} error="" onClose={jest.fn()} onCreate={onCreate} />
+  );
+
+  fireEvent.change(screen.getByLabelText("Organization name"), { target: { value: "Delegated Portfolio" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("radio", { name: /^Afterlight managed/ }));
+
+  expect(screen.queryByLabelText("Administrator email")).not.toBeInTheDocument();
+  expect(screen.getByText(/No organization administrator account or invitation/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByText("Afterlight managed")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Launch Organization" }));
+
+  await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
+    name: "Delegated Portfolio",
+    administrationMode: "platform_managed",
+    initialAdminEmail: null,
+  })));
+});
+
 test("SaaS onboarding offers only customer-controlled fulfillment", () => {
   render(
     <OrganizationOnboardingWizard open busy={false} error="" onClose={jest.fn()} onCreate={jest.fn()} />

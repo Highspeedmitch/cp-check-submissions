@@ -2,11 +2,11 @@
 
 **Audience:** Afterlight platform administrators
 
-Use Platform Administration to launch a customer workspace, assign its contracted service and license settings, send its first administrator invitation, and open a temporary audited Admin View when support or configuration work is required.
+Use Platform Administration to launch a customer workspace, assign its contracted service and license settings, choose who administers it, and open a temporary audited Admin View when support or configuration work is required.
 
 ## Create an organization
 
-Before creating the workspace, confirm the customer's legal operating name, organization type, contracted service model, license tier when applicable, initial fulfillment plan, reporting timezone, and designated administrator email.
+Before creating the workspace, confirm the customer's legal operating name, organization type, contracted service model, license tier when applicable, initial fulfillment plan, reporting timezone, and whether the customer or Afterlight will administer the workspace. A designated administrator email is required only for customer-managed administration.
 
 1. From Platform Administration, select **New Organization**.
 2. Under **Organization profile**, enter the unique **Organization name**, select the organization type and reporting timezone, and select **Continue**.
@@ -27,15 +27,20 @@ Before creating the workspace, confirm the customer's legal operating name, orga
 
    Managed service is $500, $1,250, or $2,500 per month for Tier 1, 2, or 3, plus property visit costs. Its organization accounts are not seat-metered, but its selected tier enforces the same 25/75/250 property bands. The Hybrid percentage is the minimum share of the monthly portfolio assigned to Afterlight, not a percentage surcharge.
 5. Confirm the **Default fulfillment** selection. Change the model-derived default only when the approved operating plan requires it, then select **Continue**.
-6. Enter the designated **Administrator email** and select **Continue**.
-7. Under **Review and launch**, verify every value. Use the corresponding **Edit** control if anything is incorrect.
-8. Select **Launch Organization** once.
+6. Under **Administration responsibility**, choose one option:
+   - **Customer administrator:** Enter the designated administrator email. Launch sends that person a secure invitation.
+   - **Afterlight managed:** Use when the customer has delegated administration and will not sign in. No customer administrator account or invitation is created.
+7. Select **Continue**.
+8. Under **Review and launch**, verify every value. Use the corresponding **Edit** control if anything is incorrect.
+9. Select **Launch Organization** once.
 
 The wizard saves an unfinished draft in the current browser. Select **Save and close** when you need to continue later, or **Start over** to discard the draft. No organization or invitation is created before **Launch Organization**.
 
 Launching records the selected contract plan and price in the organization experience. It does not yet create an organization-level recurring invoice; complete corporate billing setup separately.
 
-Afterlight creates the workspace and a secure, single-use invitation for its first organization administrator. For a metered agreement, that pending invitation reserves the first administrator seat. If delivery fails, the organization remains created and the invitation remains pending. Find the organization card and select **Resend invitation** instead of creating the organization again.
+For customer-managed administration, Afterlight creates the workspace and a secure, single-use invitation for its first organization administrator. For a metered agreement, that pending invitation reserves the first administrator seat. If delivery fails, the organization remains created and the invitation remains pending. Find the organization card and select **Resend invitation** instead of creating the organization again.
+
+For Afterlight-managed administration, the organization card displays **Afterlight managed**. Open Admin View to add properties, configure fulfillment, invite operating users, and complete readiness work. The protected platform identity does not consume an organization administrator seat. Sensitive delegated actions use the audited Admin View session instead of an organization passkey.
 
 After accepting the invitation, the customer administrator uses **Setup Guide** to confirm service delivery, establish an organization-owned administrative passkey, and add the first property. Inviting the team and validating the first inspection are recommended readiness items.
 

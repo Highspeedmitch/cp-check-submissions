@@ -104,6 +104,7 @@ export default function DashboardNavigation({
   const isAdmin = role === "admin";
   const isManager = role === "property_manager";
   const isManagement = isAdmin || isManager;
+  const assumedOrganization = localStorage.getItem("assumedOrganization") === "true";
   const onboardingStatus = useOrganizationOnboardingStatus(
     isAdmin && accountScope === "organization"
   );
@@ -206,7 +207,7 @@ export default function DashboardNavigation({
                 <NavButton active={activeRoute === "routes"} onClick={() => go("/admin/routes")}>Regions &amp; Routes</NavButton>
                 {orgType === "COM" && <NavButton onClick={() => go("/organization-form-settings")}>Form Template</NavButton>}
                 <NavButton badge={notificationBadges.serviceModels} onClick={() => go("/service-delivery")}>Service Delivery</NavButton>
-                <NavButton onClick={() => go("/organization-security")}>Security</NavButton>
+                {!assumedOrganization && <NavButton onClick={() => go("/organization-security")}>Security</NavButton>}
                 <button type="button" className="beta-nav-danger" onClick={onRemoveProperty}>
                   Remove Property
                 </button>

@@ -1880,14 +1880,21 @@ select:focus-visible {
 .platform-onboarding-stage-copy { margin-bottom: 20px; }
 .platform-onboarding-stage-copy h3 { margin: 0 0 6px; color: var(--beta-ink); font-size: 20px; }
 .platform-onboarding-stage-copy p { margin: 0; color: var(--beta-muted); line-height: 1.5; }
-.platform-service-model-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; padding: 0; border: 0; }
-.platform-service-model-options label { display: flex; min-width: 0; gap: 10px; padding: 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); cursor: pointer; }
-.platform-service-model-options label.selected { border-color: var(--beta-blue); background: var(--beta-soft-blue); box-shadow: 0 0 0 1px var(--beta-blue); }
+.platform-service-model-options,
+.platform-administration-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; padding: 0; border: 0; }
+.platform-service-model-options label,
+.platform-administration-options label { display: flex; min-width: 0; gap: 10px; padding: 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); cursor: pointer; }
+.platform-service-model-options label.selected,
+.platform-administration-options label.selected { border-color: var(--beta-blue); background: var(--beta-soft-blue); box-shadow: 0 0 0 1px var(--beta-blue); }
 .platform-service-model-options label.unavailable { opacity: 0.58; cursor: not-allowed; }
-.platform-service-model-options input { width: auto; flex: 0 0 auto; margin: 3px 0 0; }
-.platform-service-model-options span { display: grid; gap: 5px; min-width: 0; }
-.platform-service-model-options strong { color: var(--beta-ink); font-size: 13px; }
-.platform-service-model-options small { color: var(--beta-muted); font-size: 11px; line-height: 1.4; }
+.platform-service-model-options input,
+.platform-administration-options input { width: auto; flex: 0 0 auto; margin: 3px 0 0; }
+.platform-service-model-options span,
+.platform-administration-options span { display: grid; gap: 5px; min-width: 0; }
+.platform-service-model-options strong,
+.platform-administration-options strong { color: var(--beta-ink); font-size: 13px; }
+.platform-service-model-options small,
+.platform-administration-options small { color: var(--beta-muted); font-size: 11px; line-height: 1.4; }
 .platform-onboarding-default-source { display: grid; max-width: 420px; }
 .platform-onboarding-license-tier { display: grid; max-width: 520px; margin-bottom: 18px; }
 .platform-onboarding-handoff { margin-top: 20px; padding: 16px 18px; border-radius: 10px; background: var(--beta-subtle); }
@@ -2839,7 +2846,8 @@ select:focus-visible {
   .platform-onboarding-wizard { padding: 18px; }
   .platform-onboarding-steps { margin: 18px 0 22px; }
   .platform-onboarding-steps li small { max-width: 70px; }
-  .platform-service-model-options { grid-template-columns: 1fr; }
+  .platform-service-model-options,
+  .platform-administration-options { grid-template-columns: 1fr; }
   .platform-onboarding-stage { min-height: 0; }
   .platform-onboarding-review div { grid-template-columns: 1fr auto; gap: 5px 12px; }
   .platform-onboarding-review dd { grid-column: 1 / -1; grid-row: 2; }

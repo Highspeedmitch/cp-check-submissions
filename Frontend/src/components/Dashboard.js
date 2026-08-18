@@ -98,6 +98,8 @@ const handleRegionFilter = async () => {
   const adminOrgType = localStorage.getItem("orgType") || "COM";
   const serviceModel = localStorage.getItem("serviceModel") || "";
   const portfolioReportingIncluded = localStorage.getItem("portfolioReportingIncluded") !== "false";
+  const platformManagedAdminView = localStorage.getItem("assumedOrganization") === "true"
+    && localStorage.getItem("organizationAdministrationMode") === "platform_managed";
   const canStartDirectInspection = inspectionSubmissionEnabled({ serviceModel, accountScope });
   const [canAccessBilling, setCanAccessBilling] = useState(false);
   const notificationBadges = useNotificationBadges(Boolean(token));
@@ -703,6 +705,7 @@ useEffect(() => {
                   setRemovePasskey("");
                   setPropertyToRemove("");
                 }}
+                requiresPasskey={!platformManagedAdminView}
               />
             )}
 
@@ -727,6 +730,7 @@ useEffect(() => {
               navigate("/admin/bulk-onboarding?type=properties");
             }}
             onClose={() => setPropertyAdditionChoiceVisible(false)}
+            platformManaged={platformManagedAdminView}
           />
         )}
 
@@ -735,6 +739,10 @@ useEffect(() => {
           <AdminVerificationDialog
             onVerify={verifyAddPropertyPasskey}
             onClose={closePasskeyPrompt}
+            requiresPasskey={!platformManagedAdminView}
+            description={platformManagedAdminView
+              ? "Continue using your protected, audited Admin View session."
+              : undefined}
           />
         )}
 

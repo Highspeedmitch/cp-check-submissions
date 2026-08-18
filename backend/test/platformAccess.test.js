@@ -19,6 +19,7 @@ test("assumed access is a short-lived admin token scoped to one organization", (
       _id: "507f191e810c19729de860ea",
       name: "Example Organization",
       orgType: "COM",
+      administration: { mode: "platform_managed" },
     },
     platformSessionId: "507f191e810c19729de860eb",
     secretKey: "test-secret",
@@ -29,6 +30,8 @@ test("assumed access is a short-lived admin token scoped to one organization", (
   assert.equal(payload.role, "admin");
   assert.equal(payload.platformRole, "platform_admin");
   assert.equal(payload.organizationId, "507f191e810c19729de860ea");
+  assert.equal(payload.organizationAdministrationMode, "platform_managed");
+  assert.equal(response.organizationAdministrationMode, "platform_managed");
   assert.ok((payload.exp - payload.iat) * 1000 <= ASSUMED_ACCESS_MS);
 });
 

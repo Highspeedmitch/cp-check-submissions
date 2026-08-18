@@ -1,6 +1,10 @@
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const AdminActionGrant = require("../models/adminActionGrant");
+const {
+  PLATFORM_MANAGED_GRANT_PURPOSES,
+  isPlatformManagedOrganization,
+} = require("./organizationAdministration");
 
 const GRANT_LIFETIME_MS = 5 * 60 * 1000;
 
@@ -45,6 +49,26 @@ async function issueGrant({
   return token;
 }
 
+async function issuePlatformManagedGrant({
+  organization,
+  userId,
+  purpose,
+  GrantModel = AdminActionGrant,
+}) {
+  if (!isPlatformManagedOrganization(organization)) return null;
+  if (!PLATFORM_MANAGED_GRANT_PURPOSES.has(purpose)) return null;
+  const token = crypto.randomBytes(48).toString("base64url");
+  await GrantModel.create({
+    organizationId: organization._id,
+    userId,
+    tokenHash: hashGrant(token),
+    purpose,
+    passkeyVersion: organization.security?.adminActionPasskeyVersion || 0,
+    expiresAt: new Date(Date.now() + GRANT_LIFETIME_MS),
+  });
+  return token;
+}
+
 async function consumeGrant({
   organization,
   userId,
@@ -66,4 +90,9 @@ async function consumeGrant({
   return Boolean(grant);
 }
 
-module.exports = { GRANT_LIFETIME_MS, issueGrant, consumeGrant };
+module.exports = {
+  GRANT_LIFETIME_MS,
+  issueGrant,
+  issuePlatformManagedGrant,
+  consumeGrant,
+};

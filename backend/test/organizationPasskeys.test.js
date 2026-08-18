@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const bcrypt = require("bcryptjs");
 const {
   issueGrant,
+  issuePlatformManagedGrant,
   consumeGrant,
 } = require("../services/organizationPasskeys");
 
@@ -56,6 +57,32 @@ test("incorrect organization passkeys do not create grants", async () => {
     },
   });
   assert.equal(token, null);
+});
+
+test("platform-managed Admin View issues grants only for delegated tenant operations", async () => {
+  const created = [];
+  const organization = {
+    _id: "org-1",
+    administration: { mode: "platform_managed" },
+    security: { adminActionPasskeyVersion: 2 },
+  };
+  const token = await issuePlatformManagedGrant({
+    organization,
+    userId: "platform-1",
+    purpose: "bulk_onboarding",
+    GrantModel: { async create(record) { created.push(record); } },
+  });
+  const rejected = await issuePlatformManagedGrant({
+    organization,
+    userId: "platform-1",
+    purpose: "invite_admin",
+    GrantModel: { async create() { assert.fail("administrator grants stay customer-controlled"); } },
+  });
+
+  assert.ok(token);
+  assert.equal(created[0].purpose, "bulk_onboarding");
+  assert.equal(created[0].passkeyVersion, 2);
+  assert.equal(rejected, null);
 });
 
 test("administrator invitations never fall back to deployment-wide property passkeys", async () => {
