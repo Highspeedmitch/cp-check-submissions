@@ -9,7 +9,19 @@ export const EMPTY_ORGANIZATION = {
   licenseTier: "tier_1",
   defaultFulfillmentSource: "afterlight_staff",
   reportingTimezone: "America/Phoenix",
+  administrationMode: "customer_managed",
   initialAdminEmail: "",
+};
+
+export const ADMINISTRATION_MODES = {
+  customer_managed: {
+    label: "Customer administrator",
+    description: "Invite a customer administrator who owns organization security and ongoing setup.",
+  },
+  platform_managed: {
+    label: "Afterlight managed",
+    description: "Do not create a customer administrator. Platform administrators operate the workspace through audited Admin View.",
+  },
 };
 
 export const ORGANIZATION_TYPES = {
@@ -94,7 +106,7 @@ export const TIMEZONES = [
   "America/New_York",
 ];
 
-const STEPS = ["Organization", "Service delivery", "Administrator", "Review"];
+const STEPS = ["Organization", "Service delivery", "Administration", "Review"];
 
 function savedDraft() {
   try {
@@ -126,7 +138,12 @@ function validateStep(stepIndex, draft) {
       return "Select a default fulfillment source allowed by the service model.";
     }
   }
-  if (stepIndex === 2 && !/^\S+@\S+\.\S+$/.test(draft.initialAdminEmail.trim())) {
+  if (stepIndex === 2 && !ADMINISTRATION_MODES[draft.administrationMode]) {
+    return "Select who will administer the organization.";
+  }
+  if (stepIndex === 2
+    && draft.administrationMode === "customer_managed"
+    && !/^\S+@\S+\.\S+$/.test(draft.initialAdminEmail.trim())) {
     return "Enter a valid administrator email address.";
   }
   return "";
@@ -203,7 +220,9 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
       ...draft,
       licenseTier: TIERED_SERVICE_MODELS.has(draft.serviceModel) ? draft.licenseTier : null,
       name: draft.name.trim(),
-      initialAdminEmail: draft.initialAdminEmail.trim().toLowerCase(),
+      initialAdminEmail: draft.administrationMode === "customer_managed"
+        ? draft.initialAdminEmail.trim().toLowerCase()
+        : null,
     });
     if (created) {
       skipDraftPersistence.current = true;
@@ -290,17 +309,42 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
 
           {stepIndex === 2 && (
             <>
-              <div className="platform-onboarding-stage-copy"><h3>Initial administrator</h3><p>This person receives a secure, single-use invitation and becomes responsible for completing organization setup.</p></div>
-              <label className="beta-form-field full">Administrator email
-                <input type="email" value={draft.initialAdminEmail} autoComplete="email" onChange={(event) => update("initialAdminEmail", event.target.value)} required autoFocus />
-              </label>
+              <div className="platform-onboarding-stage-copy"><h3>Administration responsibility</h3><p>Choose whether the customer will own administration or Afterlight will operate the workspace on its behalf.</p></div>
+              <fieldset className="platform-administration-options">
+                <legend className="sr-only">Administration responsibility</legend>
+                {Object.entries(ADMINISTRATION_MODES).map(([value, option]) => (
+                  <label key={value} className={draft.administrationMode === value ? "selected" : ""}>
+                    <input type="radio" name="administrationMode" value={value}
+                      checked={draft.administrationMode === value}
+                      onChange={() => update("administrationMode", value)} />
+                    <span><strong>{option.label}</strong><small>{option.description}</small></span>
+                  </label>
+                ))}
+              </fieldset>
+              {draft.administrationMode === "customer_managed" ? (
+                <label className="beta-form-field full">Administrator email
+                  <input type="email" value={draft.initialAdminEmail} autoComplete="email" onChange={(event) => update("initialAdminEmail", event.target.value)} required autoFocus />
+                </label>
+              ) : (
+                <p className="beta-alert notice" role="status">
+                  No organization administrator account or invitation will be created. Platform access remains MFA-protected, reason-gated, time-limited, and audited.
+                </p>
+              )}
               <div className="platform-onboarding-handoff">
                 <strong>What happens next</strong>
-                <ol>
-                  <li>Afterlight creates the isolated organization workspace.</li>
-                  <li>The administrator accepts the invitation and creates an account.</li>
-                  <li>The Setup Guide tracks security, property, team, and first-inspection readiness.</li>
-                </ol>
+                {draft.administrationMode === "customer_managed" ? (
+                  <ol>
+                    <li>Afterlight creates the isolated organization workspace.</li>
+                    <li>The administrator accepts the invitation and creates an account.</li>
+                    <li>The Setup Guide tracks security, property, team, and first-inspection readiness.</li>
+                  </ol>
+                ) : (
+                  <ol>
+                    <li>Afterlight creates the isolated organization workspace without a customer login.</li>
+                    <li>A platform administrator enters through audited Admin View.</li>
+                    <li>The Setup Guide tracks property, team, and first-inspection readiness.</li>
+                  </ol>
+                )}
               </div>
             </>
           )}
@@ -313,9 +357,12 @@ export default function OrganizationOnboardingWizard({ open, busy, error, onClos
                 <div><dt>Type and timezone</dt><dd>{ORGANIZATION_TYPES[draft.orgType]} · {draft.reportingTimezone.replaceAll("_", " ")}</dd><button type="button" onClick={() => goToStep(0)}>Edit</button></div>
                 <div><dt>Service model</dt><dd>{SERVICE_MODELS[draft.serviceModel].label} · {serviceModelPriceSummary(draft.serviceModel) ? `${serviceModelPriceSummary(draft.serviceModel)} · ` : ""}{FULFILLMENT_SOURCES[draft.defaultFulfillmentSource]}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>
                 {TIERED_SERVICE_MODELS.has(draft.serviceModel) && <div><dt>License tier</dt><dd>{LICENSE_TIERS[draft.licenseTier].label} · {tierMonthlyPrice(draft.serviceModel, LICENSE_TIERS[draft.licenseTier])} · {tierLimitsSummary(draft.serviceModel, LICENSE_TIERS[draft.licenseTier])}{draft.serviceModel === "hybrid" ? ` · ${LICENSE_TIERS[draft.licenseTier].hybridMinimum}` : ""}</dd><button type="button" onClick={() => goToStep(1)}>Edit</button></div>}
-                <div><dt>Administrator</dt><dd>{draft.initialAdminEmail}</dd><button type="button" onClick={() => goToStep(2)}>Edit</button></div>
+                <div><dt>Administration</dt><dd>{ADMINISTRATION_MODES[draft.administrationMode].label}</dd><button type="button" onClick={() => goToStep(2)}>Edit</button></div>
+                {draft.administrationMode === "customer_managed" && <div><dt>Administrator email</dt><dd>{draft.initialAdminEmail}</dd><button type="button" onClick={() => goToStep(2)}>Edit</button></div>}
               </dl>
-              <p className="beta-dialog-note">The launch is audited. The workspace remains intact if invitation delivery fails, and the invitation can be resent from its organization card.</p>
+              <p className="beta-dialog-note">{draft.administrationMode === "customer_managed"
+                ? "The launch is audited. The workspace remains intact if invitation delivery fails, and the invitation can be resent from its organization card."
+                : "The launch is audited. No customer administrator seat is allocated until the organization is transferred to customer administration."}</p>
             </>
           )}
         </div>

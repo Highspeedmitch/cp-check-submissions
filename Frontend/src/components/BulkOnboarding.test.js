@@ -27,6 +27,7 @@ const preview = {
 
 beforeEach(() => {
   api.post.mockReset();
+  localStorage.clear();
 });
 
 test("previews and commits a user CSV through a scoped passkey grant", async () => {
@@ -90,6 +91,39 @@ test("does not allow a capacity-blocked preview to continue", async () => {
   expect(await screen.findByText(/not have enough licensed user seats/i)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Continue to verification" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Review license options" })).toBeInTheDocument();
+});
+
+test("platform-managed Admin View commits without an organization passkey", async () => {
+  localStorage.setItem("assumedOrganization", "true");
+  localStorage.setItem("organizationAdministrationMode", "platform_managed");
+  api.post.mockImplementation(async (path) => {
+    if (path === "/api/bulk-onboarding/preview") return preview;
+    if (path === "/api/organization-security/grants") return { grant: "platform-grant" };
+    if (path === "/api/bulk-onboarding/commit") {
+      return { type: "users", imported: 1, message: "1 user invitation created." };
+    }
+    throw new Error("Unexpected request");
+  });
+
+  render(<MemoryRouter><BulkOnboarding /></MemoryRouter>);
+  const file = new File(["email,role\nperson@example.com,user"], "users.csv", { type: "text/csv" });
+  Object.defineProperty(file, "text", {
+    value: async () => "email,role\nperson@example.com,user",
+  });
+  fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
+  await screen.findByText("Selected: users.csv");
+  fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+  await screen.findByText("person@example.com");
+  fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
+
+  expect(screen.queryByLabelText("Administrative action passkey")).not.toBeInTheDocument();
+  expect(screen.getByText(/Admin View session authorizes this import/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Complete import" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/organization-security/grants",
+    { purpose: "bulk_onboarding", passkey: "" }
+  ));
 });
 
 test("uses the contextual property entry point to preset the import type", () => {

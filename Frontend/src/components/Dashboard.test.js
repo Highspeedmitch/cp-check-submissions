@@ -247,3 +247,24 @@ test("valid admin passkey opens the reducer-backed add property form", async () 
     passkey: "test-passkey",
   });
 });
+
+test("platform-managed Admin View opens property setup through session verification", async () => {
+  localStorage.setItem("assumedOrganization", "true");
+  localStorage.setItem("organizationAdministrationMode", "platform_managed");
+  api.post.mockResolvedValue({ grant: "platform-grant" });
+  renderDashboard("admin");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Admin tools" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add Properties" }));
+  fireEvent.click(screen.getByRole("button", { name: /Single property/ }));
+
+  expect(screen.queryByLabelText("Organization passkey")).not.toBeInTheDocument();
+  expect(screen.getByText(/protected, audited Admin View session/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(await screen.findByRole("heading", { name: "Add New Property" })).toBeInTheDocument();
+  expect(api.post).toHaveBeenCalledWith("/api/organization-security/grants", {
+    purpose: "add_property",
+    passkey: "",
+  });
+});

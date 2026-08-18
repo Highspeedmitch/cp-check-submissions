@@ -3,6 +3,8 @@ const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
 process.env.JWT_SECRET = "test-only-authentication-secret";
 const User = require("../models/user");
+const Organization = require("../models/organization");
+const PlatformSession = require("../models/platformSession");
 const ResourceProfile = require("../models/resourceProfile");
 const authenticateToken = require("../middleware/authenticateToken");
 
@@ -139,5 +141,60 @@ test("an archived organization presence is retained on an authorized resource re
   } finally {
     User.findById = originalFindById;
     ResourceProfile.findOne = originalResourceFindOne;
+  }
+});
+
+test("assumed access resolves the live organization administration mode", async () => {
+  const originalUserFindById = User.findById;
+  const originalOrganizationFindById = Organization.findById;
+  const originalPlatformSessionFindOne = PlatformSession.findOne;
+  User.findById = () => ({
+    select: () => ({
+      lean: async () => ({
+        _id: "platform-1",
+        accountStatus: "active",
+        tokenVersion: 3,
+        role: "user",
+        platformRole: "platform_admin",
+        organizationId: { toString: () => "platform-org" },
+      }),
+    }),
+  });
+  PlatformSession.findOne = () => ({
+    select: () => ({ lean: async () => ({ _id: "session-1" }) }),
+  });
+  Organization.findById = () => ({
+    select: () => ({
+      lean: async () => ({ administration: { mode: "platform_managed" } }),
+    }),
+  });
+  const token = jwt.sign({
+    userId: "platform-1",
+    tokenVersion: 3,
+    platformRole: "platform_admin",
+    assumedOrganization: true,
+    platformSessionId: "session-1",
+    organizationId: "customer-org",
+  }, process.env.JWT_SECRET);
+  const req = {
+    method: "GET",
+    originalUrl: "/api/onboarding",
+    headers: { authorization: `Bearer ${token}` },
+  };
+  const res = {
+    status: () => res,
+    json: (body) => assert.fail(`unexpected response: ${JSON.stringify(body)}`),
+    on: () => {},
+  };
+
+  try {
+    await new Promise((resolve) => authenticateToken(req, res, resolve));
+    assert.equal(req.user.role, "admin");
+    assert.equal(req.user.organizationId, "customer-org");
+    assert.equal(req.user.organizationAdministrationMode, "platform_managed");
+  } finally {
+    User.findById = originalUserFindById;
+    Organization.findById = originalOrganizationFindById;
+    PlatformSession.findOne = originalPlatformSessionFindOne;
   }
 });

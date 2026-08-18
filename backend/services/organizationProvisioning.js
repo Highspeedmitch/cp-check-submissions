@@ -10,6 +10,10 @@ const {
   defaultStoredLicense,
 } = require("./licenseEntitlements");
 const { validateBoutiqueOrganizationType } = require("./boutiquePolicy");
+const {
+  PLATFORM_MANAGED,
+  normalizeOrganizationAdministrationMode,
+} = require("./organizationAdministration");
 
 function normalizeOrganizationSetup(input = {}) {
   const name = String(input.name || "").trim().replace(/\s+/g, " ");
@@ -23,6 +27,7 @@ function normalizeOrganizationSetup(input = {}) {
     String(input.defaultFulfillmentSource || SERVICE_MODEL_DEFAULTS[serviceModel]).trim(),
     serviceModel
   );
+  const administrationMode = normalizeOrganizationAdministrationMode(input.administrationMode);
 
   if (name.length < 2 || name.length > 120) {
     throw new Error("Organization name must be between 2 and 120 characters.");
@@ -46,8 +51,12 @@ function normalizeOrganizationSetup(input = {}) {
     serviceModel,
     license: defaultStoredLicense(serviceModel, licenseTier),
     fulfillmentPolicy: { defaultSource, version: 1 },
+    administration: {
+      mode: administrationMode,
+      updatedAt: new Date(),
+    },
     onboarding: {
-      status: "invited",
+      status: administrationMode === PLATFORM_MANAGED ? "in_progress" : "invited",
       initiatedAt: new Date(),
     },
   };

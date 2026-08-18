@@ -1,4 +1,5 @@
 const REQUIRED_STEP_IDS = new Set(["workspace", "security", "property"]);
+const { isPlatformManagedOrganization } = require("./organizationAdministration");
 
 function step(id, title, description, complete, action, optional = false) {
   return { id, title, description, complete: Boolean(complete), action, optional };
@@ -24,8 +25,11 @@ function serializeOrganizationOnboarding({
   const onboardingStatus = serializeOrganizationOnboardingStatus(organization);
   const { guided, status } = onboardingStatus;
   const properties = organization?.properties || [];
-  const securityConfigured = Boolean(organization?.security?.adminActionPasskeyHash);
-  const teamConfigured = activeUserCount > 1 || pendingInvitationCount > 0;
+  const platformManaged = isPlatformManagedOrganization(organization);
+  const securityConfigured = platformManaged
+    || Boolean(organization?.security?.adminActionPasskeyHash);
+  const teamConfigured = activeUserCount > (platformManaged ? 0 : 1)
+    || pendingInvitationCount > 0;
   const steps = [
     step(
       "workspace",
@@ -36,10 +40,14 @@ function serializeOrganizationOnboarding({
     ),
     step(
       "security",
-      "Secure administrator actions",
-      "Replace temporary platform passkeys with an organization-owned administrative passkey.",
+      platformManaged ? "Use protected Afterlight administration" : "Secure administrator actions",
+      platformManaged
+        ? "Afterlight administrators use MFA-protected, reason-gated Admin View sessions with mutation auditing."
+        : "Replace temporary platform passkeys with an organization-owned administrative passkey.",
       securityConfigured,
-      { label: securityConfigured ? "Review security" : "Configure security", path: "/organization-security" }
+      platformManaged
+        ? { label: "Return to dashboard", path: "/dashboard" }
+        : { label: securityConfigured ? "Review security" : "Configure security", path: "/organization-security" }
     ),
     step(
       "property",
@@ -77,6 +85,7 @@ function serializeOrganizationOnboarding({
       reportingTimezone: organization?.reportingTimezone,
       serviceModel: organization?.serviceModel,
       defaultFulfillmentSource: organization?.fulfillmentPolicy?.defaultSource,
+      administrationMode: platformManaged ? "platform_managed" : "customer_managed",
     },
     progress: {
       requiredComplete,

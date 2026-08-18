@@ -9,6 +9,7 @@ jest.mock("./components/ResidentialForm", () => () => <div>Residential Form</div
 jest.mock("./components/ResourceDashboard", () => () => <div>Resource Workspace</div>);
 jest.mock("./components/ExternalConnections", () => () => <div>External Connections Page</div>);
 jest.mock("./components/Reporting", () => () => <div>Portfolio Reporting</div>);
+jest.mock("./components/BulkOnboarding", () => () => <div>Bulk Onboarding</div>);
 jest.mock("./components/FormPage", () => () => <div>Commercial Inspection Form</div>);
 jest.mock("./components/help/HelpArticle", () => () => <div>Public Contractor Setup Guide</div>);
 
@@ -155,4 +156,16 @@ test("allows the contractor account setup guide before authentication", async ()
   renderApp("/help/resource-account-setup");
 
   expect(await screen.findByText("Public Contractor Setup Guide")).toBeInTheDocument();
+});
+
+test("allows platform-managed Admin View to open bulk onboarding", async () => {
+  localStorage.setItem("token", "test-token");
+  localStorage.setItem("role", "admin");
+  localStorage.setItem("platformRole", "platform_admin");
+  localStorage.setItem("assumedOrganization", "true");
+  localStorage.setItem("organizationAdministrationMode", "platform_managed");
+
+  renderApp("/admin/bulk-onboarding");
+
+  expect(await screen.findByText("Bulk Onboarding")).toBeInTheDocument();
 });

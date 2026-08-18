@@ -129,6 +129,8 @@ function tierOptionSummary(settings, serviceModel, tier) {
 
 export default function ServiceDeliverySettings() {
   const navigate = useNavigate();
+  const platformManagedAdminView = localStorage.getItem("assumedOrganization") === "true"
+    && localStorage.getItem("organizationAdministrationMode") === "platform_managed";
   useMarkNotificationsRead(NOTIFICATION_SECTIONS.serviceModels);
   const [settings, setSettings] = useState(null);
   const [audit, setAudit] = useState([]);
@@ -577,8 +579,11 @@ export default function ServiceDeliverySettings() {
       {policySavePromptVisible && (
         <AdminVerificationDialog
           title="Save organization policy"
-          description="Enter your organization passkey to apply this service delivery policy to future assignments."
+          description={platformManagedAdminView
+            ? "Continue using your protected, audited Admin View session to apply this service delivery policy."
+            : "Enter your organization passkey to apply this service delivery policy to future assignments."}
           continueLabel="Save policy"
+          requiresPasskey={!platformManagedAdminView}
           onVerify={saveOrganization}
           onClose={() => setPolicySavePromptVisible(false)}
         />

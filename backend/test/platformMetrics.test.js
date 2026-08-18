@@ -17,7 +17,8 @@ test("platform metrics merge grouped tenant counts without per-organization quer
           name: "Alpha",
           orgType: "COM",
           propertyCount: 2,
-          security: { adminActionPasskeyHash: "hash" },
+          administration: { mode: "platform_managed" },
+          security: { adminActionPasskeyHash: "" },
           onboarding: { status: "in_progress" },
           routes: [
             { _id: "route-active", name: "East", region: "Tucson East", propertyIds: ["one", "two"], status: "active", version: 3 },
@@ -54,6 +55,7 @@ test("platform metrics merge grouped tenant counts without per-organization quer
   assert.equal(result.organizations[0].pendingBidCount, 1);
   assert.equal(result.organizations[0].planLabel, "Managed service Tier 1");
   assert.equal(result.organizations[0].recurringMonthlyFeeCents, 50000);
+  assert.equal(result.organizations[0].administrationMode, "platform_managed");
   assert.equal(result.organizations[0].onboarding.requiredComplete, 3);
   assert.deepEqual(result.organizations[0].routes, [{
     routeId: "route-active",

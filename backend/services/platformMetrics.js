@@ -5,6 +5,10 @@ const BidRequest = require("../models/bidRequest");
 const Invoice = require("../models/invoice");
 const OrganizationInvitation = require("../models/organizationInvitation");
 const { resolveLicenseEntitlements } = require("./licenseEntitlements");
+const {
+  organizationAdministrationMode,
+  isPlatformManagedOrganization,
+} = require("./organizationAdministration");
 
 function countMap(rows) {
   return new Map(rows.map((row) => [String(row._id), row.count]));
@@ -30,6 +34,7 @@ async function getPlatformOrganizationMetrics({
         serviceModel: 1,
         license: 1,
         onboarding: 1,
+        administration: 1,
         security: 1,
         billingCapabilities: 1,
         routes: 1,
@@ -90,11 +95,14 @@ async function getPlatformOrganizationMetrics({
   const rows = organizations.map((organization) => {
     const id = String(organization._id);
     const entitlements = resolveLicenseEntitlements(organization);
+    const administrationMode = organizationAdministrationMode(organization);
+    const platformManaged = isPlatformManagedOrganization(organization);
     return {
       organizationId: id,
       name: organization.name,
       orgType: organization.orgType,
       serviceModel: organization.serviceModel || "managed",
+      administrationMode,
       planLabel: entitlements.label,
       recurringMonthlyFeeCents: entitlements.recurringMonthlyFeeCents,
       currency: entitlements.currency,
@@ -126,7 +134,7 @@ async function getPlatformOrganizationMetrics({
         administratorAcceptedAt: organization.onboarding.administratorAcceptedAt || null,
         completedAt: organization.onboarding.completedAt || null,
         requiredComplete: 1
-          + (organization.security?.adminActionPasskeyHash ? 1 : 0)
+          + (platformManaged || organization.security?.adminActionPasskeyHash ? 1 : 0)
           + (organization.propertyCount > 0 ? 1 : 0),
         requiredTotal: 3,
       } : null,

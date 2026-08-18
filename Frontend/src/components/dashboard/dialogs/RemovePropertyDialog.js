@@ -9,6 +9,7 @@ function RemovePropertyDialog({
   onPasskeyChange,
   onConfirm,
   onClose,
+  requiresPasskey = true,
 }) {
   return (
     <div className="beta-dialog-overlay">
@@ -21,7 +22,7 @@ function RemovePropertyDialog({
           <button type="button" className="beta-dialog-close" aria-label="Close remove property dialog" onClick={onClose}>×</button>
         </div>
         <p className="beta-dialog-copy">Select the property you wish to remove.</p>
-        <label className="beta-field">
+        {requiresPasskey && <label className="beta-field">
           Property
           <select value={propertyName} onChange={(event) => onPropertyChange(event.target.value)}>
             <option value="">-- Select Property --</option>
@@ -31,7 +32,7 @@ function RemovePropertyDialog({
               </option>
             ))}
           </select>
-        </label>
+        </label>}
         <label className="beta-field">
           Removal passkey
           <input

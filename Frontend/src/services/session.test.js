@@ -68,13 +68,16 @@ test("assumed organization metadata is stored and cleared", () => {
     platformRole: "platform_admin",
     assumedOrganization: true,
     platformSessionId: "session-1",
+    organizationAdministrationMode: "platform_managed",
   });
   expect(localStorage.getItem("platformRole")).toBe("platform_admin");
   expect(localStorage.getItem("assumedOrganization")).toBe("true");
   expect(localStorage.getItem("platformSessionId")).toBe("session-1");
+  expect(localStorage.getItem("organizationAdministrationMode")).toBe("platform_managed");
   clearAuthentication();
   expect(localStorage.getItem("platformRole")).toBeNull();
   expect(localStorage.getItem("platformSessionId")).toBeNull();
+  expect(localStorage.getItem("organizationAdministrationMode")).toBeNull();
 });
 
 test("temporary refresh failures preserve an existing signed-in session", async () => {

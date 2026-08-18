@@ -220,6 +220,7 @@ function OrganizationCard({ organization, busy, onEnter, onManageCapabilities, o
       <div className="platform-organization-card-header">
         <span className="platform-organization-avatar" aria-hidden="true">{organization.name.slice(0, 2).toUpperCase()}</span>
         <div><h3>{organization.name}</h3><span className="platform-org-type">{ORGANIZATION_TYPES[organization.orgType] || organization.orgType}</span></div>
+        {organization.administrationMode === "platform_managed" && <span className="beta-status">Afterlight managed</span>}
       </div>
       <div className="platform-org-stats">
         <div><strong>{organization.propertyCount.toLocaleString()}</strong><span>Properties</span></div>
@@ -256,7 +257,11 @@ function OrganizationCard({ organization, busy, onEnter, onManageCapabilities, o
       )}
       {organization.onboarding && !organization.pendingAdminInvitation && (
         <div className={`platform-org-onboarding${organization.onboarding.status === "completed" ? " complete" : ""}`}>
-          <span>{organization.onboarding.status === "completed" ? "Onboarding completed" : "Administrator onboarding in progress"}</span>
+          <span>{organization.onboarding.status === "completed"
+            ? "Onboarding completed"
+            : organization.administrationMode === "platform_managed"
+              ? "Afterlight-managed onboarding in progress"
+              : "Administrator onboarding in progress"}</span>
           <small>{organization.onboarding.requiredComplete} of {organization.onboarding.requiredTotal} required setup items complete</small>
         </div>
       )}
@@ -432,9 +437,11 @@ export default function PlatformDashboard() {
       const created = await api.post("/api/platform/organizations", draft);
       await loadReport();
       setNewOrganizationOpen(false);
-      setMessage(created.invitationDelivered
-        ? `${created.name} was created and its administrator invitation was sent to ${created.initialAdminEmail}.`
-        : `${created.name} was created, but its administrator invitation could not be delivered. Support can resend the pending invitation.`);
+      setMessage(created.administrationMode === "platform_managed"
+        ? `${created.name} was created as an Afterlight-managed organization. Open Admin View to continue setup.`
+        : created.invitationDelivered
+          ? `${created.name} was created and its administrator invitation was sent to ${created.initialAdminEmail}.`
+          : `${created.name} was created, but its administrator invitation could not be delivered. Support can resend the pending invitation.`);
       selectView("overview");
       return true;
     } catch (requestError) {

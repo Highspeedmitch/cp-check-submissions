@@ -1,8 +1,10 @@
 const jwt = require('jsonwebtoken');
 const User = require("../models/user");
+const Organization = require("../models/organization");
 const PlatformSession = require("../models/platformSession");
 const { getJwtSecret } = require("../config/security");
 const { workspaceAuthentication } = require("../services/workspaceAccess");
+const { organizationAdministrationMode } = require("../services/organizationAdministration");
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -52,17 +54,22 @@ const authenticateToken = (req, res, next) => {
           workspace = await workspaceAuthentication(currentUser);
         }
       }
+      let assumedAdministrationMode = null;
       if (isAssumedAccess) {
-        const platformSession = await PlatformSession.findOne({
-          _id: user.platformSessionId,
-          platformAdminId: currentUser._id,
-          organizationId: user.organizationId,
-          endedAt: null,
-          expiresAt: { $gt: new Date() },
-        }).select("_id").lean();
-        if (!platformSession) {
+        const [platformSession, assumedOrganization] = await Promise.all([
+          PlatformSession.findOne({
+            _id: user.platformSessionId,
+            platformAdminId: currentUser._id,
+            organizationId: user.organizationId,
+            endedAt: null,
+            expiresAt: { $gt: new Date() },
+          }).select("_id").lean(),
+          Organization.findById(user.organizationId).select("administration.mode").lean(),
+        ]);
+        if (!platformSession || !assumedOrganization) {
           return res.status(403).json({ message: "Organization access session expired." });
         }
+        assumedAdministrationMode = organizationAdministrationMode(assumedOrganization);
         if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
           res.on("finish", () => {
             PlatformSession.updateOne(
@@ -92,6 +99,7 @@ const authenticateToken = (req, res, next) => {
           ? String(user.organizationId)
           : currentUser.organizationId.toString(),
         assumedOrganization: isAssumedAccess,
+        organizationAdministrationMode: assumedAdministrationMode,
       };
       next();
     } catch (error) {
