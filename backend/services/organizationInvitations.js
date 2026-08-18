@@ -9,6 +9,7 @@ const {
 } = require("./organizationUserClassification");
 
 const INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+const INVITATION_DELIVERY_METHODS = new Set(["email", "manual"]);
 const ORGANIZATION_INVITE_ROLES = new Set([
   "field_operator", "property_manager", "user", "client", "contractor", "cleaner",
 ]);
@@ -23,6 +24,14 @@ function normalizeInvitationEmail(value) {
 
 function invitationToken() {
   return crypto.randomBytes(32).toString("base64url");
+}
+
+function normalizeInvitationDeliveryMethod(value) {
+  const deliveryMethod = String(value || "email").trim().toLowerCase();
+  if (!INVITATION_DELIVERY_METHODS.has(deliveryMethod)) {
+    throw new Error("Select a valid account setup method.");
+  }
+  return deliveryMethod;
 }
 
 function hashInvitationToken(token) {
@@ -83,10 +92,12 @@ async function createInvitation({
   sendEmail = sendSystemEmail,
   now = new Date(),
   allowOrganizationAdmin = false,
+  deliveryMethod = "email",
   deliver = true,
   session,
 }) {
   const normalizedEmail = normalizeInvitationEmail(email);
+  const normalizedDeliveryMethod = normalizeInvitationDeliveryMethod(deliveryMethod);
   const organizationClassification = accountScope === "organization" && role !== "admin"
     ? normalizeOrganizationUserClassification({ role, engagementType })
     : { role, engagementType: null };
@@ -128,6 +139,7 @@ async function createInvitation({
     invitedBy,
     inviterScope,
     accountScope,
+    deliveryMethod: normalizedDeliveryMethod,
     expiresAt: new Date(now.getTime() + INVITATION_LIFETIME_MS),
     lastSentAt: now,
   };
@@ -135,7 +147,7 @@ async function createInvitation({
     ? (await InvitationModel.create([record], { session }))[0]
     : await InvitationModel.create(record);
   let deliveredStatus = null;
-  if (deliver) {
+  if (deliver && normalizedDeliveryMethod === "email") {
     deliveredStatus = true;
     try {
       await deliverInvitation({ invitation, organization, token, sendEmail });
@@ -154,11 +166,32 @@ async function resendInvitation({ invitation, organization, sendEmail = sendSyst
   const token = invitationToken();
   invitation.tokenHash = hashInvitationToken(token);
   invitation.status = "pending";
+  invitation.deliveryMethod = "email";
   invitation.expiresAt = new Date(now.getTime() + INVITATION_LIFETIME_MS);
   invitation.lastSentAt = now;
   await invitation.save();
   await deliverInvitation({ invitation, organization, token, sendEmail });
   return invitation;
+}
+
+async function createManualActivation({ invitation, now = new Date() }) {
+  if (!["pending", "expired"].includes(invitation.status)) {
+    throw new Error("Only pending or expired invitations can use manual activation.");
+  }
+  if (invitation.role === "admin") {
+    throw new Error("Administrator invitations must use the dedicated administrator workflow.");
+  }
+  const token = invitationToken();
+  invitation.tokenHash = hashInvitationToken(token);
+  invitation.status = "pending";
+  invitation.deliveryMethod = "manual";
+  invitation.expiresAt = new Date(now.getTime() + INVITATION_LIFETIME_MS);
+  invitation.lastSentAt = now;
+  await invitation.save();
+  return {
+    invitation,
+    setupUrl: invitationUrl(token),
+  };
 }
 
 async function expireInvitations(scope = {}, InvitationModel = OrganizationInvitation, now = new Date()) {
@@ -169,8 +202,10 @@ async function expireInvitations(scope = {}, InvitationModel = OrganizationInvit
 
 module.exports = {
   INVITATION_LIFETIME_MS,
+  INVITATION_DELIVERY_METHODS,
   ORGANIZATION_INVITE_ROLES,
   normalizeInvitationEmail,
+  normalizeInvitationDeliveryMethod,
   invitationToken,
   hashInvitationToken,
   invitationUrl,
@@ -178,5 +213,6 @@ module.exports = {
   deliverInvitation,
   createInvitation,
   resendInvitation,
+  createManualActivation,
   expireInvitations,
 };

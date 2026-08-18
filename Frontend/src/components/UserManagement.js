@@ -6,6 +6,7 @@ import { api } from "../services/api";
 import AdminInvitationDialog from "./admin/AdminInvitationDialog";
 import AdministratorAccessDialog from "./admin/AdministratorAccessDialog";
 import LicenseIncreaseRequestDialog from "./admin/LicenseIncreaseRequestDialog";
+import ManualActivationDialog from "./admin/ManualActivationDialog";
 import ConfirmationDialog from "./ui/ConfirmationDialog";
 import {
   CUSTOMER_ENGAGEMENT_OPTIONS,
@@ -23,6 +24,7 @@ const EMPTY_INVITATION = {
   engagementType: "customer_employee",
   propertyIds: [],
   routeIds: [],
+  setupMethod: "email",
 };
 
 const ROUTE_SCOPE_ROLES = ["property_manager", "user", "contractor", "cleaner"];
@@ -147,6 +149,8 @@ export default function UserManagement() {
   const [adminAccessTarget, setAdminAccessTarget] = useState(null);
   const [licenseRequestOpen, setLicenseRequestOpen] = useState(false);
   const [revokeInvitationTarget, setRevokeInvitationTarget] = useState(null);
+  const [manualInvitationTarget, setManualInvitationTarget] = useState(null);
+  const [manualActivation, setManualActivation] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -315,11 +319,38 @@ export default function UserManagement() {
     try {
       const result = await api.post("/api/admin-users/invitations", inviteDraft);
       setMessage(result.message || "Invitation sent.");
+      if (result.manualActivation) {
+        setManualActivation({
+          email: result.invitation?.email || inviteDraft.email,
+          ...result.manualActivation,
+        });
+      }
       setInviteDraft(EMPTY_INVITATION);
       setInviteOpen(false);
       await load();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function generateManualActivation(invitation) {
+    if (busyAction) return;
+    setBusyAction(`manual-${invitation._id}`);
+    setMessage("");
+    setError("");
+    try {
+      const result = await api.post(`/api/admin-users/invitations/${invitation._id}/manual-activation`);
+      setManualActivation({
+        email: result.invitation?.email || invitation.email,
+        ...result.manualActivation,
+      });
+      setMessage(result.message || "Manual activation created.");
+      await load();
+    } catch (err) {
+      setError(err.message);
+      throw err;
     } finally {
       setBusyAction("");
     }
@@ -623,8 +654,30 @@ export default function UserManagement() {
               onToggleProperty={toggleInvitationProperty}
               onToggleRoute={toggleInvitationRoute}
             />
+            <fieldset className="beta-property-access beta-setup-methods">
+              <legend>Account setup method</legend>
+              <label className={inviteDraft.setupMethod === "email" ? "selected" : ""}>
+                <input type="radio" name="setupMethod" value="email"
+                  checked={inviteDraft.setupMethod === "email"}
+                  onChange={() => setInviteDraft({ ...inviteDraft, setupMethod: "email" })} />
+                <span><strong>Send email invitation</strong><small>Afterlight emails a secure, single-use setup link.</small></span>
+              </label>
+              <label className={inviteDraft.setupMethod === "manual" ? "selected" : ""}>
+                <input type="radio" name="setupMethod" value="manual"
+                  checked={inviteDraft.setupMethod === "manual"}
+                  onChange={() => setInviteDraft({ ...inviteDraft, setupMethod: "manual" })} />
+                <span><strong>Manual activation</strong><small>No email is sent. A one-time setup link is shown to the administrator.</small></span>
+              </label>
+            </fieldset>
+            {inviteDraft.setupMethod === "manual" && (
+              <p className="beta-alert notice">
+                Confirm the recipient's identity and deliver the setup link through an approved private channel. The link is displayed only once.
+              </p>
+            )}
             <button className="beta-button" type="submit" disabled={Boolean(busyAction)}>
-              {busyAction === "invite" ? "Sending..." : "Send Invitation"}
+              {busyAction === "invite"
+                ? (inviteDraft.setupMethod === "manual" ? "Creating..." : "Sending...")
+                : (inviteDraft.setupMethod === "manual" ? "Create Manual Activation" : "Send Invitation")}
             </button>
           </form>
         )}
@@ -632,11 +685,21 @@ export default function UserManagement() {
           <div className="beta-pending-invitations">
             {data.invitations.map((invitation) => (
               <article key={invitation._id} className="beta-invitation-row">
-                <div><strong>{invitation.email}</strong><small>{organizationRoleLabel(invitation.role)} · {customerEngagementLabel(inferredCustomerEngagementType(invitation))} · {invitation.status}</small></div>
+                <div><strong>{invitation.email}</strong><small>{organizationRoleLabel(invitation.role)} · {customerEngagementLabel(inferredCustomerEngagementType(invitation))} · {invitation.status} · {invitation.deliveryMethod === "manual" ? "manual activation" : "email invitation"}</small></div>
                 <div className="beta-card-actions">
                   {invitation.status === "pending" && (
                     <button className="beta-button secondary compact" type="button" disabled={Boolean(busyAction)} onClick={() => resendInvitation(invitation._id)}>
-                      {busyAction === `resend-${invitation._id}` ? "Sending..." : "Resend"}
+                      {busyAction === `resend-${invitation._id}`
+                        ? "Sending..."
+                        : invitation.deliveryMethod === "manual" ? "Send by email" : "Resend"}
+                    </button>
+                  )}
+                  {(["pending", "expired"].includes(invitation.status)) && (
+                    <button className="beta-button secondary compact" type="button" disabled={Boolean(busyAction)}
+                      onClick={() => setManualInvitationTarget(invitation)}>
+                      {busyAction === `manual-${invitation._id}`
+                        ? "Creating..."
+                        : invitation.deliveryMethod === "manual" ? "New setup link" : "Manual activation"}
                     </button>
                   )}
                   <button className="beta-button danger compact" type="button" disabled={Boolean(busyAction)} onClick={() => setRevokeInvitationTarget(invitation)}>
@@ -820,17 +883,32 @@ export default function UserManagement() {
         onSubmit={(payload) => changeAdministratorAccess(adminAccessTarget, payload)}
       />
     )}
-    {revokeInvitationTarget && (
-      <ConfirmationDialog
-        eyebrow="Invitation security"
-        title="Revoke this invitation?"
-        description={`The invitation for ${revokeInvitationTarget.email} will stop working immediately and its reserved seat will be released.`}
-        confirmLabel="Revoke invitation"
-        danger
-        onClose={() => setRevokeInvitationTarget(null)}
-        onConfirm={() => revokeInvitation(revokeInvitationTarget._id)}
-      />
-    )}
+      {revokeInvitationTarget && (
+        <ConfirmationDialog
+          eyebrow="Invitation security"
+          title="Revoke this invitation?"
+          description={`The invitation for ${revokeInvitationTarget.email} will stop working immediately and its reserved seat will be released.`}
+          confirmLabel="Revoke invitation"
+          danger
+          onClose={() => setRevokeInvitationTarget(null)}
+          onConfirm={() => revokeInvitation(revokeInvitationTarget._id)}
+        />
+      )}
+      {manualInvitationTarget && (
+        <ConfirmationDialog
+          title={manualInvitationTarget.deliveryMethod === "manual"
+            ? "Generate a new setup link?"
+            : "Switch to manual activation?"}
+          description={`A new one-time setup link will be created for ${manualInvitationTarget.email}. Any previous invitation link will stop working, and no email will be sent.`}
+          confirmLabel="Generate setup link"
+          eyebrow="Manual activation"
+          onClose={() => setManualInvitationTarget(null)}
+          onConfirm={() => generateManualActivation(manualInvitationTarget)}
+        />
+      )}
+      {manualActivation && (
+        <ManualActivationDialog activation={manualActivation} onClose={() => setManualActivation(null)} />
+      )}
     </div>
   );
 }

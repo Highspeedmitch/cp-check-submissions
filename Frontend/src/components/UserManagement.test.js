@@ -400,8 +400,88 @@ test("invites a Field Operator with a separate Customer Contractor assignment ty
       engagementType: "customer_contractor",
       propertyIds: [],
       routeIds: [],
+      setupMethod: "email",
     }
   ));
+});
+
+test("an administrator can create a one-time manual activation without sending email", async () => {
+  api.post.mockImplementation(async (path) => {
+    if (path === "/api/admin-users/invitations") {
+      return {
+        message: "Manual activation created.",
+        invitation: { email: "mike.ash@example.com" },
+        manualActivation: {
+          setupUrl: "https://app.afterlightinspections.com/join#one-time-token",
+          expiresAt: "2026-08-25T12:00:00.000Z",
+        },
+      };
+    }
+    return { message: "Operation completed." };
+  });
+  renderManagement();
+  fireEvent.click(await screen.findByRole("button", { name: "Invite User" }));
+  fireEvent.change(screen.getByLabelText("Email address"), {
+    target: { value: "mike.ash@example.com" },
+  });
+  fireEvent.click(screen.getByRole("radio", { name: /Manual activation/ }));
+  expect(screen.getByText(/Confirm the recipient's identity/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Create Manual Activation" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/admin-users/invitations",
+    {
+      email: "mike.ash@example.com",
+      role: "user",
+      engagementType: "customer_employee",
+      propertyIds: [],
+      routeIds: [],
+      setupMethod: "manual",
+    }
+  ));
+  const dialog = await screen.findByRole("dialog", { name: "Manual activation ready" });
+  expect(within(dialog).getByDisplayValue("https://app.afterlightinspections.com/join#one-time-token")).toBeInTheDocument();
+  expect(within(dialog).getByText(/shown only now/i)).toBeInTheDocument();
+});
+
+test("a pending email invitation can be rotated into manual activation", async () => {
+  api.get.mockResolvedValue({
+    ...currentDirectory,
+    invitations: [{
+      _id: "invitation-1",
+      email: "mike.ash@example.com",
+      role: "property_manager",
+      engagementType: null,
+      status: "pending",
+      deliveryMethod: "email",
+    }],
+  });
+  api.post.mockImplementation(async (path) => {
+    if (path === "/api/admin-users/invitations/invitation-1/manual-activation") {
+      return {
+        message: "A new manual activation link was created.",
+        invitation: { email: "mike.ash@example.com", deliveryMethod: "manual" },
+        manualActivation: {
+          setupUrl: "https://app.afterlightinspections.com/join#rotated-token",
+          expiresAt: "2026-08-25T12:00:00.000Z",
+        },
+      };
+    }
+    return { message: "Operation completed." };
+  });
+  renderManagement();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Manual activation" }));
+  expect(screen.getByRole("dialog", { name: "Switch to manual activation?" })).toHaveTextContent(
+    "Any previous invitation link will stop working"
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Generate setup link" }));
+
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+    "/api/admin-users/invitations/invitation-1/manual-activation"
+  ));
+  const dialog = await screen.findByRole("dialog", { name: "Manual activation ready" });
+  expect(within(dialog).getByDisplayValue("https://app.afterlightinspections.com/join#rotated-token")).toBeInTheDocument();
 });
 
 test("an invitation can grant dynamic future scope through a route", async () => {

@@ -62,6 +62,14 @@ stores only a SHA-256 hash of the token. Resending an invitation rotates the tok
 invalidates the previous link. Invitations lock the recipient to the organization, role,
 email address, and any initial property assignments selected by the administrator.
 
+User Management also supports manual activation for non-administrator invitations. This
+uses the same invitation record, capacity reservation, role and scope validation, and
+acceptance transaction, but suppresses email and returns the fragment-based setup URL to
+the administrator exactly once. Converting an existing pending invitation rotates its
+token, labels the record as manual delivery, and audits the administrator who performed
+the conversion. The recipient must still choose their own password; manual activation
+does not create an administrator-known password or bypass MFA.
+
 The backend switch `INVITE_ONLY_REGISTRATION` defaults to enabled. Set it to `false` only
 as a temporary rollback measure. The frontend equivalent is
 `REACT_APP_ALLOW_PUBLIC_REGISTRATION=false`; production builds should leave public

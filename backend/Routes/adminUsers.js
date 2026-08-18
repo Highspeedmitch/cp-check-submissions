@@ -21,6 +21,7 @@ const {
 const { recordsById } = require("../services/directoryStats");
 const {
   ORGANIZATION_INVITE_ROLES,
+  createManualActivation,
   resendInvitation,
   expireInvitations,
 } = require("../services/organizationInvitations");
@@ -95,7 +96,7 @@ router.get("/", async (req, res) => {
       organizationId: req.user.organizationId,
       role: { $ne: "admin" },
       status: { $in: ["pending", "expired"] },
-    }).select("email role engagementType propertyIds routeIds status expiresAt lastSentAt createdAt")
+    }).select("email role engagementType propertyIds routeIds deliveryMethod status expiresAt lastSentAt createdAt")
       .sort({ createdAt: -1 }).lean(),
     User.find({
       organizationId: req.user.organizationId,
@@ -374,6 +375,7 @@ router.post("/:userId/restore", async (req, res) => {
 router.post("/invitations", async (req, res) => {
   try {
     const role = String(req.body.role || "");
+    const setupMethod = String(req.body.setupMethod || "email");
     if (!ORGANIZATION_INVITE_ROLES.has(role)) {
       return res.status(400).json({ error: "Select a valid invitation role." });
     }
@@ -387,6 +389,7 @@ router.post("/invitations", async (req, res) => {
       invitedBy: req.user.userId,
       ipAddress: req.ip || "",
       userAgent: req.get("user-agent") || "",
+      deliveryMethod: setupMethod,
     });
     return res.status(201).json({
       invitation: {
@@ -396,15 +399,19 @@ router.post("/invitations", async (req, res) => {
         engagementType: inferredCustomerEngagementType(result.invitation),
         propertyIds: result.invitation.propertyIds,
         routeIds: result.invitation.routeIds,
+        deliveryMethod: result.invitation.deliveryMethod || setupMethod,
         status: result.invitation.status,
         expiresAt: result.invitation.expiresAt,
         lastSentAt: result.invitation.lastSentAt,
       },
       delivered: result.delivered,
+      manualActivation: result.manualActivation,
       capacity: result.capacity,
-      message: result.delivered
-        ? "Invitation sent."
-        : "Invitation created, but email delivery failed. You can resend it from the pending list.",
+      message: result.manualActivation
+        ? "Manual activation created. Copy the setup link before closing this dialog."
+        : result.delivered
+          ? "Invitation sent."
+          : "Invitation created, but email delivery failed. You can resend it from the pending list.",
     });
   } catch (error) {
     if (error?.code === 11000) {
@@ -413,11 +420,62 @@ router.post("/invitations", async (req, res) => {
     if (error.status) {
       return res.status(error.status).json(licensedCapacityErrorBody(error, "Unable to create the invitation."));
     }
-    if (/valid invitation|already belongs|archived user|Administrator invitations/i.test(error.message || "")) {
+    if (/valid invitation|valid account setup method|already belongs|archived user|Administrator invitations/i.test(error.message || "")) {
       return res.status(400).json({ error: error.message });
     }
     console.error("Invitation creation error:", error.message);
     return res.status(500).json({ error: "Unable to create the invitation." });
+  }
+});
+
+router.post("/invitations/:invitationId/manual-activation", async (req, res) => {
+  try {
+    const [organization, invitation] = await Promise.all([
+      Organization.findById(req.user.organizationId),
+      OrganizationInvitation.findOne({
+        _id: req.params.invitationId,
+        organizationId: req.user.organizationId,
+        role: { $ne: "admin" },
+        status: { $in: ["pending", "expired"] },
+      }).select("+tokenHash"),
+    ]);
+    if (!organization || !invitation) {
+      return res.status(404).json({ error: "Pending or expired invitation not found." });
+    }
+    const result = await createManualActivation({ invitation });
+    await PlatformAudit.create({
+      actorUserId: req.user.userId,
+      action: "organization_invitation_manual_activation_created",
+      targetOrganizationId: organization._id,
+      metadata: {
+        invitationId: invitation._id,
+        email: invitation.email,
+        role: invitation.role,
+        expiresAt: invitation.expiresAt,
+      },
+      ipAddress: req.ip || "",
+      userAgent: req.get("user-agent") || "",
+    });
+    return res.json({
+      message: "A new manual activation link was created. Any previous invitation link is now invalid.",
+      invitation: {
+        _id: invitation._id,
+        email: invitation.email,
+        deliveryMethod: invitation.deliveryMethod,
+        status: invitation.status,
+        expiresAt: invitation.expiresAt,
+      },
+      manualActivation: {
+        setupUrl: result.setupUrl,
+        expiresAt: invitation.expiresAt,
+      },
+    });
+  } catch (error) {
+    if (/pending or expired|Administrator invitations/i.test(error.message || "")) {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("Manual activation creation error:", error.message);
+    return res.status(500).json({ error: "Unable to create manual activation." });
   }
 });
 

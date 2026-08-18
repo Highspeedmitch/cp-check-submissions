@@ -34,6 +34,11 @@ const OrganizationInvitationSchema = new mongoose.Schema({
     enum: ["organization", "afterlight_resource"],
     default: "organization",
   },
+  deliveryMethod: {
+    type: String,
+    enum: ["email", "manual"],
+    default: "email",
+  },
   expiresAt: { type: Date, required: true, index: true },
   lastSentAt: { type: Date, default: Date.now },
   acceptedAt: { type: Date, default: null },

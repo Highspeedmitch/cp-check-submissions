@@ -1972,6 +1972,13 @@ select:focus-visible {
 .beta-invitation-panel .beta-section-heading { align-items: center; }
 .beta-invitation-form { display: grid; gap: 16px; margin: 18px 0; padding: 18px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); }
 .beta-invitation-form > .beta-button { width: fit-content; margin: 0; }
+.beta-setup-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.beta-setup-methods legend { padding: 0 6px; font-weight: 800; }
+.beta-setup-methods label { align-items: flex-start; padding: 12px; border: 1px solid var(--beta-border); border-radius: 9px; background: var(--beta-surface); cursor: pointer; }
+.beta-setup-methods label.selected { border-color: var(--beta-blue); box-shadow: 0 0 0 1px var(--beta-blue); }
+.beta-setup-methods label > span { display: grid; gap: 3px; }
+.beta-setup-methods small { color: var(--beta-muted); line-height: 1.4; }
+.beta-manual-activation-warning { margin-bottom: 18px; padding: 12px; border: 1px solid #e3c56f; border-radius: 9px; background: var(--beta-warning-bg); }
 .beta-pending-invitations { display: grid; margin-top: 16px; border-top: 1px solid var(--beta-border); }
 .beta-invitation-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 2px; border-bottom: 1px solid var(--beta-border); }
 .beta-invitation-row > div:first-child { display: grid; gap: 3px; min-width: 0; }
@@ -2818,6 +2825,7 @@ select:focus-visible {
   .beta-submission-list article > .beta-submission-action { align-self: stretch; width: 100%; min-width: 0; max-width: 100%; }
   .beta-submission-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .beta-invitation-row { align-items: flex-start; flex-direction: column; }
+  .beta-setup-methods { grid-template-columns: 1fr; }
   .beta-invitation-row .beta-card-actions { width: 100%; }
   .beta-invitation-row .beta-card-actions .beta-button { flex: 1 1 120px; }
   .beta-admin-seat-panel .beta-section-heading { align-items: stretch; flex-direction: column; }
