@@ -6,8 +6,10 @@ const {
   hashInvitationToken,
   invitationUrl,
   invitationRoleLabel,
+  normalizeInvitationDeliveryMethod,
   createInvitation,
   resendInvitation,
+  createManualActivation,
 } = require("../services/organizationInvitations");
 
 test("invitation emails are normalized and validated", () => {
@@ -31,6 +33,12 @@ test("invitation tokens are high entropy, hashed, and placed in the URL fragment
   const url = invitationUrl(token);
   assert.match(url, /^http:\/\/localhost:3000\/join#/);
   assert.equal(new URL(url).pathname, "/join");
+});
+
+test("invitation delivery methods default to email and reject unsupported setup methods", () => {
+  assert.equal(normalizeInvitationDeliveryMethod(), "email");
+  assert.equal(normalizeInvitationDeliveryMethod(" MANUAL "), "manual");
+  assert.throws(() => normalizeInvitationDeliveryMethod("password"), /valid account setup method/);
 });
 
 test("organization invitations persist only the token hash and send the one-time link", async () => {
@@ -66,6 +74,7 @@ test("organization invitations persist only the token hash and send the one-time
   assert.equal(result.delivered, true);
   assert.equal(createdRecord.email, "person@example.com");
   assert.equal(createdRecord.accountScope, "afterlight_resource");
+  assert.equal(createdRecord.deliveryMethod, "email");
   assert.equal(createdRecord.tokenHash.length, 64);
   assert.equal(sentMail.text.includes(createdRecord.tokenHash), false);
   assert.match(sentMail.text, /\/join#/);
@@ -134,6 +143,7 @@ test("resending an expired invitation rotates its token and reactivates it", asy
     email: "person@example.com",
     role: "user",
     status: "expired",
+    deliveryMethod: "manual",
     tokenHash: "old-hash",
     save: async () => { saved = true; },
   };
@@ -145,6 +155,41 @@ test("resending an expired invitation rotates its token and reactivates it", asy
   });
   assert.equal(saved, true);
   assert.equal(invitation.status, "pending");
+  assert.equal(invitation.deliveryMethod, "email");
   assert.notEqual(invitation.tokenHash, "old-hash");
   assert.match(deliveredText, /\/join#/);
+});
+
+test("manual activation rotates the token without sending email and returns the link once", async () => {
+  let saved = false;
+  const invitation = {
+    email: "mike@example.com",
+    role: "property_manager",
+    status: "pending",
+    deliveryMethod: "email",
+    tokenHash: "old-hash",
+    save: async () => { saved = true; },
+  };
+  const result = await createManualActivation({
+    invitation,
+    now: new Date("2026-08-18T12:00:00.000Z"),
+  });
+
+  assert.equal(saved, true);
+  assert.equal(invitation.status, "pending");
+  assert.equal(invitation.deliveryMethod, "manual");
+  assert.notEqual(invitation.tokenHash, "old-hash");
+  assert.equal(invitation.expiresAt.toISOString(), "2026-08-25T12:00:00.000Z");
+  assert.match(result.setupUrl, /\/join#/);
+  assert.equal(result.setupUrl.includes(invitation.tokenHash), false);
+});
+
+test("manual activation cannot bypass the dedicated administrator workflow", async () => {
+  await assert.rejects(createManualActivation({
+    invitation: {
+      role: "admin",
+      status: "pending",
+      save: async () => assert.fail("administrator invitation must not be changed"),
+    },
+  }), /dedicated administrator workflow/);
 });

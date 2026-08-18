@@ -6,6 +6,8 @@ const {
   ORGANIZATION_INVITE_ROLES,
   createInvitation,
   deliverInvitation,
+  invitationUrl,
+  normalizeInvitationDeliveryMethod,
 } = require("./organizationInvitations");
 const { currentLicenseCapacity } = require("./licenseCapacity");
 const { reserveLicensedCapacity } = require("./licensedCapacityOperations");
@@ -30,6 +32,7 @@ async function createLicensedOrganizationInvitation({
   invitedBy,
   ipAddress = "",
   userAgent = "",
+  deliveryMethod = "email",
   now = new Date(),
   OrganizationModel = Organization,
   InvitationModel = OrganizationInvitation,
@@ -39,9 +42,11 @@ async function createLicensedOrganizationInvitation({
   deliverInvitationEmail = deliverInvitation,
   sendEmail = sendSystemEmail,
   reserveCapacity = reserveLicensedCapacity,
+  capacityReader = currentLicenseCapacity,
   transactionRunner,
 }) {
   if (!ORGANIZATION_INVITE_ROLES.has(role)) throw invitationError("Select a valid invitation role.");
+  const normalizedDeliveryMethod = normalizeInvitationDeliveryMethod(deliveryMethod);
   const classification = normalizeOrganizationUserClassification({ role, engagementType });
 
   const result = await reserveCapacity({
@@ -74,6 +79,7 @@ async function createLicensedOrganizationInvitation({
         routeIds: scope.routeIds,
         invitedBy,
         inviterScope: "organization",
+        deliveryMethod: normalizedDeliveryMethod,
         deliver: false,
         session,
         InvitationModel,
@@ -91,6 +97,7 @@ async function createLicensedOrganizationInvitation({
           engagementType: classification.engagementType,
           propertyIds: scope.propertyIds,
           routeIds: scope.routeIds,
+          deliveryMethod: normalizedDeliveryMethod,
         },
         ipAddress,
         userAgent,
@@ -99,25 +106,39 @@ async function createLicensedOrganizationInvitation({
     },
   });
 
-  let delivered = true;
-  try {
-    await deliverInvitationEmail({
-      invitation: result.value.invitation,
-      organization: result.organization,
-      token: result.value.token,
-      sendEmail,
-    });
-  } catch (error) {
-    delivered = false;
-    console.error("Invitation email delivery error:", error.message);
+  let delivered = null;
+  let manualActivation = null;
+  if (normalizedDeliveryMethod === "email") {
+    delivered = true;
+    try {
+      await deliverInvitationEmail({
+        invitation: result.value.invitation,
+        organization: result.organization,
+        token: result.value.token,
+        sendEmail,
+      });
+    } catch (error) {
+      delivered = false;
+      console.error("Invitation email delivery error:", error.message);
+    }
+  } else {
+    manualActivation = {
+      setupUrl: invitationUrl(result.value.token),
+      expiresAt: result.value.invitation.expiresAt,
+    };
   }
-  const capacity = await currentLicenseCapacity({
+  const capacity = await capacityReader({
     organization: result.organization,
     UserModel,
     InvitationModel,
     now,
   });
-  return { invitation: result.value.invitation, delivered, capacity };
+  return {
+    invitation: result.value.invitation,
+    delivered,
+    manualActivation,
+    capacity,
+  };
 }
 
 module.exports = {

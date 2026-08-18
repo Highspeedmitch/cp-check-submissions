@@ -16,15 +16,22 @@ Administrator access is managed separately in the **Administrator seats** sectio
    - **Customer Contractor** for an organization-managed contractor whose work can route an invoice to customer accounts payable; or
    - **Not scheduled** for a property manager or property owner who should not appear as an assignee.
 5. Under **Future work scope**, use **Properties** and **Routes** to select individual property access, route access, or both. Property owners continue to use individual property ownership only.
-6. Select **Send Invitation**.
+6. Under **Account setup method**, choose one option:
+   - **Send email invitation** emails the secure setup link to the recipient; or
+   - **Manual activation** suppresses email and displays the secure setup link once to the administrator.
+7. Select **Send Invitation** or **Create Manual Activation**.
+
+For manual activation, verify the recipient's identity and provide the displayed link through an approved private channel. The recipient still chooses their own password before the account becomes usable. Administrators cannot set or view the recipient's password.
 
 Use **Field Operator** as the role for a customer employee or customer contractor whose primary responsibility is completing inspections. The assignment type is deliberately separate from access. See [Onboard customer employees and contractors as Field Operators](onboard-customer-field-operators.md).
 
-The invitation is single-use and expires. A pending or expired invitation can be resent. Revoking an invitation immediately invalidates its current link.
+The invitation is single-use and expires after seven days. A pending or expired invitation can be resent. Revoking an invitation immediately invalidates its current link.
+
+The manual activation link is shown only when it is generated; Afterlight stores only its cryptographic hash. If the dialog was closed before the link was delivered, select **New setup link** from the pending invitation. Creating that replacement immediately invalidates the previous email or manual link.
 
 The roles in this standard invitation form do not include organization administrator. Use **Invite Administrator** in the licensed seat panel for that role.
 
-If email delivery fails, the invitation remains in the pending list so you can resend it. Do not send a second invitation to another spelling of the same person's email to work around a delivery or account problem.
+If email delivery fails or the recipient's provider changes the link, the invitation remains in the pending list. Select **Manual activation** to rotate the existing invitation into a one-time setup link without sending another email. Do not create another spelling of the same person's email to work around a delivery or account problem.
 
 ## Edit a current user
 
@@ -66,6 +73,8 @@ Restoration preserves the previous active or inactive account status. An inactiv
 ## If something goes wrong
 
 - **An invitation already exists:** Resend or revoke the pending invitation instead of creating another one.
+- **The recipient cannot open the emailed link:** Select **Manual activation** on the pending invitation and deliver the newly generated setup link privately. The emailed link stops working immediately.
+- **The manual setup dialog was closed too soon:** Select **New setup link**. The replacement is shown once and invalidates the missing link.
 - **The email belongs to an existing or archived account:** Update or restore that record rather than creating a duplicate identity.
 - **Archiving is refused:** Reassign or cancel the user's scheduled assignments, then try again.
 - **A restored user cannot sign in:** Check whether the preserved account status is inactive, then send a password reset if needed.
