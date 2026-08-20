@@ -4,6 +4,11 @@ const User = require("../models/user");
 const FulfillmentAudit = require("../models/fulfillmentAudit");
 const { canAccessProperty } = require("../services/propertyAccess");
 const { consumeGrant } = require("../services/organizationPasskeys");
+const {
+  propertyRemovalErrorBody,
+  propertyRemovalImpact,
+  removeProperty,
+} = require("../services/propertyRemoval");
 const { currentLicenseCapacity } = require("../services/licenseCapacity");
 const {
   licensedCapacityErrorBody,
@@ -222,43 +227,46 @@ router.put("/edit-property/:propertyName", async (req, res) => {
   }
 });
 
-router.delete("/property/:propertyName", async (req, res) => {
+router.get("/property/:propertyIdentifier/removal-impact", async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Forbidden - Admin only" });
     }
-    const organization = await Organization.findById(req.user.organizationId);
-    if (!organization) {
-      return res.status(404).json({ error: "Organization not found" });
-    }
-    if (!await consumeGrant({
-      organization,
-      userId: req.user.userId,
-      purpose: "remove_property",
-      token: req.body.adminActionGrant,
-    })) {
-      return res.status(403).json({ error: "Administrative verification expired or is invalid." });
-    }
-    const propertyName = decodeURIComponent(req.params.propertyName);
-    const propertyIndex = organization.properties.findIndex((property) => property.name === propertyName);
-    if (propertyIndex === -1) {
-      return res.status(404).json({ error: "Property not found" });
-    }
-    const property = organization.properties[propertyIndex];
-    const containingRoute = activeRoutes(organization).find((route) =>
-      routePropertyIds(route).includes(String(property._id))
-    );
-    if (containingRoute) {
-      return res.status(409).json({
-        error: `Remove this property from ${containingRoute.name} before removing the property.`,
-      });
-    }
-    organization.properties.splice(propertyIndex, 1);
-    await organization.save();
-    return res.json({ success: true, message: `Property "${propertyName}" removed.` });
+    const impact = await propertyRemovalImpact({
+      organizationId: req.user.organizationId,
+      propertyIdentifier: req.params.propertyIdentifier,
+    });
+    return res.json(impact);
   } catch (error) {
-    console.error("Error removing property:", error);
-    return res.status(500).json({ error: "Server error removing property" });
+    if (!error.status) console.error("Property removal impact error:", error);
+    return res.status(error.status || 500).json(propertyRemovalErrorBody(
+      error,
+      "Unable to check whether the property can be removed."
+    ));
+  }
+});
+
+router.delete("/property/:propertyIdentifier", async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden - Admin only" });
+    }
+    const result = await removeProperty({
+      organizationId: req.user.organizationId,
+      propertyIdentifier: req.params.propertyIdentifier,
+      actorUserId: req.user.userId,
+      adminActionGrant: req.body.adminActionGrant,
+      ipAddress: req.ip || "",
+      userAgent: req.get("user-agent") || "",
+    });
+    return res.json({
+      success: true,
+      message: `Property "${result.propertyName}" removed.`,
+      ...result,
+    });
+  } catch (error) {
+    if (!error.status) console.error("Error removing property:", error);
+    return res.status(error.status || 500).json(propertyRemovalErrorBody(error));
   }
 });
 

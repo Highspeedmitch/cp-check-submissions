@@ -146,7 +146,11 @@ const handleRegionFilter = async () => {
   // We have a single modal for removing property + passkey.
   const [removePropertyModalVisible, setRemovePropertyModalVisible] = useState(false);
   const [removePasskey, setRemovePasskey] = useState("");
-  const [propertyToRemove, setPropertyToRemove] = useState("");
+  const [propertyToRemoveId, setPropertyToRemoveId] = useState("");
+  const [removePropertyImpact, setRemovePropertyImpact] = useState(null);
+  const [removePropertyImpactLoading, setRemovePropertyImpactLoading] = useState(false);
+  const [removePropertyBusy, setRemovePropertyBusy] = useState(false);
+  const [removePropertyError, setRemovePropertyError] = useState("");
 
   // ----------- Property inspection recipients -----------
   const [emailModalProperty, setEmailModalProperty] = useState(null);
@@ -266,6 +270,31 @@ const handleRegionFilter = async () => {
   }, [token]);
 
   useEffect(() => {
+    if (!removePropertyModalVisible || !propertyToRemoveId) {
+      setRemovePropertyImpact(null);
+      setRemovePropertyImpactLoading(false);
+      return undefined;
+    }
+    let active = true;
+    setRemovePropertyImpact(null);
+    setRemovePropertyImpactLoading(true);
+    setRemovePropertyError("");
+    api.get(`/api/admin/property/${encodeURIComponent(propertyToRemoveId)}/removal-impact`)
+      .then((impact) => {
+        if (!active) return;
+        setRemovePropertyImpact(impact);
+      })
+      .catch((requestError) => {
+        if (!active) return;
+        setRemovePropertyError(requestError.message || "Unable to check this property for linked records.");
+      })
+      .finally(() => {
+        if (active) setRemovePropertyImpactLoading(false);
+      });
+    return () => { active = false; };
+  }, [propertyToRemoveId, removePropertyModalVisible]);
+
+  useEffect(() => {
     if (!token) {
       if (setUser) setUser(false);
       navigate("/login");
@@ -353,32 +382,46 @@ useEffect(() => {
   // ======================
   // 3) Remove Property Logic (admin only)
   // ======================
-  // Instead of two modals, we combine property selection + passkey in one.
+  function closeRemovePropertyDialog() {
+    setRemovePropertyModalVisible(false);
+    setRemovePasskey("");
+    setPropertyToRemoveId("");
+    setRemovePropertyImpact(null);
+    setRemovePropertyImpactLoading(false);
+    setRemovePropertyBusy(false);
+    setRemovePropertyError("");
+  }
+
   async function handleRemoveProperty() {
-    if (!propertyToRemove) {
-      alert("Please select a property to remove.");
+    if (!propertyToRemoveId) {
+      setRemovePropertyError("Select a property to remove.");
       return;
     }
+    if (!removePropertyImpact?.canRemove) {
+      setRemovePropertyError("Resolve the linked records shown below before removing this property.");
+      return;
+    }
+    setRemovePropertyBusy(true);
+    setRemovePropertyError("");
     try {
       const verification = await api.post("/api/organization-security/grants", {
         purpose: "remove_property",
         passkey: removePasskey,
       });
-      await api.delete(
-        `/api/admin/property/${encodeURIComponent(propertyToRemove)}`,
+      const result = await api.delete(
+        `/api/admin/property/${encodeURIComponent(propertyToRemoveId)}`,
         { body: { adminActionGrant: verification.grant } }
       );
-      alert(`✅ Property "${propertyToRemove}" removed successfully!`);
+      setPropertyActionMessage(result.message || "Property removed successfully.");
+      closeRemovePropertyDialog();
       fetchProperties();
-    } catch (error) {
-      console.error("Error removing property:", error);
-      alert("❌ Server error removing property.");
+    } catch (requestError) {
+      console.error("Error removing property:", requestError);
+      if (requestError.data?.impact) setRemovePropertyImpact(requestError.data.impact);
+      setRemovePropertyError(requestError.message || "Unable to remove the property.");
+    } finally {
+      setRemovePropertyBusy(false);
     }
-
-    // Close modal & reset
-    setRemovePropertyModalVisible(false);
-    setRemovePasskey("");
-    setPropertyToRemove("");
   }
 
   // ======================
@@ -568,7 +611,8 @@ useEffect(() => {
           setSidebarCollapsed(false);
           setRemovePropertyModalVisible(true);
           setRemovePasskey("");
-          setPropertyToRemove("");
+          setPropertyToRemoveId("");
+          setRemovePropertyError("");
         }}
         onLogout={handleLogout}
         canAccessBilling={canAccessBilling}
@@ -678,7 +722,9 @@ useEffect(() => {
                 navigate(`${route}${encodeURIComponent(property.name)}`);
               }}
               onRemove={(property) => {
-                setPropertyToRemove(property.name);
+                setPropertyToRemoveId(String(property._id));
+                setRemovePasskey("");
+                setRemovePropertyError("");
                 setRemovePropertyModalVisible(true);
               }}
               onNavigate={openNativeMaps}
@@ -694,17 +740,16 @@ useEffect(() => {
             {removePropertyModalVisible && (
               <RemovePropertyDialog
                 properties={properties}
-                propertyName={propertyToRemove}
+                propertyId={propertyToRemoveId}
                 passkey={removePasskey}
-                busy={false}
-                onPropertyChange={setPropertyToRemove}
+                busy={removePropertyBusy}
+                impact={removePropertyImpact}
+                impactLoading={removePropertyImpactLoading}
+                error={removePropertyError}
+                onPropertyChange={setPropertyToRemoveId}
                 onPasskeyChange={setRemovePasskey}
                 onConfirm={handleRemoveProperty}
-                onClose={() => {
-                  setRemovePropertyModalVisible(false);
-                  setRemovePasskey("");
-                  setPropertyToRemove("");
-                }}
+                onClose={closeRemovePropertyDialog}
                 requiresPasskey={!platformManagedAdminView}
               />
             )}

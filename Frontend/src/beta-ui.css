@@ -3006,6 +3006,8 @@ select:focus-visible {
 .beta-license-request-current { margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--beta-border); border-radius: 10px; background: var(--beta-subtle); }
 .beta-license-request-current p { margin: 4px 0 0; }
 .beta-dialog-error { margin: 10px 0 0; color: var(--beta-danger); font-size: 14px; }
+.beta-removal-blockers { margin: 9px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.45; }
+.beta-removal-blockers li + li { margin-top: 6px; }
 .beta-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .beta-dialog-actions .beta-button { width: auto; min-width: 112px; margin: 0; }
 .beta-dialog button:disabled { cursor: not-allowed; opacity: .58; }
