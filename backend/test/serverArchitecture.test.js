@@ -48,7 +48,8 @@ test("property administration and access-instruction paths remain stable", () =>
   assert.deepEqual(routeInventory(require("../Routes/propertyAdministration")), [
     { path: "/add-property", methods: ["post"] },
     { path: "/edit-property/:propertyName", methods: ["put"] },
-    { path: "/property/:propertyName", methods: ["delete"] },
+    { path: "/property/:propertyIdentifier/removal-impact", methods: ["get"] },
+    { path: "/property/:propertyIdentifier", methods: ["delete"] },
   ]);
   assert.deepEqual(routeInventory(require("../Routes/accessInstructions")), [
     { path: "/:propertyName", methods: ["get"] },

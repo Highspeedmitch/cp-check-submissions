@@ -61,14 +61,15 @@ Afterlight rejects an additional address that duplicates an automatic property-m
 
 ## Remove a property from the active workspace
 
-Use removal only after confirming that the organization no longer manages the property. Before removal, resolve scheduled work and open invoices, download any records the organization must retain, and notify affected users.
+Use removal only after confirming that the organization no longer manages the property. The removal dialog checks active routes and linked operational or historical records before enabling removal so that the action cannot orphan retained data.
 
 1. Open **Admin tools > Remove Property**.
 2. Select the exact property.
-3. Enter the organization administrative action passkey.
-4. Select **Confirm Removal**.
+3. Review the linked-record check. If blockers appear, resolve them before continuing.
+4. Enter the organization administrative action passkey. Afterlight platform administrators managing a platform-managed organization instead continue through their protected Admin View session.
+5. Select **Confirm Removal**.
 
-Removal has no in-app undo and removes the property from active Dashboard navigation. Related historical records may no longer be reachable through the normal property workflow. Contact Afterlight support before removal when the organization needs a transition or retention plan. Short-term rental property information uses its dedicated access-management workflow instead of this removal control.
+Removal has no in-app undo and removes the property from active Dashboard navigation. A property with assignments, inspections, invoices, route runs, reporting snapshots, invitations, resource deployments, communications, or uploaded financial records cannot be removed through this control. Contact Afterlight support when the organization needs a transition or retention plan for a property with retained history. Short-term rental property information uses its dedicated access-management workflow instead of this removal control.
 
 ## If something goes wrong
 
@@ -77,6 +78,8 @@ Removal has no in-app undo and removes the property from active Dashboard naviga
 - **The Scheduler says the suggested amount is not configured:** Enter and save a Suggested amount in commercial Billing settings.
 - **An AP email fails:** Verify the property's AP method and destination, save the correction, and retry from the invoice review workflow.
 - **A fulfillment option has no eligible user:** Confirm the user or Afterlight resource is active and eligible for that property and date.
-- **A removed property is needed again:** Stop creating replacement records with the same name and contact Afterlight support to review the retained data and safest recovery path.
+- **Property removal is blocked:** Review each linked-record category in the dialog. Remove active route membership and resolve operational records; contact Afterlight support when retained history prevents removal.
+- **Administrative verification fails:** Confirm that the organization administrative action passkey is current. The dialog keeps the actual verification response visible so it can be distinguished from a linked-record conflict.
+- **A removed property is needed again:** Contact Afterlight support before creating replacement records with the same name so the original removal audit can be reviewed.
 
 [Back to the knowledge base](README.md)
